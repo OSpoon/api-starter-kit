@@ -1,0 +1,288 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --font-sans:
+    'Anthropic Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-display: 'Anthropic Serif', Georgia, 'Times New Roman', serif;
+  --font-mono: 'Anthropic Mono', ui-monospace, 'JetBrains Mono', Menlo, 'SF Mono', monospace;
+}
+
+/* ──────────────────────────────────────────────────────────────
+ * Design System: Claude (Anthropic)
+ *
+ * Warm parchment canvas, terracotta accent, exclusively warm-toned
+ * neutrals — no cool blue-grays. Typographic identity: serif for
+ * headings, sans for UI.
+ *
+ * Tokens derived from Claude design standards:
+ *   --background:  #f5f4ed (parchment)
+ *   --accent:      #c96442 (terracotta)
+ *   --fg:          #141413 (near black, warmest "black")
+ *   All grays carry yellow-brown undertones.
+ * ────────────────────────────────────────────────────────────── */
+
+:root {
+  --radius: 0.75rem;
+
+  /* Surface — 3 warm layers */
+  --background: oklch(0.96 0.008 90); /* #f5f4ed parchment — never white */
+  --foreground: oklch(0.145 0.005 85); /* #141413 near black */
+  --card: oklch(0.98 0.005 80); /* #faf9f5 ivory */
+  --card-foreground: oklch(0.145 0.005 85);
+  --popover: oklch(0.98 0.005 80);
+  --popover-foreground: oklch(0.145 0.005 85);
+
+  /* Primary — near black default button */
+  --primary: oklch(0.145 0.005 85);
+  --primary-foreground: oklch(0.98 0.005 80);
+
+  /* Secondary — warm sand */
+  --secondary: oklch(0.93 0.01 85); /* #e8e6dc warm sand */
+  --secondary-foreground: oklch(0.37 0.01 85); /* #4d4c48 charcoal warm */
+
+  /* Muted — cream border surface */
+  --muted: oklch(0.95 0.008 90); /* #f0eee6 border cream */
+  --muted-foreground: oklch(0.58 0.01 80); /* #87867f stone gray */
+
+  /* Accent — terracotta, the only chromatic element */
+  --accent: oklch(0.58 0.12 40); /* #c96442 terracotta */
+  --accent-foreground: oklch(0.98 0.005 80);
+
+  /* Semantic — warm red error */
+  --destructive: oklch(0.5 0.18 25); /* #b53333 error crimson */
+  --destructive-foreground: oklch(0.98 0.005 80);
+
+  /* Borders & inputs — cream-tinted */
+  --border: oklch(0.95 0.008 90); /* #f0eee6 border cream */
+  --input: oklch(0.93 0.01 85); /* #e8e6dc warm sand */
+  --ring: oklch(0.84 0.01 85); /* #d1cfc5 ring warm */
+
+  /* Chart colors — warm monitoring palette */
+  --chart-1: oklch(0.58 0.12 40); /* terracotta — primary series */
+  --chart-2: oklch(0.65 0.1 55); /* coral — secondary series */
+  --chart-3: oklch(0.5 0.04 120); /* muted olive — success series */
+  --chart-4: oklch(0.7 0.08 60); /* warm amber — alert series */
+  --chart-5: oklch(0.45 0.06 30); /* deep warm — tertiary */
+
+  /* Sidebar — elevated ivory */
+  --sidebar: oklch(0.98 0.005 80);
+  --sidebar-foreground: oklch(0.37 0.01 85);
+  --sidebar-primary: oklch(0.145 0.005 85);
+  --sidebar-primary-foreground: oklch(0.98 0.005 80);
+  --sidebar-accent: oklch(0.93 0.01 85);
+  --sidebar-accent-foreground: oklch(0.145 0.005 85);
+  --sidebar-border: oklch(0.95 0.008 90);
+  --sidebar-ring: oklch(0.84 0.01 85);
+}
+
+.dark {
+  /* Surface */
+  --background: oklch(0.145 0.005 85); /* near black canvas */
+  --foreground: oklch(0.98 0.005 80); /* ivory text */
+  --card: oklch(0.2 0.005 85); /* warm dark surface */
+  --card-foreground: oklch(0.98 0.005 80);
+  --popover: oklch(0.2 0.005 85);
+  --popover-foreground: oklch(0.98 0.005 80);
+
+  /* Primary — ivory button on dark */
+  --primary: oklch(0.98 0.005 80);
+  --primary-foreground: oklch(0.145 0.005 85);
+
+  /* Secondary */
+  --secondary: oklch(0.2 0.005 85);
+  --secondary-foreground: oklch(0.74 0.01 85); /* warm silver */
+
+  /* Muted */
+  --muted: oklch(0.2 0.005 85);
+  --muted-foreground: oklch(0.58 0.01 80);
+
+  /* Accent — terracotta stays across themes */
+  --accent: oklch(0.58 0.12 40);
+  --accent-foreground: oklch(0.98 0.005 80);
+
+  /* Semantic */
+  --destructive: oklch(0.55 0.18 25);
+  --destructive-foreground: oklch(0.98 0.005 80);
+
+  /* Borders — semi-transparent white reads as structure, not noise */
+  --border: oklch(1 0 0 / 8%);
+  --input: oklch(1 0 0 / 12%);
+  --ring: oklch(0.74 0.01 85);
+
+  /* Chart colors — brighter on dark */
+  --chart-1: oklch(0.65 0.14 40); /* terracotta */
+  --chart-2: oklch(0.72 0.12 55); /* coral */
+  --chart-3: oklch(0.55 0.06 120); /* olive */
+  --chart-4: oklch(0.78 0.1 60); /* amber */
+  --chart-5: oklch(0.52 0.08 30); /* deep warm */
+
+  /* Sidebar — dark warm */
+  --sidebar: oklch(0.17 0.005 85);
+  --sidebar-foreground: oklch(0.74 0.01 85);
+  --sidebar-primary: oklch(0.98 0.005 80);
+  --sidebar-primary-foreground: oklch(0.145 0.005 85);
+  --sidebar-accent: oklch(0.22 0.005 85);
+  --sidebar-accent-foreground: oklch(0.98 0.005 80);
+  --sidebar-border: oklch(1 0 0 / 6%);
+  --sidebar-ring: oklch(1 0 0 / 12%);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family:
+      'Anthropic Sans',
+      system-ui,
+      -apple-system,
+      BlinkMacSystemFont,
+      'Segoe UI',
+      sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Typography: serif display for headings — Claude's editorial identity */
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: 'Anthropic Serif', Georgia, 'Times New Roman', serif;
+    font-weight: 500;
+  }
+
+  h1 {
+    font-size: 1.75rem;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+  }
+
+  h2 {
+    font-size: 1.375rem;
+    line-height: 1.25;
+    letter-spacing: -0.01em;
+  }
+
+  h3 {
+    font-size: 1.125rem;
+    line-height: 1.3;
+    letter-spacing: 0em;
+  }
+
+  /* Generous body line-height for a literary reading experience */
+  p {
+    line-height: 1.6;
+  }
+
+  /* Letter-spacing craft rules */
+  label,
+  .text-xs,
+  .text-sm {
+    letter-spacing: 0.02em;
+  }
+
+  /* Code blocks */
+  code,
+  pre,
+  kbd,
+  .font-mono {
+    font-family: 'Anthropic Mono', ui-monospace, 'JetBrains Mono', Menlo, 'SF Mono', monospace;
+  }
+
+  /* Scrollbar — warm Claude tones, compact 6px */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: oklch(0.88 0.008 90); /* warm cream — between border and muted */
+    border-radius: 6px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: oklch(0.78 0.008 90); /* deeper warm on hover */
+  }
+
+  /* Firefox */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: oklch(0.88 0.008 90) transparent;
+  }
+}
+
+/* Theme variants — adapted to Claude's warm color vocabulary.
+   These keep the same class names for backward compatibility
+   but now express warm tonal shifts instead of cold tech hues. */
+.theme-red {
+  --primary: oklch(0.58 0.12 40); /* terracotta */
+  --primary-foreground: oklch(0.98 0.005 80);
+  --ring: oklch(0.58 0.12 40);
+}
+
+.theme-blue {
+  --primary: oklch(0.145 0.005 85); /* near black */
+  --primary-foreground: oklch(0.98 0.005 80);
+  --ring: oklch(0.37 0.01 85);
+}
+
+.theme-green {
+  --primary: oklch(0.5 0.04 120); /* muted olive */
+  --primary-foreground: oklch(0.98 0.005 80);
+  --ring: oklch(0.5 0.04 120);
+}
+
+.theme-orange {
+  --primary: oklch(0.65 0.1 55); /* coral accent */
+  --primary-foreground: oklch(0.98 0.005 80);
+  --ring: oklch(0.65 0.1 55);
+}
+
+.theme-violet {
+  --primary: oklch(0.45 0.08 310); /* warm plum */
+  --primary-foreground: oklch(0.98 0.005 80);
+  --ring: oklch(0.45 0.08 310);
+}

@@ -1,0 +1,33 @@
+# Dependencies
+node_modules
+.pnpm-store
+
+# Build outputs
+build
+dist
+.turbo
+
+# Secrets
+.env
+.env.local
+.env.production.local
+.env.development.local
+
+# Temp files
+/tmp
+.eslintcache
+
+# Logs
+npm-debug.log
+yarn-error.log
+*.log
+
+# Editors
+.fleet
+.idea
+
+# Platform specific
+.DS_Store
+
+# Frontend compiled assets
+public/assets
