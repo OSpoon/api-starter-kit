@@ -1,0 +1,195 @@
+<script setup lang="ts">
+import { Maximize2Icon, Minimize2Icon } from '@lucide/vue'
+import { ref, watch } from 'vue'
+
+import {
+  createSchemaStore,
+  provideSchemaStore,
+} from '@/components/json-schema/hooks/useSchemaStore.ts'
+import { useTranslation } from '@/components/json-schema/hooks/useTranslation.ts'
+import { cn } from '@/components/json-schema/lib/utils.ts'
+import type { JSONSchema } from '@/components/json-schema/types/jsonSchema.ts'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+
+import JsonSchemaVisualizer from './JsonSchemaVisualizer.vue'
+import SchemaVisualEditor from './SchemaVisualEditor.vue'
+
+export interface JsonSchemaEditorProps {
+  schema?: JSONSchema
+  readOnly?: boolean
+  showJsonEditor?: boolean
+  showFullscreen?: boolean
+  class?: string
+}
+
+const props = withDefaults(defineProps<JsonSchemaEditorProps>(), {
+  schema: () => ({ type: 'object' }),
+  readOnly: false,
+  showJsonEditor: true,
+  showFullscreen: true,
+})
+
+const emit = defineEmits<{ 'update:schema': [schema: JSONSchema] }>()
+
+const t = useTranslation()
+
+let skipNextWatch = false
+let pendingEmit: ReturnType<typeof setTimeout> | null = null
+let lastEmittedJson = JSON.stringify(props.schema)
+
+const store = createSchemaStore(props.schema, (newSchema) => {
+  const json = JSON.stringify(newSchema)
+  if (json === lastEmittedJson) return
+  lastEmittedJson = json
+  if (pendingEmit !== null) clearTimeout(pendingEmit)
+  skipNextWatch = true
+  pendingEmit = setTimeout(() => {
+    pendingEmit = null
+    emit('update:schema', newSchema)
+    setTimeout(() => {
+      skipNextWatch = false
+    }, 0)
+  }, 0)
+})
+
+provideSchemaStore(store)
+
+watch(
+  () => props.schema,
+  (newSchema) => {
+    if (skipNextWatch) return
+    const json = JSON.stringify(newSchema)
+    if (json === lastEmittedJson) return
+    lastEmittedJson = json
+    store.replaceSchema(newSchema)
+  }
+)
+
+const isFullscreen = ref(false)
+const leftPanelWidth = ref(50)
+const containerRef = ref<HTMLDivElement | null>(null)
+const isDragging = ref(false)
+const activeTab = ref('visual')
+
+const toggleFullscreen = () => {
+  isFullscreen.value = !isFullscreen.value
+}
+
+const handleMouseDown = (e: MouseEvent) => {
+  e.preventDefault()
+  isDragging.value = true
+  document.addEventListener('mousemove', handleMouseMove)
+  document.addEventListener('mouseup', handleMouseUp)
+}
+
+const handleMouseMove = (e: MouseEvent) => {
+  if (!isDragging.value || !containerRef.value) return
+  const rect = containerRef.value.getBoundingClientRect()
+  const newWidth = ((e.clientX - rect.left) / rect.width) * 100
+  if (newWidth >= 20 && newWidth <= 80) leftPanelWidth.value = newWidth
+}
+
+const handleMouseUp = () => {
+  isDragging.value = false
+  document.removeEventListener('mousemove', handleMouseMove)
+  document.removeEventListener('mouseup', handleMouseUp)
+}
+</script>
+
+<template>
+  <div
+    :class="
+      cn(
+        'border border-border rounded-xl bg-card',
+        isFullscreen ? 'fixed inset-0 z-50 m-2' : 'w-full',
+        props.class
+      )
+    "
+  >
+    <!-- Visual-only mode -->
+    <template v-if="!showJsonEditor">
+      <div :class="cn('w-full flex flex-col', isFullscreen ? 'h-full' : 'h-[500px]')">
+        <div class="flex items-center justify-between px-4 py-3 border-b w-full shrink-0">
+          <h3 class="font-medium">{{ t.schemaEditorTitle }}</h3>
+          <button
+            v-if="showFullscreen"
+            type="button"
+            @click="toggleFullscreen"
+            class="p-1.5 rounded-md hover:bg-secondary transition-colors"
+          >
+            <Maximize2Icon v-if="!isFullscreen" class="size-4" />
+            <Minimize2Icon v-else class="size-4" />
+          </button>
+        </div>
+        <div class="grow min-h-0">
+          <SchemaVisualEditor :read-only="readOnly" />
+        </div>
+      </div>
+    </template>
+
+    <!-- Full mode with JSON editor -->
+    <template v-else>
+      <div class="block lg:hidden w-full">
+        <Tabs v-model="activeTab" class="w-full">
+          <div class="flex items-center justify-between px-4 py-3 border-b w-full">
+            <TabsList>
+              <TabsTrigger value="visual">{{ t.schemaEditorEditModeVisual }}</TabsTrigger>
+              <TabsTrigger value="json">{{ t.schemaEditorEditModeJson }}</TabsTrigger>
+            </TabsList>
+            <button
+              v-if="showFullscreen"
+              type="button"
+              @click="toggleFullscreen"
+              class="p-1.5 rounded-md hover:bg-secondary transition-colors"
+            >
+              <Maximize2Icon v-if="!isFullscreen" class="size-4" />
+              <Minimize2Icon v-else class="size-4" />
+            </button>
+          </div>
+          <TabsContent
+            value="visual"
+            :class="cn('focus:outline-hidden w-full', isFullscreen ? 'h-full' : 'h-[400px]')"
+          >
+            <SchemaVisualEditor :read-only="readOnly" />
+          </TabsContent>
+          <TabsContent
+            value="json"
+            :class="cn('focus:outline-hidden w-full', isFullscreen ? 'h-full' : 'h-[400px]')"
+          >
+            <JsonSchemaVisualizer />
+          </TabsContent>
+        </Tabs>
+      </div>
+
+      <div
+        ref="containerRef"
+        :class="cn('hidden lg:flex lg:flex-col w-full', isFullscreen ? 'h-full' : 'h-[500px]')"
+      >
+        <div class="flex items-center justify-between px-4 py-3 border-b w-full shrink-0">
+          <h3 class="font-medium">{{ t.schemaEditorTitle }}</h3>
+          <button
+            v-if="showFullscreen"
+            type="button"
+            @click="toggleFullscreen"
+            class="p-1.5 rounded-md hover:bg-secondary transition-colors"
+          >
+            <Maximize2Icon v-if="!isFullscreen" class="size-4" />
+            <Minimize2Icon v-else class="size-4" />
+          </button>
+        </div>
+        <div class="flex flex-row w-full grow min-h-0">
+          <div class="h-full min-h-0 overflow-auto" :style="{ width: `${leftPanelWidth}%` }">
+            <SchemaVisualEditor :read-only="readOnly" />
+          </div>
+          <div
+            class="w-1 bg-border hover:bg-primary cursor-col-resize shrink-0"
+            @mousedown="handleMouseDown"
+          />
+          <div class="h-full min-h-0" :style="{ width: `${100 - leftPanelWidth}%` }">
+            <JsonSchemaVisualizer />
+          </div>
+        </div>
+      </div>
+    </template>
+  </div>
+</template>

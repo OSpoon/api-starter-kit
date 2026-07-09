@@ -5,6 +5,7 @@ import {
   Check,
   ChevronsUpDown,
   CircleHelp,
+  FileJson,
   Languages,
   LogOut,
 } from '@lucide/vue'
@@ -144,6 +145,10 @@ function setLocale(newLocale: string) {
                 <DropdownMenuItem @click="navigateTo('/docs')">
                   <BookOpenText />
                   {{ t('nav.api_docs') }}
+                </DropdownMenuItem>
+                <DropdownMenuItem @click="navigateTo('/schema-builder')">
+                  <FileJson />
+                  {{ t('nav.schema_builder') }}
                 </DropdownMenuItem>
               </DropdownMenuSubContent>
             </DropdownMenuSub>
