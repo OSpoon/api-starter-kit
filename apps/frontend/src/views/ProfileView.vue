@@ -4,6 +4,8 @@ import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { toast } from 'vue-sonner'
 
+import SegmentedCodeInput from '@/components/common/SegmentedCodeInput.vue'
+import DescriptionActionRow from '@/components/common/DescriptionActionRow.vue'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -15,7 +17,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
 import { disable2fa, enable2fa, generate2fa } from '@/lib/account-api'
@@ -161,15 +162,16 @@ onMounted(async () => {
         <CardDescription>{{ t('profile.security_desc') }}</CardDescription>
       </CardHeader>
       <CardContent class="space-y-6">
-        <div class="flex items-center justify-between gap-4">
-          <div>
-            <div class="font-medium">{{ t('profile.password_title') }}</div>
-            <p class="text-sm text-muted-foreground">{{ t('profile.password_hint') }}</p>
-          </div>
-          <Button variant="outline" @click="router.push('/change-password')">
-            {{ t('profile.change_password') }}
-          </Button>
-        </div>
+        <DescriptionActionRow
+          :title="t('profile.password_title')"
+          :description="t('profile.password_hint')"
+        >
+          <template #action>
+            <Button variant="outline" @click="router.push('/change-password')">
+              {{ t('profile.change_password') }}
+            </Button>
+          </template>
+        </DescriptionActionRow>
 
         <div class="rounded-lg border bg-muted/40 p-4">
           <div class="flex items-start justify-between gap-4">
@@ -193,18 +195,23 @@ onMounted(async () => {
 
         <Separator />
 
-        <div class="flex items-center justify-between gap-4">
-          <div>
-            <div class="font-medium">{{ t('profile.two_factor_title') }}</div>
-            <p class="text-sm text-muted-foreground">{{ t('profile.two_factor_hint') }}</p>
-          </div>
-          <Button v-if="!auth.user?.twoFactorEnabled" :disabled="isLoading" @click="startEnable2FA">
-            {{ t('profile.two_factor_enable') }}
-          </Button>
-          <Button v-else variant="destructive" :disabled="isLoading" @click="handleDisableClick">
-            {{ t('profile.disable_2fa') }}
-          </Button>
-        </div>
+        <DescriptionActionRow
+          :title="t('profile.two_factor_title')"
+          :description="t('profile.two_factor_hint')"
+        >
+          <template #action>
+            <Button
+              v-if="!auth.user?.twoFactorEnabled"
+              :disabled="isLoading"
+              @click="startEnable2FA"
+            >
+              {{ t('profile.two_factor_enable') }}
+            </Button>
+            <Button v-else variant="destructive" :disabled="isLoading" @click="handleDisableClick">
+              {{ t('profile.disable_2fa') }}
+            </Button>
+          </template>
+        </DescriptionActionRow>
       </CardContent>
     </Card>
 
@@ -241,16 +248,7 @@ onMounted(async () => {
           </div>
           <div class="flex w-full max-w-xs flex-col items-center space-y-2">
             <Label for="enable-code">{{ t('auth.2fa_code') }}</Label>
-            <InputOTP id="enable-code" v-model="enableCode" :maxlength="6">
-              <InputOTPGroup>
-                <InputOTPSlot :index="0" />
-                <InputOTPSlot :index="1" />
-                <InputOTPSlot :index="2" />
-                <InputOTPSlot :index="3" />
-                <InputOTPSlot :index="4" />
-                <InputOTPSlot :index="5" />
-              </InputOTPGroup>
-            </InputOTP>
+            <SegmentedCodeInput id="enable-code" v-model="enableCode" />
           </div>
         </div>
         <DialogFooter>

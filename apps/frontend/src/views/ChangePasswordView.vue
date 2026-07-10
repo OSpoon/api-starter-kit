@@ -4,9 +4,9 @@ import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { toast } from 'vue-sonner'
 
+import CardPageShell from '@/components/common/CardPageShell.vue'
 import PasswordStrength from '@/components/PasswordStrength.vue'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { validatePasswordChange } from '@/lib/change-password-form'
@@ -65,59 +65,51 @@ async function handleSubmit() {
 </script>
 
 <template>
-  <main class="flex min-h-svh items-center justify-center bg-muted p-6">
-    <Card class="w-full max-w-md">
-      <CardHeader>
-        <CardTitle>{{ t('change_password.title') }}</CardTitle>
-        <CardDescription v-if="isExpired" class="text-destructive">
-          {{ t('change_password.expired_desc') }}
-        </CardDescription>
-        <CardDescription v-else>
-          {{ t('change_password.desc') }}
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form @submit.prevent="handleSubmit">
-          <FieldGroup>
-            <Field>
-              <FieldLabel for="currentPassword">{{ t('profile.current_password') }}</FieldLabel>
-              <Input
-                id="currentPassword"
-                v-model="currentPassword"
-                type="password"
-                required
-                :disabled="saving"
-              />
-            </Field>
-            <Field>
-              <FieldLabel for="newPassword">{{ t('profile.new_password') }}</FieldLabel>
-              <Input
-                id="newPassword"
-                v-model="newPassword"
-                type="password"
-                required
-                :disabled="saving"
-              />
-              <PasswordStrength :password="newPassword" :user-inputs="passwordUserInputs" />
-            </Field>
-            <Field>
-              <FieldLabel for="confirmPassword">{{ t('profile.confirm_password') }}</FieldLabel>
-              <Input
-                id="confirmPassword"
-                v-model="confirmPassword"
-                type="password"
-                required
-                :disabled="saving"
-              />
-            </Field>
-            <Field>
-              <Button type="submit" class="w-full" :disabled="saving">
-                {{ saving ? t('common.saving') : t('profile.change_password') }}
-              </Button>
-            </Field>
-          </FieldGroup>
-        </form>
-      </CardContent>
-    </Card>
-  </main>
+  <CardPageShell
+    :title="t('change_password.title')"
+    :description="isExpired ? t('change_password.expired_desc') : t('change_password.desc')"
+    :description-class="isExpired ? 'text-destructive' : undefined"
+    muted
+  >
+    <form @submit.prevent="handleSubmit">
+      <FieldGroup>
+        <Field>
+          <FieldLabel for="currentPassword">{{ t('profile.current_password') }}</FieldLabel>
+          <Input
+            id="currentPassword"
+            v-model="currentPassword"
+            type="password"
+            required
+            :disabled="saving"
+          />
+        </Field>
+        <Field>
+          <FieldLabel for="newPassword">{{ t('profile.new_password') }}</FieldLabel>
+          <Input
+            id="newPassword"
+            v-model="newPassword"
+            type="password"
+            required
+            :disabled="saving"
+          />
+          <PasswordStrength :password="newPassword" :user-inputs="passwordUserInputs" />
+        </Field>
+        <Field>
+          <FieldLabel for="confirmPassword">{{ t('profile.confirm_password') }}</FieldLabel>
+          <Input
+            id="confirmPassword"
+            v-model="confirmPassword"
+            type="password"
+            required
+            :disabled="saving"
+          />
+        </Field>
+        <Field>
+          <Button type="submit" class="w-full" :disabled="saving">
+            {{ saving ? t('common.saving') : t('profile.change_password') }}
+          </Button>
+        </Field>
+      </FieldGroup>
+    </form>
+  </CardPageShell>
 </template>

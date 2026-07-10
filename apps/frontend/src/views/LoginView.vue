@@ -4,11 +4,11 @@ import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { toast } from 'vue-sonner'
 
+import CardPageShell from '@/components/common/CardPageShell.vue'
+import SegmentedCodeInput from '@/components/common/SegmentedCodeInput.vue'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
-import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp'
 import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
@@ -83,80 +83,61 @@ function backToLogin() {
 </script>
 
 <template>
-  <main class="flex min-h-svh w-full items-center justify-center p-6 md:p-10">
-    <div class="w-full max-w-sm">
-      <Card>
-        <CardHeader>
-          <CardTitle>{{ t('auth.title') }}</CardTitle>
-          <CardDescription>
-            {{ isTwoFactorStep ? t('auth.desc_2fa') : t('auth.desc_default') }}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form @submit.prevent="handleSubmit">
-            <FieldGroup v-if="!isTwoFactorStep">
-              <Field>
-                <FieldLabel for="email">{{ t('auth.email') }}</FieldLabel>
-                <Input
-                  id="email"
-                  v-model="email"
-                  type="email"
-                  placeholder="m@example.com"
-                  autocomplete="email"
-                  required
-                  :disabled="auth.loading"
-                />
-              </Field>
-              <Field>
-                <FieldLabel for="password">{{ t('auth.password') }}</FieldLabel>
-                <Input
-                  id="password"
-                  v-model="password"
-                  type="password"
-                  autocomplete="current-password"
-                  required
-                  :disabled="auth.loading"
-                />
-              </Field>
-            </FieldGroup>
+  <CardPageShell
+    :title="t('auth.title')"
+    :description="isTwoFactorStep ? t('auth.desc_2fa') : t('auth.desc_default')"
+    max-width-class="max-w-sm"
+  >
+    <form @submit.prevent="handleSubmit">
+      <FieldGroup v-if="!isTwoFactorStep">
+        <Field>
+          <FieldLabel for="email">{{ t('auth.email') }}</FieldLabel>
+          <Input
+            id="email"
+            v-model="email"
+            type="email"
+            placeholder="m@example.com"
+            autocomplete="email"
+            required
+            :disabled="auth.loading"
+          />
+        </Field>
+        <Field>
+          <FieldLabel for="password">{{ t('auth.password') }}</FieldLabel>
+          <Input
+            id="password"
+            v-model="password"
+            type="password"
+            autocomplete="current-password"
+            required
+            :disabled="auth.loading"
+          />
+        </Field>
+      </FieldGroup>
 
-            <FieldGroup v-else>
-              <Field
-                class="flex flex-col items-center justify-center space-y-2 text-center [&>*]:w-auto"
-              >
-                <InputOTP id="code" v-model="twoFactorCode" :maxlength="6">
-                  <InputOTPGroup>
-                    <InputOTPSlot :index="0" />
-                    <InputOTPSlot :index="1" />
-                    <InputOTPSlot :index="2" />
-                    <InputOTPSlot :index="3" />
-                    <InputOTPSlot :index="4" />
-                    <InputOTPSlot :index="5" />
-                  </InputOTPGroup>
-                </InputOTP>
-              </Field>
-            </FieldGroup>
+      <FieldGroup v-else>
+        <Field class="flex flex-col items-center justify-center space-y-2 text-center [&>*]:w-auto">
+          <SegmentedCodeInput id="code" v-model="twoFactorCode" />
+        </Field>
+      </FieldGroup>
 
-            <div class="mt-4">
-              <Button type="submit" class="w-full" :disabled="auth.loading">
-                {{
-                  auth.loading
-                    ? t('auth.logging_in')
-                    : isTwoFactorStep
-                      ? t('auth.verify')
-                      : t('auth.login')
-                }}
-              </Button>
-            </div>
+      <div class="mt-4">
+        <Button type="submit" class="w-full" :disabled="auth.loading">
+          {{
+            auth.loading
+              ? t('auth.logging_in')
+              : isTwoFactorStep
+                ? t('auth.verify')
+                : t('auth.login')
+          }}
+        </Button>
+      </div>
 
-            <div v-if="isTwoFactorStep" class="mt-4 text-center">
-              <Button type="button" variant="link" size="sm" @click="backToLogin">
-                {{ t('auth.back_to_login') }}
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-    </div>
-  </main>
+      <div v-if="isTwoFactorStep" class="mt-4 text-center">
+        <Button type="button" variant="link" size="sm" @click="backToLogin">
+          {{ t('auth.back_to_login') }}
+        </Button>
+      </div>
+    </form>
+  </CardPageShell>
 </template>

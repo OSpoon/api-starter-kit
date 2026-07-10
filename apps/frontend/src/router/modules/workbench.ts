@@ -4,7 +4,7 @@ import type { RouteRecordRaw } from 'vue-router'
 export const workbenchRoutes: RouteRecordRaw[] = [
   {
     path: '/',
-    component: () => import('@/layouts/WorkbenchLayout.vue'),
+    component: () => import('@/layouts/AppLayout.vue'),
     meta: { requiresAuth: true },
     children: [
       {
