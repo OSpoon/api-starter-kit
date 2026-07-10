@@ -39,4 +39,9 @@ export default await Env.create(new URL('../', import.meta.url), {
 
   // CORS
   CORS_ORIGIN: Env.schema.string.optional(),
+
+  // AI
+  AI_OPENAI_API_KEY: Env.schema.string.optional(),
+  AI_OPENAI_BASE_URL: Env.schema.string.optional({ format: 'url', tld: false }),
+  AI_OPENAI_MODEL: Env.schema.string.optional(),
 })

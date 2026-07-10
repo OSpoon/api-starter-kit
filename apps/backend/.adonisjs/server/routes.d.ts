@@ -20,6 +20,11 @@ export type ScannedRoutes = {
     'api_keys.store': { paramsTuple?: []; params?: {} }
     'api_keys.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'api_keys.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'ai_chat.index': { paramsTuple?: []; params?: {} }
+    'ai_chat.store': { paramsTuple?: []; params?: {} }
+    'ai_chat.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'ai_chat.send_message': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'ai_chat.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
   }
   GET: {
     'openapi.html': { paramsTuple?: []; params?: {} }
@@ -27,6 +32,8 @@ export type ScannedRoutes = {
     'openapi.yaml': { paramsTuple?: []; params?: {} }
     'profile.profile.show': { paramsTuple?: []; params?: {} }
     'api_keys.index': { paramsTuple?: []; params?: {} }
+    'ai_chat.index': { paramsTuple?: []; params?: {} }
+    'ai_chat.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
   }
   HEAD: {
     'openapi.html': { paramsTuple?: []; params?: {} }
@@ -34,6 +41,8 @@ export type ScannedRoutes = {
     'openapi.yaml': { paramsTuple?: []; params?: {} }
     'profile.profile.show': { paramsTuple?: []; params?: {} }
     'api_keys.index': { paramsTuple?: []; params?: {} }
+    'ai_chat.index': { paramsTuple?: []; params?: {} }
+    'ai_chat.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
   }
   POST: {
     'auth.new_account.store': { paramsTuple?: []; params?: {} }
@@ -44,6 +53,8 @@ export type ScannedRoutes = {
     'profile.profile.disable_two_factor': { paramsTuple?: []; params?: {} }
     'profile.access_tokens.destroy': { paramsTuple?: []; params?: {} }
     'api_keys.store': { paramsTuple?: []; params?: {} }
+    'ai_chat.store': { paramsTuple?: []; params?: {} }
+    'ai_chat.send_message': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
   }
   PUT: {
     'profile.profile.change_password': { paramsTuple?: []; params?: {} }
@@ -54,6 +65,7 @@ export type ScannedRoutes = {
   }
   DELETE: {
     'api_keys.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'ai_chat.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
   }
 }
 declare module '@adonisjs/core/types/http' {

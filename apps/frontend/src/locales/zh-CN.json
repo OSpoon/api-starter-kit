@@ -67,6 +67,8 @@
     "very_strong": "非常强"
   },
   "sidebar": {
+    "workbench": "工作台",
+    "dashboard": "仪表盘",
     "system": "系统管理",
     "api_keys": "API 密钥",
     "profile": "个人资料",
@@ -82,6 +84,37 @@
   },
   "footer": {
     "built_by": "由 {platform} 团队构建"
+  },
+  "ai_chat": {
+    "title": "AI 助手",
+    "welcome": "你好，我是 AI 助手。你可以询问当前系统的功能、API 接入或配置方式。",
+    "input_placeholder": "输入问题，Enter 发送，Shift + Enter 换行",
+    "thinking": "正在思考...",
+    "waiting": "等待响应...",
+    "new_chat": "新对话",
+    "history": "历史会话",
+    "no_history": "暂无历史会话",
+    "minimize": "最小化",
+    "demo_response": "已收到。当前组件已作为通用悬浮助手接入，后续可以通过 @send 事件连接真实 AI 服务。",
+    "suggestions": {
+      "api_keys": "如何管理 API 密钥？",
+      "openapi": "如何查看 OpenAPI 文档？",
+      "schema": "Schema 构建器可以做什么？"
+    }
+  },
+  "dashboard": {
+    "structure_title": "导航结构",
+    "structure_desc": "侧边栏分组、菜单项和面包屑均来自路由定义。",
+    "stats": {
+      "auth": "认证方式",
+      "api_keys": "API 密钥接口",
+      "routes": "已注册路由"
+    },
+    "checklist": {
+      "route_nav": "路由 meta 定义菜单分组和图标",
+      "openapi": "帮助菜单直达 OpenAPI 文档",
+      "schema_builder": "Schema 构建器作为工作台示例工具"
+    }
   },
   "api_keys": {
     "title": "API 密钥",

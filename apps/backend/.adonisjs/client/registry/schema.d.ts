@@ -199,4 +199,64 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/api_keys_controller').default['destroy']>>>
     }
   }
+  'ai_chat.index': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/ai-chat/conversations'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['index']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['index']>>>
+    }
+  }
+  'ai_chat.store': {
+    methods: ["POST"]
+    pattern: '/api/v1/ai-chat/conversations'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/ai_chat').createConversationValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/ai_chat').createConversationValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['store']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'ai_chat.show': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/ai-chat/conversations/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['show']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['show']>>>
+    }
+  }
+  'ai_chat.send_message': {
+    methods: ["POST"]
+    pattern: '/api/v1/ai-chat/conversations/:id/messages'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/ai_chat').sendAiChatMessageValidator)>>
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/ai_chat').sendAiChatMessageValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['sendMessage']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['sendMessage']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'ai_chat.destroy': {
+    methods: ["DELETE"]
+    pattern: '/api/v1/ai-chat/conversations/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['destroy']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['destroy']>>>
+    }
+  }
 }

@@ -2,6 +2,10 @@ import { BaseSchema } from '@adonisjs/lucid/schema'
 
 export default class extends BaseSchema {
   async up() {
+    if (await this.schema.hasTable('api_keys')) {
+      return
+    }
+
     this.schema.createTable('api_keys', (table) => {
       table.increments('id')
 
@@ -23,6 +27,6 @@ export default class extends BaseSchema {
   }
 
   async down() {
-    this.schema.dropTable('api_keys')
+    this.schema.dropTableIfExists('api_keys')
   }
 }

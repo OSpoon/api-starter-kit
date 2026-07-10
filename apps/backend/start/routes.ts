@@ -5,6 +5,7 @@ import { controllers } from '#generated/controllers'
 import { middleware } from '#start/kernel'
 
 const ApiKeysController = () => import('#controllers/api_keys_controller')
+const AiChatController = () => import('#controllers/ai_chat_controller')
 const TwoFactorAuthController = () => import('#controllers/two_factor_auth_controller')
 
 router.get('/api/v1/health', () => {
@@ -46,6 +47,17 @@ router
           .apiOnly()
           .only(['index', 'store', 'update', 'destroy'])
       })
+      .use(middleware.auth())
+
+    router
+      .group(() => {
+        router.get('conversations', [AiChatController, 'index'])
+        router.post('conversations', [AiChatController, 'store'])
+        router.get('conversations/:id', [AiChatController, 'show'])
+        router.post('conversations/:id/messages', [AiChatController, 'sendMessage'])
+        router.delete('conversations/:id', [AiChatController, 'destroy'])
+      })
+      .prefix('ai-chat')
       .use(middleware.auth())
   })
   .prefix('/api/v1')

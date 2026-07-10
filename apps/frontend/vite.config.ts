@@ -19,7 +19,7 @@ export default defineConfig({
     port: 18080,
     host: true,
     proxy: {
-      '/api': {
+      '/api/v1': {
         target: apiProxyTarget,
         changeOrigin: true,
       },

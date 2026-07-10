@@ -4,16 +4,34 @@ export default class extends BaseSchema {
   protected tableName = 'users'
 
   async up() {
-    this.schema.alterTable(this.tableName, (table) => {
-      table.text('two_factor_secret').nullable()
-      table.text('two_factor_recovery_codes').nullable()
-    })
+    const hasTwoFactorSecret = await this.schema.hasColumn(this.tableName, 'two_factor_secret')
+    const hasRecoveryCodes = await this.schema.hasColumn(this.tableName, 'two_factor_recovery_codes')
+
+    if (!hasTwoFactorSecret || !hasRecoveryCodes) {
+      this.schema.alterTable(this.tableName, (table) => {
+        if (!hasTwoFactorSecret) {
+          table.text('two_factor_secret').nullable()
+        }
+        if (!hasRecoveryCodes) {
+          table.text('two_factor_recovery_codes').nullable()
+        }
+      })
+    }
   }
 
   async down() {
-    this.schema.alterTable(this.tableName, (table) => {
-      table.dropColumn('two_factor_secret')
-      table.dropColumn('two_factor_recovery_codes')
-    })
+    const hasTwoFactorSecret = await this.schema.hasColumn(this.tableName, 'two_factor_secret')
+    const hasRecoveryCodes = await this.schema.hasColumn(this.tableName, 'two_factor_recovery_codes')
+
+    if (hasTwoFactorSecret || hasRecoveryCodes) {
+      this.schema.alterTable(this.tableName, (table) => {
+        if (hasTwoFactorSecret) {
+          table.dropColumn('two_factor_secret')
+        }
+        if (hasRecoveryCodes) {
+          table.dropColumn('two_factor_recovery_codes')
+        }
+      })
+    }
   }
 }

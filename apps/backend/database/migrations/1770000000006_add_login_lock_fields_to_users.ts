@@ -4,16 +4,40 @@ export default class extends BaseSchema {
   protected tableName = 'users'
 
   async up() {
-    this.schema.alterTable(this.tableName, (table) => {
-      table.integer('failed_login_attempts').notNullable().defaultTo(0)
-      table.timestamp('locked_until').nullable()
-    })
+    const hasFailedLoginAttempts = await this.schema.hasColumn(
+      this.tableName,
+      'failed_login_attempts'
+    )
+    const hasLockedUntil = await this.schema.hasColumn(this.tableName, 'locked_until')
+
+    if (!hasFailedLoginAttempts || !hasLockedUntil) {
+      this.schema.alterTable(this.tableName, (table) => {
+        if (!hasFailedLoginAttempts) {
+          table.integer('failed_login_attempts').notNullable().defaultTo(0)
+        }
+        if (!hasLockedUntil) {
+          table.timestamp('locked_until').nullable()
+        }
+      })
+    }
   }
 
   async down() {
-    this.schema.alterTable(this.tableName, (table) => {
-      table.dropColumn('failed_login_attempts')
-      table.dropColumn('locked_until')
-    })
+    const hasFailedLoginAttempts = await this.schema.hasColumn(
+      this.tableName,
+      'failed_login_attempts'
+    )
+    const hasLockedUntil = await this.schema.hasColumn(this.tableName, 'locked_until')
+
+    if (hasFailedLoginAttempts || hasLockedUntil) {
+      this.schema.alterTable(this.tableName, (table) => {
+        if (hasFailedLoginAttempts) {
+          table.dropColumn('failed_login_attempts')
+        }
+        if (hasLockedUntil) {
+          table.dropColumn('locked_until')
+        }
+      })
+    }
   }
 }

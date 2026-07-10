@@ -4,6 +4,10 @@ export default class extends BaseSchema {
   protected tableName = 'auth_access_tokens'
 
   async up() {
+    if (await this.schema.hasTable(this.tableName)) {
+      return
+    }
+
     this.schema.createTable(this.tableName, (table) => {
       table.increments('id')
       table
@@ -26,6 +30,6 @@ export default class extends BaseSchema {
   }
 
   async down() {
-    this.schema.dropTable(this.tableName)
+    this.schema.dropTableIfExists(this.tableName)
   }
 }

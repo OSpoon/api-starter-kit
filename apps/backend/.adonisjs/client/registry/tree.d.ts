@@ -38,4 +38,11 @@ export interface ApiDefinition {
     update: typeof routes['api_keys.update']
     destroy: typeof routes['api_keys.destroy']
   }
+  aiChat: {
+    index: typeof routes['ai_chat.index']
+    store: typeof routes['ai_chat.store']
+    show: typeof routes['ai_chat.show']
+    sendMessage: typeof routes['ai_chat.send_message']
+    destroy: typeof routes['ai_chat.destroy']
+  }
 }

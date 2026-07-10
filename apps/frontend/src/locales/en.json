@@ -67,6 +67,8 @@
     "very_strong": "Very strong"
   },
   "sidebar": {
+    "workbench": "Workbench",
+    "dashboard": "Dashboard",
     "system": "System",
     "api_keys": "API Keys",
     "profile": "Profile",
@@ -82,6 +84,37 @@
   },
   "footer": {
     "built_by": "Built with care by the {platform} team"
+  },
+  "ai_chat": {
+    "title": "AI Assistant",
+    "welcome": "Hi, I am the AI assistant. Ask about system features, API integration, or configuration.",
+    "input_placeholder": "Type a question. Enter to send, Shift + Enter for a new line",
+    "thinking": "Thinking...",
+    "waiting": "Waiting for response...",
+    "new_chat": "New chat",
+    "history": "History",
+    "no_history": "No history yet",
+    "minimize": "Minimize",
+    "demo_response": "Received. This component is now available as a reusable floating assistant and can be connected to a real AI service through the @send event.",
+    "suggestions": {
+      "api_keys": "How do I manage API keys?",
+      "openapi": "How do I view OpenAPI docs?",
+      "schema": "What can the Schema Builder do?"
+    }
+  },
+  "dashboard": {
+    "structure_title": "Navigation structure",
+    "structure_desc": "Sidebar groups, menu items, and breadcrumbs are all derived from route definitions.",
+    "stats": {
+      "auth": "Auth mode",
+      "api_keys": "API key endpoints",
+      "routes": "Registered routes"
+    },
+    "checklist": {
+      "route_nav": "Route meta defines menu groups and icons",
+      "openapi": "Help menu links directly to OpenAPI docs",
+      "schema_builder": "Schema Builder acts as a sample workbench tool"
+    }
   },
   "api_keys": {
     "title": "API Access",

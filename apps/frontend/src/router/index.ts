@@ -43,7 +43,7 @@ router.beforeEach(async (to) => {
   }
 
   if (to.meta.guestOnly && auth.isAuthenticated) {
-    return { name: 'api-keys' }
+    return { name: 'dashboard' }
   }
 })
 

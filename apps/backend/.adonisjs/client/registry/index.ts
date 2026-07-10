@@ -102,6 +102,36 @@ const routes = {
     tokens: [{"old":"/api/v1/api-keys/:id","type":0,"val":"api","end":""},{"old":"/api/v1/api-keys/:id","type":0,"val":"v1","end":""},{"old":"/api/v1/api-keys/:id","type":0,"val":"api-keys","end":""},{"old":"/api/v1/api-keys/:id","type":1,"val":"id","end":""}],
     types: placeholder as Registry['api_keys.destroy']['types'],
   },
+  'ai_chat.index': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/v1/ai-chat/conversations',
+    tokens: [{"old":"/api/v1/ai-chat/conversations","type":0,"val":"api","end":""},{"old":"/api/v1/ai-chat/conversations","type":0,"val":"v1","end":""},{"old":"/api/v1/ai-chat/conversations","type":0,"val":"ai-chat","end":""},{"old":"/api/v1/ai-chat/conversations","type":0,"val":"conversations","end":""}],
+    types: placeholder as Registry['ai_chat.index']['types'],
+  },
+  'ai_chat.store': {
+    methods: ["POST"],
+    pattern: '/api/v1/ai-chat/conversations',
+    tokens: [{"old":"/api/v1/ai-chat/conversations","type":0,"val":"api","end":""},{"old":"/api/v1/ai-chat/conversations","type":0,"val":"v1","end":""},{"old":"/api/v1/ai-chat/conversations","type":0,"val":"ai-chat","end":""},{"old":"/api/v1/ai-chat/conversations","type":0,"val":"conversations","end":""}],
+    types: placeholder as Registry['ai_chat.store']['types'],
+  },
+  'ai_chat.show': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/v1/ai-chat/conversations/:id',
+    tokens: [{"old":"/api/v1/ai-chat/conversations/:id","type":0,"val":"api","end":""},{"old":"/api/v1/ai-chat/conversations/:id","type":0,"val":"v1","end":""},{"old":"/api/v1/ai-chat/conversations/:id","type":0,"val":"ai-chat","end":""},{"old":"/api/v1/ai-chat/conversations/:id","type":0,"val":"conversations","end":""},{"old":"/api/v1/ai-chat/conversations/:id","type":1,"val":"id","end":""}],
+    types: placeholder as Registry['ai_chat.show']['types'],
+  },
+  'ai_chat.send_message': {
+    methods: ["POST"],
+    pattern: '/api/v1/ai-chat/conversations/:id/messages',
+    tokens: [{"old":"/api/v1/ai-chat/conversations/:id/messages","type":0,"val":"api","end":""},{"old":"/api/v1/ai-chat/conversations/:id/messages","type":0,"val":"v1","end":""},{"old":"/api/v1/ai-chat/conversations/:id/messages","type":0,"val":"ai-chat","end":""},{"old":"/api/v1/ai-chat/conversations/:id/messages","type":0,"val":"conversations","end":""},{"old":"/api/v1/ai-chat/conversations/:id/messages","type":1,"val":"id","end":""},{"old":"/api/v1/ai-chat/conversations/:id/messages","type":0,"val":"messages","end":""}],
+    types: placeholder as Registry['ai_chat.send_message']['types'],
+  },
+  'ai_chat.destroy': {
+    methods: ["DELETE"],
+    pattern: '/api/v1/ai-chat/conversations/:id',
+    tokens: [{"old":"/api/v1/ai-chat/conversations/:id","type":0,"val":"api","end":""},{"old":"/api/v1/ai-chat/conversations/:id","type":0,"val":"v1","end":""},{"old":"/api/v1/ai-chat/conversations/:id","type":0,"val":"ai-chat","end":""},{"old":"/api/v1/ai-chat/conversations/:id","type":0,"val":"conversations","end":""},{"old":"/api/v1/ai-chat/conversations/:id","type":1,"val":"id","end":""}],
+    types: placeholder as Registry['ai_chat.destroy']['types'],
+  },
 } as const satisfies Record<string, AdonisEndpoint>
 
 export { routes }
