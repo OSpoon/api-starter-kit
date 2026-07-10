@@ -13,12 +13,7 @@ const { t } = useI18n()
 const settingsStore = useSettingsStore()
 
 const breadcrumbs = computed(() => {
-  const routeName = route.name
   type Crumb = { label: string; to?: string }
-
-  if (routeName === 'docs') {
-    return [{ label: t('nav.api_docs') }] satisfies Crumb[]
-  }
 
   const title = (route.meta.title as string) || ''
   if (!title) {

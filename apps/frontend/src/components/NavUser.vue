@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import {
   BadgeCheck,
-  BookOpenText,
   Check,
   ChevronsUpDown,
   CircleHelp,
@@ -75,6 +74,11 @@ function navigateTo(path: string) {
   }, 0)
 }
 
+function openApiDocs() {
+  menuOpen.value = false
+  window.location.assign('/api-docs')
+}
+
 function handleLogout() {
   menuOpen.value = false
   emit('logout')
@@ -142,8 +146,8 @@ function setLocale(newLocale: string) {
                 <span>{{ t('nav.help') }}</span>
               </DropdownMenuSubTrigger>
               <DropdownMenuSubContent>
-                <DropdownMenuItem @click="navigateTo('/docs')">
-                  <BookOpenText />
+                <DropdownMenuItem @click="openApiDocs">
+                  <CircleHelp />
                   {{ t('nav.api_docs') }}
                 </DropdownMenuItem>
                 <DropdownMenuItem @click="navigateTo('/schema-builder')">

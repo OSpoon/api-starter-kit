@@ -75,7 +75,6 @@
   "nav": {
     "account": "账户",
     "api_docs": "API 集成文档",
-    "documentation": "文档",
     "help": "帮助",
     "language": "语言",
     "language_switched": "语言已切换",
@@ -89,9 +88,6 @@
     "desc": "为外部系统生成长期有效或限时访问令牌。",
     "keys_card_title": "我的 API 密钥",
     "keys_card_desc": "为外部系统生成长期有效或限时访问令牌。",
-    "doc_title": "API 集成开发文档",
-    "auth_title": "身份认证",
-    "auth_desc": "所有 API 请求必须在 Header 中携带 {header} 字段：",
     "name": "名称",
     "key": "密钥",
     "key_status": "状态",

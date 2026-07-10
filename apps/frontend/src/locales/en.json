@@ -75,7 +75,6 @@
   "nav": {
     "account": "Account",
     "api_docs": "API integration",
-    "documentation": "Documentation",
     "help": "Help",
     "language": "Language",
     "language_switched": "Language switched",
@@ -89,9 +88,6 @@
     "desc": "Generate long-lived or time-limited access tokens for external systems.",
     "keys_card_title": "My API keys",
     "keys_card_desc": "Generate long-lived or expiring access tokens for external systems.",
-    "doc_title": "API integration docs",
-    "auth_title": "Authentication",
-    "auth_desc": "All API requests must include a {header} header:",
     "name": "Name",
     "key": "Key",
     "key_status": "Status",

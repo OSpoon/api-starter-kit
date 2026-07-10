@@ -23,12 +23,6 @@ export const workbenchRoutes: RouteRecordRaw[] = [
         meta: { title: 'sidebar.profile' },
       },
       {
-        path: 'docs',
-        name: 'docs',
-        component: () => import('@/views/DocsView.vue'),
-        meta: { title: 'nav.api_docs' },
-      },
-      {
         path: 'schema-builder',
         name: 'schema-builder',
         component: () => import('@/views/SchemaBuilderDemo.vue'),

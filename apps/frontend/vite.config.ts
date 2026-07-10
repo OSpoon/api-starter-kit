@@ -5,6 +5,8 @@ import tailwindcss from '@tailwindcss/vite'
 import vue from '@vitejs/plugin-vue'
 import vueDevTools from 'vite-plugin-vue-devtools'
 
+const apiProxyTarget = process.env.VITE_DEV_API_PROXY_TARGET ?? 'http://localhost:13333'
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [vue(), vueDevTools(), tailwindcss()],
@@ -16,5 +18,15 @@ export default defineConfig({
   server: {
     port: 18080,
     host: true,
+    proxy: {
+      '/api': {
+        target: apiProxyTarget,
+        changeOrigin: true,
+      },
+      '/api-docs': {
+        target: apiProxyTarget,
+        changeOrigin: true,
+      },
+    },
   },
 })
