@@ -40,7 +40,20 @@ export class AiChatMessageSchema extends BaseModel {
 }
 
 export class ApiKeySchema extends BaseModel {
-  static $columns = ['createdAt', 'expiresAt', 'id', 'keyEncrypted', 'keyHash', 'lastUsedAt', 'name', 'prefix', 'revokedAt', 'scopes', 'systemCodes', 'updatedAt'] as const
+  static $columns = [
+    'createdAt',
+    'expiresAt',
+    'id',
+    'keyEncrypted',
+    'keyHash',
+    'lastUsedAt',
+    'name',
+    'prefix',
+    'revokedAt',
+    'scopes',
+    'systemCodes',
+    'updatedAt',
+  ] as const
   $columns = ApiKeySchema.$columns
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
@@ -69,7 +82,18 @@ export class ApiKeySchema extends BaseModel {
 }
 
 export class AuthAccessTokenSchema extends BaseModel {
-  static $columns = ['abilities', 'createdAt', 'expiresAt', 'hash', 'id', 'lastUsedAt', 'name', 'tokenableId', 'type', 'updatedAt'] as const
+  static $columns = [
+    'abilities',
+    'createdAt',
+    'expiresAt',
+    'hash',
+    'id',
+    'lastUsedAt',
+    'name',
+    'tokenableId',
+    'type',
+    'updatedAt',
+  ] as const
   $columns = AuthAccessTokenSchema.$columns
   @column()
   declare abilities: string
@@ -94,7 +118,14 @@ export class AuthAccessTokenSchema extends BaseModel {
 }
 
 export class EmbeddingSnapshotItemSchema extends BaseModel {
-  static $columns = ['contentHash', 'embeddedContent', 'embedding', 'id', 'menuItemId', 'snapshotId'] as const
+  static $columns = [
+    'contentHash',
+    'embeddedContent',
+    'embedding',
+    'id',
+    'menuItemId',
+    'snapshotId',
+  ] as const
   $columns = EmbeddingSnapshotItemSchema.$columns
   @column()
   declare contentHash: string
@@ -111,7 +142,23 @@ export class EmbeddingSnapshotItemSchema extends BaseModel {
 }
 
 export class EmbeddingSnapshotSchema extends BaseModel {
-  static $columns = ['createdAt', 'description', 'errorMessage', 'finishedAt', 'id', 'isCurrent', 'itemCount', 'itemsEmbedded', 'itemsTotal', 'label', 'startedAt', 'status', 'syncLogId', 'systemId', 'version'] as const
+  static $columns = [
+    'createdAt',
+    'description',
+    'errorMessage',
+    'finishedAt',
+    'id',
+    'isCurrent',
+    'itemCount',
+    'itemsEmbedded',
+    'itemsTotal',
+    'label',
+    'startedAt',
+    'status',
+    'syncLogId',
+    'systemId',
+    'version',
+  ] as const
   $columns = EmbeddingSnapshotSchema.$columns
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
@@ -146,7 +193,15 @@ export class EmbeddingSnapshotSchema extends BaseModel {
 }
 
 export class MenuEmbeddingSchema extends BaseModel {
-  static $columns = ['createdAt', 'embeddedAt', 'embeddedContent', 'embedding', 'id', 'menuItemId', 'updatedAt'] as const
+  static $columns = [
+    'createdAt',
+    'embeddedAt',
+    'embeddedContent',
+    'embedding',
+    'id',
+    'menuItemId',
+    'updatedAt',
+  ] as const
   $columns = MenuEmbeddingSchema.$columns
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
@@ -165,7 +220,24 @@ export class MenuEmbeddingSchema extends BaseModel {
 }
 
 export class MenuItemSchema extends BaseModel {
-  static $columns = ['contentHash', 'createdAt', 'description', 'externalUrl', 'icon', 'id', 'isActive', 'keywords', 'metadata', 'name', 'parentId', 'path', 'route', 'sortOrder', 'systemId', 'updatedAt'] as const
+  static $columns = [
+    'contentHash',
+    'createdAt',
+    'description',
+    'externalUrl',
+    'icon',
+    'id',
+    'isActive',
+    'keywords',
+    'metadata',
+    'name',
+    'parentId',
+    'path',
+    'route',
+    'sortOrder',
+    'systemId',
+    'updatedAt',
+  ] as const
   $columns = MenuItemSchema.$columns
   @column()
   declare contentHash: string
@@ -202,7 +274,15 @@ export class MenuItemSchema extends BaseModel {
 }
 
 export class NavigationDebugConversationSchema extends BaseModel {
-  static $columns = ['createdAt', 'id', 'systemCode', 'systemId', 'title', 'updatedAt', 'userId'] as const
+  static $columns = [
+    'createdAt',
+    'id',
+    'systemCode',
+    'systemId',
+    'title',
+    'updatedAt',
+    'userId',
+  ] as const
   $columns = NavigationDebugConversationSchema.$columns
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
@@ -221,7 +301,21 @@ export class NavigationDebugConversationSchema extends BaseModel {
 }
 
 export class NavigationDebugHistorySchema extends BaseModel {
-  static $columns = ['conversationId', 'createdAt', 'durationMs', 'errorMessage', 'httpStatus', 'id', 'includeExplanation', 'query', 'response', 'systemCode', 'systemId', 'topK', 'userId'] as const
+  static $columns = [
+    'conversationId',
+    'createdAt',
+    'durationMs',
+    'errorMessage',
+    'httpStatus',
+    'id',
+    'includeExplanation',
+    'query',
+    'response',
+    'systemCode',
+    'systemId',
+    'topK',
+    'userId',
+  ] as const
   $columns = NavigationDebugHistorySchema.$columns
   @column()
   declare conversationId: string | null
@@ -252,7 +346,17 @@ export class NavigationDebugHistorySchema extends BaseModel {
 }
 
 export class SystemSchema extends BaseModel {
-  static $columns = ['baseUrl', 'code', 'createdAt', 'description', 'id', 'isActive', 'metadata', 'name', 'updatedAt'] as const
+  static $columns = [
+    'baseUrl',
+    'code',
+    'createdAt',
+    'description',
+    'id',
+    'isActive',
+    'metadata',
+    'name',
+    'updatedAt',
+  ] as const
   $columns = SystemSchema.$columns
   @column()
   declare baseUrl: string
@@ -275,7 +379,20 @@ export class SystemSchema extends BaseModel {
 }
 
 export class UserSchema extends BaseModel {
-  static $columns = ['createdAt', 'email', 'failedLoginAttempts', 'fullName', 'id', 'lockedUntil', 'password', 'passwordChangedAt', 'twoFactorEnabled', 'twoFactorRecoveryCodes', 'twoFactorSecret', 'updatedAt'] as const
+  static $columns = [
+    'createdAt',
+    'email',
+    'failedLoginAttempts',
+    'fullName',
+    'id',
+    'lockedUntil',
+    'password',
+    'passwordChangedAt',
+    'twoFactorEnabled',
+    'twoFactorRecoveryCodes',
+    'twoFactorSecret',
+    'updatedAt',
+  ] as const
   $columns = UserSchema.$columns
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime

@@ -3,11 +3,11 @@ import { ApiOperation, ApiResponse, ApiSecurity } from '@foadonis/openapi/decora
 
 import AiChatConversation from '#models/ai_chat_conversation'
 import AiChatMessage from '#models/ai_chat_message'
-import { createDeepSeekChatCompletionStream } from '#services/deepseek_chat_service'
+import { createChatCompletionStream } from '#services/ai_chat_service'
 import {
   serializeAiChatConversation,
-  serializeAiChatMessage,
   serializeAiChatConversationWithMessages,
+  serializeAiChatMessage,
 } from '#transformers/ai_chat_transformer'
 import { createConversationValidator, sendAiChatMessageValidator } from '#validators/ai_chat'
 
@@ -72,7 +72,7 @@ export default class AiChatController {
 
   @ApiOperation({
     summary: '发送 AI 聊天消息',
-    description: '保存用户消息，调用 DeepSeek OpenAI 兼容接口，并保存助手回复。',
+    description: '保存用户消息，调用 OpenAI 兼容接口，并保存助手回复。',
   })
   @ApiResponse({ status: 200, description: '流式 AI 会话响应' })
   async sendMessage({ auth, params, request, response }: HttpContext) {
@@ -117,7 +117,7 @@ export default class AiChatController {
     let assistantContent = ''
 
     try {
-      const stream = await createDeepSeekChatCompletionStream(history)
+      const stream = await createChatCompletionStream(history)
 
       for await (const chunk of stream) {
         const delta = chunk.choices[0]?.delta?.content

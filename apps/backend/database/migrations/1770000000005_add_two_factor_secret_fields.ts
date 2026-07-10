@@ -5,7 +5,10 @@ export default class extends BaseSchema {
 
   async up() {
     const hasTwoFactorSecret = await this.schema.hasColumn(this.tableName, 'two_factor_secret')
-    const hasRecoveryCodes = await this.schema.hasColumn(this.tableName, 'two_factor_recovery_codes')
+    const hasRecoveryCodes = await this.schema.hasColumn(
+      this.tableName,
+      'two_factor_recovery_codes'
+    )
 
     if (!hasTwoFactorSecret || !hasRecoveryCodes) {
       this.schema.alterTable(this.tableName, (table) => {
@@ -21,7 +24,10 @@ export default class extends BaseSchema {
 
   async down() {
     const hasTwoFactorSecret = await this.schema.hasColumn(this.tableName, 'two_factor_secret')
-    const hasRecoveryCodes = await this.schema.hasColumn(this.tableName, 'two_factor_recovery_codes')
+    const hasRecoveryCodes = await this.schema.hasColumn(
+      this.tableName,
+      'two_factor_recovery_codes'
+    )
 
     if (hasTwoFactorSecret || hasRecoveryCodes) {
       this.schema.alterTable(this.tableName, (table) => {
