@@ -1,4 +1,4 @@
-import { Gauge, Key } from '@lucide/vue'
+import { ChartNoAxesCombined, Gauge, Key, ListTodo, PanelsTopLeft, Route } from '@lucide/vue'
 import type { RouteRecordRaw } from 'vue-router'
 
 export const workbenchRoutes: RouteRecordRaw[] = [
@@ -36,6 +36,37 @@ export const workbenchRoutes: RouteRecordRaw[] = [
             order: 10,
           },
         },
+      },
+      {
+        path: 'page-templates',
+        name: 'page-templates',
+        component: () => import('@/views/PageTemplatesView.vue'),
+        meta: {
+          title: 'sidebar.page_templates',
+          nav: {
+            group: 'sidebar.workbench',
+            icon: PanelsTopLeft,
+            order: 20,
+          },
+        },
+      },
+      {
+        path: 'workflow-template',
+        name: 'workflow-template',
+        component: () => import('@/views/WorkflowTemplateView.vue'),
+        meta: { title: 'sidebar.workflow_template', nav: { group: 'sidebar.templates', icon: ListTodo, order: 10 } },
+      },
+      {
+        path: 'analytics-template',
+        name: 'analytics-template',
+        component: () => import('@/views/AnalyticsTemplateView.vue'),
+        meta: { title: 'sidebar.analytics_template', nav: { group: 'sidebar.templates', icon: ChartNoAxesCombined, order: 20 } },
+      },
+      {
+        path: 'wizard-template',
+        name: 'wizard-template',
+        component: () => import('@/views/WizardTemplateView.vue'),
+        meta: { title: 'sidebar.wizard_template', nav: { group: 'sidebar.templates', icon: Route, order: 30 } },
       },
       {
         path: 'profile',

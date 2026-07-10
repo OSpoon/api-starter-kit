@@ -7,6 +7,7 @@
   --breakpoint-xs: 30rem;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
+  --color-border-soft: var(--border-soft);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-accent: var(--sidebar-accent);
   --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
@@ -79,8 +80,8 @@
   --secondary: oklch(0.93 0.01 85); /* #e8e6dc warm sand */
   --secondary-foreground: oklch(0.37 0.01 85); /* #4d4c48 charcoal warm */
 
-  /* Muted — cream border surface */
-  --muted: oklch(0.95 0.008 90); /* #f0eee6 border cream */
+  /* Muted — warm surface layer, between bg and border */
+  --muted: oklch(0.94 0.008 88);
   --muted-foreground: oklch(0.58 0.01 80); /* #87867f stone gray */
 
   /* Accent — terracotta, the only chromatic element */
@@ -91,8 +92,12 @@
   --destructive: oklch(0.5 0.18 25); /* #b53333 error crimson */
   --destructive-foreground: oklch(0.98 0.005 80);
 
-  /* Borders & inputs — cream-tinted */
-  --border: oklch(0.95 0.008 90); /* #f0eee6 border cream */
+  /* Borders & inputs — cream-tinted, 3 levels of containment.
+     --border   : standard (visible warm cream, ~5% ΔL from background)
+     --border-soft : emphasized (warm sand, for sections & dividers)
+     --input    : input-specific border (warm sand, same prominence as border-soft) */
+  --border: oklch(0.905 0.01 86);
+  --border-soft: oklch(0.87 0.012 84);
   --input: oklch(0.93 0.01 85); /* #e8e6dc warm sand */
   --ring: oklch(0.84 0.01 85); /* #d1cfc5 ring warm */
 
@@ -110,7 +115,7 @@
   --sidebar-primary-foreground: oklch(0.98 0.005 80);
   --sidebar-accent: oklch(0.93 0.01 85);
   --sidebar-accent-foreground: oklch(0.145 0.005 85);
-  --sidebar-border: oklch(0.95 0.008 90);
+  --sidebar-border: oklch(0.93 0.008 88);
   --sidebar-ring: oklch(0.84 0.01 85);
 }
 
@@ -131,8 +136,8 @@
   --secondary: oklch(0.2 0.005 85);
   --secondary-foreground: oklch(0.74 0.01 85); /* warm silver */
 
-  /* Muted */
-  --muted: oklch(0.2 0.005 85);
+  /* Muted — warm dark surface, lighter than card */
+  --muted: oklch(0.22 0.005 85);
   --muted-foreground: oklch(0.58 0.01 80);
 
   /* Accent — terracotta stays across themes */
@@ -144,8 +149,9 @@
   --destructive-foreground: oklch(0.98 0.005 80);
 
   /* Borders — semi-transparent white reads as structure, not noise */
-  --border: oklch(1 0 0 / 8%);
-  --input: oklch(1 0 0 / 12%);
+  --border: oklch(1 0 0 / 12%);
+  --border-soft: oklch(1 0 0 / 16%);
+  --input: oklch(1 0 0 / 14%);
   --ring: oklch(0.74 0.01 85);
 
   /* Chart colors — brighter on dark */
@@ -162,8 +168,8 @@
   --sidebar-primary-foreground: oklch(0.145 0.005 85);
   --sidebar-accent: oklch(0.22 0.005 85);
   --sidebar-accent-foreground: oklch(0.98 0.005 80);
-  --sidebar-border: oklch(1 0 0 / 6%);
-  --sidebar-ring: oklch(1 0 0 / 12%);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(1 0 0 / 14%);
 }
 
 @layer base {

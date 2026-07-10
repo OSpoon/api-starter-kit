@@ -69,6 +69,11 @@
   "sidebar": {
     "workbench": "工作台",
     "dashboard": "仪表盘",
+    "page_templates": "页面模板",
+    "templates": "业务模板",
+    "workflow_template": "任务流转",
+    "analytics_template": "数据分析",
+    "wizard_template": "分步引导",
     "system": "系统管理",
     "api_keys": "API 密钥",
     "profile": "个人资料",
@@ -124,6 +129,10 @@
       "openapi": "帮助菜单直达 OpenAPI 文档",
       "schema_builder": "Schema 构建器作为工作台示例工具"
     }
+  },
+  "page_templates": {
+    "title": "页面模板",
+    "desc": "基于现有设计 token 和 shadcn-vue 组件整理的可复用页面骨架。"
   },
   "api_keys": {
     "title": "API 密钥",

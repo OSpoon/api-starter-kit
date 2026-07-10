@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import PageHeader from '@/components/common/PageHeader.vue'
 import { Button } from '@/components/ui/button'
 
 defineProps<{
@@ -19,12 +20,8 @@ const slots = useSlots()
 
 <template>
   <div class="flex h-full flex-col gap-4 p-8">
-    <div class="flex items-center justify-between gap-4">
-      <div class="min-w-0">
-        <h1 class="text-2xl font-bold tracking-tight">{{ title }}</h1>
-        <p v-if="description" class="mt-1 text-sm text-muted-foreground">{{ description }}</p>
-      </div>
-      <div class="flex shrink-0 items-center gap-2">
+    <PageHeader :title="title" :description="description">
+      <template #actions>
         <Button variant="outline" size="sm" :disabled="loading" @click="emit('refresh')">
           <slot name="refresh-icon" />
           {{ refreshLabel }}
@@ -33,8 +30,8 @@ const slots = useSlots()
           <slot name="action-icon" />
           {{ actionLabel }}
         </Button>
-      </div>
-    </div>
+      </template>
+    </PageHeader>
 
     <slot name="summary" />
 

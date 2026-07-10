@@ -69,6 +69,11 @@
   "sidebar": {
     "workbench": "Workbench",
     "dashboard": "Dashboard",
+    "page_templates": "Page templates",
+    "templates": "Business templates",
+    "workflow_template": "Task workflow",
+    "analytics_template": "Analytics",
+    "wizard_template": "Guided setup",
     "system": "System",
     "api_keys": "API Keys",
     "profile": "Profile",
@@ -124,6 +129,10 @@
       "openapi": "Help menu links directly to OpenAPI docs",
       "schema_builder": "Schema Builder acts as a sample workbench tool"
     }
+  },
+  "page_templates": {
+    "title": "Page templates",
+    "desc": "Reusable page foundations built from the current design tokens and shadcn-vue components."
   },
   "api_keys": {
     "title": "API Access",
