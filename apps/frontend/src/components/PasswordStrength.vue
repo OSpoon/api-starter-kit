@@ -83,7 +83,9 @@ const colorClass = computed(() => {
     </div>
 
     <ul class="mt-2 space-y-1 text-xs">
-      <li v-for="(item, index) in criteria" :key="index" class="flex items-center gap-2">
+      <li v-for="(item, index) in criteria" :key="index" class="
+        flex items-center gap-2
+      ">
         <span v-if="item.met" class="text-chart-3">✓</span>
         <span v-else class="text-muted-foreground">○</span>
         <span :class="item.met ? 'text-foreground' : 'text-muted-foreground'">{{

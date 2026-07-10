@@ -43,7 +43,9 @@ const slots = useSlots()
         <slot name="query" />
       </div>
 
-      <div v-if="slots.operations" class="flex flex-wrap items-center justify-between gap-3">
+      <div v-if="slots.operations" class="
+        flex flex-wrap items-center justify-between gap-3
+      ">
         <slot name="operations" />
       </div>
 

@@ -105,15 +105,18 @@ function setTheme(mode: 'light' | 'dark' | 'auto') {
         <DropdownMenuTrigger as-child>
           <SidebarMenuButton
             size="lg"
-            class="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+            class="
+              data-[state=open]:bg-sidebar-accent
+              data-[state=open]:text-sidebar-accent-foreground
+            "
           >
-            <Avatar class="h-8 w-8 rounded-lg">
+            <Avatar class="size-8 rounded-lg">
               <AvatarImage v-if="user.avatar" :src="user.avatar" :alt="user.name" />
               <AvatarFallback class="rounded-lg">
                 {{ user.name.slice(0, 2).toUpperCase() }}
               </AvatarFallback>
             </Avatar>
-            <div class="grid flex-1 text-left text-sm leading-tight">
+            <div class="grid flex-1 text-left text-sm/tight">
               <span class="truncate font-medium">{{ user.name }}</span>
               <span class="truncate text-xs text-muted-foreground">{{ user.email }}</span>
             </div>
@@ -128,13 +131,13 @@ function setTheme(mode: 'light' | 'dark' | 'auto') {
         >
           <DropdownMenuLabel class="p-0 font-normal">
             <div class="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-              <Avatar class="h-8 w-8 rounded-lg">
+              <Avatar class="size-8 rounded-lg">
                 <AvatarImage v-if="user.avatar" :src="user.avatar" :alt="user.name" />
                 <AvatarFallback class="rounded-lg">
                   {{ user.name.slice(0, 2).toUpperCase() }}
                 </AvatarFallback>
               </Avatar>
-              <div class="grid flex-1 text-left text-sm leading-tight">
+              <div class="grid flex-1 text-left text-sm/tight">
                 <span class="truncate font-semibold">{{ user.name }}</span>
                 <span class="truncate text-xs text-muted-foreground">{{ user.email }}</span>
               </div>
@@ -170,11 +173,11 @@ function setTheme(mode: 'light' | 'dark' | 'auto') {
               <DropdownMenuSubContent>
                 <DropdownMenuItem class="cursor-pointer gap-2" @click="setLocale('en')">
                   <span>English</span>
-                  <Check v-if="locale === 'en'" class="ml-auto h-4 w-4" />
+                  <Check v-if="locale === 'en'" class="ml-auto size-4" />
                 </DropdownMenuItem>
                 <DropdownMenuItem class="cursor-pointer gap-2" @click="setLocale('zh-CN')">
                   <span>中文 (简体)</span>
-                  <Check v-if="locale === 'zh-CN'" class="ml-auto h-4 w-4" />
+                  <Check v-if="locale === 'zh-CN'" class="ml-auto size-4" />
                 </DropdownMenuItem>
               </DropdownMenuSubContent>
             </DropdownMenuSub>
@@ -187,17 +190,17 @@ function setTheme(mode: 'light' | 'dark' | 'auto') {
                 <DropdownMenuItem class="cursor-pointer gap-2" @click="setTheme('light')">
                   <Sun />
                   <span>{{ t('nav.theme_light') }}</span>
-                  <Check v-if="colorMode === 'light'" class="ml-auto h-4 w-4" />
+                  <Check v-if="colorMode === 'light'" class="ml-auto size-4" />
                 </DropdownMenuItem>
                 <DropdownMenuItem class="cursor-pointer gap-2" @click="setTheme('dark')">
                   <Moon />
                   <span>{{ t('nav.theme_dark') }}</span>
-                  <Check v-if="colorMode === 'dark'" class="ml-auto h-4 w-4" />
+                  <Check v-if="colorMode === 'dark'" class="ml-auto size-4" />
                 </DropdownMenuItem>
                 <DropdownMenuItem class="cursor-pointer gap-2" @click="setTheme('auto')">
                   <Monitor />
                   <span>{{ t('nav.theme_system') }}</span>
-                  <Check v-if="colorMode === 'auto'" class="ml-auto h-4 w-4" />
+                  <Check v-if="colorMode === 'auto'" class="ml-auto size-4" />
                 </DropdownMenuItem>
               </DropdownMenuSubContent>
             </DropdownMenuSub>

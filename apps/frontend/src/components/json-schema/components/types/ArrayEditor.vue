@@ -105,11 +105,16 @@ const maxItemsError = computed(
 
 <template>
   <div class="space-y-6">
-    <div v-if="!readOnly || !!maxItems || !!minItems" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div v-if="!readOnly || !!maxItems || !!minItems" class="
+      grid grid-cols-1 gap-4
+      md:grid-cols-2
+    ">
       <div v-if="!readOnly || minItems !== null" class="flex flex-col gap-2">
         <label
           :for="minItemsId"
-          :class="['text-sm font-medium', (!!minMaxError || !!minItemsError) && 'text-red-500']"
+          :class="['text-sm font-medium', (!!minMaxError || !!minItemsError) && `
+            text-red-500
+          `]"
           >{{ t.arrayMinimumLabel }}</label
         >
         <input
@@ -126,7 +131,9 @@ const maxItemsError = computed(
       <div v-if="!readOnly || maxItems !== null" class="flex flex-col gap-2">
         <label
           :for="maxItemsId"
-          :class="['text-sm font-medium', (!!minMaxError || !!maxItemsError) && 'text-red-500']"
+          :class="['text-sm font-medium', (!!minMaxError || !!maxItemsError) && `
+            text-red-500
+          `]"
           >{{ t.arrayMaximumLabel }}</label
         >
         <input
@@ -142,7 +149,10 @@ const maxItemsError = computed(
       </div>
       <div
         v-if="!!minMaxError || !!minItemsError || !!maxItemsError"
-        class="text-xs text-red-500 italic md:col-span-2 whitespace-pre-line"
+        class="
+          text-xs whitespace-pre-line text-red-500 italic
+          md:col-span-2
+        "
       >
         {{ [minMaxError, minItemsError ?? maxItemsError].filter(Boolean).join('\n') }}
       </div>
@@ -155,9 +165,12 @@ const maxItemsError = computed(
         :checked="uniqueItems"
         :disabled="readOnly"
         @change="handleUniqueItemsChange"
-        class="rounded border-gray-300 text-primary focus:ring-primary"
+        class="
+          rounded-sm border-gray-300 text-primary
+          focus:ring-primary
+        "
       />
-      <label :for="uniqueItemsId" class="text-sm cursor-pointer">{{
+      <label :for="uniqueItemsId" class="cursor-pointer text-sm">{{
         t.arrayForceUniqueItemsLabel
       }}</label>
     </div>
@@ -166,7 +179,7 @@ const maxItemsError = computed(
       class="space-y-2 pt-4"
       :class="{ 'border-t border-border': !readOnly || !!minItems || !!maxItems || !!uniqueItems }"
     >
-      <div class="flex items-center justify-between mb-4">
+      <div class="mb-4 flex items-center justify-between">
         <label class="text-sm font-medium">{{ t.arrayItemTypeLabel }}</label>
         <TypeDropdown
           :read-only="readOnly"

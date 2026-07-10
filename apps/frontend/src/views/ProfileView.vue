@@ -178,7 +178,9 @@ onMounted(async () => {
             </div>
             <div
               :class="
-                cn('text-xl font-bold', passwordDaysLeft < 14 ? 'text-destructive' : 'text-primary')
+                cn('text-xl font-bold', passwordDaysLeft < 14 ? `
+                  text-destructive
+                ` : `text-primary`)
               "
             >
               {{ t('profile.password_days_left', { days: passwordDaysLeft }) }}
@@ -240,7 +242,7 @@ onMounted(async () => {
           <DialogDescription>{{ t('profile.dialog_enable_desc') }}</DialogDescription>
         </DialogHeader>
         <div class="flex flex-col items-center space-y-4 py-4">
-          <div v-if="qrCodeUrl" class="rounded bg-white p-2">
+          <div v-if="qrCodeUrl" class="rounded-sm bg-white p-2">
             <img :src="qrCodeUrl" alt="2FA QR Code" class="size-48" />
           </div>
           <div class="flex w-full max-w-xs flex-col items-center space-y-2">
@@ -271,7 +273,7 @@ onMounted(async () => {
           <div
             v-for="code in recoveryCodes"
             :key="code"
-            class="rounded bg-muted p-2 text-center font-mono text-sm"
+            class="rounded-sm bg-muted p-2 text-center font-mono text-sm"
           >
             {{ code }}
           </div>

@@ -111,15 +111,24 @@ const needsDetail = computed(
 
 <template>
   <div class="space-y-4">
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
-      <p v-if="readOnly && !needsDetail" class="text-sm text-muted-foreground italic">
+    <div class="
+      grid grid-cols-1 items-start gap-4
+      md:grid-cols-2
+    ">
+      <p v-if="readOnly && !needsDetail" class="
+        text-sm text-muted-foreground italic
+      ">
         {{ t.stringNoConstraint }}
       </p>
 
-      <div v-if="!readOnly || minLength !== undefined" class="flex flex-col gap-2">
+      <div v-if="!readOnly || minLength !== undefined" class="
+        flex flex-col gap-2
+      ">
         <label
           :for="minLengthId"
-          :class="['text-sm font-medium', (!!minMaxError || !!minLengthError) && 'text-red-500']"
+          :class="['text-sm font-medium', (!!minMaxError || !!minLengthError) && `
+            text-red-500
+          `]"
           >{{ t.stringMinimumLengthLabel }}</label
         >
         <input
@@ -137,14 +146,26 @@ const needsDetail = computed(
           :placeholder="t.stringMinimumLengthPlaceholder"
           :min="0"
           :disabled="readOnly"
-          class="flex h-8 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-3 outline-none disabled:cursor-not-allowed disabled:opacity-50"
+          class="
+            flex h-8 w-full rounded-md border border-input bg-transparent px-3
+            py-1 text-sm shadow-xs transition-colors outline-none
+            file:border-0 file:bg-transparent file:text-sm file:font-medium
+            placeholder:text-muted-foreground
+            focus-visible:border-ring focus-visible:ring-3
+            focus-visible:ring-ring/50
+            disabled:cursor-not-allowed disabled:opacity-50
+          "
         />
       </div>
 
-      <div v-if="!readOnly || maxLength !== undefined" class="flex flex-col gap-2">
+      <div v-if="!readOnly || maxLength !== undefined" class="
+        flex flex-col gap-2
+      ">
         <label
           :for="maxLengthId"
-          :class="['text-sm font-medium', (!!minMaxError || !!maxLengthError) && 'text-red-500']"
+          :class="['text-sm font-medium', (!!minMaxError || !!maxLengthError) && `
+            text-red-500
+          `]"
           >{{ t.stringMaximumLengthLabel }}</label
         >
         <input
@@ -162,20 +183,35 @@ const needsDetail = computed(
           :placeholder="t.stringMaximumLengthPlaceholder"
           :min="0"
           :disabled="readOnly"
-          class="flex h-8 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-3 outline-none disabled:cursor-not-allowed disabled:opacity-50"
+          class="
+            flex h-8 w-full rounded-md border border-input bg-transparent px-3
+            py-1 text-sm shadow-xs transition-colors outline-none
+            file:border-0 file:bg-transparent file:text-sm file:font-medium
+            placeholder:text-muted-foreground
+            focus-visible:border-ring focus-visible:ring-3
+            focus-visible:ring-ring/50
+            disabled:cursor-not-allowed disabled:opacity-50
+          "
         />
       </div>
 
       <div
         v-if="!!minMaxError || !!minLengthError || !!maxLengthError"
-        class="text-xs text-red-500 italic md:col-span-2 whitespace-pre-line"
+        class="
+          text-xs whitespace-pre-line text-red-500 italic
+          md:col-span-2
+        "
       >
         {{ [minMaxError, minLengthError ?? maxLengthError].filter(Boolean).join('\n') }}
       </div>
     </div>
 
-    <div v-if="!readOnly || (pattern && pattern !== '')" class="flex flex-col gap-2">
-      <label :for="patternId" :class="['text-sm font-medium', !!patternError && 'text-red-500']">{{
+    <div v-if="!readOnly || (pattern && pattern !== '')" class="
+      flex flex-col gap-2
+    ">
+      <label :for="patternId" :class="['text-sm font-medium', !!patternError && `
+        text-red-500
+      `]">{{
         t.stringPatternLabel
       }}</label>
       <input
@@ -187,12 +223,24 @@ const needsDetail = computed(
         "
         :placeholder="t.stringPatternPlaceholder"
         :disabled="readOnly"
-        class="flex h-8 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-3 outline-none disabled:cursor-not-allowed disabled:opacity-50"
+        class="
+          flex h-8 w-full rounded-md border border-input bg-transparent px-3
+          py-1 text-sm shadow-xs transition-colors outline-none
+          file:border-0 file:bg-transparent file:text-sm file:font-medium
+          placeholder:text-muted-foreground
+          focus-visible:border-ring focus-visible:ring-3
+          focus-visible:ring-ring/50
+          disabled:cursor-not-allowed disabled:opacity-50
+        "
       />
     </div>
 
-    <div v-if="!readOnly || (format && format !== 'none')" class="flex flex-col gap-2">
-      <label :for="formatId" :class="['text-sm font-medium', !!formatError && 'text-red-500']">{{
+    <div v-if="!readOnly || (format && format !== 'none')" class="
+      flex flex-col gap-2
+    ">
+      <label :for="formatId" :class="['text-sm font-medium', !!formatError && `
+        text-red-500
+      `]">{{
         t.stringFormatLabel
       }}</label>
       <select
@@ -207,7 +255,13 @@ const needsDetail = computed(
           )
         "
         :disabled="readOnly"
-        class="flex h-8 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-3 outline-none disabled:cursor-not-allowed disabled:opacity-50"
+        class="
+          flex h-8 w-full rounded-md border border-input bg-transparent px-3
+          py-1 text-sm shadow-xs transition-colors outline-none
+          focus-visible:border-ring focus-visible:ring-3
+          focus-visible:ring-ring/50
+          disabled:cursor-not-allowed disabled:opacity-50
+        "
       >
         <option v-for="opt in formatOptions" :key="opt.value" :value="opt.value">
           {{ opt.label }}
@@ -215,14 +269,19 @@ const needsDetail = computed(
       </select>
     </div>
 
-    <div v-if="!readOnly || enumValues.length > 0" class="space-y-2 pt-2 border-t border-border">
+    <div v-if="!readOnly || enumValues.length > 0" class="
+      space-y-2 border-t border-border pt-2
+    ">
       <label class="text-sm font-medium">{{ t.stringAllowedValuesEnumLabel }}</label>
-      <div class="flex flex-wrap gap-2 mb-4">
+      <div class="mb-4 flex flex-wrap gap-2">
         <template v-if="enumValues.length > 0">
           <span
             v-for="(value, index) in enumValues"
             :key="value"
-            class="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-0.5 text-xs font-medium"
+            class="
+              inline-flex items-center gap-1 rounded-full bg-secondary px-2.5
+              py-0.5 text-xs font-medium
+            "
           >
             {{ value }}
             <button
@@ -235,7 +294,7 @@ const needsDetail = computed(
             </button>
           </span>
         </template>
-        <p v-else class="text-xs italic text-muted-foreground">
+        <p v-else class="text-xs text-muted-foreground italic">
           {{ t.stringAllowedValuesEnumNone }}
         </p>
       </div>
@@ -244,13 +303,23 @@ const needsDetail = computed(
           type="text"
           v-model="enumValue"
           :placeholder="t.stringAllowedValuesEnumAddPlaceholder"
-          class="flex h-8 flex-1 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-3 outline-none"
+          class="
+            flex h-8 flex-1 rounded-md border border-input bg-transparent px-3
+            py-1 text-sm shadow-xs outline-none
+            focus-visible:border-ring focus-visible:ring-3
+            focus-visible:ring-ring/50
+          "
           @keydown.enter="handleAddEnumValue()"
         />
         <button
           type="button"
           @click="handleAddEnumValue()"
-          class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all h-8 px-3 border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground"
+          class="
+            inline-flex h-8 items-center justify-center gap-2 rounded-md border
+            bg-background px-3 text-sm font-medium whitespace-nowrap shadow-xs
+            transition-all
+            hover:bg-accent hover:text-accent-foreground
+          "
         >
           <PlusIcon class="size-3" /> {{ t.stringAllowedValuesEnumAddLabel }}
         </button>

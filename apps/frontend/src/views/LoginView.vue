@@ -113,7 +113,10 @@ function backToLogin() {
       </FieldGroup>
 
       <FieldGroup v-else>
-        <Field class="flex flex-col items-center justify-center space-y-2 text-center [&>*]:w-auto">
+        <Field class="
+          flex flex-col items-center justify-center space-y-2 text-center
+          *:w-auto
+        ">
           <SegmentedCodeInput id="code" v-model="twoFactorCode" />
         </Field>
       </FieldGroup>

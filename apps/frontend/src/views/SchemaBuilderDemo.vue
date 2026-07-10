@@ -60,12 +60,12 @@ onBeforeMount(() => {
 </script>
 
 <template>
-  <div class="h-full flex flex-col p-4">
+  <div class="flex h-full flex-col p-4">
     <div class="mb-4">
       <h1 class="text-2xl font-semibold tracking-tight">{{ t.schemaDemoTitle }}</h1>
-      <p class="text-sm text-muted-foreground mt-1">{{ t.schemaDemoDescription }}</p>
+      <p class="mt-1 text-sm text-muted-foreground">{{ t.schemaDemoDescription }}</p>
     </div>
-    <div class="flex-1 min-h-0">
+    <div class="min-h-0 flex-1">
       <JsonSchemaEditor />
     </div>
   </div>

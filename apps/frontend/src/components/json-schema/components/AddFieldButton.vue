@@ -50,10 +50,19 @@ const handleSubmit = (e: Event) => {
     type="button"
     @click="dialogOpen = true"
     :class="[
-      'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all h-8 px-3',
+      `
+        inline-flex h-8 items-center justify-center gap-2 rounded-md px-3
+        text-sm font-medium whitespace-nowrap transition-all
+      `,
       variant === 'primary'
-        ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-        : 'border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground',
+        ? `
+          bg-primary text-primary-foreground
+          hover:bg-primary/90
+        `
+        : `
+          border bg-background shadow-xs
+          hover:bg-accent hover:text-accent-foreground
+        `,
     ]"
   >
     <CirclePlusIcon class="size-4" /> <span>{{ t.fieldAddNewButton }}</span>
@@ -66,83 +75,121 @@ const handleSubmit = (e: Event) => {
   >
     <div class="fixed inset-0 bg-black/50" />
     <div
-      class="relative bg-popover text-popover-foreground rounded-xl p-6 shadow-lg w-[95vw] max-w-[800px] max-h-[85vh] overflow-y-auto"
+      class="
+        relative max-h-[85vh] w-[95vw] max-w-200 overflow-y-auto rounded-xl
+        bg-popover p-6 text-popover-foreground shadow-lg
+      "
     >
       <div class="mb-4">
-        <div class="text-xl flex flex-wrap items-center gap-2">
+        <div class="flex flex-wrap items-center gap-2 text-xl">
           {{ t.fieldAddNewLabel }}
           <span
-            class="inline-flex items-center justify-center rounded-full border px-2 py-0.5 text-xs font-medium bg-secondary text-secondary-foreground"
+            class="
+              inline-flex items-center justify-center rounded-full border
+              bg-secondary px-2 py-0.5 text-xs font-medium
+              text-secondary-foreground
+            "
             >{{ t.fieldAddNewBadge }}</span
           >
         </div>
-        <p class="text-sm text-muted-foreground mt-1">{{ t.fieldAddNewDescription }}</p>
+        <p class="mt-1 text-sm text-muted-foreground">{{ t.fieldAddNewDescription }}</p>
       </div>
 
       <form @submit="handleSubmit" class="space-y-6">
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div class="space-y-4 min-w-[280px]">
+        <div class="
+          grid grid-cols-1 gap-6
+          lg:grid-cols-2
+        ">
+          <div class="min-w-70 space-y-4">
             <div>
-              <div class="flex items-center gap-2 mb-1.5">
+              <div class="mb-1.5 flex items-center gap-2">
                 <label :for="fieldNameId" class="text-sm font-medium">{{ t.fieldNameLabel }}</label>
-                <InfoIcon class="size-4 text-muted-foreground shrink-0" />
+                <InfoIcon class="size-4 shrink-0 text-muted-foreground" />
               </div>
               <input
                 :id="fieldNameId"
                 v-model="fieldName"
                 :placeholder="t.fieldNamePlaceholder"
                 required
-                class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-3 outline-none font-mono"
+                class="
+                  flex h-9 w-full rounded-md border border-input bg-transparent
+                  px-3 py-1 font-mono text-sm shadow-xs transition-colors
+                  outline-none
+                  focus-visible:border-ring focus-visible:ring-3
+                  focus-visible:ring-ring/50
+                "
               />
             </div>
             <div>
-              <div class="flex items-center gap-2 mb-1.5">
+              <div class="mb-1.5 flex items-center gap-2">
                 <label :for="fieldDescId" class="text-sm font-medium">{{
                   t.fieldDescription
                 }}</label>
-                <InfoIcon class="size-4 text-muted-foreground shrink-0" />
+                <InfoIcon class="size-4 shrink-0 text-muted-foreground" />
               </div>
               <input
                 :id="fieldDescId"
                 v-model="fieldDesc"
                 :placeholder="t.fieldDescriptionPlaceholder"
-                class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-3 outline-none"
+                class="
+                  flex h-9 w-full rounded-md border border-input bg-transparent
+                  px-3 py-1 text-sm shadow-xs transition-colors outline-none
+                  focus-visible:border-ring focus-visible:ring-3
+                  focus-visible:ring-ring/50
+                "
               />
             </div>
-            <label class="flex items-center gap-3 p-3 rounded-lg border bg-muted/50 cursor-pointer">
+            <label class="
+              flex cursor-pointer items-center gap-3 rounded-lg border
+              bg-muted/50 p-3
+            ">
               <input
                 type="checkbox"
                 :id="fieldRequiredId"
                 v-model="fieldRequired"
-                class="rounded border-gray-300 shrink-0 text-primary focus:ring-primary"
+                class="
+                  shrink-0 rounded-sm border-gray-300 text-primary
+                  focus:ring-primary
+                "
               />
               <span class="text-sm">{{ t.fieldRequiredLabel }}</span>
             </label>
             <label
               v-if="fieldType === 'object'"
-              class="flex items-center gap-3 p-3 rounded-lg border bg-muted/50 cursor-pointer"
+              class="
+                flex cursor-pointer items-center gap-3 rounded-lg border
+                bg-muted/50 p-3
+              "
             >
               <input
                 type="checkbox"
                 :id="additionalPropertiesId"
                 v-model="additionalProperties"
-                class="rounded border-gray-300 shrink-0 text-primary focus:ring-primary"
+                class="
+                  shrink-0 rounded-sm border-gray-300 text-primary
+                  focus:ring-primary
+                "
               />
               <span class="text-sm">{{ t.additionalPropertiesAllow }}</span>
-              <InfoIcon class="size-4 text-muted-foreground shrink-0" />
+              <InfoIcon class="size-4 shrink-0 text-muted-foreground" />
             </label>
           </div>
-          <div class="space-y-4 min-w-[280px]">
+          <div class="min-w-70 space-y-4">
             <div>
-              <div class="flex items-center gap-2 mb-1.5">
+              <div class="mb-1.5 flex items-center gap-2">
                 <label :for="fieldTypeId" class="text-sm font-medium">{{ t.fieldType }}</label>
-                <CircleHelpIcon class="size-4 text-muted-foreground shrink-0" />
+                <CircleHelpIcon class="size-4 shrink-0 text-muted-foreground" />
               </div>
               <SchemaTypeSelector :id="fieldTypeId" v-model="fieldType" />
             </div>
-            <div class="rounded-lg border bg-muted/50 p-3 hidden md:block">
-              <p class="text-xs font-medium mb-2">{{ t.fieldTypeExample }}</p>
-              <code class="text-sm bg-background/80 p-2 rounded block overflow-x-auto">
+            <div class="
+              hidden rounded-lg border bg-muted/50 p-3
+              md:block
+            ">
+              <p class="mb-2 text-xs font-medium">{{ t.fieldTypeExample }}</p>
+              <code class="
+                block overflow-x-auto rounded-sm bg-background/80 p-2 text-sm
+              ">
                 <template v-if="fieldType === 'string'">"example"</template>
                 <template v-else-if="fieldType === 'number'">42</template>
                 <template v-else-if="fieldType === 'boolean'">true</template>
@@ -152,17 +199,30 @@ const handleSubmit = (e: Event) => {
             </div>
           </div>
         </div>
-        <div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
+        <div class="
+          flex flex-col-reverse gap-2
+          sm:flex-row sm:justify-end
+        ">
           <button
             type="button"
             @click="dialogOpen = false"
-            class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all h-9 px-4 border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground"
+            class="
+              inline-flex h-9 items-center justify-center gap-2 rounded-md
+              border bg-background px-4 text-sm font-medium whitespace-nowrap
+              shadow-xs transition-all
+              hover:bg-accent hover:text-accent-foreground
+            "
           >
             {{ t.fieldAddNewCancel }}
           </button>
           <button
             type="submit"
-            class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all h-9 px-4 bg-primary text-primary-foreground hover:bg-primary/90"
+            class="
+              inline-flex h-9 items-center justify-center gap-2 rounded-md
+              bg-primary px-4 text-sm font-medium whitespace-nowrap
+              text-primary-foreground transition-all
+              hover:bg-primary/90
+            "
           >
             {{ t.fieldAddNewConfirm }}
           </button>

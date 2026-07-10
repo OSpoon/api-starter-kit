@@ -14,7 +14,10 @@ const props = defineProps<{
 
 <template>
   <DialogContent
-    :class="cn('flex max-h-[90vh] flex-col gap-0 p-0 sm:max-w-160', props.class)"
+    :class="cn(`
+      flex max-h-[90vh] flex-col gap-0 p-0
+      sm:max-w-160
+    `, props.class)"
     :prevent-open-auto-focus="preventOpenAutoFocus"
   >
     <DialogHeader class="shrink-0 p-6 pb-2">

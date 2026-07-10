@@ -20,12 +20,12 @@ const hasFields = () =>
 </script>
 
 <template>
-  <div class="p-4 h-full flex flex-col overflow-auto">
+  <div class="flex h-full flex-col overflow-auto p-4">
     <div v-if="!readOnly" class="mb-6 shrink-0">
       <AddFieldButton :path="[]" />
     </div>
     <div class="grow overflow-auto">
-      <div v-if="!hasFields()" class="text-center py-10 text-muted-foreground">
+      <div v-if="!hasFields()" class="py-10 text-center text-muted-foreground">
         <p class="mb-3">{{ t.visualEditorNoFieldsHint1 }}</p>
         <p class="text-sm">{{ t.visualEditorNoFieldsHint2 }}</p>
       </div>

@@ -360,22 +360,36 @@ onUnmounted(() => {
   <div class="fixed right-4 bottom-4 z-50 flex flex-col items-end gap-2">
     <div
       v-if="isOpen"
-      class="relative flex w-[520px] max-w-[calc(100vw-32px)] flex-col overflow-hidden rounded-lg border bg-card text-card-foreground shadow-lg animate-in fade-in slide-in-from-bottom-5"
+      class="
+        relative flex w-130 max-w-[calc(100vw-32px)] animate-in flex-col
+        overflow-hidden rounded-lg border bg-card text-card-foreground shadow-lg
+        slide-in-from-bottom-5 fade-in
+      "
       :style="{ height: `${chatHeight}px` }"
     >
       <div
-        class="group absolute top-0 right-0 left-0 z-50 flex h-1.5 w-full cursor-ns-resize items-center justify-center transition-colors hover:bg-muted"
+        class="
+          group absolute inset-x-0 top-0 z-50 flex h-1.5 w-full cursor-ns-resize
+          items-center justify-center transition-colors
+          hover:bg-muted
+        "
         @mousedown.prevent="startResize"
       >
         <div
-          class="h-1 w-12 rounded-full bg-border transition-colors group-hover:bg-muted-foreground/30"
+          class="
+            h-1 w-12 rounded-full bg-border transition-colors
+            group-hover:bg-muted-foreground/30
+          "
         />
       </div>
 
       <div class="flex items-center justify-between border-b bg-card px-4 py-3">
         <div class="flex min-w-0 items-center gap-2">
           <div
-            class="flex size-8 shrink-0 items-center justify-center rounded-md border bg-background"
+            class="
+              flex size-8 shrink-0 items-center justify-center rounded-md border
+              bg-background
+            "
           >
             <Bot class="size-4 text-primary" />
           </div>
@@ -402,7 +416,9 @@ onUnmounted(() => {
                 <History class="size-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" class="max-h-80 w-64 overflow-y-auto">
+            <DropdownMenuContent align="end" class="
+              max-h-80 w-64 overflow-y-auto
+            ">
               <div
                 v-if="conversations.length === 0"
                 class="p-3 text-center text-xs text-muted-foreground"
@@ -424,7 +440,11 @@ onUnmounted(() => {
                 <Button
                   variant="ghost"
                   size="icon"
-                  class="size-6 shrink-0 text-muted-foreground opacity-0 hover:text-destructive group-hover:opacity-100"
+                  class="
+                    size-6 shrink-0 text-muted-foreground opacity-0
+                    group-hover:opacity-100
+                    hover:text-destructive
+                  "
                   :title="t('common.delete')"
                   @click.stop="emit('deleteConversation', conversation.id)"
                 >
@@ -454,17 +474,19 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <div class="flex-1 min-h-0 p-4">
+      <div class="min-h-0 flex-1 p-4">
         <ScrollArea ref="scrollAreaRef" class="h-full">
           <div class="space-y-3 pr-3">
             <div
               v-for="(message, index) in displayMessages"
               :key="message.id ?? index"
-              class="flex gap-2.5 text-[13px] leading-5"
+              class="flex gap-2.5 text-[13px]/5"
               :class="message.role === 'user' ? 'flex-row-reverse' : ''"
             >
               <div
-                class="flex size-7 shrink-0 items-center justify-center rounded-full"
+                class="
+                  flex size-7 shrink-0 items-center justify-center rounded-full
+                "
                 :class="
                   message.role === 'user'
                     ? 'bg-accent text-accent-foreground'
@@ -476,7 +498,7 @@ onUnmounted(() => {
               </div>
               <div class="group/message flex max-w-[85%] flex-col gap-1">
                 <div
-                  class="whitespace-pre-wrap rounded-lg px-3 py-2 text-[13px] leading-5"
+                  class="rounded-lg px-3 py-2 text-[13px]/5 whitespace-pre-wrap"
                   :class="
                     message.role === 'user'
                       ? 'bg-accent text-accent-foreground'
@@ -495,8 +517,14 @@ onUnmounted(() => {
                 </div>
                 <div
                   v-if="canCopyMessage(message) || canRetryMessage(message)"
-                  class="flex h-6 items-center gap-1 opacity-0 transition-opacity group-hover/message:opacity-100 focus-within:opacity-100"
-                  :class="message.role === 'user' ? 'justify-end' : 'justify-start'"
+                  class="
+                    flex h-6 items-center gap-1 opacity-0 transition-opacity
+                    group-hover/message:opacity-100
+                    focus-within:opacity-100
+                  "
+                  :class="message.role === 'user' ? 'justify-end' : `
+                    justify-start
+                  `"
                 >
                   <Button
                     v-if="canCopyMessage(message)"
@@ -528,7 +556,9 @@ onUnmounted(() => {
         </ScrollArea>
       </div>
 
-      <div v-if="displayMessages.length <= 1" class="flex flex-wrap gap-2 px-3 pb-2">
+      <div v-if="displayMessages.length <= 1" class="
+        flex flex-wrap gap-2 px-3 pb-2
+      ">
         <Button
           v-for="suggestion in promptSuggestions"
           :key="suggestion"
@@ -550,7 +580,7 @@ onUnmounted(() => {
               v-model="input"
               rows="1"
               :placeholder="inputPlaceholder"
-              class="min-h-10 max-h-[200px] w-full resize-none py-3 pr-12"
+              class="max-h-50 min-h-10 w-full resize-none py-3 pr-12"
               :disabled="loading || disabled"
               @compositionstart="handleCompositionStart"
               @compositionend="handleCompositionEnd"
@@ -576,17 +606,27 @@ onUnmounted(() => {
     <div v-else class="group relative">
       <div
         v-if="loading"
-        class="pointer-events-none absolute -inset-1 rounded-full border border-primary/30"
+        class="
+          pointer-events-none absolute -inset-1 rounded-full border
+          border-primary/30
+        "
       />
       <div
         v-if="loading"
-        class="pointer-events-none absolute -inset-1 animate-spin rounded-full border-2 border-primary border-t-transparent"
+        class="
+          pointer-events-none absolute -inset-1 animate-spin rounded-full
+          border-2 border-primary border-t-transparent
+        "
       />
 
       <Button
         variant="outline"
         size="lg"
-        class="relative z-10 size-14 rounded-full border bg-card p-0 text-foreground shadow-md transition-colors hover:bg-accent hover:text-accent-foreground"
+        class="
+          relative z-10 size-14 rounded-full border bg-card p-0 text-foreground
+          shadow-md transition-colors
+          hover:bg-accent hover:text-accent-foreground
+        "
         :title="assistantTitle"
         @click="openAssistant"
       >
@@ -594,7 +634,10 @@ onUnmounted(() => {
         <Sparkles v-else class="size-6 animate-pulse text-primary" />
         <div
           v-if="loading"
-          class="absolute -top-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full border-2 border-background bg-primary shadow-sm"
+          class="
+            absolute -top-0.5 -right-0.5 flex size-4 items-center justify-center
+            rounded-full border-2 border-background bg-primary shadow-sm
+          "
         >
           <div class="size-1 rounded-full bg-primary-foreground" />
         </div>

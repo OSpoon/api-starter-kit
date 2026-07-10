@@ -99,7 +99,7 @@ const handleMouseUp = () => {
   <div
     :class="
       cn(
-        'border border-border rounded-xl bg-card',
+        'rounded-xl border border-border bg-card',
         isFullscreen ? 'fixed inset-0 z-50 m-2' : 'w-full',
         props.class
       )
@@ -107,20 +107,25 @@ const handleMouseUp = () => {
   >
     <!-- Visual-only mode -->
     <template v-if="!showJsonEditor">
-      <div :class="cn('w-full flex flex-col', isFullscreen ? 'h-full' : 'h-[500px]')">
-        <div class="flex items-center justify-between px-4 py-3 border-b w-full shrink-0">
+      <div :class="cn('flex w-full flex-col', isFullscreen ? 'h-full' : `h-125`)">
+        <div class="
+          flex w-full shrink-0 items-center justify-between border-b px-4 py-3
+        ">
           <h3 class="font-medium">{{ t.schemaEditorTitle }}</h3>
           <button
             v-if="showFullscreen"
             type="button"
             @click="toggleFullscreen"
-            class="p-1.5 rounded-md hover:bg-secondary transition-colors"
+            class="
+              rounded-md p-1.5 transition-colors
+              hover:bg-secondary
+            "
           >
             <Maximize2Icon v-if="!isFullscreen" class="size-4" />
             <Minimize2Icon v-else class="size-4" />
           </button>
         </div>
-        <div class="grow min-h-0">
+        <div class="min-h-0 grow">
           <SchemaVisualEditor :read-only="readOnly" />
         </div>
       </div>
@@ -128,9 +133,14 @@ const handleMouseUp = () => {
 
     <!-- Full mode with JSON editor -->
     <template v-else>
-      <div class="block lg:hidden w-full">
+      <div class="
+        block w-full
+        lg:hidden
+      ">
         <Tabs v-model="activeTab" class="w-full">
-          <div class="flex items-center justify-between px-4 py-3 border-b w-full">
+          <div class="
+            flex w-full items-center justify-between border-b px-4 py-3
+          ">
             <TabsList>
               <TabsTrigger value="visual">{{ t.schemaEditorEditModeVisual }}</TabsTrigger>
               <TabsTrigger value="json">{{ t.schemaEditorEditModeJson }}</TabsTrigger>
@@ -139,7 +149,10 @@ const handleMouseUp = () => {
               v-if="showFullscreen"
               type="button"
               @click="toggleFullscreen"
-              class="p-1.5 rounded-md hover:bg-secondary transition-colors"
+              class="
+                rounded-md p-1.5 transition-colors
+                hover:bg-secondary
+              "
             >
               <Maximize2Icon v-if="!isFullscreen" class="size-4" />
               <Minimize2Icon v-else class="size-4" />
@@ -147,13 +160,19 @@ const handleMouseUp = () => {
           </div>
           <TabsContent
             value="visual"
-            :class="cn('focus:outline-hidden w-full', isFullscreen ? 'h-full' : 'h-[400px]')"
+            :class="cn(`
+              w-full
+              focus:outline-hidden
+            `, isFullscreen ? 'h-full' : `h-100`)"
           >
             <SchemaVisualEditor :read-only="readOnly" />
           </TabsContent>
           <TabsContent
             value="json"
-            :class="cn('focus:outline-hidden w-full', isFullscreen ? 'h-full' : 'h-[400px]')"
+            :class="cn(`
+              w-full
+              focus:outline-hidden
+            `, isFullscreen ? 'h-full' : `h-100`)"
           >
             <JsonSchemaVisualizer />
           </TabsContent>
@@ -162,26 +181,37 @@ const handleMouseUp = () => {
 
       <div
         ref="containerRef"
-        :class="cn('hidden lg:flex lg:flex-col w-full', isFullscreen ? 'h-full' : 'h-[500px]')"
+        :class="cn(`
+          hidden w-full
+          lg:flex lg:flex-col
+        `, isFullscreen ? 'h-full' : `h-125`)"
       >
-        <div class="flex items-center justify-between px-4 py-3 border-b w-full shrink-0">
+        <div class="
+          flex w-full shrink-0 items-center justify-between border-b px-4 py-3
+        ">
           <h3 class="font-medium">{{ t.schemaEditorTitle }}</h3>
           <button
             v-if="showFullscreen"
             type="button"
             @click="toggleFullscreen"
-            class="p-1.5 rounded-md hover:bg-secondary transition-colors"
+            class="
+              rounded-md p-1.5 transition-colors
+              hover:bg-secondary
+            "
           >
             <Maximize2Icon v-if="!isFullscreen" class="size-4" />
             <Minimize2Icon v-else class="size-4" />
           </button>
         </div>
-        <div class="flex flex-row w-full grow min-h-0">
+        <div class="flex min-h-0 w-full grow flex-row">
           <div class="h-full min-h-0 overflow-auto" :style="{ width: `${leftPanelWidth}%` }">
             <SchemaVisualEditor :read-only="readOnly" />
           </div>
           <div
-            class="w-1 bg-border hover:bg-primary cursor-col-resize shrink-0"
+            class="
+              w-1 shrink-0 cursor-col-resize bg-border
+              hover:bg-primary
+            "
             @mousedown="handleMouseDown"
           />
           <div class="h-full min-h-0" :style="{ width: `${100 - leftPanelWidth}%` }">

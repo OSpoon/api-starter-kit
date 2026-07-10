@@ -62,7 +62,9 @@ const handleAdditionalPropertiesToggle = () => {
         :depth="depth"
       />
     </div>
-    <div v-else class="text-sm text-muted-foreground italic p-2 text-center border rounded-md">
+    <div v-else class="
+      rounded-md border p-2 text-center text-sm text-muted-foreground italic
+    ">
       {{ t.objectPropertiesNone }}
     </div>
 
@@ -72,7 +74,10 @@ const handleAdditionalPropertiesToggle = () => {
         type="button"
         @click="handleAdditionalPropertiesToggle()"
         :class="[
-          'inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium transition-colors',
+          `
+            inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs
+            font-medium transition-colors
+          `,
           isAdditionalPropertiesForbidden
             ? 'bg-amber-50 text-amber-600'
             : 'bg-lime-50 text-lime-600',

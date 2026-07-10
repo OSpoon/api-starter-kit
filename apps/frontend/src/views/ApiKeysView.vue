@@ -69,7 +69,7 @@ const columns = computed<ColumnDef<ApiKeySummary>[]>(() => [
         h(
           'code',
           {
-            class: 'block max-w-[280px] truncate font-mono text-xs text-muted-foreground',
+            class: 'block max-w-70 truncate font-mono text-xs text-muted-foreground',
             title: value,
           },
           value
@@ -273,7 +273,7 @@ onMounted(() => {
         <FormDialogContent
           :title="t('api_keys.dialog_create_title')"
           :description="t('api_keys.dialog_create_desc')"
-          class="sm:max-w-[425px]"
+          class="sm:max-w-106.25"
         >
           <ApiKeyForm
             class="flex-1 overflow-hidden"
@@ -293,11 +293,14 @@ onMounted(() => {
         <FormDialogContent
           :title="t('api_keys.dialog_token_title')"
           :description="t('api_keys.dialog_token_desc')"
-          class="sm:max-w-[620px]"
+          class="sm:max-w-155"
         >
           <div class="px-6 pb-6">
-            <div class="flex items-center gap-2 overflow-x-auto rounded-md border bg-muted p-3">
-              <p class="shrink-0 whitespace-nowrap font-mono text-sm leading-snug">
+            <div class="
+              flex items-center gap-2 overflow-x-auto rounded-md border bg-muted
+              p-3
+            ">
+              <p class="shrink-0 font-mono text-sm/snug whitespace-nowrap">
                 {{ createdToken }}
               </p>
               <Button size="sm" variant="secondary" class="ml-auto h-8 shrink-0" @click="copyToken">

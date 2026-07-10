@@ -23,8 +23,15 @@ const options = computed(() =>
     @change="emit('update:modelValue', ($event.target as HTMLSelectElement).value as SchemaType)"
     :class="
       cn(
-        'text-xs font-medium rounded-md border border-input bg-transparent px-2 py-1 min-w-[92px]',
-        'focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-3 outline-none',
+        `
+          min-w-23 rounded-md border border-input bg-transparent px-2 py-1
+          text-xs font-medium
+        `,
+        `
+          outline-none
+          focus-visible:border-ring focus-visible:ring-3
+          focus-visible:ring-ring/50
+        `,
         'disabled:cursor-not-allowed disabled:opacity-50',
         props.class
       )

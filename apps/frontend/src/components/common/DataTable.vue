@@ -177,12 +177,15 @@ function columnLabel(column: Column<TData, unknown>) {
 
 <template>
   <div class="space-y-4">
-    <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+    <div class="
+      flex flex-col gap-3
+      md:flex-row md:items-center md:justify-between
+    ">
       <div class="flex flex-wrap items-center gap-3">
         <slot name="filters" />
         <Input
           v-if="showSearch"
-          class="min-w-[220px] max-w-sm"
+          class="max-w-sm min-w-55"
           :placeholder="searchPlaceholderText()"
           :model-value="search"
           @update:model-value="table.setGlobalFilter($event)"
@@ -191,7 +194,7 @@ function columnLabel(column: Column<TData, unknown>) {
       <DropdownMenu>
         <DropdownMenuTrigger as-child>
           <Button variant="outline" class="ml-auto">
-            <SlidersHorizontal class="mr-2 h-4 w-4" />
+            <SlidersHorizontal class="mr-2 size-4" />
             {{ t('common.view') }}
           </Button>
         </DropdownMenuTrigger>
@@ -226,7 +229,10 @@ function columnLabel(column: Column<TData, unknown>) {
               v-for="row in table.getRowModel().rows"
               :key="row.id"
               :data-state="row.getIsSelected() ? 'selected' : undefined"
-              class="cursor-pointer hover:bg-muted/50"
+              class="
+                cursor-pointer
+                hover:bg-muted/50
+              "
               @click="emit('rowClick', row.original)"
             >
               <TableCell v-for="cell in row.getVisibleCells()" :key="cell.id">
@@ -238,10 +244,13 @@ function columnLabel(column: Column<TData, unknown>) {
             <TableRow>
               <TableCell
                 :colspan="table.getVisibleLeafColumns().length || columns.length"
-                class="h-24 whitespace-normal p-0"
+                class="h-24 p-0 whitespace-normal"
               >
                 <div
-                  class="flex h-24 w-full items-center justify-center text-center text-muted-foreground"
+                  class="
+                    flex h-24 w-full items-center justify-center text-center
+                    text-muted-foreground
+                  "
                 >
                   {{ emptyMessage || t('common.no_data') }}
                 </div>

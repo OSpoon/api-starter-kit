@@ -1,5 +1,6 @@
 import { globalIgnores } from 'eslint/config'
 import { defineConfigWithVueTs, vueTsConfigs } from '@vue/eslint-config-typescript'
+import betterTailwindcss from 'eslint-plugin-better-tailwindcss'
 import pluginVue from 'eslint-plugin-vue'
 import simpleImportSort from 'eslint-plugin-simple-import-sort'
 import skipFormatting from 'eslint-config-prettier/flat'
@@ -27,6 +28,27 @@ export default defineConfigWithVueTs(
       parserOptions: {
         tsconfigRootDir: import.meta.dirname,
       },
+    },
+  },
+  {
+    name: 'app/tailwind',
+    files: ['src/**/*.{vue,ts,mts,tsx}'],
+    ignores: ['src/components/ui/**/*.{vue,ts}'],
+    settings: {
+      'better-tailwindcss': {
+        cwd: import.meta.dirname,
+        entryPoint: './src/assets/main.css',
+      },
+    },
+    ...betterTailwindcss.configs['recommended-warn'],
+    rules: {
+      ...betterTailwindcss.configs['recommended-warn'].rules,
+      'better-tailwindcss/no-unknown-classes': [
+        'warn',
+        {
+          ignore: ['^ai-message-content-'],
+        },
+      ],
     },
   },
   {

@@ -25,26 +25,34 @@ const result = computed(() => {
   >
     <div class="fixed inset-0 bg-black/50" />
     <div
-      class="relative bg-popover text-popover-foreground rounded-xl p-6 shadow-lg w-[95vw] max-w-[700px] max-h-[85vh] overflow-y-auto"
+      class="
+        relative max-h-[85vh] w-[95vw] max-w-175 overflow-y-auto rounded-xl
+        bg-popover p-6 text-popover-foreground shadow-lg
+      "
     >
-      <h2 class="text-lg font-medium mb-2">{{ t.validatorTitle }}</h2>
-      <p class="text-sm text-muted-foreground mb-4">{{ t.validatorDescription }}</p>
+      <h2 class="mb-2 text-lg font-medium">{{ t.validatorTitle }}</h2>
+      <p class="mb-4 text-sm text-muted-foreground">{{ t.validatorDescription }}</p>
       <div class="space-y-4">
         <textarea
           v-model="jsonInput"
           :placeholder="t.validatorContent"
-          class="w-full h-48 resize-none font-mono text-sm p-3 rounded-md border border-input bg-transparent focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-3 outline-none"
+          class="
+            h-48 w-full resize-none rounded-md border border-input
+            bg-transparent p-3 font-mono text-sm outline-none
+            focus-visible:border-ring focus-visible:ring-3
+            focus-visible:ring-ring/50
+          "
           spellcheck="false"
         />
         <div v-if="result">
           <div
             v-if="result.valid"
-            class="flex items-center gap-2 text-green-600 text-sm font-medium"
+            class="flex items-center gap-2 text-sm font-medium text-green-600"
           >
             <CheckCircleIcon class="size-4" /> {{ t.validatorValid }}
           </div>
           <div v-else class="space-y-2">
-            <p class="flex items-center gap-2 text-red-500 text-sm font-medium">
+            <p class="flex items-center gap-2 text-sm font-medium text-red-500">
               <AlertCircleIcon class="size-4" /> {{ t.validatorErrorInvalidSyntax }} ({{
                 result.errors?.length ?? 0
               }}
@@ -55,19 +63,26 @@ const result = computed(() => {
                 )
               }})
             </p>
-            <ul class="space-y-1 max-h-40 overflow-y-auto">
-              <li v-for="(err, i) in result.errors" :key="i" class="text-xs text-muted-foreground">
+            <ul class="max-h-40 space-y-1 overflow-y-auto">
+              <li v-for="(err, i) in result.errors" :key="i" class="
+                text-xs text-muted-foreground
+              ">
                 [{{ err.line ?? '?' }}:{{ err.column ?? '?' }}] {{ err.message }}
               </li>
             </ul>
           </div>
         </div>
       </div>
-      <div class="flex justify-end mt-4">
+      <div class="mt-4 flex justify-end">
         <button
           type="button"
           @click="emit('update:open', false)"
-          class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all h-9 px-4 border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground"
+          class="
+            inline-flex h-9 items-center justify-center gap-2 rounded-md border
+            bg-background px-4 text-sm font-medium whitespace-nowrap shadow-xs
+            transition-all
+            hover:bg-accent hover:text-accent-foreground
+          "
         >
           {{ t.fieldAddNewCancel }}
         </button>

@@ -123,12 +123,20 @@ const numInputClass =
 
 <template>
   <div class="space-y-4">
-    <p v-if="readOnly && !hasConstraint" class="text-sm italic text-muted-foreground">
+    <p v-if="readOnly && !hasConstraint" class="
+      text-sm text-muted-foreground italic
+    ">
       {{ t.numberNoConstraint }}
     </p>
 
-    <div v-if="!readOnly || hasConstraint" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <div class="space-y-0 md:col-span-2">
+    <div v-if="!readOnly || hasConstraint" class="
+      grid grid-cols-1 gap-4
+      md:grid-cols-2
+    ">
+      <div class="
+        space-y-0
+        md:col-span-2
+      ">
         <div v-if="!!minMaxError" class="text-xs text-red-500 italic">{{ minMaxError }}</div>
         <div v-if="!!redundantMinError" class="text-xs text-red-500 italic">
           {{ redundantMinError }}
@@ -144,7 +152,9 @@ const numInputClass =
           :for="minimumId"
           :class="[
             'text-sm font-medium',
-            minimum !== undefined && (!!minMaxError || !!redundantMinError) && 'text-red-500',
+            minimum !== undefined && (!!minMaxError || !!redundantMinError) && `
+              text-red-500
+            `,
           ]"
           >{{ t.numberMinimumLabel }}</label
         >
@@ -172,7 +182,9 @@ const numInputClass =
           :for="maximumId"
           :class="[
             'text-sm font-medium',
-            maximum !== undefined && (!!minMaxError || !!redundantMaxError) && 'text-red-500',
+            maximum !== undefined && (!!minMaxError || !!redundantMaxError) && `
+              text-red-500
+            `,
           ]"
           >{{ t.numberMaximumLabel }}</label
         >
@@ -198,7 +210,10 @@ const numInputClass =
 
     <div
       v-if="!readOnly || !!exclusiveMaximum || !!exclusiveMinimum"
-      class="grid grid-cols-1 md:grid-cols-2 gap-4"
+      class="
+        grid grid-cols-1 gap-4
+        md:grid-cols-2
+      "
     >
       <div v-if="!readOnly || !!exclusiveMinimum" class="flex flex-col gap-2">
         <label :for="exclusiveMinimumId" class="text-sm font-medium">{{
@@ -270,21 +285,28 @@ const numInputClass =
         :disabled="readOnly"
         :class="numInputClass"
       />
-      <div v-if="!!multipleOfError" class="text-xs text-red-500 italic whitespace-pre-line">
+      <div v-if="!!multipleOfError" class="
+        text-xs whitespace-pre-line text-red-500 italic
+      ">
         {{ multipleOfError }}
       </div>
     </div>
 
-    <div v-if="!readOnly || enumValues.length > 0" class="space-y-2 pt-2 border-t border-border">
+    <div v-if="!readOnly || enumValues.length > 0" class="
+      space-y-2 border-t border-border pt-2
+    ">
       <label :class="['text-sm font-medium', !!enumError && 'text-red-500']">{{
         t.numberAllowedValuesEnumLabel
       }}</label>
-      <div class="flex flex-wrap gap-2 mb-4">
+      <div class="mb-4 flex flex-wrap gap-2">
         <template v-if="enumValues.length > 0">
           <span
             v-for="(value, index) in enumValues"
             :key="index"
-            class="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-0.5 text-xs font-medium"
+            class="
+              inline-flex items-center gap-1 rounded-full bg-secondary px-2.5
+              py-0.5 text-xs font-medium
+            "
           >
             {{ value }}
             <button
@@ -297,7 +319,7 @@ const numInputClass =
             </button>
           </span>
         </template>
-        <p v-else class="text-xs italic text-muted-foreground">
+        <p v-else class="text-xs text-muted-foreground italic">
           {{ t.numberAllowedValuesEnumNone }}
         </p>
       </div>
@@ -314,7 +336,12 @@ const numInputClass =
         <button
           type="button"
           @click="handleAddEnumValue()"
-          class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all h-8 px-3 border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground"
+          class="
+            inline-flex h-8 items-center justify-center gap-2 rounded-md border
+            bg-background px-3 text-sm font-medium whitespace-nowrap shadow-xs
+            transition-all
+            hover:bg-accent hover:text-accent-foreground
+          "
         >
           <PlusIcon class="size-3" /> {{ t.numberAllowedValuesEnumAddLabel }}
         </button>

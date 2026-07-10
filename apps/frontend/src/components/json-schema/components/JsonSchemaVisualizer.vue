@@ -49,28 +49,38 @@ const handleDownload = () => {
 </script>
 
 <template>
-  <div class="relative overflow-hidden h-full flex flex-col">
+  <div class="relative flex h-full flex-col overflow-hidden">
     <div
-      class="flex items-center justify-between bg-secondary/80 backdrop-blur-xs px-4 py-2 border-b shrink-0"
+      class="
+        flex shrink-0 items-center justify-between border-b bg-secondary/80 px-4
+        py-2 backdrop-blur-xs
+      "
     >
       <div class="flex items-center gap-2">
-        <FileJsonIcon class="size-[18px]" />
-        <span class="font-medium text-sm">{{ t.visualizerSource }}</span>
+        <FileJsonIcon class="size-4.5" />
+        <span class="text-sm font-medium">{{ t.visualizerSource }}</span>
       </div>
       <button
         type="button"
         @click="handleDownload"
-        class="p-1.5 hover:bg-secondary rounded-md transition-colors"
+        class="
+          rounded-md p-1.5 transition-colors
+          hover:bg-secondary
+        "
         :title="t.visualizerDownloadTitle"
       >
         <DownloadIcon class="size-4" />
       </button>
     </div>
-    <div class="grow flex min-h-0 relative">
+    <div class="relative flex min-h-0 grow">
       <textarea
         v-model="editorText"
         @input="handleEditorUpdate"
-        class="w-full h-full resize-none font-mono text-sm p-4 bg-transparent text-foreground focus-visible:outline-none border-0"
+        class="
+          size-full resize-none border-0 bg-transparent p-4 font-mono text-sm
+          text-foreground
+          focus-visible:outline-none
+        "
         spellcheck="false"
       />
     </div>
