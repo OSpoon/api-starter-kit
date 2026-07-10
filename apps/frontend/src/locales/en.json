@@ -78,7 +78,7 @@
     "help": "Help",
     "language": "Language",
     "language_switched": "Language switched",
-    "schema_builder": "JSON Schema Builder"
+    "schema_builder": "Schema Builder"
   },
   "footer": {
     "built_by": "Built with care by the {platform} team"

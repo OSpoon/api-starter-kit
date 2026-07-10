@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {
   BadgeCheck,
+  BookOpenText,
   Check,
   ChevronsUpDown,
   CircleHelp,
@@ -147,7 +148,7 @@ function setLocale(newLocale: string) {
               </DropdownMenuSubTrigger>
               <DropdownMenuSubContent>
                 <DropdownMenuItem @click="openApiDocs">
-                  <CircleHelp />
+                  <BookOpenText />
                   {{ t('nav.api_docs') }}
                 </DropdownMenuItem>
                 <DropdownMenuItem @click="navigateTo('/schema-builder')">
