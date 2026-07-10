@@ -3,7 +3,6 @@ import { ChevronLeftIcon } from '@lucide/vue'
 
 import type { RangeCalendarPrevProps } from 'reka-ui'
 import type { HTMLAttributes } from 'vue'
-import { reactiveOmit } from '@vueuse/core'
 import { RangeCalendarPrev, useForwardProps } from 'reka-ui'
 import { cn } from '@/lib/utils'
 import { buttonVariants } from '@/components/ui/button'

@@ -12,10 +12,6 @@ import {
   Moon,
   Sun,
 } from '@lucide/vue'
-import { useColorMode } from '@vueuse/core'
-import { ref, watch } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { useRoute, useRouter } from 'vue-router'
 import { toast } from 'vue-sonner'
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'

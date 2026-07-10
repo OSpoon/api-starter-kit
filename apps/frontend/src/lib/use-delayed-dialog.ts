@@ -1,5 +1,3 @@
-import { ref } from 'vue'
-
 const DEFAULT_UNMOUNT_DELAY_MS = 200
 
 export function useDelayedDialog(delayMs = DEFAULT_UNMOUNT_DELAY_MS) {

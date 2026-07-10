@@ -1,7 +1,5 @@
 <script setup lang="ts">
 import { KeyRound, Route, ShieldCheck } from '@lucide/vue'
-import { computed } from 'vue'
-import { useI18n } from 'vue-i18n'
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 

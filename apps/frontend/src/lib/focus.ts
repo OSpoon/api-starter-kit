@@ -1,5 +1,3 @@
-import { ref } from 'vue'
-
 export const modalLayerVersion = ref(0)
 
 export function blurActiveElement() {

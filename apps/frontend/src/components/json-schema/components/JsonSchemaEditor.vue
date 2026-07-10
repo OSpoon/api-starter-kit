@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { Maximize2Icon, Minimize2Icon } from '@lucide/vue'
-import { ref, watch } from 'vue'
 
 import {
   createSchemaStore,

@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { useSlots } from 'vue'
-
 import { Button } from '@/components/ui/button'
 
 defineProps<{

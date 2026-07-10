@@ -1,7 +1,4 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { useRoute, useRouter } from 'vue-router'
 import { toast } from 'vue-sonner'
 
 import CardPageShell from '@/components/common/CardPageShell.vue'

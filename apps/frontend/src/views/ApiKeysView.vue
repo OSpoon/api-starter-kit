@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import { Check, Copy, Plus, RefreshCw, Trash2 } from '@lucide/vue'
 import type { ColumnDef } from '@tanstack/vue-table'
-import { computed, h, onMounted, ref } from 'vue'
-import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
 
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'

@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { DownloadIcon, FileJsonIcon } from '@lucide/vue'
-import { computed, ref, watch } from 'vue'
 
 import { useSchemaStore } from '@/components/json-schema/hooks/useSchemaStore.ts'
 import { useTranslation } from '@/components/json-schema/hooks/useTranslation.ts'

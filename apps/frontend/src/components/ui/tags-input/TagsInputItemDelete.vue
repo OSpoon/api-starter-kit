@@ -3,7 +3,6 @@ import { XIcon } from '@lucide/vue'
 
 import type { TagsInputItemDeleteProps } from 'reka-ui'
 import type { HTMLAttributes } from 'vue'
-import { reactiveOmit } from '@vueuse/core'
 import { TagsInputItemDelete, useForwardProps } from 'reka-ui'
 import { cn } from '@/lib/utils'
 

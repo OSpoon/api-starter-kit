@@ -1,5 +1,3 @@
-import { computed, inject } from 'vue'
-
 import { dialogContainerRefKey, insideDialogKey } from '@/lib/dialog-context'
 
 export function useOverlayPortal() {

@@ -1,5 +1,4 @@
 import { FieldContextKey } from 'vee-validate'
-import { computed, inject } from 'vue'
 import { FORM_ITEM_INJECTION_KEY } from './injectionKeys'
 
 export function useFormField() {

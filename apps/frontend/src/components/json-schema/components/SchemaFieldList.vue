@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-
 import { useSchemaStore } from '@/components/json-schema/hooks/useSchemaStore.ts'
 import { useTranslation } from '@/components/json-schema/hooks/useTranslation.ts'
 import { getSchemaProperties } from '@/components/json-schema/lib/schemaEditor.ts'

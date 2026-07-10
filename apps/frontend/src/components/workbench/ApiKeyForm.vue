@@ -1,9 +1,7 @@
 <script setup lang="ts">
 import { toTypedSchema } from '@vee-validate/zod'
 import { useForm } from 'vee-validate'
-import { computed, watch } from 'vue'
 import type { Composer } from 'vue-i18n'
-import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
 import { z } from 'zod'
 

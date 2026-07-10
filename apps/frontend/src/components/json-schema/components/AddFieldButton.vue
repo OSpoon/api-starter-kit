@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { CircleHelpIcon, CirclePlusIcon, InfoIcon } from '@lucide/vue'
-import { ref, useId } from 'vue'
 
 import { useSchemaStore } from '@/components/json-schema/hooks/useSchemaStore.ts'
 import { useTranslation } from '@/components/json-schema/hooks/useTranslation.ts'

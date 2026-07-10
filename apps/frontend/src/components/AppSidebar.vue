@@ -1,9 +1,7 @@
 <script setup lang="ts">
 import { Activity } from '@lucide/vue'
 import type { Component } from 'vue'
-import { computed } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { type RouteRecordNormalized, RouterLink, useRouter } from 'vue-router'
+import type { RouteRecordNormalized } from 'vue-router'
 
 import NavMain from '@/components/NavMain.vue'
 import NavUser from '@/components/NavUser.vue'

@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ChevronDownIcon, ChevronRightIcon, XIcon } from '@lucide/vue'
-import { computed, ref } from 'vue'
 
 import { useSchemaStore } from '@/components/json-schema/hooks/useSchemaStore.ts'
 import { useTranslation } from '@/components/json-schema/hooks/useTranslation.ts'

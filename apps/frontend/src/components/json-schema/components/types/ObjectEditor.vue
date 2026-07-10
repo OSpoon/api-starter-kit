@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-
 import AddFieldButton from '@/components/json-schema/components/AddFieldButton.vue'
 import SchemaPropertyEditor from '@/components/json-schema/components/SchemaPropertyEditor.vue'
 import { useSchemaStore } from '@/components/json-schema/hooks/useSchemaStore.ts'

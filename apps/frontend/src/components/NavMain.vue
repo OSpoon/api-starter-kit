@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { Component } from 'vue'
-import { RouterLink, useRoute } from 'vue-router'
 
 import {
   SidebarGroup,

@@ -2,8 +2,6 @@
 import 'markstream-vue/index.css'
 
 import MarkdownRender from 'markstream-vue'
-import { computed } from 'vue'
-import { useI18n } from 'vue-i18n'
 
 export type AiMessageContentStatus = 'pending' | 'streaming' | 'done' | 'error' | 'interrupted'
 

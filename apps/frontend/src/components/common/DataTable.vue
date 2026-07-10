@@ -17,10 +17,7 @@ import {
   getSortedRowModel,
   useVueTable,
 } from '@tanstack/vue-table'
-import { useLocalStorage } from '@vueuse/core'
 import type { Ref } from 'vue'
-import { computed, ref, watch, watchEffect } from 'vue'
-import { useI18n } from 'vue-i18n'
 
 import { Button } from '@/components/ui/button'
 import {

@@ -3,7 +3,6 @@ import { ChevronRightIcon } from '@lucide/vue'
 
 import type { MenubarSubTriggerProps } from 'reka-ui'
 import type { HTMLAttributes } from 'vue'
-import { reactiveOmit } from '@vueuse/core'
 import { MenubarSubTrigger, useForwardProps } from 'reka-ui'
 import { cn } from '@/lib/utils'
 

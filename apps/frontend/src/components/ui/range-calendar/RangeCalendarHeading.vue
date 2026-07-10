@@ -1,7 +1,6 @@
 <script lang="ts" setup>
 import type { RangeCalendarHeadingProps } from 'reka-ui'
 import type { HTMLAttributes } from 'vue'
-import { reactiveOmit } from '@vueuse/core'
 import { RangeCalendarHeading, useForwardProps } from 'reka-ui'
 import { cn } from '@/lib/utils'
 

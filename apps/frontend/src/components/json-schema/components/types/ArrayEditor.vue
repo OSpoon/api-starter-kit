@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { computed, ref, useId } from 'vue'
-
 import TypeDropdown from '@/components/json-schema/components/TypeDropdown.vue'
 import TypeEditor from '@/components/json-schema/components/TypeEditor.vue'
 import { useTranslation } from '@/components/json-schema/hooks/useTranslation.ts'

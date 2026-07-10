@@ -3,8 +3,6 @@ import { XIcon } from '@lucide/vue'
 
 import type { DialogContentEmits, DialogContentProps } from 'reka-ui'
 import type { HTMLAttributes } from 'vue'
-import { provide, ref } from 'vue'
-import { reactiveOmit } from '@vueuse/core'
 import { DialogClose, DialogContent, DialogPortal, useForwardPropsEmits } from 'reka-ui'
 import { dialogContainerRefKey, insideDialogKey } from '@/lib/dialog-context'
 import { prepareForModalLayer, focusElement } from '@/lib/focus'

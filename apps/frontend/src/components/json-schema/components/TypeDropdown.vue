@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-
 import { cn } from '@/components/json-schema/lib/utils.ts'
 import { getTypeColor, getTypeLabel } from '@/components/json-schema/lib/utils.ts'
 import type { SchemaType } from '@/components/json-schema/types/jsonSchema.ts'

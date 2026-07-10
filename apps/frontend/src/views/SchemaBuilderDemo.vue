@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { onBeforeMount } from 'vue'
-
 import JsonSchemaEditor from '@/components/json-schema/components/JsonSchemaEditor.vue'
 import {
   createSchemaStore,

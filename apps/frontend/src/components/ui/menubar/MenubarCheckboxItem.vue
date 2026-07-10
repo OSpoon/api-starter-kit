@@ -3,7 +3,6 @@ import { CheckIcon } from '@lucide/vue'
 
 import type { MenubarCheckboxItemEmits, MenubarCheckboxItemProps } from 'reka-ui'
 import type { HTMLAttributes } from 'vue'
-import { reactiveOmit } from '@vueuse/core'
 import { MenubarCheckboxItem, MenubarItemIndicator, useForwardPropsEmits } from 'reka-ui'
 import { cn } from '@/lib/utils'
 

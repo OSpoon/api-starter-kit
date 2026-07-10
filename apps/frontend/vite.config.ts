@@ -1,5 +1,7 @@
 import { fileURLToPath, URL } from 'node:url'
 
+import AutoImport from 'unplugin-auto-import/vite'
+import Components from 'unplugin-vue-components/vite'
 import { defineConfig } from 'vite'
 import tailwindcss from '@tailwindcss/vite'
 import vue from '@vitejs/plugin-vue'
@@ -9,7 +11,19 @@ const apiProxyTarget = process.env.VITE_DEV_API_PROXY_TARGET ?? 'http://localhos
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [vue(), vueDevTools(), tailwindcss()],
+  plugins: [
+    vue(),
+    vueDevTools(),
+    tailwindcss(),
+    AutoImport({
+      imports: ['vue', 'vue-router', 'vue-i18n', '@vueuse/core'],
+      dts: 'src/auto-imports.d.ts',
+    }),
+    Components({
+      dirs: ['src/components', '!src/components/ui'],
+      dts: 'src/components.d.ts',
+    }),
+  ],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),

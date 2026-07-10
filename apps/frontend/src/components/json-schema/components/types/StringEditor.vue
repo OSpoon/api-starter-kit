@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { PlusIcon, XIcon } from '@lucide/vue'
-import { computed, ref, useId } from 'vue'
 
 import { useTranslation } from '@/components/json-schema/hooks/useTranslation.ts'
 import type { JSONSchema, ObjectJSONSchema } from '@/components/json-schema/types/jsonSchema.ts'
