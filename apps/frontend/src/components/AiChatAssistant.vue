@@ -1,22 +1,25 @@
 <script setup lang="ts">
-import 'markstream-vue/index.css'
-
 import {
   Bot,
+  Copy,
   History,
   MessageCircle,
   MessageCirclePlus,
   Minus,
+  RotateCcw,
   Send,
   Sparkles,
+  Square,
   Trash2,
   User,
   X,
 } from '@lucide/vue'
-import MarkdownRender from 'markstream-vue'
 import { computed, nextTick, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import AiMessageContent, {
+  type AiMessageContentStatus,
+} from '@/components/ai-chat/AiMessageContent.vue'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -28,11 +31,13 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Textarea } from '@/components/ui/textarea'
 
 type ChatRole = 'assistant' | 'user'
+type ChatMessageStatus = AiMessageContentStatus
 
 interface ChatMessage {
   id?: string | number
   role: ChatRole
   content: string
+  status?: ChatMessageStatus
 }
 
 interface ChatConversation {
@@ -53,6 +58,7 @@ const props = withDefaults(
     streamingMessageId?: string | number | null
     loading?: boolean
     disabled?: boolean
+    showMessageActions?: boolean
   }>(),
   {
     modelValue: undefined,
@@ -66,6 +72,7 @@ const props = withDefaults(
     streamingMessageId: null,
     loading: false,
     disabled: false,
+    showMessageActions: true,
   }
 )
 
@@ -75,6 +82,9 @@ const emit = defineEmits<{
   clear: []
   selectConversation: [id: string | number]
   deleteConversation: [id: string | number]
+  copyMessage: [message: ChatMessage]
+  retryMessage: [message: ChatMessage]
+  stop: []
 }>()
 
 const { t } = useI18n()
@@ -221,6 +231,10 @@ function sendMessage(message = input.value) {
   scrollToBottom()
 }
 
+function stopGeneration() {
+  emit('stop')
+}
+
 function isCompositionConfirming(event?: KeyboardEvent) {
   const keyCode = event ? (event as KeyboardEvent & { keyCode?: number }).keyCode : undefined
 
@@ -285,16 +299,44 @@ function handlePaste(event: ClipboardEvent) {
   })
 }
 
-function isPendingAssistantMessage(message: ChatMessage) {
+function isStreamingAssistantMessage(message: ChatMessage) {
   return (
     message.role === 'assistant' &&
-    message.content.trim().length === 0 &&
-    (message.id === props.streamingMessageId || props.loading)
+    (message.status === 'streaming' || message.id === props.streamingMessageId)
   )
 }
 
-function isStreamingAssistantMessage(message: ChatMessage) {
-  return message.role === 'assistant' && message.id === props.streamingMessageId
+function getAssistantMessageStatus(message: ChatMessage): ChatMessageStatus {
+  if (message.status) {
+    return message.status
+  }
+
+  if (
+    message.role === 'assistant' &&
+    message.content.trim().length === 0 &&
+    (message.id === props.streamingMessageId || props.loading)
+  ) {
+    return 'pending'
+  }
+
+  if (isStreamingAssistantMessage(message)) {
+    return 'streaming'
+  }
+
+  return 'done'
+}
+
+function canCopyMessage(message: ChatMessage) {
+  return props.showMessageActions && message.content.trim().length > 0
+}
+
+function canRetryMessage(message: ChatMessage) {
+  return (
+    props.showMessageActions &&
+    message.role === 'assistant' &&
+    !isStreamingAssistantMessage(message) &&
+    message.id !== 'welcome'
+  )
 }
 
 watch(
@@ -434,35 +476,54 @@ onUnmounted(() => {
                 <User v-if="message.role === 'user'" class="size-3.5" />
                 <Bot v-else class="size-3.5" />
               </div>
-              <div
-                class="max-w-[85%] whitespace-pre-wrap rounded-lg px-3 py-2 text-[13px] leading-5"
-                :class="
-                  message.role === 'user'
-                    ? 'bg-accent text-accent-foreground'
-                    : 'ai-chat-markdown border bg-background text-foreground'
-                "
-              >
-                <div v-if="isPendingAssistantMessage(message)" class="ai-chat-typing">
-                  <span>{{ t('ai_chat.waiting') }}</span>
+              <div class="group/message flex max-w-[85%] flex-col gap-1">
+                <div
+                  class="whitespace-pre-wrap rounded-lg px-3 py-2 text-[13px] leading-5"
+                  :class="
+                    message.role === 'user'
+                      ? 'bg-accent text-accent-foreground'
+                      : 'border bg-background text-foreground'
+                  "
+                >
+                  <AiMessageContent
+                    v-if="message.role === 'assistant'"
+                    :content="message.content"
+                    :status="getAssistantMessageStatus(message)"
+                    :streaming="isStreamingAssistantMessage(message)"
+                  />
+                  <template v-else>
+                    {{ message.content }}
+                  </template>
                 </div>
-                <MarkdownRender
-                  v-else-if="message.role === 'assistant'"
-                  custom-id="ai-chat"
-                  mode="chat"
-                  :content="message.content"
-                  :final="!isStreamingAssistantMessage(message)"
-                  :smooth-streaming="isStreamingAssistantMessage(message) ? 'auto' : false"
-                  :fade="!isStreamingAssistantMessage(message)"
-                  :typewriter="isStreamingAssistantMessage(message)"
-                  :max-live-nodes="isStreamingAssistantMessage(message) ? 0 : undefined"
-                  :batch-rendering="isStreamingAssistantMessage(message)"
-                  :render-batch-size="16"
-                  :render-batch-delay="8"
-                  :render-batch-budget-ms="4"
-                />
-                <template v-else>
-                  {{ message.content }}
-                </template>
+                <div
+                  v-if="canCopyMessage(message) || canRetryMessage(message)"
+                  class="flex h-6 items-center gap-1 opacity-0 transition-opacity group-hover/message:opacity-100 focus-within:opacity-100"
+                  :class="message.role === 'user' ? 'justify-end' : 'justify-start'"
+                >
+                  <Button
+                    v-if="canCopyMessage(message)"
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    class="size-6 text-muted-foreground hover:text-foreground"
+                    :title="t('ai_chat.copy_message')"
+                    @click="emit('copyMessage', message)"
+                  >
+                    <Copy class="size-3.5" />
+                  </Button>
+                  <Button
+                    v-if="canRetryMessage(message)"
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    class="size-6 text-muted-foreground hover:text-foreground"
+                    :title="t('ai_chat.retry_message')"
+                    :disabled="loading || disabled"
+                    @click="emit('retryMessage', message)"
+                  >
+                    <RotateCcw class="size-3.5" />
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
@@ -499,15 +560,14 @@ onUnmounted(() => {
               @paste="handlePaste"
             />
             <Button
-              type="submit"
+              :type="loading ? 'button' : 'submit'"
               size="icon"
               class="absolute right-2 bottom-2 size-7 rounded-md"
-              :disabled="!input.trim() || loading || disabled"
+              :disabled="(!input.trim() && !loading) || disabled"
+              :title="loading ? t('ai_chat.stop_generating') : undefined"
+              @click="loading ? stopGeneration() : undefined"
             >
-              <div
-                v-if="loading"
-                class="size-3.5 animate-spin rounded-full border-2 border-primary-foreground/80 border-t-transparent"
-              />
+              <Square v-if="loading" class="size-3.5 fill-current" />
               <Send v-else class="size-3.5" />
             </Button>
           </div>
@@ -562,159 +622,5 @@ onUnmounted(() => {
 :deep([data-slot='scroll-area-viewport']::-webkit-scrollbar-thumb) {
   background-color: hsl(var(--muted-foreground) / 0.18);
   border-radius: 10px;
-}
-
-.ai-chat-markdown {
-  font-size: 13px;
-  line-height: 1.5;
-}
-
-.ai-chat-typing {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.375rem;
-  height: 1.25rem;
-  color: hsl(var(--muted-foreground));
-  font-size: 12px;
-  line-height: 1;
-}
-
-.ai-chat-typing span {
-  white-space: nowrap;
-}
-
-.ai-chat-markdown :deep(.markstream-vue) {
-  --ms-text-body: 13px;
-  --ms-leading-body: 1.5;
-  --ms-text-h1: 0.95rem;
-  --ms-text-h2: 0.925rem;
-  --ms-text-h3: 0.9rem;
-  --ms-text-h4: 0.875rem;
-  --ms-text-h5: 0.875rem;
-  --ms-text-h6: 0.875rem;
-  --ms-leading-h1: 1.3;
-  --ms-leading-h2: 1.35;
-  --ms-leading-h3: 1.4;
-  --ms-flow-paragraph-y: 0.375rem;
-  --ms-flow-list-y: 0.375rem;
-  --ms-flow-list-item-y: 0.125rem;
-  --ms-flow-list-indent: 1.125rem;
-  --ms-flow-list-indent-mobile: 1.125rem;
-  --ms-flow-table-y: 0.5rem;
-  --ms-flow-blockquote-y: 0.5rem;
-  --ms-flow-codeblock-y: 0.5rem;
-  --ms-flow-heading-1-mt: 0;
-  --ms-flow-heading-1-mb: 0.375rem;
-  --ms-flow-heading-2-mt: 0.625rem;
-  --ms-flow-heading-2-mb: 0.375rem;
-  --ms-flow-heading-3-mt: 0.5rem;
-  --ms-flow-heading-3-mb: 0.25rem;
-  --ms-flow-heading-4-mt: 0.5rem;
-  --ms-flow-heading-4-mb: 0.25rem;
-  --ms-inset-panel-body: 0.625rem;
-  --ms-inset-panel-x: 0.5rem;
-  --ms-inset-panel-y: 0.25rem;
-  --ms-gap-header: 0.5rem;
-  --ms-gap-header-main: 0.375rem;
-  --ms-gap-header-actions: 0.375rem;
-  --ms-action-btn-icon: 0.75rem;
-  --ms-action-btn-padding: 0.25rem;
-  --ms-size-code-max-height: 240px;
-  --vscode-editor-font-size: 12px;
-  --vscode-editor-line-height: 1.45;
-  font-size: 13px;
-  line-height: 1.5;
-  color: inherit;
-}
-
-.ai-chat-markdown :deep(.markstream-vue .text-node),
-.ai-chat-markdown :deep(.markstream-vue .paragraph-node),
-.ai-chat-markdown :deep(.markstream-vue .list-node),
-.ai-chat-markdown :deep(.markstream-vue .list-item-node) {
-  font-size: 13px;
-  line-height: 1.5;
-}
-
-.ai-chat-markdown :deep(.markstream-vue .leading-relaxed) {
-  line-height: 1.5;
-}
-
-.ai-chat-markdown :deep(.markstream-vue > * + *) {
-  margin-top: 0.375rem;
-}
-
-.ai-chat-markdown :deep(p) {
-  margin: 0;
-}
-
-.ai-chat-markdown :deep(p + p) {
-  margin-top: 0.375rem;
-}
-
-.ai-chat-markdown :deep(ul),
-.ai-chat-markdown :deep(ol) {
-  margin: 0.375rem 0 0;
-  padding-left: 1.125rem;
-}
-
-.ai-chat-markdown :deep(li) {
-  margin: 0.125rem 0;
-}
-
-.ai-chat-markdown :deep(h1),
-.ai-chat-markdown :deep(h2),
-.ai-chat-markdown :deep(h3),
-.ai-chat-markdown :deep(h4),
-.ai-chat-markdown :deep(h5),
-.ai-chat-markdown :deep(h6) {
-  margin: 0.625rem 0 0.375rem;
-  font-size: 0.95rem;
-  line-height: 1.35;
-  font-weight: 600;
-}
-
-.ai-chat-markdown :deep(pre) {
-  margin: 0.5rem 0 0;
-  max-width: 100%;
-  overflow-x: auto;
-  border-radius: 0.375rem;
-  border: 1px solid hsl(var(--border));
-  background: hsl(var(--muted) / 0.35);
-  padding: 0.625rem;
-  font-size: 0.75rem;
-  line-height: 1.45;
-}
-
-.ai-chat-markdown :deep(code) {
-  border-radius: 0.25rem;
-  background: hsl(var(--muted) / 0.45);
-  padding: 0.08rem 0.25rem;
-  font-size: 0.78rem;
-}
-
-.ai-chat-markdown :deep(pre code) {
-  background: transparent;
-  padding: 0;
-  font-size: inherit;
-}
-
-.ai-chat-markdown :deep(blockquote) {
-  margin: 0.5rem 0 0;
-  border-left: 2px solid hsl(var(--border));
-  padding-left: 0.625rem;
-  color: hsl(var(--muted-foreground));
-}
-
-.ai-chat-markdown :deep(table) {
-  margin-top: 0.5rem;
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.75rem;
-}
-
-.ai-chat-markdown :deep(th),
-.ai-chat-markdown :deep(td) {
-  border: 1px solid hsl(var(--border));
-  padding: 0.25rem 0.375rem;
 }
 </style>

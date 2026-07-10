@@ -95,6 +95,11 @@
     "history": "历史会话",
     "no_history": "暂无历史会话",
     "minimize": "最小化",
+    "copy_message": "复制消息",
+    "retry_message": "重新生成",
+    "stop_generating": "停止生成",
+    "copy_success": "消息已复制",
+    "copy_failed": "复制失败",
     "demo_response": "已收到。当前组件已作为通用悬浮助手接入，后续可以通过 @send 事件连接真实 AI 服务。",
     "suggestions": {
       "api_keys": "如何管理 API 密钥？",

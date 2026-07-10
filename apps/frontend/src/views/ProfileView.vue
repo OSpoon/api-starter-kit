@@ -4,8 +4,8 @@ import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { toast } from 'vue-sonner'
 
-import SegmentedCodeInput from '@/components/common/SegmentedCodeInput.vue'
 import DescriptionActionRow from '@/components/common/DescriptionActionRow.vue'
+import SegmentedCodeInput from '@/components/common/SegmentedCodeInput.vue'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {

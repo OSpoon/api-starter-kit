@@ -78,7 +78,8 @@ export async function streamAiChatMessage(
   token: string | null,
   id: number,
   content: string,
-  onEvent: (event: AiChatStreamEvent) => void
+  onEvent: (event: AiChatStreamEvent) => void,
+  signal?: AbortSignal
 ) {
   const headers = new Headers({
     Accept: 'text/event-stream',
@@ -93,6 +94,7 @@ export async function streamAiChatMessage(
     method: 'POST',
     headers,
     body: JSON.stringify({ content }),
+    signal,
   })
 
   if (!response.ok || !response.body) {
