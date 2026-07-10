@@ -1,6 +1,6 @@
 # API Starter Kit
 
-> 基于 AdonisJS 7 + Vue 3 + shadcn-vue 的全栈应用模板，内置认证、API Key 管理和 Docker 部署能力。
+> 基于 AdonisJS 7 + Vue 3 + shadcn-vue 的全栈应用模板，内置认证、OpenAPI、API Key、页面模板与可配置 AI 助手。
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D24.12.0-brightgreen.svg)](package.json)
@@ -13,7 +13,11 @@
 - **用户认证** — 登录/登出、密码强度与过期策略、登录锁定
 - **双因素认证** — TOTP 2FA (基于 otplib + QR 码)
 - **API Key 管理** — 创建/吊销/删除，支持过期时间配置
-- **API 文档** — OpenAPI / Scalar UI，自动由路由和装饰器生成
+- **OpenAPI 文档** — Scalar UI 与 JSON/YAML 规范，自动由路由和装饰器生成
+- **路由驱动导航** — 侧栏菜单与面包屑均来自路由 `meta` 定义
+- **Schema 构建器** — JSON Schema 的可视化编辑、校验与预览示例
+- **模板中心** — 概览、详情、设置、列表管理、任务流转、数据分析、分步引导与操作模式示例
+- **AI 助手** — OpenAI SDK 兼容、流式多轮对话、历史会话、可配置系统提示词与安全页面上下文
 - **国际化** — 中文和英文文案
 - **Docker 部署** — 多阶段构建，Nginx + PostgreSQL
 - **Monorepo 工程** — pnpm workspace + Turborepo + ESLint + Prettier
@@ -23,6 +27,8 @@
 - [快速开始](#快速开始)
 - [开发命令](#开发命令)
 - [API 概览](#api-概览)
+- [页面与模板](#页面与模板)
+- [AI 助手](#ai-助手)
 - [部署](#部署)
 - [项目结构](#项目结构)
 - [技术栈](#技术栈)
@@ -61,11 +67,19 @@ pnpm --dir apps/backend exec node ace generate:key --show
 APP_KEY=<generated-app-key>
 ```
 
-### 3. 启动 PostgreSQL
+### 3. 启动 PostgreSQL 和 Ollama
 
 ```bash
-docker compose up -d postgres
+docker compose up -d postgres ollama
 ```
+
+默认模型为 `llama3.2:1b`，**需手动拉取模型**：
+
+```bash
+ollama pull llama3.2:1b
+```
+
+在 `apps/backend/.env` 覆盖 `AI_OPENAI_*` 变量即可接入其他 OpenAI 兼容服务。
 
 ### 4. 执行数据库迁移
 
@@ -86,6 +100,9 @@ pnpm dev
 | 前端       | `http://localhost:18080` |
 | 后端 API   | `http://localhost:13333` |
 | PostgreSQL | `localhost:5432`         |
+| Ollama     | `http://localhost:11434` |
+
+开发环境不经过 Nginx。OpenAPI 文档由后端直接提供：`http://localhost:13333/api-docs`。
 
 默认管理员来自 `apps/backend/.env`：
 
@@ -139,6 +156,8 @@ pnpm --dir apps/frontend build
 | JSON 规范 | `/api-docs.json` | OpenAPI JSON       |
 | YAML 规范 | `/api-docs.yaml` | OpenAPI YAML       |
 
+开发环境请使用后端地址，例如 `http://localhost:13333/api-docs`；生产环境可通过 Nginx 的同路径访问。
+
 基础路径：`/api/v1`
 
 健康检查：
@@ -167,6 +186,8 @@ pnpm --dir apps/frontend build
 | ------- | ---------------------------- |
 | API Key | `/api-keys`、`/api-keys/:id` |
 
+模板提供 API Key 的生成、校验与中间件能力，但当前没有内置业务接口启用 API Key 鉴权。接入新业务接口时，显式挂载 `middleware.apiKey()` 后才可使用 API Key；账户、登录、2FA、API Key 管理与 AI 会话接口使用管理员 Bearer Token，不接受 API Key。
+
 所有接口返回结构：
 
 ```json
@@ -174,6 +195,38 @@ pnpm --dir apps/frontend build
   "data": {}
 }
 ```
+
+## 页面与模板
+
+前端导航、面包屑和模板入口由 `apps/frontend/src/router/modules/workbench.ts` 的路由元信息驱动。侧栏的“模板”分组包含以下可运行示例：
+
+- 页面模板：概览、详情、设置、组合筛选、批量操作、侧栏详情和移动端列表
+- 任务流转：审批状态、评论和活动时间线
+- 数据分析：筛选、指标、骨架加载、表格与分页
+- 分步引导：表单校验与 `Stepper` 进度
+- 操作模式：高级表单、搜索选择、导入导出、命令面板、通知与反馈状态
+
+这些页面使用当前项目的设计 token 和 shadcn-vue 组件，作为后续业务页面的实现参考，而非生产数据看板。
+
+## AI 助手
+
+AI 助手使用 OpenAI SDK，可接入 OpenAI、DeepSeek、Qwen 等 OpenAI 兼容服务。它默认提供纯聊天、流式输出、多轮上下文、停止生成、重试、复制和会话历史。
+
+后端配置位于 `apps/backend/.env`：
+
+| 变量                      | 说明                                           |
+| ------------------------- | ---------------------------------------------- |
+| `AI_OPENAI_API_KEY`       | 服务商 API Key，Ollama 默认值为 `ollama`       |
+| `AI_OPENAI_BASE_URL`      | OpenAI 兼容 API 地址，默认本地 Ollama          |
+| `AI_OPENAI_MODEL`         | 模型名称，默认 `llama3.2:1b`                   |
+| `AI_SYSTEM_PROMPT`        | 可选的项目系统提示词                           |
+| `AI_TEMPERATURE`          | 生成温度，服务端限制为 `0-2`                   |
+| `AI_MAX_HISTORY_MESSAGES` | 每次请求携带的历史消息数，服务端限制为 `1-100` |
+
+助手默认仅发送当前路由与页面标题。项目可以显式注册上下文 provider 或客户端动作；未注册时不会读取页面数据，也不会执行业务操作。相关扩展点位于：
+
+- `apps/frontend/src/lib/ai-chat-context.ts`
+- `apps/frontend/src/lib/ai-chat-actions.ts`
 
 ## 部署
 
@@ -187,6 +240,7 @@ docker compose up -d
 生产 Compose 行为：
 
 - 启动 PostgreSQL
+- 启动 Ollama（**需手动拉取模型：`ollama pull llama3.2:1b`**）
 - 后端启动前自动执行数据库迁移
 - 前端由 Nginx 提供静态资源
 - Nginx 将 `/api/*` 代理到后端
@@ -208,7 +262,7 @@ docker compose up -d
 - 密码策略要求长度和字符混合，并拦截常见弱密码
 - 连续登录失败会触发账号锁定
 - 2FA secret 和 recovery code 加密存储
-- API Key 使用 hash 鉴权，加密保存原始 key
+- API Key 使用 hash 鉴权，完整明文仅在创建时返回一次
 - 生产错误响应脱敏，不暴露 SQL、堆栈和内部异常细节
 
 ## 项目结构
@@ -259,6 +313,12 @@ docker compose up -d
 | `DB_USER` / `DB_PASSWORD` / `DB_DATABASE` | PostgreSQL 凭据                               |
 | `CORS_ORIGIN`                             | 允许访问 API 的前端源，逗号分隔               |
 | `TZ`                                      | 运行时区，建议 `Asia/Shanghai`                |
+| `AI_OPENAI_API_KEY`                       | OpenAI 兼容服务的 API Key，默认 `ollama`      |
+| `AI_OPENAI_BASE_URL`                      | OpenAI 兼容服务地址，默认本地 Ollama          |
+| `AI_OPENAI_MODEL`                         | 模型名称，默认 `llama3.2:1b`                  |
+| `AI_SYSTEM_PROMPT`                        | 可选的 AI 系统提示词                          |
+| `AI_TEMPERATURE`                          | AI 生成温度，范围 `0-2`                       |
+| `AI_MAX_HISTORY_MESSAGES`                 | AI 多轮历史窗口，范围 `1-100`                 |
 
 ### 前端
 
@@ -293,6 +353,7 @@ docker compose up -d
 - TanStack Table
 - vue-sonner
 - vue-i18n
+- markstream-vue
 
 工程：
 

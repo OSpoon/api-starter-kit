@@ -1,4 +1,16 @@
 services:
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - '${OLLAMA_PORT:-11434}:11434'
+    volumes:
+      - ollama-data:/root/.ollama
+    healthcheck:
+      test: ['CMD-SHELL', 'ollama list >/dev/null 2>&1']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
   postgres:
     image: postgres:15
     env_file:
@@ -31,6 +43,9 @@ services:
       MIGRATE: 'true'
       NODE_ENV: production
       DB_HOST: postgres
+      AI_OPENAI_API_KEY: ${AI_OPENAI_API_KEY:-ollama}
+      AI_OPENAI_BASE_URL: ${AI_OPENAI_BASE_URL:-http://ollama:11434/v1}
+      AI_OPENAI_MODEL: ${AI_OPENAI_MODEL:-llama3.2:1b}
     ports:
       - '${BACKEND_PORT:-13333}:13333'
     healthcheck:
@@ -61,3 +76,4 @@ services:
 
 volumes:
   postgres-data:
+  ollama-data:
