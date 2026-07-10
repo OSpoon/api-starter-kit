@@ -80,7 +80,11 @@
     "help": "帮助",
     "language": "语言",
     "language_switched": "语言已切换",
-    "schema_builder": "Schema 构建器"
+    "schema_builder": "Schema 构建器",
+    "theme": "主题",
+    "theme_light": "浅色",
+    "theme_dark": "深色",
+    "theme_system": "跟随系统"
   },
   "footer": {
     "built_by": "由 {platform} 团队构建"

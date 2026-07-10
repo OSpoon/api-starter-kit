@@ -80,7 +80,11 @@
     "help": "Help",
     "language": "Language",
     "language_switched": "Language switched",
-    "schema_builder": "Schema Builder"
+    "schema_builder": "Schema Builder",
+    "theme": "Theme",
+    "theme_light": "Light",
+    "theme_dark": "Dark",
+    "theme_system": "System"
   },
   "footer": {
     "built_by": "Built with care by the {platform} team"

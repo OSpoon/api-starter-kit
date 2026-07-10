@@ -8,7 +8,11 @@ import {
   FileJson,
   Languages,
   LogOut,
+  Monitor,
+  Moon,
+  Sun,
 } from '@lucide/vue'
+import { useColorMode } from '@vueuse/core'
 import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
@@ -52,6 +56,7 @@ const router = useRouter()
 const route = useRoute()
 const { t, locale } = useI18n()
 const menuOpen = ref(false)
+const colorMode = useColorMode({ attribute: 'class' })
 
 watch(
   () => route.path,
@@ -90,6 +95,10 @@ function setLocale(newLocale: string) {
   locale.value = newLocale
   localStorage.setItem('locale', newLocale)
   toast.success(t('nav.language_switched'))
+}
+
+function setTheme(mode: 'light' | 'dark' | 'auto') {
+  colorMode.value = mode
 }
 </script>
 
@@ -170,6 +179,29 @@ function setLocale(newLocale: string) {
                 <DropdownMenuItem class="cursor-pointer gap-2" @click="setLocale('zh-CN')">
                   <span>中文 (简体)</span>
                   <Check v-if="locale === 'zh-CN'" class="ml-auto h-4 w-4" />
+                </DropdownMenuItem>
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>
+                <Sun />
+                <span>{{ t('nav.theme') }}</span>
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent>
+                <DropdownMenuItem class="cursor-pointer gap-2" @click="setTheme('light')">
+                  <Sun />
+                  <span>{{ t('nav.theme_light') }}</span>
+                  <Check v-if="colorMode === 'light'" class="ml-auto h-4 w-4" />
+                </DropdownMenuItem>
+                <DropdownMenuItem class="cursor-pointer gap-2" @click="setTheme('dark')">
+                  <Moon />
+                  <span>{{ t('nav.theme_dark') }}</span>
+                  <Check v-if="colorMode === 'dark'" class="ml-auto h-4 w-4" />
+                </DropdownMenuItem>
+                <DropdownMenuItem class="cursor-pointer gap-2" @click="setTheme('auto')">
+                  <Monitor />
+                  <span>{{ t('nav.theme_system') }}</span>
+                  <Check v-if="colorMode === 'auto'" class="ml-auto h-4 w-4" />
                 </DropdownMenuItem>
               </DropdownMenuSubContent>
             </DropdownMenuSub>
