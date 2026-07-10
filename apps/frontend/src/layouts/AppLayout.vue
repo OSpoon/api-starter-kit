@@ -6,6 +6,8 @@ import AiChatAssistant from '@/components/AiChatAssistant.vue'
 import AppSidebar from '@/components/AppSidebar.vue'
 import SiteHeader from '@/components/SiteHeader.vue'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
+import { getAiChatActions, runAiChatAction } from '@/lib/ai-chat-actions'
+import type { AiChatClientAction } from '@/lib/ai-chat-api'
 import {
   type AiChatConversation,
   type AiChatConversationSummary,
@@ -16,6 +18,7 @@ import {
   listAiChatConversations,
   streamAiChatMessage,
 } from '@/lib/ai-chat-api'
+import { getAiChatContextItems } from '@/lib/ai-chat-context'
 import { copyText } from '@/lib/clipboard'
 import { useAuthStore } from '@/stores/auth'
 import { useSettingsStore } from '@/stores/settings'
@@ -35,6 +38,7 @@ const aiStreamingMessages = ref<
 >([])
 const aiStreamingMessageId = ref<string | number | null>(null)
 const aiAbortController = ref<AbortController | null>(null)
+const aiActions = getAiChatActions()
 
 type LocalAiChatMessage = {
   id: string
@@ -59,6 +63,18 @@ const breadcrumbs = computed(() => {
       label: t(matched.meta.title as string),
       to: index < matchedRoutes.length - 1 ? matched.path : undefined,
     })) satisfies Crumb[]
+})
+
+const aiPageContext = computed(() => {
+  const lastMatched = [...route.matched].reverse().find((matched) => matched.meta.title)
+  const title = lastMatched ? t(lastMatched.meta.title as string) : settingsStore.platformName
+
+  return {
+    route: route.path,
+    title,
+    actions: aiActions,
+    items: getAiChatContextItems(route),
+  }
 })
 
 async function refreshAiConversations() {
@@ -150,6 +166,14 @@ async function handleAiCopyMessage(message: DisplayAiChatMessage) {
   }
 }
 
+async function handleAiRunAction(action: AiChatClientAction) {
+  try {
+    await runAiChatAction(action.id)
+  } catch (error) {
+    toast.error(error instanceof Error ? error.message : t('common.error'))
+  }
+}
+
 async function handleAiRetryMessage(message: DisplayAiChatMessage) {
   const messages = getDisplayedAiMessages()
   const messageIndex = messages.findIndex((item) => item.id === message.id)
@@ -225,6 +249,8 @@ async function handleAiSend(message: string) {
         }
       },
       abortController.signal
+      ,
+      aiPageContext.value
     )
     await refreshAiConversations()
   } catch (error) {
@@ -275,10 +301,12 @@ onMounted(() => {
         :current-conversation-id="aiConversation?.id"
         :streaming-message-id="aiStreamingMessageId"
         :loading="aiLoading"
+        :actions="aiActions"
         @clear="handleAiNewChat"
         @copy-message="handleAiCopyMessage"
         @delete-conversation="handleAiDeleteConversation"
         @retry-message="handleAiRetryMessage"
+        @run-action="handleAiRunAction"
         @send="handleAiSend"
         @select-conversation="handleAiSelectConversation"
         @stop="handleAiStop"

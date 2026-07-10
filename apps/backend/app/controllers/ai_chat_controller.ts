@@ -3,7 +3,7 @@ import { ApiOperation, ApiResponse, ApiSecurity } from '@foadonis/openapi/decora
 
 import AiChatConversation from '#models/ai_chat_conversation'
 import AiChatMessage from '#models/ai_chat_message'
-import { createChatCompletionStream } from '#services/ai_chat_service'
+import { createChatCompletionStream, getHistoryMessageLimit } from '#services/ai_chat_service'
 import {
   serializeAiChatConversation,
   serializeAiChatConversationWithMessages,
@@ -107,7 +107,7 @@ export default class AiChatController {
     })
 
     const history = [
-      ...conversation.messages.map((message) => ({
+      ...conversation.messages.slice(-getHistoryMessageLimit()).map((message) => ({
         role: message.role,
         content: message.content,
       })),
@@ -117,7 +117,7 @@ export default class AiChatController {
     let assistantContent = ''
 
     try {
-      const stream = await createChatCompletionStream(history)
+      const stream = await createChatCompletionStream(history, payload.context)
 
       for await (const chunk of stream) {
         const delta = chunk.choices[0]?.delta?.content

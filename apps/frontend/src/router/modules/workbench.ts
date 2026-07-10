@@ -1,4 +1,4 @@
-import { ChartNoAxesCombined, Gauge, Key, ListTodo, PanelsTopLeft, Route } from '@lucide/vue'
+import { ChartNoAxesCombined, Gauge, Key, ListTodo, PanelsTopLeft, Route, Sparkles } from '@lucide/vue'
 import type { RouteRecordRaw } from 'vue-router'
 
 export const workbenchRoutes: RouteRecordRaw[] = [
@@ -44,9 +44,9 @@ export const workbenchRoutes: RouteRecordRaw[] = [
         meta: {
           title: 'sidebar.page_templates',
           nav: {
-            group: 'sidebar.workbench',
+            group: 'sidebar.templates',
             icon: PanelsTopLeft,
-            order: 20,
+            order: 10,
           },
         },
       },
@@ -54,19 +54,25 @@ export const workbenchRoutes: RouteRecordRaw[] = [
         path: 'workflow-template',
         name: 'workflow-template',
         component: () => import('@/views/WorkflowTemplateView.vue'),
-        meta: { title: 'sidebar.workflow_template', nav: { group: 'sidebar.templates', icon: ListTodo, order: 10 } },
+        meta: { title: 'sidebar.workflow_template', nav: { group: 'sidebar.templates', icon: ListTodo, order: 20 } },
       },
       {
         path: 'analytics-template',
         name: 'analytics-template',
         component: () => import('@/views/AnalyticsTemplateView.vue'),
-        meta: { title: 'sidebar.analytics_template', nav: { group: 'sidebar.templates', icon: ChartNoAxesCombined, order: 20 } },
+        meta: { title: 'sidebar.analytics_template', nav: { group: 'sidebar.templates', icon: ChartNoAxesCombined, order: 30 } },
       },
       {
         path: 'wizard-template',
         name: 'wizard-template',
         component: () => import('@/views/WizardTemplateView.vue'),
-        meta: { title: 'sidebar.wizard_template', nav: { group: 'sidebar.templates', icon: Route, order: 30 } },
+        meta: { title: 'sidebar.wizard_template', nav: { group: 'sidebar.templates', icon: Route, order: 40 } },
+      },
+      {
+        path: 'operations-template',
+        name: 'operations-template',
+        component: () => import('@/views/OperationsTemplateView.vue'),
+        meta: { title: 'sidebar.operations_template', nav: { group: 'sidebar.templates', icon: Sparkles, order: 50 } },
       },
       {
         path: 'profile',

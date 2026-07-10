@@ -70,10 +70,11 @@
     "workbench": "Workbench",
     "dashboard": "Dashboard",
     "page_templates": "Page templates",
-    "templates": "Business templates",
+    "templates": "Templates",
     "workflow_template": "Task workflow",
     "analytics_template": "Analytics",
     "wizard_template": "Guided setup",
+    "operations_template": "Operation patterns",
     "system": "System",
     "api_keys": "API Keys",
     "profile": "Profile",
@@ -117,6 +118,8 @@
     }
   },
   "dashboard": {
+    "title": "Dashboard",
+    "desc": "Review the key status and system overview for the current workspace.",
     "structure_title": "Navigation structure",
     "structure_desc": "Sidebar groups, menu items, and breadcrumbs are all derived from route definitions.",
     "stats": {

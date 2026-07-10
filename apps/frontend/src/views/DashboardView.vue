@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { KeyRound, Route, ShieldCheck } from '@lucide/vue'
 
+import PageHeader from '@/components/common/PageHeader.vue'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
 const { t } = useI18n()
@@ -32,6 +33,8 @@ const checklist = computed(() => [
 
 <template>
   <div class="flex h-full flex-col gap-4 p-8">
+    <PageHeader :title="t('dashboard.title')" :description="t('dashboard.desc')" />
+
     <div class="
       grid gap-4
       md:grid-cols-3

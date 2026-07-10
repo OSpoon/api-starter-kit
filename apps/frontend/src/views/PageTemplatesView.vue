@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   Copy,
   FileText,
+  Filter,
   MoreHorizontal,
   Pencil,
   Plus,
@@ -25,6 +26,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
@@ -50,6 +52,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Item, ItemActions, ItemContent, ItemDescription, ItemMedia, ItemTitle } from '@/components/ui/item'
 import { Progress } from '@/components/ui/progress'
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Switch } from '@/components/ui/switch'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Textarea } from '@/components/ui/textarea'
@@ -61,6 +64,11 @@ type Member = { id: number; name: string; initials: string; role: string; status
 const { t } = useI18n()
 const activeTemplate = ref<TemplateName>('overview')
 const searchTerm = ref('')
+const roleFilter = ref('全部角色')
+const statusFilter = ref('全部状态')
+const selectedMemberIds = ref<number[]>([])
+const selectedMember = ref<Member | null>(null)
+const memberSheetOpen = ref(false)
 const members = ref<Member[]>([
   { id: 1, name: 'Chen Yu', initials: 'CY', role: '管理员', status: '已启用' },
   { id: 2, name: 'Lin An', initials: 'LA', role: '开发者', status: '已启用' },
@@ -75,6 +83,7 @@ const createDialogOpen = ref(false)
 const editDialogOpen = ref(false)
 const channelDialogOpen = ref(false)
 const deleteDialogOpen = ref(false)
+const batchDeleteDialogOpen = ref(false)
 const memberToDelete = ref<Member | null>(null)
 const newMember = reactive({ name: '', role: '开发者' })
 const newChannel = ref('')
@@ -88,8 +97,15 @@ const metrics = computed(() => [
 
 const filteredMembers = computed(() => {
   const keyword = searchTerm.value.trim().toLowerCase()
-  return keyword ? members.value.filter((member) => `${member.name}${member.role}`.toLowerCase().includes(keyword)) : members.value
+  return members.value.filter((member) => {
+    const matchesKeyword = !keyword || `${member.name}${member.role}`.toLowerCase().includes(keyword)
+    const matchesRole = roleFilter.value === '全部角色' || member.role === roleFilter.value
+    const matchesStatus = statusFilter.value === '全部状态' || member.status === statusFilter.value
+    return matchesKeyword && matchesRole && matchesStatus
+  })
 })
+
+const allFilteredSelected = computed(() => filteredMembers.value.length > 0 && filteredMembers.value.every((member) => selectedMemberIds.value.includes(member.id)))
 
 function initialsFor(name: string) {
   return name.trim().split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase() || 'NA'
@@ -116,15 +132,44 @@ function requestDelete(member: Member) {
 
 function deleteMember() {
   if (!memberToDelete.value) return
-  members.value = members.value.filter((member) => member.id !== memberToDelete.value?.id)
+  const memberId = memberToDelete.value.id
+  members.value = members.value.filter((member) => member.id !== memberId)
+  selectedMemberIds.value = selectedMemberIds.value.filter((selectedId) => selectedId !== memberId)
+  if (selectedMember.value?.id === memberId) memberSheetOpen.value = false
   deleteDialogOpen.value = false
   toast.success('成员已移除')
   memberToDelete.value = null
 }
 
 function openMember(member: Member) {
-  activeTemplate.value = 'detail'
-  toast.success(`已打开 ${member.name} 的详情`)
+  selectedMember.value = member
+  memberSheetOpen.value = true
+}
+
+function toggleMember(id: number, checked: boolean) {
+  selectedMemberIds.value = checked
+    ? [...new Set([...selectedMemberIds.value, id])]
+    : selectedMemberIds.value.filter((selectedId) => selectedId !== id)
+}
+
+function toggleAllMembers(checked: boolean) {
+  const filteredIds = filteredMembers.value.map((member) => member.id)
+  selectedMemberIds.value = checked
+    ? [...new Set([...selectedMemberIds.value, ...filteredIds])]
+    : selectedMemberIds.value.filter((id) => !filteredIds.includes(id))
+}
+
+function clearFilters() {
+  searchTerm.value = ''
+  roleFilter.value = '全部角色'
+  statusFilter.value = '全部状态'
+}
+
+function removeSelectedMembers() {
+  if (!selectedMemberIds.value.length) return
+  members.value = members.value.filter((member) => !selectedMemberIds.value.includes(member.id))
+  selectedMemberIds.value = []
+  toast.success('已移除选中的成员')
 }
 
 async function copyEndpoint() {
@@ -182,27 +227,46 @@ function addChannel() {
       ">{{ metric.trend }}</p></CardContent></Card>
     </template>
 
-    <Card><CardHeader class="
+    <Card><CardHeader class="space-y-4"><div class="
       flex flex-col gap-4
       sm:flex-row sm:items-center sm:justify-between
-    "><div><CardTitle>成员列表</CardTitle><CardDescription>可搜索、新建、查看和移除的资源列表示例。</CardDescription></div><div class="
+    "><div><CardTitle>成员列表</CardTitle><CardDescription>组合筛选、批量操作和侧栏详情的管理列表示例。</CardDescription></div><div class="
       relative w-full
       sm:w-52
     "><Search class="
       pointer-events-none absolute top-2.5 left-3 size-4 text-muted-foreground
-    " /><Input v-model="searchTerm" class="pl-9" placeholder="搜索成员" /></div></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>成员</TableHead><TableHead>角色</TableHead><TableHead>状态</TableHead><TableHead class="
+    " /><Input v-model="searchTerm" class="pl-9" placeholder="搜索成员" /></div></div><div class="
+      flex flex-wrap items-center gap-2
+    "><Filter class="size-4 text-muted-foreground" /><Button v-for="role in ['全部角色', '管理员', '开发者', '只读成员']" :key="role" size="sm" :variant="roleFilter === role ? 'secondary' : 'ghost'" @click="roleFilter = role">{{ role }}</Button><Button v-for="status in ['全部状态', '已启用', '待邀请']" :key="status" size="sm" :variant="statusFilter === status ? 'secondary' : 'ghost'" @click="statusFilter = status">{{ status }}</Button><Button variant="ghost" size="sm" @click="clearFilters">重置</Button></div></CardHeader><CardContent class="
+      space-y-3
+    "><div v-if="selectedMemberIds.length" class="
+      flex flex-wrap items-center justify-between gap-3 rounded-md border
+      bg-muted/40 px-3 py-2 text-sm
+    "><span>已选择 {{ selectedMemberIds.length }} 名成员</span><div class="flex gap-2"><Button size="sm" variant="outline" @click="toast.success('选中成员已导出')">导出</Button><Button size="sm" variant="destructive" @click="batchDeleteDialogOpen = true">移除</Button></div></div><Table class="
+      hidden
+      md:table
+    "><TableHeader><TableRow><TableHead class="w-10"><Checkbox :model-value="allFilteredSelected" @update:model-value="toggleAllMembers(Boolean($event))" /></TableHead><TableHead>成员</TableHead><TableHead>角色</TableHead><TableHead>状态</TableHead><TableHead class="
       w-12
-    " /></TableRow></TableHeader><TableBody><TableRow v-for="member in filteredMembers" :key="member.id"><TableCell><div class="
-      flex items-center gap-3
-    "><Avatar class="size-8"><AvatarFallback>{{ member.initials }}</AvatarFallback></Avatar><span class="
+    " /></TableRow></TableHeader><TableBody><TableRow v-for="member in filteredMembers" :key="member.id"><TableCell><Checkbox :model-value="selectedMemberIds.includes(member.id)" @update:model-value="toggleMember(member.id, Boolean($event))" /></TableCell><TableCell><button class="
+      flex items-center gap-3 text-left
+    " @click="openMember(member)"><Avatar class="size-8"><AvatarFallback>{{ member.initials }}</AvatarFallback></Avatar><span class="
       font-medium
-    ">{{ member.name }}</span></div></TableCell><TableCell>{{ member.role }}</TableCell><TableCell><Badge variant="outline" :class="member.status === '已启用' ? `
+    ">{{ member.name }}</span></button></TableCell><TableCell>{{ member.role }}</TableCell><TableCell><Badge variant="outline" :class="member.status === '已启用' ? `
       border-chart-3/30 bg-chart-3/10 text-chart-3
     ` : ''">{{ member.status }}</Badge></TableCell><TableCell><DropdownMenu><DropdownMenuTrigger as-child><Button variant="ghost" size="icon" class="
       size-8
-    "><MoreHorizontal class="size-4" /><span class="sr-only">成员操作</span></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem @select="openMember(member)"><ArrowUpRight /> 查看详情</DropdownMenuItem><DropdownMenuItem @select="toast.success('编辑表单已准备就绪')"><Pencil /> 编辑角色</DropdownMenuItem><DropdownMenuItem variant="destructive" @select="requestDelete(member)"><Trash2 /> 移除成员</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell></TableRow><TableRow v-if="filteredMembers.length === 0"><TableCell colspan="4" class="
+    "><MoreHorizontal class="size-4" /><span class="sr-only">成员操作</span></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem @select="openMember(member)"><ArrowUpRight /> 查看详情</DropdownMenuItem><DropdownMenuItem @select="toast.success('编辑表单已准备就绪')"><Pencil /> 编辑角色</DropdownMenuItem><DropdownMenuItem variant="destructive" @select="requestDelete(member)"><Trash2 /> 移除成员</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell></TableRow><TableRow v-if="filteredMembers.length === 0"><TableCell colspan="5" class="
       py-10 text-center text-sm text-muted-foreground
-    ">没有匹配的成员</TableCell></TableRow></TableBody></Table></CardContent></Card>
+    ">没有匹配的成员</TableCell></TableRow></TableBody></Table><div class="
+      space-y-2
+      md:hidden
+    "><button v-for="member in filteredMembers" :key="member.id" class="
+      flex w-full items-center justify-between rounded-md border p-3 text-left
+    " @click="openMember(member)"><div class="flex items-center gap-3"><Avatar class="
+      size-8
+    "><AvatarFallback>{{ member.initials }}</AvatarFallback></Avatar><div><p class="
+      font-medium
+    ">{{ member.name }}</p><p class="text-xs text-muted-foreground">{{ member.role }}</p></div></div><Badge variant="outline">{{ member.status }}</Badge></button></div></CardContent></Card>
 
     <template #aside><Card><CardHeader><CardTitle class="text-base">容量使用</CardTitle><CardDescription>本月配额</CardDescription></CardHeader><CardContent class="
       space-y-3
@@ -244,6 +308,19 @@ function addChannel() {
     space-y-2
   "><Item v-for="channel in channels" :key="channel" variant="outline"><ItemMedia variant="icon"><Bell /></ItemMedia><ItemContent><ItemTitle>{{ channel }}</ItemTitle><ItemDescription>已启用</ItemDescription></ItemContent></Item></CardContent></Card><Empty v-else><EmptyHeader><EmptyMedia variant="icon"><Bell /></EmptyMedia><EmptyTitle>暂无其他通知渠道</EmptyTitle><EmptyDescription>可以在这里接入 Webhook 或企业消息通知。</EmptyDescription></EmptyHeader><EmptyContent><Button variant="outline" size="sm" @click="channelDialogOpen = true">添加渠道</Button></EmptyContent></Empty></SettingsPageTemplate>
 
+  <Sheet v-model:open="memberSheetOpen"><SheetContent><SheetHeader><SheetTitle>成员详情</SheetTitle><SheetDescription>适合从列表快速查看或编辑资源，避免中断当前筛选上下文。</SheetDescription></SheetHeader><div v-if="selectedMember" class="
+    space-y-6 px-4
+  "><div class="flex items-center gap-3"><Avatar class="size-12"><AvatarFallback>{{ selectedMember.initials }}</AvatarFallback></Avatar><div><p class="
+    font-medium
+  ">{{ selectedMember.name }}</p><p class="text-sm text-muted-foreground">{{ selectedMember.role }}</p></div></div><div class="
+    grid gap-4 text-sm
+  "><div><p class="text-muted-foreground">账户状态</p><Badge class="mt-1" variant="outline">{{ selectedMember.status }}</Badge></div><div><p class="
+    text-muted-foreground
+  ">加入时间</p><p class="mt-1">2026-07-10</p></div></div><div class="flex gap-2"><Button class="
+    flex-1
+  " variant="outline" @click="toast.success('编辑表单已准备就绪')">编辑角色</Button><Button class="
+    flex-1
+  " variant="destructive" @click="requestDelete(selectedMember)">移除成员</Button></div></div></SheetContent></Sheet>
   <Dialog v-model:open="createDialogOpen"><DialogContent><DialogHeader><DialogTitle>新建成员</DialogTitle><DialogDescription>创建后成员会以待邀请状态出现在列表中。</DialogDescription></DialogHeader><div class="
     space-y-4
   "><Input v-model="newMember.name" placeholder="成员名称" @keydown.enter="createMember" /><Input v-model="newMember.role" placeholder="角色" @keydown.enter="createMember" /></div><DialogFooter><Button variant="outline" @click="createDialogOpen = false">取消</Button><Button @click="createMember">创建邀请</Button></DialogFooter></DialogContent></Dialog>
@@ -252,4 +329,5 @@ function addChannel() {
   "><Input v-model="resource.name" placeholder="资源名称" /><Input v-model="resource.endpoint" placeholder="服务地址" /><Textarea v-model="resource.description" placeholder="资源说明" /></div><DialogFooter><Button variant="outline" @click="editDialogOpen = false">取消</Button><Button @click="saveResource">保存资源</Button></DialogFooter></DialogContent></Dialog>
   <Dialog v-model:open="channelDialogOpen"><DialogContent><DialogHeader><DialogTitle>添加通知渠道</DialogTitle><DialogDescription>请输入渠道名称，例如“生产环境 Webhook”。</DialogDescription></DialogHeader><Input v-model="newChannel" placeholder="渠道名称" @keydown.enter="addChannel" /><DialogFooter><Button variant="outline" @click="channelDialogOpen = false">取消</Button><Button @click="addChannel">添加渠道</Button></DialogFooter></DialogContent></Dialog>
   <ConfirmDialog v-model:open="deleteDialogOpen" title="移除成员" :description="`确定要移除 ${memberToDelete?.name ?? '该成员'} 吗？`" confirm-label="移除" @confirm="deleteMember" />
+  <ConfirmDialog v-model:open="batchDeleteDialogOpen" title="批量移除成员" :description="`确定要移除选中的 ${selectedMemberIds.length} 名成员吗？`" confirm-label="移除" @confirm="removeSelectedMembers" />
 </template>

@@ -70,10 +70,11 @@
     "workbench": "工作台",
     "dashboard": "仪表盘",
     "page_templates": "页面模板",
-    "templates": "业务模板",
+    "templates": "模板",
     "workflow_template": "任务流转",
     "analytics_template": "数据分析",
     "wizard_template": "分步引导",
+    "operations_template": "操作模式",
     "system": "系统管理",
     "api_keys": "API 密钥",
     "profile": "个人资料",
@@ -117,6 +118,8 @@
     }
   },
   "dashboard": {
+    "title": "仪表盘",
+    "desc": "查看当前工作区的关键状态与系统概览。",
     "structure_title": "导航结构",
     "structure_desc": "侧边栏分组、菜单项和面包屑均来自路由定义。",
     "stats": {

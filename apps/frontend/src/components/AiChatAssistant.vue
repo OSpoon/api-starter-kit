@@ -27,6 +27,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Textarea } from '@/components/ui/textarea'
+import type { AiChatClientAction } from '@/lib/ai-chat-api'
 
 type ChatRole = 'assistant' | 'user'
 type ChatMessageStatus = AiMessageContentStatus
@@ -57,6 +58,7 @@ const props = withDefaults(
     loading?: boolean
     disabled?: boolean
     showMessageActions?: boolean
+    actions?: AiChatClientAction[]
   }>(),
   {
     modelValue: undefined,
@@ -71,6 +73,7 @@ const props = withDefaults(
     loading: false,
     disabled: false,
     showMessageActions: true,
+    actions: () => [],
   }
 )
 
@@ -83,6 +86,7 @@ const emit = defineEmits<{
   copyMessage: [message: ChatMessage]
   retryMessage: [message: ChatMessage]
   stop: []
+  runAction: [action: AiChatClientAction]
 }>()
 
 const { t } = useI18n()
@@ -337,6 +341,17 @@ function canRetryMessage(message: ChatMessage) {
   )
 }
 
+const actionMarker = /\[\[action:([A-Za-z0-9_-]+)\]\]/g
+
+function getMessageContent(content: string) {
+  return content.replace(actionMarker, '').trim()
+}
+
+function getMessageActions(content: string) {
+  const ids = [...content.matchAll(actionMarker)].map((match) => match[1])
+  return props.actions.filter((action) => ids.includes(action.id))
+}
+
 watch(
   () => displayMessages.value,
   () => {
@@ -360,36 +375,22 @@ onUnmounted(() => {
   <div class="fixed right-4 bottom-4 z-50 flex flex-col items-end gap-2">
     <div
       v-if="isOpen"
-      class="
-        relative flex w-130 max-w-[calc(100vw-32px)] animate-in flex-col
-        overflow-hidden rounded-lg border bg-card text-card-foreground shadow-lg
-        slide-in-from-bottom-5 fade-in
-      "
+      class="relative flex w-130 max-w-[calc(100vw-32px)] animate-in flex-col overflow-hidden rounded-lg border bg-card text-card-foreground shadow-lg slide-in-from-bottom-5 fade-in"
       :style="{ height: `${chatHeight}px` }"
     >
       <div
-        class="
-          group absolute inset-x-0 top-0 z-50 flex h-1.5 w-full cursor-ns-resize
-          items-center justify-center transition-colors
-          hover:bg-muted
-        "
+        class="group absolute inset-x-0 top-0 z-50 flex h-1.5 w-full cursor-ns-resize items-center justify-center transition-colors hover:bg-muted"
         @mousedown.prevent="startResize"
       >
         <div
-          class="
-            h-1 w-12 rounded-full bg-border transition-colors
-            group-hover:bg-muted-foreground/30
-          "
+          class="h-1 w-12 rounded-full bg-border transition-colors group-hover:bg-muted-foreground/30"
         />
       </div>
 
       <div class="flex items-center justify-between border-b bg-card px-4 py-3">
         <div class="flex min-w-0 items-center gap-2">
           <div
-            class="
-              flex size-8 shrink-0 items-center justify-center rounded-md border
-              bg-background
-            "
+            class="flex size-8 shrink-0 items-center justify-center rounded-md border bg-background"
           >
             <Bot class="size-4 text-primary" />
           </div>
@@ -416,9 +417,7 @@ onUnmounted(() => {
                 <History class="size-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" class="
-              max-h-80 w-64 overflow-y-auto
-            ">
+            <DropdownMenuContent align="end" class="max-h-80 w-64 overflow-y-auto">
               <div
                 v-if="conversations.length === 0"
                 class="p-3 text-center text-xs text-muted-foreground"
@@ -440,11 +439,7 @@ onUnmounted(() => {
                 <Button
                   variant="ghost"
                   size="icon"
-                  class="
-                    size-6 shrink-0 text-muted-foreground opacity-0
-                    group-hover:opacity-100
-                    hover:text-destructive
-                  "
+                  class="size-6 shrink-0 text-muted-foreground"
                   :title="t('common.delete')"
                   @click.stop="emit('deleteConversation', conversation.id)"
                 >
@@ -484,9 +479,7 @@ onUnmounted(() => {
               :class="message.role === 'user' ? 'flex-row-reverse' : ''"
             >
               <div
-                class="
-                  flex size-7 shrink-0 items-center justify-center rounded-full
-                "
+                class="flex size-7 shrink-0 items-center justify-center rounded-full"
                 :class="
                   message.role === 'user'
                     ? 'bg-accent text-accent-foreground'
@@ -507,7 +500,7 @@ onUnmounted(() => {
                 >
                   <AiMessageContent
                     v-if="message.role === 'assistant'"
-                    :content="message.content"
+                    :content="getMessageContent(message.content)"
                     :status="getAssistantMessageStatus(message)"
                     :streaming="isStreamingAssistantMessage(message)"
                   />
@@ -516,15 +509,30 @@ onUnmounted(() => {
                   </template>
                 </div>
                 <div
+                  v-if="message.role === 'assistant' && getMessageActions(message.content).length"
+                  class="flex flex-wrap gap-2"
+                >
+                  <Button
+                    v-for="action in getMessageActions(message.content)"
+                    :key="action.id"
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    @click="emit('runAction', action)"
+                  >
+                    {{ action.label }}
+                  </Button>
+                </div>
+                <div
                   v-if="canCopyMessage(message) || canRetryMessage(message)"
-                  class="
-                    flex h-6 items-center gap-1 opacity-0 transition-opacity
-                    group-hover/message:opacity-100
-                    focus-within:opacity-100
-                  "
-                  :class="message.role === 'user' ? 'justify-end' : `
+                  class="flex h-6 items-center gap-1 opacity-0 transition-opacity group-hover/message:opacity-100 focus-within:opacity-100"
+                  :class="
+                    message.role === 'user'
+                      ? 'justify-end'
+                      : `
                     justify-start
-                  `"
+                  `
+                  "
                 >
                   <Button
                     v-if="canCopyMessage(message)"
@@ -556,9 +564,7 @@ onUnmounted(() => {
         </ScrollArea>
       </div>
 
-      <div v-if="displayMessages.length <= 1" class="
-        flex flex-wrap gap-2 px-3 pb-2
-      ">
+      <div v-if="displayMessages.length <= 1" class="flex flex-wrap gap-2 px-3 pb-2">
         <Button
           v-for="suggestion in promptSuggestions"
           :key="suggestion"
@@ -606,27 +612,17 @@ onUnmounted(() => {
     <div v-else class="group relative">
       <div
         v-if="loading"
-        class="
-          pointer-events-none absolute -inset-1 rounded-full border
-          border-primary/30
-        "
+        class="pointer-events-none absolute -inset-1 rounded-full border border-primary/30"
       />
       <div
         v-if="loading"
-        class="
-          pointer-events-none absolute -inset-1 animate-spin rounded-full
-          border-2 border-primary border-t-transparent
-        "
+        class="pointer-events-none absolute -inset-1 animate-spin rounded-full border-2 border-primary border-t-transparent"
       />
 
       <Button
         variant="outline"
         size="lg"
-        class="
-          relative z-10 size-14 rounded-full border bg-card p-0 text-foreground
-          shadow-md transition-colors
-          hover:bg-accent hover:text-accent-foreground
-        "
+        class="relative z-10 size-14 rounded-full border bg-card p-0 text-foreground shadow-md transition-colors hover:bg-accent hover:text-accent-foreground"
         :title="assistantTitle"
         @click="openAssistant"
       >
@@ -634,10 +630,7 @@ onUnmounted(() => {
         <Sparkles v-else class="size-6 animate-pulse text-primary" />
         <div
           v-if="loading"
-          class="
-            absolute -top-0.5 -right-0.5 flex size-4 items-center justify-center
-            rounded-full border-2 border-background bg-primary shadow-sm
-          "
+          class="absolute -top-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full border-2 border-background bg-primary shadow-sm"
         >
           <div class="size-1 rounded-full bg-primary-foreground" />
         </div>
