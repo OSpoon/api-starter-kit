@@ -384,8 +384,8 @@ onUnmounted(() => {
         <div class="flex items-center gap-1">
           <Button
             variant="ghost"
+            class="size-7 text-muted-foreground"
             size="icon"
-            class="size-7 text-muted-foreground hover:text-foreground"
             :title="t('ai_chat.new_chat')"
             @click="clearChat"
           >
@@ -396,7 +396,7 @@ onUnmounted(() => {
               <Button
                 variant="ghost"
                 size="icon"
-                class="size-7 text-muted-foreground hover:text-foreground"
+                class="size-7 text-muted-foreground"
                 :title="t('ai_chat.history')"
               >
                 <History class="size-4" />
@@ -436,7 +436,7 @@ onUnmounted(() => {
           <Button
             variant="ghost"
             size="icon"
-            class="size-7 text-muted-foreground hover:text-foreground"
+            class="size-7 text-muted-foreground"
             :title="t('ai_chat.minimize')"
             @click="closeAssistant"
           >
@@ -445,7 +445,7 @@ onUnmounted(() => {
           <Button
             variant="ghost"
             size="icon"
-            class="size-7 text-muted-foreground hover:text-foreground"
+            class="size-7 text-muted-foreground"
             :title="t('common.cancel')"
             @click="closeAssistant"
           >
@@ -503,7 +503,7 @@ onUnmounted(() => {
                     type="button"
                     variant="ghost"
                     size="icon"
-                    class="size-6 text-muted-foreground hover:text-foreground"
+                    class="size-6 text-muted-foreground"
                     :title="t('ai_chat.copy_message')"
                     @click="emit('copyMessage', message)"
                   >
@@ -514,7 +514,7 @@ onUnmounted(() => {
                     type="button"
                     variant="ghost"
                     size="icon"
-                    class="size-6 text-muted-foreground hover:text-foreground"
+                    class="size-6 text-muted-foreground"
                     :title="t('ai_chat.retry_message')"
                     :disabled="loading || disabled"
                     @click="emit('retryMessage', message)"
