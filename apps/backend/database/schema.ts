@@ -81,6 +81,42 @@ export class ApiKeySchema extends BaseModel {
   declare updatedAt: DateTime
 }
 
+export class AuditLogSchema extends BaseModel {
+  static $columns = [
+    'action',
+    'actorUserId',
+    'createdAt',
+    'id',
+    'ipAddress',
+    'metadata',
+    'requestId',
+    'targetId',
+    'targetType',
+    'userAgent',
+  ] as const
+  $columns = AuditLogSchema.$columns
+  @column()
+  declare action: string
+  @column()
+  declare actorUserId: number | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare ipAddress: string | null
+  @column()
+  declare metadata: any | null
+  @column()
+  declare requestId: string | null
+  @column()
+  declare targetId: string | null
+  @column()
+  declare targetType: string
+  @column()
+  declare userAgent: string | null
+}
+
 export class AuthAccessTokenSchema extends BaseModel {
   static $columns = [
     'abilities',
@@ -345,6 +381,74 @@ export class NavigationDebugHistorySchema extends BaseModel {
   declare userId: number
 }
 
+export class PermissionSchema extends BaseModel {
+  static $columns = [
+    'code',
+    'createdAt',
+    'description',
+    'groupName',
+    'id',
+    'isSystem',
+    'name',
+    'updatedAt',
+  ] as const
+  $columns = PermissionSchema.$columns
+  @column()
+  declare code: string
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare description: string | null
+  @column()
+  declare groupName: string
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare isSystem: boolean
+  @column()
+  declare name: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+}
+
+export class RolePermissionSchema extends BaseModel {
+  static $columns = ['createdAt', 'permissionId', 'roleId'] as const
+  $columns = RolePermissionSchema.$columns
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare permissionId: number
+  @column({ isPrimary: true })
+  declare roleId: number
+}
+
+export class RoleSchema extends BaseModel {
+  static $columns = [
+    'code',
+    'createdAt',
+    'description',
+    'id',
+    'isSystem',
+    'name',
+    'updatedAt',
+  ] as const
+  $columns = RoleSchema.$columns
+  @column()
+  declare code: string
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare description: string | null
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare isSystem: boolean
+  @column()
+  declare name: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+}
+
 export class SystemSchema extends BaseModel {
   static $columns = [
     'baseUrl',
@@ -376,6 +480,17 @@ export class SystemSchema extends BaseModel {
   declare name: string
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime | null
+}
+
+export class UserRoleSchema extends BaseModel {
+  static $columns = ['createdAt', 'roleId', 'userId'] as const
+  $columns = UserRoleSchema.$columns
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare roleId: number
+  @column({ isPrimary: true })
+  declare userId: number
 }
 
 export class UserSchema extends BaseModel {

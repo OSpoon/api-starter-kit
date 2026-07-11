@@ -1,8 +1,9 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
 import { isPasswordExpired } from '@/lib/password'
+import { hasPermission } from '@/lib/permission'
 import { accountRoutes } from '@/router/modules/account'
-import { workbenchRoutes } from '@/router/modules/workbench'
+import { workbenchPermissionRoutes, workbenchRoutes } from '@/router/modules/workbench'
 import { useAuthStore } from '@/stores/auth'
 
 const router = createRouter({
@@ -18,6 +19,30 @@ const router = createRouter({
   ],
 })
 
+let synchronizedPermissionSignature: string | null = null
+
+function synchronizePermissionRoutes(permissions: string[], userId: number) {
+  const signature = `${userId}:${[...permissions].sort().join('|')}`
+  if (synchronizedPermissionSignature === signature) {
+    return
+  }
+
+  for (const route of workbenchPermissionRoutes) {
+    const name = route.name
+    if (!name) {
+      continue
+    }
+    const allowed = hasPermission(permissions, route.meta?.permission)
+    if (!allowed && router.hasRoute(name)) {
+      router.removeRoute(name)
+    }
+    if (allowed && !router.hasRoute(name)) {
+      router.addRoute('workbench', route)
+    }
+  }
+  synchronizedPermissionSignature = signature
+}
+
 router.beforeEach(async (to) => {
   const auth = useAuthStore()
 
@@ -31,6 +56,16 @@ router.beforeEach(async (to) => {
 
   if (to.meta.requiresAuth && !auth.isAuthenticated) {
     return { name: 'login', query: { redirect: to.fullPath } }
+  }
+
+  if (auth.user) {
+    const routePermission = to.meta.permission
+    if (routePermission && !hasPermission(auth.user.permissions, routePermission)) {
+      return { name: 'profile' }
+    }
+    synchronizePermissionRoutes(auth.user.permissions, auth.user.id)
+  } else {
+    synchronizedPermissionSignature = null
   }
 
   if (

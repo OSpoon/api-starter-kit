@@ -38,6 +38,7 @@ declare module 'vue' {
     PageHeader: typeof import('./components/common/PageHeader.vue')['default']
     PageShell: typeof import('./components/common/PageShell.vue')['default']
     PasswordStrength: typeof import('./components/PasswordStrength.vue')['default']
+    PermissionTransfer: typeof import('./components/common/PermissionTransfer.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     SchemaFieldList: typeof import('./components/json-schema/components/SchemaFieldList.vue')['default']

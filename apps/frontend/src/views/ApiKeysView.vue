@@ -17,10 +17,12 @@ import type { ApiKeySummary } from '@/lib/api-key-api'
 import { badgeToneClass, createApiKey, listApiKeys, revokeApiKey } from '@/lib/api-key-api'
 import { copyText } from '@/lib/clipboard'
 import { formatDateOnly, formatDateTime } from '@/lib/format'
+import { usePermission } from '@/lib/permission'
 import { useDelayedDialog } from '@/lib/use-delayed-dialog'
 import { useAuthStore } from '@/stores/auth'
 
 const auth = useAuthStore()
+const { can } = usePermission()
 const { t } = useI18n()
 const { runWithToast } = useAsyncToast()
 
@@ -125,7 +127,8 @@ const columns = computed<ColumnDef<ApiKeySummary>[]>(() => [
     cell: ({ row }) => {
       const key = row.original
       return h('div', { class: 'flex justify-end gap-1' }, [
-        h(
+        can('api-keys:delete')
+          ? h(
           Button,
           {
             variant: 'ghost',
@@ -134,7 +137,8 @@ const columns = computed<ColumnDef<ApiKeySummary>[]>(() => [
             onClick: () => requestRevokeKey(key.id, Boolean(key.revokedAt)),
           },
           () => h(Trash2, { class: 'size-4' })
-        ),
+            )
+          : null,
       ])
     },
   },
@@ -249,6 +253,7 @@ onMounted(() => {
     :loading="loading"
     :refresh-label="t('common.refresh')"
     :action-label="t('api_keys.generate_new')"
+    :show-action="can('api-keys:create')"
     @refresh="refreshKeys"
     @action="openCreateDialog"
   >

@@ -7,7 +7,11 @@ export const controllers = {
   AccessTokens: () => import('#controllers/access_tokens_controller'),
   AiChat: () => import('#controllers/ai_chat_controller'),
   ApiKeys: () => import('#controllers/api_keys_controller'),
+  AuditLogs: () => import('#controllers/audit_logs_controller'),
   NewAccount: () => import('#controllers/new_account_controller'),
+  Permissions: () => import('#controllers/permissions_controller'),
   Profile: () => import('#controllers/profile_controller'),
+  Roles: () => import('#controllers/roles_controller'),
   TwoFactorAuth: () => import('#controllers/two_factor_auth_controller'),
+  Users: () => import('#controllers/users_controller'),
 }

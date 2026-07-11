@@ -20,6 +20,20 @@ export type ScannedRoutes = {
     'api_keys.store': { paramsTuple?: []; params?: {} }
     'api_keys.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'api_keys.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'users.index': { paramsTuple?: []; params?: {} }
+    'users.store': { paramsTuple?: []; params?: {} }
+    'users.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'users.reset_password': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'users.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'roles.index': { paramsTuple?: []; params?: {} }
+    'roles.store': { paramsTuple?: []; params?: {} }
+    'roles.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'roles.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'permissions.index': { paramsTuple?: []; params?: {} }
+    'permissions.store': { paramsTuple?: []; params?: {} }
+    'permissions.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'permissions.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'audit_logs.index': { paramsTuple?: []; params?: {} }
     'ai_chat.index': { paramsTuple?: []; params?: {} }
     'ai_chat.store': { paramsTuple?: []; params?: {} }
     'ai_chat.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
@@ -32,6 +46,10 @@ export type ScannedRoutes = {
     'openapi.yaml': { paramsTuple?: []; params?: {} }
     'profile.profile.show': { paramsTuple?: []; params?: {} }
     'api_keys.index': { paramsTuple?: []; params?: {} }
+    'users.index': { paramsTuple?: []; params?: {} }
+    'roles.index': { paramsTuple?: []; params?: {} }
+    'permissions.index': { paramsTuple?: []; params?: {} }
+    'audit_logs.index': { paramsTuple?: []; params?: {} }
     'ai_chat.index': { paramsTuple?: []; params?: {} }
     'ai_chat.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
   }
@@ -41,6 +59,10 @@ export type ScannedRoutes = {
     'openapi.yaml': { paramsTuple?: []; params?: {} }
     'profile.profile.show': { paramsTuple?: []; params?: {} }
     'api_keys.index': { paramsTuple?: []; params?: {} }
+    'users.index': { paramsTuple?: []; params?: {} }
+    'roles.index': { paramsTuple?: []; params?: {} }
+    'permissions.index': { paramsTuple?: []; params?: {} }
+    'audit_logs.index': { paramsTuple?: []; params?: {} }
     'ai_chat.index': { paramsTuple?: []; params?: {} }
     'ai_chat.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
   }
@@ -53,18 +75,25 @@ export type ScannedRoutes = {
     'profile.profile.disable_two_factor': { paramsTuple?: []; params?: {} }
     'profile.access_tokens.destroy': { paramsTuple?: []; params?: {} }
     'api_keys.store': { paramsTuple?: []; params?: {} }
+    'users.store': { paramsTuple?: []; params?: {} }
+    'users.reset_password': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'roles.store': { paramsTuple?: []; params?: {} }
+    'permissions.store': { paramsTuple?: []; params?: {} }
     'ai_chat.store': { paramsTuple?: []; params?: {} }
     'ai_chat.send_message': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
   }
   PUT: {
     'profile.profile.change_password': { paramsTuple?: []; params?: {} }
     'api_keys.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
-  }
-  PATCH: {
-    'api_keys.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'users.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'roles.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'permissions.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
   }
   DELETE: {
     'api_keys.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'users.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'roles.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'permissions.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'ai_chat.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
   }
 }

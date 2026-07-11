@@ -33,6 +33,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from '@/components/ui/sidebar'
+import { setStoredLocale } from '@/lib/browser-preferences'
 import { modalLayerVersion } from '@/lib/focus'
 
 defineProps<{
@@ -89,7 +90,7 @@ function handleLogout() {
 
 function setLocale(newLocale: string) {
   locale.value = newLocale
-  localStorage.setItem('locale', newLocale)
+  setStoredLocale(newLocale)
   toast.success(t('nav.language_switched'))
 }
 

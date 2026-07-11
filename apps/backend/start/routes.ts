@@ -6,7 +6,11 @@ import { middleware } from '#start/kernel'
 
 const ApiKeysController = () => import('#controllers/api_keys_controller')
 const AiChatController = () => import('#controllers/ai_chat_controller')
+const AuditLogsController = () => import('#controllers/audit_logs_controller')
+const PermissionsController = () => import('#controllers/permissions_controller')
+const RolesController = () => import('#controllers/roles_controller')
 const TwoFactorAuthController = () => import('#controllers/two_factor_auth_controller')
+const UsersController = () => import('#controllers/users_controller')
 
 router.get('/api/v1/health', () => {
   return {
@@ -41,12 +45,64 @@ router
       .use(middleware.auth())
 
     router
+      .get('api-keys', [ApiKeysController, 'index'])
+      .use(middleware.auth())
+      .use(middleware.permission(['api-keys:read']))
+    router
+      .post('api-keys', [ApiKeysController, 'store'])
+      .use(middleware.auth())
+      .use(middleware.permission(['api-keys:create']))
+    router
+      .put('api-keys/:id', [ApiKeysController, 'update'])
+      .use(middleware.auth())
+      .use(middleware.permission(['api-keys:update']))
+    router
+      .delete('api-keys/:id', [ApiKeysController, 'destroy'])
+      .use(middleware.auth())
+      .use(middleware.permission(['api-keys:delete']))
+
+    router
       .group(() => {
+        router.get('users', [UsersController, 'index']).use(middleware.permission(['users:read']))
         router
-          .resource('api-keys', ApiKeysController)
-          .apiOnly()
-          .only(['index', 'store', 'update', 'destroy'])
+          .post('users', [UsersController, 'store'])
+          .use(middleware.permission(['users:create']))
+        router
+          .put('users/:id', [UsersController, 'update'])
+          .use(middleware.permission(['users:update']))
+        router
+          .post('users/:id/reset-password', [UsersController, 'resetPassword'])
+          .use(middleware.permission(['users:update']))
+        router
+          .delete('users/:id', [UsersController, 'destroy'])
+          .use(middleware.permission(['users:delete']))
+        router.get('roles', [RolesController, 'index']).use(middleware.permission(['roles:read']))
+        router
+          .post('roles', [RolesController, 'store'])
+          .use(middleware.permission(['roles:create']))
+        router
+          .put('roles/:id', [RolesController, 'update'])
+          .use(middleware.permission(['roles:update']))
+        router
+          .delete('roles/:id', [RolesController, 'destroy'])
+          .use(middleware.permission(['roles:delete']))
+        router
+          .get('permissions', [PermissionsController, 'index'])
+          .use(middleware.permission(['permissions:read']))
+        router
+          .post('permissions', [PermissionsController, 'store'])
+          .use(middleware.permission(['permissions:create']))
+        router
+          .put('permissions/:id', [PermissionsController, 'update'])
+          .use(middleware.permission(['permissions:update']))
+        router
+          .delete('permissions/:id', [PermissionsController, 'destroy'])
+          .use(middleware.permission(['permissions:delete']))
+        router
+          .get('audit-logs', [AuditLogsController, 'index'])
+          .use(middleware.permission(['audit-logs:read']))
       })
+      .prefix('system')
       .use(middleware.auth())
 
     router

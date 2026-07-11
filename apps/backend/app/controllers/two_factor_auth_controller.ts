@@ -6,6 +6,7 @@ import { generateSecret, generateURI, verify } from 'otplib'
 import QRCode from 'qrcode'
 
 import User from '#models/user'
+import { recordAuditEvent } from '#services/audit_log'
 import {
   decryptRecoveryCodes,
   decryptTwoFactorSecret,
@@ -13,6 +14,7 @@ import {
   encryptTwoFactorSecret,
 } from '#services/two_factor_secret_store'
 import { parseTwoFactorTempToken } from '#services/two_factor_token'
+import { loadUserAccess } from '#services/user_access'
 import UserTransformer from '#transformers/user_transformer'
 import { enableTwoFactorValidator, verifyTwoFactorValidator } from '#validators/user'
 
@@ -43,7 +45,8 @@ export default class TwoFactorAuthController {
   })
   @ApiResponse({ status: 200, description: '已更新的管理员资料和恢复码' })
   @ApiResponse({ status: 400, description: '验证码无效' })
-  async enable({ auth, request, response, serialize }: HttpContext) {
+  async enable(ctx: HttpContext) {
+    const { auth, request, response, serialize } = ctx
     const user = auth.getUserOrFail()
     const payload = await request.validateUsing(enableTwoFactorValidator)
     const { valid } = await verify({ token: payload.token, secret: payload.secret })
@@ -60,9 +63,15 @@ export default class TwoFactorAuthController {
     user.twoFactorEnabled = true
     user.twoFactorRecoveryCodes = encryptRecoveryCodes(recoveryCodes)
     await user.save()
+    await recordAuditEvent(ctx, {
+      actorUserId: user.id,
+      action: 'account.two_factor_enabled',
+      targetType: 'user',
+      targetId: user.id,
+    })
 
     return serialize({
-      user: UserTransformer.transform(user),
+      user: UserTransformer.transform(await loadUserAccess(user)),
       recoveryCodes,
     })
   }
@@ -108,7 +117,7 @@ export default class TwoFactorAuthController {
     const token = await User.accessTokens.create(user)
 
     return serialize({
-      user: UserTransformer.transform(user),
+      user: UserTransformer.transform(await loadUserAccess(user)),
       token: token.value!.release(),
     })
   }

@@ -1,6 +1,7 @@
 import app from '@adonisjs/core/services/app'
 import logger from '@adonisjs/core/services/logger'
 
+import Role from '#models/role'
 import User from '#models/user'
 import {
   ADMIN_PASSWORD_MIN_LENGTH,
@@ -39,11 +40,15 @@ async function ensureAdminUser() {
     return
   }
 
-  await User.create({
+  const user = await User.create({
     email,
     password,
     fullName,
   })
+  const superAdmin = await Role.findBy('code', 'super-admin')
+  if (superAdmin) {
+    await user.related('roles').attach([superAdmin.id])
+  }
   logger.info({ email }, 'Default administrator created from environment variables')
 }
 

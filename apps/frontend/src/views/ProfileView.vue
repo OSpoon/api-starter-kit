@@ -128,7 +128,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="container mx-auto flex w-full max-w-4xl flex-col gap-8 p-8">
+  <div class="mx-auto flex flex-col gap-8 p-8" style="width: min(100%, 48rem)">
     <div>
       <h1 class="text-3xl font-bold tracking-tight">{{ t('profile.title') }}</h1>
       <p class="text-muted-foreground">{{ t('profile.desc') }}</p>

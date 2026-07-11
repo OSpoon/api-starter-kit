@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Eye, EyeOff } from '@lucide/vue'
 import { toast } from 'vue-sonner'
 
 import CardPageShell from '@/components/common/CardPageShell.vue'
@@ -15,6 +16,7 @@ const { t } = useI18n()
 
 const email = ref('')
 const password = ref('')
+const passwordVisible = ref(false)
 const isTwoFactorStep = ref(false)
 const twoFactorCode = ref('')
 const tempToken = ref('')
@@ -35,7 +37,7 @@ async function handleSubmit() {
         await router.push('/change-password?reason=expired')
         return
       }
-      const redirect = (route.query.redirect as string) || '/api-keys'
+      const redirect = (route.query.redirect as string) || '/dashboard'
       await router.push(redirect)
     } catch (cause) {
       toast.error(cause instanceof Error ? cause.message : t('auth.login_failed'))
@@ -64,7 +66,7 @@ async function handleSubmit() {
       return
     }
 
-    const redirect = (route.query.redirect as string) || '/api-keys'
+    const redirect = (route.query.redirect as string) || '/dashboard'
     await router.push(redirect)
   } catch (cause) {
     toast.error(cause instanceof Error ? cause.message : t('auth.login_failed'))
@@ -101,14 +103,30 @@ function backToLogin() {
         </Field>
         <Field>
           <FieldLabel for="password">{{ t('auth.password') }}</FieldLabel>
-          <Input
-            id="password"
-            v-model="password"
-            type="password"
-            autocomplete="current-password"
-            required
-            :disabled="auth.loading"
-          />
+          <div class="relative">
+            <Input
+              id="password"
+              v-model="password"
+              :type="passwordVisible ? 'text' : 'password'"
+              class="pr-10"
+              autocomplete="current-password"
+              required
+              :disabled="auth.loading"
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              class="absolute top-1/2 right-1 size-8 -translate-y-1/2 text-muted-foreground"
+              :aria-label="passwordVisible ? t('auth.hide_password') : t('auth.show_password')"
+              :title="passwordVisible ? t('auth.hide_password') : t('auth.show_password')"
+              :disabled="auth.loading"
+              @click="passwordVisible = !passwordVisible"
+            >
+              <EyeOff v-if="passwordVisible" class="size-4" />
+              <Eye v-else class="size-4" />
+            </Button>
+          </div>
         </Field>
       </FieldGroup>
 

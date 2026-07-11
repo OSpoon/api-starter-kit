@@ -11,6 +11,8 @@ export interface ApiUser {
   initials: string
   twoFactorEnabled?: boolean
   passwordChangedAt?: string | null
+  roles: Array<{ id: number; code: string; name: string }>
+  permissions: string[]
 }
 
 interface AuthResponse {

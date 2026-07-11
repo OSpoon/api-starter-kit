@@ -52,7 +52,7 @@ async function handleSubmit() {
   try {
     await auth.changePassword(currentPassword.value, newPassword.value)
     toast.success(t('profile.password_success'))
-    await router.push('/api-keys')
+    await router.push('/dashboard')
   } catch (error) {
     toast.error(error instanceof Error ? error.message : t('profile.password_failed'))
   } finally {

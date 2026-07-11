@@ -208,33 +208,21 @@ async function reload() {
       </section>
     </div>
   </PageShell>
-  <CommandDialog v-model:open="commandOpen"
-    ><CommandInput placeholder="搜索命令或页面" /><CommandList
-      ><CommandEmpty>没有匹配的命令</CommandEmpty
-      ><CommandGroup heading="快速操作"
-        ><CommandItem
-          value="create"
-          @select="
-            toast.success('已打开创建表单')
-            commandOpen = false
-          "
-          ><FileUp /> 新建资源</CommandItem
-        ><CommandItem
-          value="settings"
-          @select="
-            toast.success('已打开设置')
-            commandOpen = false
-          "
-          ><Settings2 /> 打开设置</CommandItem
-        ><CommandItem
-          value="search"
-          @select="
-            toast.success('已聚焦搜索')
-            commandOpen = false
-          "
-          ><Search /> 搜索成员</CommandItem
-        ></CommandGroup
-      ></CommandList
-    ></CommandDialog
-  >
+  <CommandDialog v-model:open="commandOpen">
+    <CommandInput placeholder="搜索命令或页面" />
+    <CommandList>
+      <CommandEmpty>没有匹配的命令</CommandEmpty>
+      <CommandGroup heading="快速操作">
+        <CommandItem value="create" @select="toast.success('已打开创建表单'); commandOpen = false">
+          <FileUp /> 新建资源
+        </CommandItem>
+        <CommandItem value="settings" @select="toast.success('已打开设置'); commandOpen = false">
+          <Settings2 /> 打开设置
+        </CommandItem>
+        <CommandItem value="search" @select="toast.success('已聚焦搜索'); commandOpen = false">
+          <Search /> 搜索成员
+        </CommandItem>
+      </CommandGroup>
+    </CommandList>
+  </CommandDialog>
 </template>

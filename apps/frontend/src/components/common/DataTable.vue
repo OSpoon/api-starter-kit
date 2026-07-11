@@ -35,6 +35,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { useTablePreferences } from '@/lib/browser-preferences'
+
+type ServerPagination = {
+  page: number
+  pageCount: number
+}
 
 const props = defineProps<{
   columns: ColumnDef<TData, TValue>[]
@@ -44,28 +50,25 @@ const props = defineProps<{
   getSearchableText?: (row: TData) => string
   emptyMessage?: string
   storageKey?: string
+  serverPagination?: ServerPagination
+  filtersLayout?: 'wrap' | 'inline'
 }>()
 
 const search = defineModel<string>('search', { default: '' })
 
 const emit = defineEmits<{
   rowClick: [row: TData]
+  pageChange: [page: number]
 }>()
 
 const { t } = useI18n()
 
 const sorting = ref<SortingState>([])
 const columnFilters = ref<ColumnFiltersState>([])
-const columnVisibility = props.storageKey
-  ? useLocalStorage<VisibilityState>(props.storageKey, {})
-  : ref<VisibilityState>({})
 const rowSelection = ref({})
-const pagination = props.storageKey
-  ? useLocalStorage<PaginationState>(`${props.storageKey}-pagination`, {
-      pageIndex: 0,
-      pageSize: 10,
-    })
-  : ref<PaginationState>({ pageIndex: 0, pageSize: 10 })
+const persistedPreferences = props.storageKey ? useTablePreferences(props.storageKey) : null
+const columnVisibility = persistedPreferences?.columnVisibility ?? ref<VisibilityState>({})
+const pagination = persistedPreferences?.pagination ?? ref<PaginationState>({ pageIndex: 0, pageSize: 10 })
 
 const showSearch = computed(() => Boolean(props.searchKeys?.length || props.getSearchableText))
 
@@ -83,6 +86,7 @@ const table = useVueTable({
   getSortedRowModel: getSortedRowModel(),
   getFilteredRowModel: getFilteredRowModel(),
   autoResetPageIndex: false,
+  manualPagination: Boolean(props.serverPagination),
   globalFilterFn: (row, _columnId, filterValue) => {
     const keyword = String(filterValue ?? '')
       .trim()
@@ -173,6 +177,22 @@ function columnLabel(column: Column<TData, unknown>) {
   const meta = column.columnDef.meta as { label?: string } | undefined
   return meta?.label ?? column.id
 }
+
+function previousPage() {
+  if (props.serverPagination) {
+    emit('pageChange', props.serverPagination.page - 1)
+    return
+  }
+  table.previousPage()
+}
+
+function nextPage() {
+  if (props.serverPagination) {
+    emit('pageChange', props.serverPagination.page + 1)
+    return
+  }
+  table.nextPage()
+}
 </script>
 
 <template>
@@ -181,11 +201,18 @@ function columnLabel(column: Column<TData, unknown>) {
       flex flex-col gap-3
       md:flex-row md:items-center md:justify-between
     ">
-      <div class="flex flex-wrap items-center gap-3">
+      <div
+        :class="
+          filtersLayout === 'inline'
+            ? 'flex min-w-0 flex-1 flex-nowrap items-center gap-3 overflow-x-auto'
+            : 'flex flex-wrap items-center gap-3'
+        "
+      >
         <slot name="filters" />
         <Input
           v-if="showSearch"
-          class="max-w-sm min-w-55"
+          :class="filtersLayout === 'inline' ? 'shrink-0' : 'max-w-sm min-w-55'"
+          :style="filtersLayout === 'inline' ? { width: '14rem' } : undefined"
           :placeholder="searchPlaceholderText()"
           :model-value="search"
           @update:model-value="table.setGlobalFilter($event)"
@@ -265,16 +292,16 @@ function columnLabel(column: Column<TData, unknown>) {
         <Button
           variant="outline"
           size="sm"
-          :disabled="!table.getCanPreviousPage()"
-          @click="table.previousPage()"
+          :disabled="serverPagination ? serverPagination.page <= 1 : !table.getCanPreviousPage()"
+          @click="previousPage"
         >
           {{ t('common.previous') }}
         </Button>
         <Button
           variant="outline"
           size="sm"
-          :disabled="!table.getCanNextPage()"
-          @click="table.nextPage()"
+          :disabled="serverPagination ? serverPagination.page >= serverPagination.pageCount : !table.getCanNextPage()"
+          @click="nextPage"
         >
           {{ t('common.next') }}
         </Button>

@@ -8,6 +8,7 @@ defineProps<{
   loading?: boolean
   refreshLabel: string
   actionLabel: string
+  showAction?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -25,7 +26,7 @@ const slots = useSlots()
         <slot name="refresh-icon" />
         {{ refreshLabel }}
       </Button>
-      <Button size="sm" @click="emit('action')">
+      <Button v-if="showAction !== false" size="sm" @click="emit('action')">
         <slot name="action-icon" />
         {{ actionLabel }}
       </Button>

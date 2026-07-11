@@ -38,6 +38,28 @@ export interface ApiDefinition {
     update: typeof routes['api_keys.update']
     destroy: typeof routes['api_keys.destroy']
   }
+  users: {
+    index: typeof routes['users.index']
+    store: typeof routes['users.store']
+    update: typeof routes['users.update']
+    resetPassword: typeof routes['users.reset_password']
+    destroy: typeof routes['users.destroy']
+  }
+  roles: {
+    index: typeof routes['roles.index']
+    store: typeof routes['roles.store']
+    update: typeof routes['roles.update']
+    destroy: typeof routes['roles.destroy']
+  }
+  permissions: {
+    index: typeof routes['permissions.index']
+    store: typeof routes['permissions.store']
+    update: typeof routes['permissions.update']
+    destroy: typeof routes['permissions.destroy']
+  }
+  auditLogs: {
+    index: typeof routes['audit_logs.index']
+  }
   aiChat: {
     index: typeof routes['ai_chat.index']
     store: typeof routes['ai_chat.store']

@@ -4,7 +4,9 @@ import { ApiOperation, ApiResponse, ApiSecurity } from '@foadonis/openapi/decora
 import { DateTime } from 'luxon'
 
 import User from '#models/user'
+import { recordAuditEvent } from '#services/audit_log'
 import { isStrongPassword, passwordContext } from '#services/password_strength'
+import { loadUserAccess } from '#services/user_access'
 import UserTransformer from '#transformers/user_transformer'
 import { changePasswordValidator, twoFactorValidator } from '#validators/user'
 
@@ -16,7 +18,7 @@ export default class ProfileController {
   })
   @ApiResponse({ status: 200, description: '管理员资料' })
   async show({ auth, serialize }: HttpContext) {
-    return serialize(UserTransformer.transform(auth.getUserOrFail()))
+    return serialize(UserTransformer.transform(await loadUserAccess(auth.getUserOrFail())))
   }
 
   @ApiOperation({
@@ -26,7 +28,8 @@ export default class ProfileController {
   @ApiResponse({ status: 200, description: '已更新的管理员资料' })
   @ApiResponse({ status: 400, description: '当前密码错误或新旧密码相同' })
   @ApiResponse({ status: 422, description: '密码强度不足' })
-  async changePassword({ auth, request, response, serialize }: HttpContext) {
+  async changePassword(ctx: HttpContext) {
+    const { auth, request, response, serialize } = ctx
     const user = auth.getUserOrFail()
     const payload = await request.validateUsing(changePasswordValidator)
 
@@ -52,8 +55,14 @@ export default class ProfileController {
     user.password = await hash.make(payload.password)
     user.passwordChangedAt = DateTime.now()
     await user.save()
+    await recordAuditEvent(ctx, {
+      actorUserId: user.id,
+      action: 'account.password_changed',
+      targetType: 'user',
+      targetId: user.id,
+    })
 
-    return serialize(UserTransformer.transform(user))
+    return serialize(UserTransformer.transform(await loadUserAccess(user)))
   }
 
   @ApiOperation({
@@ -62,7 +71,8 @@ export default class ProfileController {
   })
   @ApiResponse({ status: 200, description: '已更新的管理员资料' })
   @ApiResponse({ status: 400, description: '密码错误' })
-  async disableTwoFactor({ auth, request, response, serialize }: HttpContext) {
+  async disableTwoFactor(ctx: HttpContext) {
+    const { auth, request, response, serialize } = ctx
     const user = auth.getUserOrFail()
     const payload = await request.validateUsing(twoFactorValidator)
     const verifiedUser = await User.verifyCredentials(user.email, payload.password).catch(
@@ -77,7 +87,13 @@ export default class ProfileController {
     user.twoFactorSecret = null
     user.twoFactorRecoveryCodes = null
     await user.save()
+    await recordAuditEvent(ctx, {
+      actorUserId: user.id,
+      action: 'account.two_factor_disabled',
+      targetType: 'user',
+      targetId: user.id,
+    })
 
-    return serialize(UserTransformer.transform(user))
+    return serialize(UserTransformer.transform(await loadUserAccess(user)))
   }
 }

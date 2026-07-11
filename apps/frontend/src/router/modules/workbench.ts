@@ -1,9 +1,10 @@
-import { ChartNoAxesCombined, Gauge, Key, ListTodo, PanelsTopLeft, Route, Sparkles } from '@lucide/vue'
+import { ChartNoAxesCombined, FileClock, Gauge, Key, ListTodo, PanelsTopLeft, Route, ShieldCheck, Sparkles, UsersRound } from '@lucide/vue'
 import type { RouteRecordRaw } from 'vue-router'
 
 export const workbenchRoutes: RouteRecordRaw[] = [
   {
     path: '/',
+    name: 'workbench',
     component: () => import('@/layouts/AppLayout.vue'),
     meta: { requiresAuth: true },
     children: [
@@ -17,6 +18,7 @@ export const workbenchRoutes: RouteRecordRaw[] = [
         component: () => import('@/views/DashboardView.vue'),
         meta: {
           title: 'sidebar.dashboard',
+          permission: 'dashboard:view',
           nav: {
             group: 'sidebar.workbench',
             icon: Gauge,
@@ -30,11 +32,55 @@ export const workbenchRoutes: RouteRecordRaw[] = [
         component: () => import('@/views/ApiKeysView.vue'),
         meta: {
           title: 'sidebar.api_keys',
+          permission: 'api-keys:read',
           nav: {
             group: 'sidebar.system',
             icon: Key,
             order: 10,
           },
+        },
+      },
+      {
+        path: 'system/users',
+        name: 'users',
+        component: () => import('@/views/AccessControlView.vue'),
+        props: { mode: 'users' },
+        meta: {
+          title: 'sidebar.users',
+          permission: 'users:read',
+          nav: { group: 'sidebar.system', icon: UsersRound, order: 20 },
+        },
+      },
+      {
+        path: 'system/roles',
+        name: 'roles',
+        component: () => import('@/views/AccessControlView.vue'),
+        props: { mode: 'roles' },
+        meta: {
+          title: 'sidebar.roles',
+          permission: 'roles:read',
+          nav: { group: 'sidebar.system', icon: ShieldCheck, order: 30 },
+        },
+      },
+      {
+        path: 'system/permissions',
+        name: 'permissions',
+        component: () => import('@/views/AccessControlView.vue'),
+        props: { mode: 'permissions' },
+        meta: {
+          title: 'sidebar.permissions',
+          permission: 'permissions:read',
+          nav: { group: 'sidebar.system', icon: Key, order: 40 },
+        },
+      },
+      {
+        path: 'system/audit-logs',
+        name: 'audit-logs',
+        component: () => import('@/views/AuditLogsView.vue'),
+        meta: {
+          title: 'sidebar.audit_logs',
+          permission: 'audit-logs:read',
+          nav: { group: 'sidebar.system', icon: FileClock, order: 50 },
         },
       },
       {
@@ -89,3 +135,7 @@ export const workbenchRoutes: RouteRecordRaw[] = [
     ],
   },
 ]
+
+export const workbenchPermissionRoutes = workbenchRoutes.at(0)?.children?.filter(
+  (route) => route.meta?.permission
+) ?? []

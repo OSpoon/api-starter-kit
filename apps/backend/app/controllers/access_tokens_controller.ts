@@ -4,6 +4,7 @@ import { DateTime } from 'luxon'
 
 import User from '#models/user'
 import { createTwoFactorTempToken } from '#services/two_factor_token'
+import { loadUserAccess } from '#services/user_access'
 import UserTransformer from '#transformers/user_transformer'
 import { loginValidator } from '#validators/user'
 
@@ -67,7 +68,7 @@ export default class AccessTokensController {
     const token = await User.accessTokens.create(user)
 
     return serialize({
-      user: UserTransformer.transform(user),
+      user: UserTransformer.transform(await loadUserAccess(user)),
       token: token.value!.release(),
       requiresPasswordChange,
     })
