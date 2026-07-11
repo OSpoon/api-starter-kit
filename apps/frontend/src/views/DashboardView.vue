@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { KeyRound, Route, ShieldCheck } from '@lucide/vue'
 
-import PageHeader from '@/components/common/PageHeader.vue'
+import PageShell from '@/components/common/PageShell.vue'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
 const { t } = useI18n()
@@ -32,17 +32,10 @@ const checklist = computed(() => [
 </script>
 
 <template>
-  <div class="flex h-full flex-col gap-4 p-8">
-    <PageHeader :title="t('dashboard.title')" :description="t('dashboard.desc')" />
-
-    <div class="
-      grid gap-4
-      md:grid-cols-3
-    ">
+  <PageShell :title="t('dashboard.title')" :description="t('dashboard.desc')" class="gap-4">
+    <div class="grid gap-4 md:grid-cols-3">
       <Card v-for="stat in stats" :key="stat.label">
-        <CardHeader class="
-          flex flex-row items-center justify-between space-y-0 pb-2
-        ">
+        <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardDescription>{{ stat.label }}</CardDescription>
           <component :is="stat.icon" class="size-4 text-muted-foreground" />
         </CardHeader>
@@ -58,10 +51,7 @@ const checklist = computed(() => [
         <CardDescription>{{ t('dashboard.structure_desc') }}</CardDescription>
       </CardHeader>
       <CardContent>
-        <ul class="
-          grid gap-3 text-sm text-muted-foreground
-          md:grid-cols-3
-        ">
+        <ul class="grid gap-3 text-sm text-muted-foreground md:grid-cols-3">
           <li
             v-for="item in checklist"
             :key="item"
@@ -72,5 +62,5 @@ const checklist = computed(() => [
         </ul>
       </CardContent>
     </Card>
-  </div>
+  </PageShell>
 </template>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import PageHeader from '@/components/common/PageHeader.vue'
+import PageShell from '@/components/common/PageShell.vue'
 import { Button } from '@/components/ui/button'
 
 defineProps<{
@@ -19,19 +19,17 @@ const slots = useSlots()
 </script>
 
 <template>
-  <div class="flex h-full flex-col gap-4 p-8">
-    <PageHeader :title="title" :description="description">
-      <template #actions>
-        <Button variant="outline" size="sm" :disabled="loading" @click="emit('refresh')">
-          <slot name="refresh-icon" />
-          {{ refreshLabel }}
-        </Button>
-        <Button size="sm" @click="emit('action')">
-          <slot name="action-icon" />
-          {{ actionLabel }}
-        </Button>
-      </template>
-    </PageHeader>
+  <PageShell :title="title" :description="description" class="gap-4">
+    <template #actions>
+      <Button variant="outline" size="sm" :disabled="loading" @click="emit('refresh')">
+        <slot name="refresh-icon" />
+        {{ refreshLabel }}
+      </Button>
+      <Button size="sm" @click="emit('action')">
+        <slot name="action-icon" />
+        {{ actionLabel }}
+      </Button>
+    </template>
 
     <slot name="summary" />
 
@@ -40,9 +38,7 @@ const slots = useSlots()
         <slot name="query" />
       </div>
 
-      <div v-if="slots.operations" class="
-        flex flex-wrap items-center justify-between gap-3
-      ">
+      <div v-if="slots.operations" class="flex flex-wrap items-center justify-between gap-3">
         <slot name="operations" />
       </div>
 
@@ -56,5 +52,5 @@ const slots = useSlots()
     </section>
 
     <slot name="dialogs" />
-  </div>
+  </PageShell>
 </template>

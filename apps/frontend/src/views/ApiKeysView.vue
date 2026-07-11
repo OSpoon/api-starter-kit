@@ -7,7 +7,7 @@ import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import DataTable from '@/components/common/DataTable.vue'
 import FormDialogContent from '@/components/common/FormDialogContent.vue'
 import FormDialogFooter from '@/components/common/FormDialogFooter.vue'
-import ManagementListPage from '@/components/common/ManagementListPage.vue'
+import ListPage from '@/components/common/ListPage.vue'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog } from '@/components/ui/dialog'
@@ -243,7 +243,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <ManagementListPage
+  <ListPage
     :title="t('api_keys.title')"
     :description="t('api_keys.desc')"
     :loading="loading"
@@ -296,10 +296,7 @@ onMounted(() => {
           class="sm:max-w-155"
         >
           <div class="px-6 pb-6">
-            <div class="
-              flex items-center gap-2 overflow-x-auto rounded-md border bg-muted
-              p-3
-            ">
+            <div class="flex items-center gap-2 overflow-x-auto rounded-md border bg-muted p-3">
               <p class="shrink-0 font-mono text-sm/snug whitespace-nowrap">
                 {{ createdToken }}
               </p>
@@ -327,5 +324,5 @@ onMounted(() => {
         @confirm="confirmRevokeKey"
       />
     </template>
-  </ManagementListPage>
+  </ListPage>
 </template>
