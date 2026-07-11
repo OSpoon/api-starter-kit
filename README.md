@@ -67,19 +67,26 @@ pnpm --dir apps/backend exec node ace generate:key --show
 APP_KEY=<generated-app-key>
 ```
 
-### 3. 启动 PostgreSQL 和 Ollama
+### 3. 启动 PostgreSQL（可选启动 Ollama）
 
 ```bash
-docker compose up -d postgres ollama
+docker compose up -d postgres
 ```
 
-默认模型为 `llama3.2:1b`，**需手动拉取模型**：
+AI 助手默认配置指向本机 Ollama 的 OpenAI 兼容地址。Ollama 不会随默认 Compose 启动，也不会自动拉取模型。需要本地模型时，按需启动并手动拉取：
 
 ```bash
-ollama pull llama3.2:1b
+docker compose --profile ollama up -d ollama
+docker compose exec ollama ollama pull llama3.2:1b
 ```
 
-在 `apps/backend/.env` 覆盖 `AI_OPENAI_*` 变量即可接入其他 OpenAI 兼容服务。
+`llama3.2:1b` 适合基础对话和本地开发。也可以在 `apps/backend/.env` 按用户配置覆盖 `AI_OPENAI_*` 变量，接入宿主机 Ollama、独立 Ollama 服务或任意 OpenAI 兼容服务。
+
+当后端也运行在 Docker Compose 中并使用该可选 Ollama 服务时，将 `apps/backend/.env` 中的地址改为 Docker 服务名：
+
+```env
+AI_OPENAI_BASE_URL=http://ollama:11434/v1
+```
 
 ### 4. 执行数据库迁移
 
@@ -95,12 +102,12 @@ pnpm dev
 
 默认访问地址：
 
-| 服务       | 地址                     |
-| ---------- | ------------------------ |
-| 前端       | `http://localhost:18080` |
-| 后端 API   | `http://localhost:13333` |
-| PostgreSQL | `localhost:5432`         |
-| Ollama     | `http://localhost:11434` |
+| 服务       | 地址                                        |
+| ---------- | ------------------------------------------- |
+| 前端       | `http://localhost:18080`                    |
+| 后端 API   | `http://localhost:13333`                    |
+| PostgreSQL | `localhost:5432`                            |
+| Ollama     | `http://localhost:11434`（启用 profile 后） |
 
 开发环境不经过 Nginx。OpenAPI 文档由后端直接提供：`http://localhost:13333/api-docs`。
 
@@ -240,7 +247,7 @@ docker compose up -d
 生产 Compose 行为：
 
 - 启动 PostgreSQL
-- 启动 Ollama（**需手动拉取模型：`ollama pull llama3.2:1b`**）
+- 不强制启动 Ollama；启用 `ollama` profile 后由用户自行拉取模型
 - 后端启动前自动执行数据库迁移
 - 前端由 Nginx 提供静态资源
 - Nginx 将 `/api/*` 代理到后端
