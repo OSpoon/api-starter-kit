@@ -8,12 +8,24 @@ import { BaseModel, column } from '@adonisjs/lucid/orm'
 import { DateTime } from 'luxon'
 
 export class AiChatConversationSchema extends BaseModel {
-  static $columns = ['createdAt', 'id', 'title', 'updatedAt', 'userId'] as const
+  static $columns = [
+    'contextSummary',
+    'createdAt',
+    'id',
+    'summaryUntilMessageId',
+    'title',
+    'updatedAt',
+    'userId',
+  ] as const
   $columns = AiChatConversationSchema.$columns
+  @column()
+  declare contextSummary: string | null
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
   @column({ isPrimary: true })
   declare id: number
+  @column()
+  declare summaryUntilMessageId: number | null
   @column()
   declare title: string
   @column.dateTime({ autoCreate: true, autoUpdate: true })

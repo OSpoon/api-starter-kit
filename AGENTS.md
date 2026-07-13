@@ -64,6 +64,12 @@ These rules apply to every change in this repository. Prefer the existing archit
 - Paginate potentially unbounded list endpoints before production use. The frontend table pagination is not a substitute for API pagination.
 - Any mutation must define ownership, authorization, conflict behavior, and audit-sensitive side effects before implementation.
 
+## AI Conversations
+
+- Persist complete AI conversation messages. Context reduction may only affect the model request, never stored history or history APIs.
+- Implement long-running conversation reduction as a rolling, persisted summary with an explicit covered-message boundary. Preserve the system prompt and recent messages in every model request.
+- Context compression must be enabled by default, configurable through validated backend environment variables, and must fall back to a bounded recent-message window when summarization fails.
+
 ## Frontend Components And UX
 
 - Use `ListPage` for CRUD and management list pages, `DataTable` for tabular data, `ConfirmDialog` for destructive/security-sensitive confirmations, and `PageShell` only for non-list pages.
@@ -93,13 +99,13 @@ These rules apply to every change in this repository. Prefer the existing archit
 
 ### Minimum Verification Matrix
 
-| Change type | Required verification |
-| --- | --- |
-| Frontend view, component, route, or locale | `pnpm --dir apps/frontend type-check`, frontend lint, and frontend build for template/routing changes |
-| Backend controller, validator, model, service, or middleware | `pnpm --dir apps/backend typecheck`, backend lint, and focused or full backend tests |
-| Migration or schema | migration status, backend typecheck, and a focused persistence test when behavior changes |
-| Authorization, authentication, credential, or secret flow | backend tests covering allow and deny paths; never rely only on UI behavior |
-| Shared component or cross-app contract | verification for every affected application plus `git diff --check` |
+| Change type                                                  | Required verification                                                                                 |
+| ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
+| Frontend view, component, route, or locale                   | `pnpm --dir apps/frontend type-check`, frontend lint, and frontend build for template/routing changes |
+| Backend controller, validator, model, service, or middleware | `pnpm --dir apps/backend typecheck`, backend lint, and focused or full backend tests                  |
+| Migration or schema                                          | migration status, backend typecheck, and a focused persistence test when behavior changes             |
+| Authorization, authentication, credential, or secret flow    | backend tests covering allow and deny paths; never rely only on UI behavior                           |
+| Shared component or cross-app contract                       | verification for every affected application plus `git diff --check`                                   |
 
 ## Documentation And Change Discipline
 

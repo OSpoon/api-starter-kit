@@ -1,11 +1,9 @@
 import OpenAI from 'openai'
 
+import type { AiChatContextMessage, AiChatRequestMessage } from '#services/ai_chat_context_service'
 import env from '#start/env'
 
-interface ChatMessage {
-  role: 'user' | 'assistant' | 'system'
-  content: string
-}
+type ChatMessage = AiChatRequestMessage
 
 interface ChatContext {
   route: string
@@ -50,6 +48,58 @@ function getTemperature() {
 
 export function getHistoryMessageLimit() {
   return Math.min(Math.max(env.get('AI_MAX_HISTORY_MESSAGES') ?? 20, 1), 100)
+}
+
+export function getContextCompressionOptions() {
+  return {
+    enabled: env.get('AI_CONTEXT_COMPRESSION_ENABLED') ?? true,
+    thresholdTokens: Math.min(
+      Math.max(env.get('AI_CONTEXT_COMPRESSION_THRESHOLD_TOKENS') ?? 6000, 1024),
+      1_000_000
+    ),
+    recentMessageCount: Math.min(
+      Math.max(env.get('AI_CONTEXT_COMPRESSION_RECENT_MESSAGES') ?? 8, 1),
+      getHistoryMessageLimit()
+    ),
+    historyMessageLimit: getHistoryMessageLimit(),
+  }
+}
+
+export async function createConversationSummary(input: {
+  previousSummary: string | null
+  messages: AiChatContextMessage[]
+}) {
+  const client = createClient()
+  const history = input.messages
+    .map((message) => `[${message.role}]\n${message.content}`)
+    .join('\n\n')
+  const previousSummary = input.previousSummary
+    ? `Existing summary:\n${input.previousSummary}\n\n`
+    : ''
+
+  const completion = await client.chat.completions.create({
+    model: getModel(),
+    messages: [
+      {
+        role: 'system',
+        content:
+          "Summarize a conversation for later continuation. Preserve the user's goals, confirmed facts, decisions, constraints, unresolved questions, and pending work. Do not invent facts or describe this instruction. Write concise structured prose in the user's language.",
+      },
+      {
+        role: 'user',
+        content: `${previousSummary}Messages to incorporate:\n${history}`,
+      },
+    ],
+    stream: false,
+    temperature: 0,
+  })
+
+  const content = completion.choices[0]?.message.content?.trim()
+  if (!content) {
+    throw new Error('AI conversation summary is empty')
+  }
+
+  return content
 }
 
 export async function createChatCompletion(messages: ChatMessage[], context?: ChatContext) {

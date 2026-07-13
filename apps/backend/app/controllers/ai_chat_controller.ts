@@ -3,7 +3,12 @@ import { ApiOperation, ApiResponse, ApiSecurity } from '@foadonis/openapi/decora
 
 import AiChatConversation from '#models/ai_chat_conversation'
 import AiChatMessage from '#models/ai_chat_message'
-import { createChatCompletionStream, getHistoryMessageLimit } from '#services/ai_chat_service'
+import { buildAiChatContext } from '#services/ai_chat_context_service'
+import {
+  createChatCompletionStream,
+  createConversationSummary,
+  getContextCompressionOptions,
+} from '#services/ai_chat_service'
 import {
   serializeAiChatConversation,
   serializeAiChatConversationWithMessages,
@@ -106,18 +111,39 @@ export default class AiChatController {
       message: serializeAiChatMessage(userMessage),
     })
 
-    const history = [
-      ...conversation.messages.slice(-getHistoryMessageLimit()).map((message) => ({
-        role: message.role,
-        content: message.content,
-      })),
-      { role: 'user' as const, content: payload.content },
-    ]
-
     let assistantContent = ''
 
     try {
-      const stream = await createChatCompletionStream(history, payload.context)
+      const context = await buildAiChatContext(
+        [
+          ...conversation.messages.map((message) => ({
+            id: message.id,
+            role: message.role,
+            content: message.content,
+          })),
+          {
+            id: userMessage.id,
+            role: userMessage.role,
+            content: userMessage.content,
+          },
+        ],
+        {
+          summary: conversation.contextSummary,
+          summaryUntilMessageId: conversation.summaryUntilMessageId,
+        },
+        {
+          ...getContextCompressionOptions(),
+          summarize: createConversationSummary,
+        }
+      )
+
+      if (context.didCompress) {
+        conversation.contextSummary = context.state.summary
+        conversation.summaryUntilMessageId = context.state.summaryUntilMessageId
+        await conversation.save()
+      }
+
+      const stream = await createChatCompletionStream(context.messages, payload.context)
 
       for await (const chunk of stream) {
         const delta = chunk.choices[0]?.delta?.content

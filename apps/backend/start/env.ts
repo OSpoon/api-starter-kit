@@ -47,4 +47,7 @@ export default await Env.create(new URL('../', import.meta.url), {
   AI_SYSTEM_PROMPT: Env.schema.string.optional(),
   AI_TEMPERATURE: Env.schema.number.optional(),
   AI_MAX_HISTORY_MESSAGES: Env.schema.number.optional(),
+  AI_CONTEXT_COMPRESSION_ENABLED: Env.schema.boolean.optional(),
+  AI_CONTEXT_COMPRESSION_THRESHOLD_TOKENS: Env.schema.number.optional(),
+  AI_CONTEXT_COMPRESSION_RECENT_MESSAGES: Env.schema.number.optional(),
 })
