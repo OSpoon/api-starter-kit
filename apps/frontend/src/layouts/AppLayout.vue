@@ -7,11 +7,17 @@ import AppSidebar from '@/components/AppSidebar.vue'
 import SiteHeader from '@/components/SiteHeader.vue'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { getAiChatActions, runAiChatAction } from '@/lib/ai-chat-actions'
-import type { AiChatAgentActivity, AiChatClientAction } from '@/lib/ai-chat-api'
+import type {
+  AiChatAgentActivity,
+  AiChatClientAction,
+  AiChatConfirmation,
+  AiChatPendingConfirmation,
+} from '@/lib/ai-chat-api'
 import {
   type AiChatConversation,
   type AiChatConversationSummary,
   type AiChatMessage,
+  confirmAiAgentAction,
   createAiChatConversation,
   deleteAiChatConversation,
   getAiChatConversation,
@@ -45,6 +51,10 @@ const aiStreamingMessages = ref<
 const aiStreamingMessageId = ref<string | number | null>(null)
 const aiAbortController = ref<AbortController | null>(null)
 const aiActions = getAiChatActions()
+const pendingAiConfirmation = ref<AiChatConfirmation | null>(null)
+const aiConfirmations = ref<AiChatConfirmation[]>([])
+const aiConfirming = ref(false)
+const aiApprovalDismissed = ref(false)
 
 type LocalAiChatMessage = {
   id: string
@@ -61,6 +71,13 @@ type DisplayAiChatMessage = {
   status?: AiMessageContentStatus
   activity?: AiChatAgentActivity
 }
+
+const displayedAiChatMessages = computed<DisplayAiChatMessage[]>(() => {
+  const messages = aiStreamingMessages.value.length
+    ? aiStreamingMessages.value
+    : (aiConversation.value?.messages ?? [])
+  return messages
+})
 
 const breadcrumbs = computed(() => {
   type Crumb = { label: string; to?: string }
@@ -105,6 +122,9 @@ async function handleAiNewChat() {
   aiAbortController.value = null
   aiStreamingMessages.value = []
   aiStreamingMessageId.value = null
+  aiConfirmations.value = []
+  pendingAiConfirmation.value = null
+  aiApprovalDismissed.value = false
   aiConversation.value = await createAiChatConversation(auth.token)
   await refreshAiConversations()
 }
@@ -117,6 +137,8 @@ async function handleAiSelectConversation(id: string | number) {
     aiStreamingMessages.value = []
     aiStreamingMessageId.value = null
     aiConversation.value = await getAiChatConversation(auth.token, Number(id))
+    aiConfirmations.value = aiConversation.value.confirmations ?? []
+    presentLatestAiConfirmation(aiConfirmations.value)
   } catch (error) {
     toast.error(error instanceof Error ? error.message : t('common.error'))
   } finally {
@@ -134,6 +156,9 @@ async function handleAiDeleteConversation(id: string | number) {
     await deleteAiChatConversation(auth.token, Number(id))
     if (aiConversation.value?.id === Number(id)) {
       aiConversation.value = null
+      aiConfirmations.value = []
+      pendingAiConfirmation.value = null
+      aiApprovalDismissed.value = false
       aiStreamingMessages.value = []
       aiStreamingMessageId.value = null
     }
@@ -182,6 +207,45 @@ async function handleAiRunAction(action: AiChatClientAction) {
   }
 }
 
+function presentLatestAiConfirmation(confirmations: AiChatConfirmation[]) {
+  const confirmation = confirmations.at(-1)
+  if (!confirmation) {
+    return
+  }
+
+  pendingAiConfirmation.value = confirmation
+  aiApprovalDismissed.value = false
+}
+
+function dismissAiConfirmation() {
+  aiApprovalDismissed.value = true
+}
+
+async function confirmAiConfirmation() {
+  const confirmation = pendingAiConfirmation.value
+  const conversation = aiConversation.value
+  if (!confirmation || !conversation) {
+    return
+  }
+
+  aiConfirming.value = true
+  try {
+    await confirmAiAgentAction(auth.token, conversation.id, confirmation.id)
+    aiConfirmations.value = aiConfirmations.value.filter((item) => item.id !== confirmation.id)
+    pendingAiConfirmation.value = null
+    aiApprovalDismissed.value = false
+    toast.success(t('ai_chat.confirmations.success'))
+  } catch (error) {
+    toast.error(error instanceof Error ? error.message : t('common.error'))
+  } finally {
+    aiConfirming.value = false
+  }
+}
+
+function isApprovalMessage(message: string) {
+  return /^(确认|批准|继续|同意|approve|confirm)$/i.test(message.trim())
+}
+
 async function handleAiRetryMessage(message: DisplayAiChatMessage) {
   const messages = getDisplayedAiMessages()
   const messageIndex = messages.findIndex((item) => item.id === message.id)
@@ -198,6 +262,11 @@ async function handleAiRetryMessage(message: DisplayAiChatMessage) {
 }
 
 async function handleAiSend(message: string, regenerateAssistantMessageId?: number) {
+  if (!regenerateAssistantMessageId && pendingAiConfirmation.value && isApprovalMessage(message)) {
+    await confirmAiConfirmation()
+    return
+  }
+
   aiAbortController.value?.abort()
   const abortController = new AbortController()
   aiAbortController.value = abortController
@@ -223,6 +292,9 @@ async function handleAiSend(message: string, regenerateAssistantMessageId?: numb
         assistantMessage,
       ]
     : [...currentMessages, userMessage!, assistantMessage]
+  const newlyCreatedAiConfirmationIds = new Set<number>()
+  let completedAssistantMessageId: number | null = null
+  let streamedConfirmation: AiChatPendingConfirmation | null = null
 
   try {
     const conversation = await ensureAiConversation()
@@ -256,10 +328,39 @@ async function handleAiSend(message: string, regenerateAssistantMessageId?: numb
           )
         }
 
+        if (event.type === 'agent_confirmation') {
+          streamedConfirmation = {
+            id: event.id,
+            action: event.action,
+            targetType: event.targetType,
+            targetId: event.targetId,
+            targetSummary: event.targetSummary,
+            expiresAt: event.expiresAt,
+          }
+        }
+
         if (event.type === 'done') {
-          aiConversation.value = event.conversation
+          completedAssistantMessageId = event.message.id
+          event.confirmations.forEach((confirmation) => {
+            newlyCreatedAiConfirmationIds.add(confirmation.id)
+          })
+          aiConversation.value = {
+            ...event.conversation,
+            confirmations: [
+              ...aiConfirmations.value,
+              ...event.confirmations.map((confirmation) => ({
+                ...confirmation,
+                messageId: event.message.id,
+              })),
+            ],
+          }
+          aiConfirmations.value = aiConversation.value.confirmations ?? []
           aiStreamingMessageId.value = null
           aiStreamingMessages.value = []
+          const confirmation = event.confirmations.at(-1) ?? streamedConfirmation
+          if (confirmation) {
+            presentLatestAiConfirmation([{ ...confirmation, messageId: event.message.id }])
+          }
         }
 
         if (event.type === 'error') {
@@ -272,6 +373,19 @@ async function handleAiSend(message: string, regenerateAssistantMessageId?: numb
         regenerateAssistantMessageId,
       }
     )
+    const persistedConversation = await getAiChatConversation(auth.token, conversation.id)
+    aiConversation.value = persistedConversation
+    aiConfirmations.value = persistedConversation.confirmations ?? []
+    const latestCreatedConfirmation = aiConfirmations.value
+      .filter(
+        (confirmation) =>
+          newlyCreatedAiConfirmationIds.has(confirmation.id) ||
+          confirmation.messageId === completedAssistantMessageId
+      )
+      .at(-1)
+    if (latestCreatedConfirmation) {
+      presentLatestAiConfirmation([latestCreatedConfirmation])
+    }
     await refreshAiConversations()
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') {
@@ -314,19 +428,21 @@ onMounted(() => {
         </footer>
       </div>
       <AiChatAssistant
-        :messages="
-          aiStreamingMessages.length ? aiStreamingMessages : (aiConversation?.messages ?? [])
-        "
+        :messages="displayedAiChatMessages"
         :conversations="aiConversations"
         :current-conversation-id="aiConversation?.id"
         :streaming-message-id="aiStreamingMessageId"
         :loading="aiLoading"
         :actions="aiActions"
+        :approval="aiApprovalDismissed ? null : pendingAiConfirmation"
+        :approval-loading="aiConfirming"
         @clear="handleAiNewChat"
         @copy-message="handleAiCopyMessage"
         @delete-conversation="handleAiDeleteConversation"
         @retry-message="handleAiRetryMessage"
         @run-action="handleAiRunAction"
+        @approve-confirmation="confirmAiConfirmation"
+        @dismiss-confirmation="dismissAiConfirmation"
         @send="handleAiSend"
         @select-conversation="handleAiSelectConversation"
         @stop="handleAiStop"

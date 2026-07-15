@@ -9,6 +9,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { Button } from '@/components/ui/button'
 
 defineProps<{
   open: boolean
@@ -16,6 +17,7 @@ defineProps<{
   description: string
   loading?: boolean
   confirmLabel?: string
+  contained?: boolean
 }>()
 
 defineEmits<{
@@ -27,7 +29,27 @@ const { t } = useI18n()
 </script>
 
 <template>
-  <AlertDialog :open="open" @update:open="$emit('update:open', $event)">
+  <div
+    v-if="contained && open"
+    role="alertdialog"
+    aria-modal="true"
+    :aria-label="title"
+    class="absolute inset-0 z-[60] flex items-center justify-center bg-background/80 p-4 backdrop-blur-sm"
+  >
+    <div class="w-full max-w-sm rounded-xl border bg-popover p-5 text-popover-foreground shadow-xl">
+      <h2 class="text-base font-semibold">{{ title }}</h2>
+      <p class="mt-2 text-sm text-muted-foreground">{{ description }}</p>
+      <div class="mt-5 flex justify-end gap-2">
+        <Button variant="outline" :disabled="loading" @click="$emit('update:open', false)">
+          {{ t('common.cancel') }}
+        </Button>
+        <Button :disabled="loading" @click="$emit('confirm')">
+          {{ loading ? t('common.loading') : (confirmLabel ?? t('common.delete')) }}
+        </Button>
+      </div>
+    </div>
+  </div>
+  <AlertDialog v-else-if="!contained" :open="open" @update:open="$emit('update:open', $event)">
     <AlertDialogContent>
       <AlertDialogHeader>
         <AlertDialogTitle>{{ title }}</AlertDialogTitle>

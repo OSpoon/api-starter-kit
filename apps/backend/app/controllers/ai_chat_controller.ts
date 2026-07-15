@@ -4,6 +4,12 @@ import { ApiOperation, ApiResponse, ApiSecurity } from '@foadonis/openapi/decora
 import AiChatConversation from '#models/ai_chat_conversation'
 import AiChatMessage from '#models/ai_chat_message'
 import {
+  AiAgentConfirmationError,
+  attachAgentRunConfirmations,
+  confirmAiAgentAction as executeAiAgentAction,
+  listConversationConfirmations,
+} from '#services/ai_agent_confirmation'
+import {
   createAiAgentStream,
   deleteAiAgentCheckpoint,
   hasAiAgentCheckpoint,
@@ -27,17 +33,58 @@ function writeSse(response: HttpContext['response'], event: string, data: unknow
   response.response.write(`data: ${JSON.stringify(data)}\n\n`)
 }
 
+function parseAgentConfirmation(output: unknown) {
+  const content =
+    typeof output === 'string'
+      ? output
+      : output &&
+          typeof output === 'object' &&
+          'content' in output &&
+          typeof output.content === 'string'
+        ? output.content
+        : null
+  if (!content) {
+    return null
+  }
+
+  try {
+    const payload = JSON.parse(content) as {
+      kind?: string
+      confirmation?: { id?: number; action?: string; targetSummary?: unknown; expiresAt?: unknown }
+    }
+    const confirmation = payload.confirmation
+    if (
+      payload.kind !== 'confirmation' ||
+      !confirmation ||
+      !Number.isInteger(confirmation.id) ||
+      !confirmation.action ||
+      !confirmation.targetSummary
+    ) {
+      return null
+    }
+    return confirmation
+  } catch {
+    return null
+  }
+}
+
 async function streamAiAgentToolStatuses(
   run: Awaited<ReturnType<typeof createAiAgentStream>>,
   response: HttpContext['response']
 ) {
-  for await (const toolCall of run.toolCalls) {
+  for await (const toolCall of run.stream.toolCalls) {
     writeSse(response, 'agent_status', { name: toolCall.name, state: 'running' })
     const state = await toolCall.status
     writeSse(response, 'agent_status', {
       name: toolCall.name,
       state: state === 'finished' ? 'done' : 'error',
     })
+    if (state === 'finished') {
+      const confirmation = parseAgentConfirmation(await toolCall.output)
+      if (confirmation) {
+        writeSse(response, 'agent_confirmation', confirmation)
+      }
+    }
   }
 }
 
@@ -87,7 +134,8 @@ export default class AiChatController {
       .preload('messages', (query) => query.orderBy('created_at', 'asc'))
       .firstOrFail()
 
-    return serialize(serializeAiChatConversationWithMessages(conversation))
+    const confirmations = await listConversationConfirmations(conversation.id, user.id)
+    return serialize({ ...serializeAiChatConversationWithMessages(conversation), confirmations })
   }
 
   @ApiOperation({
@@ -172,7 +220,7 @@ export default class AiChatController {
       })
       const toolStatusTask = streamAiAgentToolStatuses(run, response)
 
-      for await (const message of run.messages) {
+      for await (const message of run.stream.messages) {
         for await (const delta of message.text) {
           if (!delta) {
             continue
@@ -189,11 +237,18 @@ export default class AiChatController {
         role: 'assistant',
         content: assistantContent,
       })
+      const confirmations = await attachAgentRunConfirmations({
+        conversationId: conversation.id,
+        userId: user.id,
+        agentRunId: run.agentRunId,
+        assistantMessageId: assistantMessage.id,
+      })
 
       await conversation.load('messages', (query) => query.orderBy('created_at', 'asc'))
       writeSse(response, 'done', {
         conversation: serializeAiChatConversationWithMessages(conversation),
         message: serializeAiChatMessage(assistantMessage),
+        confirmations,
       })
     } catch (error) {
       writeSse(response, 'error', {
@@ -201,6 +256,40 @@ export default class AiChatController {
       })
     } finally {
       response.response.end()
+    }
+  }
+
+  @ApiOperation({
+    summary: '确认 AI 代理受控操作',
+    description: '执行当前用户在 AI 对话中创建且尚未过期的受控操作确认。',
+  })
+  @ApiResponse({ status: 200, description: '已执行受控操作' })
+  async confirmAiAgentAction(ctx: HttpContext) {
+    const { auth, params, response, serialize } = ctx
+    const user = auth.getUserOrFail()
+    const conversation = await AiChatConversation.query()
+      .where('id', params.id)
+      .where('user_id', user.id)
+      .firstOrFail()
+
+    try {
+      const confirmation = await executeAiAgentAction(ctx, {
+        confirmationId: Number(params.confirmationId),
+        conversationId: conversation.id,
+        userId: user.id,
+      })
+      return serialize(confirmation)
+    } catch (error) {
+      if (error instanceof AiAgentConfirmationError) {
+        if (error.status === 404) {
+          return response.notFound({ message: error.message })
+        }
+        if (error.status === 409) {
+          return response.conflict({ message: error.message })
+        }
+        return response.unprocessableEntity({ message: error.message })
+      }
+      throw error
     }
   }
 

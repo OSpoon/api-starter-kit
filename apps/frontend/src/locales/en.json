@@ -118,7 +118,29 @@
         "running": "Checking your permissions…",
         "done": "Permission check completed",
         "error": "Permission check did not complete"
+      },
+      "list_api_keys": {
+        "running": "Looking up API keys…",
+        "done": "API key lookup completed",
+        "error": "API key lookup did not complete"
+      },
+      "propose_api_key_revocation": {
+        "running": "Preparing revocation confirmation…",
+        "done": "Revocation confirmation created",
+        "error": "Could not create revocation confirmation"
       }
+    },
+    "confirmations": {
+      "revoke_api_key": "Ready to revoke API key “{name}” ({prefix}). Once confirmed, any script using this key will stop immediately.",
+      "confirm": "Confirm revocation",
+      "dialog_title": "Confirm API key revocation",
+      "dialog_description": "Revoke “{name}”? This will invalidate the key immediately.",
+      "success": "API key revoked"
+    },
+    "approval": {
+      "pending": "Approval requested · Revoke API key “{target}”",
+      "approve": "Approve",
+      "cancel": "Cancel"
     },
     "stop_generating": "Stop generating",
     "copy_success": "Message copied",
@@ -152,6 +174,7 @@
   },
   "api_keys": {
     "title": "API Access",
+    "id": "ID",
     "desc": "Generate long-lived or time-limited access tokens for external systems.",
     "keys_card_title": "My API keys",
     "keys_card_desc": "Generate long-lived or expiring access tokens for external systems.",

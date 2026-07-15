@@ -65,6 +65,7 @@ export interface ApiDefinition {
     store: typeof routes['ai_chat.store']
     show: typeof routes['ai_chat.show']
     sendMessage: typeof routes['ai_chat.send_message']
+    confirmAiAgentAction: typeof routes['ai_chat.confirm_ai_agent_action']
     destroy: typeof routes['ai_chat.destroy']
   }
 }

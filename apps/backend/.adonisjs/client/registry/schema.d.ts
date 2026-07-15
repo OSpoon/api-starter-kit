@@ -415,6 +415,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['sendMessage']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
+  'ai_chat.confirm_ai_agent_action': {
+    methods: ["POST"]
+    pattern: '/api/v1/ai-chat/conversations/:id/confirmations/:confirmationId/confirm'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue, ParamValue]
+      params: { id: ParamValue; confirmationId: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['confirmAiAgentAction']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['confirmAiAgentAction']>>>
+    }
+  }
   'ai_chat.destroy': {
     methods: ["DELETE"]
     pattern: '/api/v1/ai-chat/conversations/:id'

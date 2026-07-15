@@ -111,6 +111,12 @@ router
         router.post('conversations', [AiChatController, 'store'])
         router.get('conversations/:id', [AiChatController, 'show'])
         router.post('conversations/:id/messages', [AiChatController, 'sendMessage'])
+        router
+          .post('conversations/:id/confirmations/:confirmationId/confirm', [
+            AiChatController,
+            'confirmAiAgentAction',
+          ])
+          .use(middleware.permission(['api-keys:delete']))
         router.delete('conversations/:id', [AiChatController, 'destroy'])
       })
       .prefix('ai-chat')

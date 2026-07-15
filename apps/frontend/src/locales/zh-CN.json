@@ -118,7 +118,29 @@
         "running": "正在检查我的权限…",
         "done": "已完成权限检查",
         "error": "权限检查未完成"
+      },
+      "list_api_keys": {
+        "running": "正在查询 API Key…",
+        "done": "已完成 API Key 查询",
+        "error": "API Key 查询未完成"
+      },
+      "propose_api_key_revocation": {
+        "running": "正在准备吊销确认…",
+        "done": "已生成吊销确认",
+        "error": "未能生成吊销确认"
       }
+    },
+    "confirmations": {
+      "revoke_api_key": "准备吊销 API Key「{name}」（{prefix}）。确认后，所有使用此密钥的脚本将立即失效。",
+      "confirm": "确认吊销",
+      "dialog_title": "确认吊销 API Key",
+      "dialog_description": "确定要吊销「{name}」吗？此操作会立即使该密钥失效。",
+      "success": "API Key 已吊销"
+    },
+    "approval": {
+      "pending": "请求批准 · 吊销 API Key「{target}」",
+      "approve": "批准",
+      "cancel": "取消"
     },
     "stop_generating": "停止生成",
     "copy_success": "消息已复制",
@@ -152,6 +174,7 @@
   },
   "api_keys": {
     "title": "API 密钥",
+    "id": "ID",
     "desc": "为外部系统生成长期有效或限时访问令牌。",
     "keys_card_title": "我的 API 密钥",
     "keys_card_desc": "为外部系统生成长期有效或限时访问令牌。",

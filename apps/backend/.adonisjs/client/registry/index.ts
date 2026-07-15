@@ -210,6 +210,12 @@ const routes = {
     tokens: [{"old":"/api/v1/ai-chat/conversations/:id/messages","type":0,"val":"api","end":""},{"old":"/api/v1/ai-chat/conversations/:id/messages","type":0,"val":"v1","end":""},{"old":"/api/v1/ai-chat/conversations/:id/messages","type":0,"val":"ai-chat","end":""},{"old":"/api/v1/ai-chat/conversations/:id/messages","type":0,"val":"conversations","end":""},{"old":"/api/v1/ai-chat/conversations/:id/messages","type":1,"val":"id","end":""},{"old":"/api/v1/ai-chat/conversations/:id/messages","type":0,"val":"messages","end":""}],
     types: placeholder as Registry['ai_chat.send_message']['types'],
   },
+  'ai_chat.confirm_ai_agent_action': {
+    methods: ["POST"],
+    pattern: '/api/v1/ai-chat/conversations/:id/confirmations/:confirmationId/confirm',
+    tokens: [{"old":"/api/v1/ai-chat/conversations/:id/confirmations/:confirmationId/confirm","type":0,"val":"api","end":""},{"old":"/api/v1/ai-chat/conversations/:id/confirmations/:confirmationId/confirm","type":0,"val":"v1","end":""},{"old":"/api/v1/ai-chat/conversations/:id/confirmations/:confirmationId/confirm","type":0,"val":"ai-chat","end":""},{"old":"/api/v1/ai-chat/conversations/:id/confirmations/:confirmationId/confirm","type":0,"val":"conversations","end":""},{"old":"/api/v1/ai-chat/conversations/:id/confirmations/:confirmationId/confirm","type":1,"val":"id","end":""},{"old":"/api/v1/ai-chat/conversations/:id/confirmations/:confirmationId/confirm","type":0,"val":"confirmations","end":""},{"old":"/api/v1/ai-chat/conversations/:id/confirmations/:confirmationId/confirm","type":1,"val":"confirmationId","end":""},{"old":"/api/v1/ai-chat/conversations/:id/confirmations/:confirmationId/confirm","type":0,"val":"confirm","end":""}],
+    types: placeholder as Registry['ai_chat.confirm_ai_agent_action']['types'],
+  },
   'ai_chat.destroy': {
     methods: ["DELETE"],
     pattern: '/api/v1/ai-chat/conversations/:id',

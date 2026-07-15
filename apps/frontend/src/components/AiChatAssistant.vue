@@ -27,7 +27,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Textarea } from '@/components/ui/textarea'
-import type { AiChatAgentActivity, AiChatClientAction } from '@/lib/ai-chat-api'
+import type { AiChatAgentActivity, AiChatClientAction, AiChatConfirmation } from '@/lib/ai-chat-api'
 
 type ChatRole = 'assistant' | 'user'
 type ChatMessageStatus = AiMessageContentStatus
@@ -60,6 +60,8 @@ const props = withDefaults(
     disabled?: boolean
     showMessageActions?: boolean
     actions?: AiChatClientAction[]
+    approval?: AiChatConfirmation | null
+    approvalLoading?: boolean
   }>(),
   {
     modelValue: undefined,
@@ -75,6 +77,8 @@ const props = withDefaults(
     disabled: false,
     showMessageActions: true,
     actions: () => [],
+    approval: null,
+    approvalLoading: false,
   }
 )
 
@@ -88,6 +92,8 @@ const emit = defineEmits<{
   retryMessage: [message: ChatMessage]
   stop: []
   runAction: [action: AiChatClientAction]
+  approveConfirmation: []
+  dismissConfirmation: []
 }>()
 
 const { t } = useI18n()
@@ -333,6 +339,11 @@ function getActivityLabel(activity: AiChatAgentActivity) {
   return t(`ai_chat.activities.${activity.name}.${activity.state}`)
 }
 
+function getApprovalTarget(approval: AiChatConfirmation) {
+  const name = approval.targetSummary.name
+  return typeof name === 'string' ? name : approval.targetId
+}
+
 function canCopyMessage(message: ChatMessage) {
   return props.showMessageActions && message.content.trim().length > 0
 }
@@ -356,11 +367,6 @@ const actionMarker = /\[\[action:([A-Za-z0-9_-]+)\]\]/g
 
 function getMessageContent(content: string) {
   return content.replace(actionMarker, '').trim()
-}
-
-function getMessageActions(content: string) {
-  const ids = [...content.matchAll(actionMarker)].map((match) => match[1])
-  return props.actions.filter((action) => ids.includes(action.id))
 }
 
 watch(
@@ -526,21 +532,6 @@ onUnmounted(() => {
                   {{ getActivityLabel(message.activity) }}
                 </p>
                 <div
-                  v-if="message.role === 'assistant' && getMessageActions(message.content).length"
-                  class="flex flex-wrap gap-2"
-                >
-                  <Button
-                    v-for="action in getMessageActions(message.content)"
-                    :key="action.id"
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    @click="emit('runAction', action)"
-                  >
-                    {{ action.label }}
-                  </Button>
-                </div>
-                <div
                   v-if="canCopyMessage(message) || canRetryMessage(message)"
                   class="flex h-6 items-center gap-1 opacity-0 transition-opacity group-hover/message:opacity-100 focus-within:opacity-100"
                   :class="
@@ -597,6 +588,35 @@ onUnmounted(() => {
       </div>
 
       <div class="p-3 pt-0">
+        <div v-if="approval" class="mb-2 flex items-center gap-2 border-t px-1 pt-2 text-xs">
+          <p class="min-w-0 flex-1 truncate text-muted-foreground">
+            {{
+              t('ai_chat.approval.pending', {
+                target: getApprovalTarget(approval),
+              })
+            }}
+          </p>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            class="h-7 shrink-0 px-2 text-xs"
+            :disabled="approvalLoading || disabled"
+            @click="emit('dismissConfirmation')"
+          >
+            {{ t('ai_chat.approval.cancel') }}
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            class="h-7 shrink-0 px-2 text-xs"
+            :disabled="approvalLoading || disabled"
+            @click="emit('approveConfirmation')"
+          >
+            {{ approvalLoading ? t('common.loading') : t('ai_chat.approval.approve') }}
+          </Button>
+        </div>
         <form class="flex items-end gap-2" @submit.prevent="handleSubmit">
           <div class="relative flex-1">
             <Textarea

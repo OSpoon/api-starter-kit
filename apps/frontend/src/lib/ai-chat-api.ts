@@ -21,7 +21,20 @@ export interface AiChatConversationSummary {
 
 export interface AiChatConversation extends AiChatConversationSummary {
   messages: AiChatMessage[]
+  confirmations?: AiChatConfirmation[]
 }
+
+export interface AiChatConfirmation {
+  id: number
+  messageId: number
+  action: string
+  targetType: string
+  targetId: string
+  targetSummary: Record<string, unknown>
+  expiresAt: string | null
+}
+
+export type AiChatPendingConfirmation = Omit<AiChatConfirmation, 'messageId'>
 
 export interface AiChatDeleteResult {
   id: number
@@ -104,7 +117,13 @@ type AiChatStreamEvent =
   | { type: 'user'; conversation: AiChatConversationSummary; message: AiChatMessage }
   | { type: 'delta'; content: string }
   | { type: 'agent_status'; name: string; state: AiChatAgentActivity['state'] }
-  | { type: 'done'; conversation: AiChatConversation; message: AiChatMessage }
+  | ({ type: 'agent_confirmation' } & AiChatPendingConfirmation)
+  | {
+      type: 'done'
+      conversation: AiChatConversation
+      message: AiChatMessage
+      confirmations: Omit<AiChatConfirmation, 'messageId'>[]
+    }
   | { type: 'error'; message: string }
 
 export async function streamAiChatMessage(
@@ -183,5 +202,20 @@ export async function deleteAiChatConversation(token: string | null, id: number)
     ...authOptions(token),
     method: 'DELETE',
   })
+  return readItem(response)
+}
+
+export async function confirmAiAgentAction(
+  token: string | null,
+  conversationId: number,
+  confirmationId: number
+) {
+  const response = await apiRequest<Omit<AiChatConfirmation, 'messageId'>>(
+    `/api/v1/ai-chat/conversations/${conversationId}/confirmations/${confirmationId}/confirm`,
+    {
+      ...authOptions(token),
+      method: 'POST',
+    }
+  )
   return readItem(response)
 }

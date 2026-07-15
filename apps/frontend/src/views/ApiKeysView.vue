@@ -54,6 +54,13 @@ const revoking = ref(false)
 
 const columns = computed<ColumnDef<ApiKeySummary>[]>(() => [
   {
+    accessorKey: 'id',
+    meta: { label: t('api_keys.id') },
+    header: () => t('api_keys.id'),
+    cell: ({ row }) =>
+      h('code', { class: 'font-mono text-xs text-muted-foreground' }, String(row.original.id)),
+  },
+  {
     accessorKey: 'name',
     meta: { label: t('api_keys.name') },
     header: () => t('api_keys.name'),
@@ -129,14 +136,14 @@ const columns = computed<ColumnDef<ApiKeySummary>[]>(() => [
       return h('div', { class: 'flex justify-end gap-1' }, [
         can('api-keys:delete')
           ? h(
-          Button,
-          {
-            variant: 'ghost',
-            size: 'icon',
-            class: 'text-destructive',
-            onClick: () => requestRevokeKey(key.id, Boolean(key.revokedAt)),
-          },
-          () => h(Trash2, { class: 'size-4' })
+              Button,
+              {
+                variant: 'ghost',
+                size: 'icon',
+                class: 'text-destructive',
+                onClick: () => requestRevokeKey(key.id, Boolean(key.revokedAt)),
+              },
+              () => h(Trash2, { class: 'size-4' })
             )
           : null,
       ])

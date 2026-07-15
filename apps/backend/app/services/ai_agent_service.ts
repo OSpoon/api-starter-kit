@@ -1,3 +1,5 @@
+import crypto from 'node:crypto'
+
 import { PostgresSaver } from '@langchain/langgraph-checkpoint-postgres'
 import { ChatOpenAI } from '@langchain/openai'
 import { createAgent, summarizationMiddleware } from 'langchain'
@@ -48,9 +50,6 @@ function createSystemPrompt(context?: AiAgentPageContext) {
   const pageContext = context
     ? ` The user is currently on the "${context.title}" page (${context.route}). Treat this as navigation context only; do not assume access to page data.`
     : ''
-  const actions = context?.actions?.length
-    ? ` Available client actions: ${context.actions.map((action) => `${action.id} (${action.label}: ${action.description})`).join('; ')}. You may suggest an action with [[action:<id>]].`
-    : ''
   const items = context?.items?.length
     ? ` Additional page context: ${context.items.map((item) => `${item.label}: ${item.value}`).join('; ')}.`
     : ''
@@ -58,7 +57,7 @@ function createSystemPrompt(context?: AiAgentPageContext) {
     env.get('AI_SYSTEM_PROMPT')?.trim() ||
     'You are a concise product assistant for an admin console. Answer in the user language. Keep responses practical and focused on the available capabilities.'
 
-  return `${configuredPrompt}${pageContext}${items}${actions} Never claim that you performed a write action. Server-side business tools are introduced only after they enforce their own permission and confirmation policy.`
+  return `${configuredPrompt}${pageContext}${items} Never generate client action markers such as [[action:...]]. Never claim that you performed a write action. Server-side business tools are introduced only after they enforce their own permission and confirmation policy. When a protected action needs approval, tell the user to use the structured confirmation card supplied by the product.`
 }
 
 function createPostgresConnectionString() {
@@ -86,14 +85,19 @@ function createModel() {
   })
 }
 
-function createAiAgent(userId: number, context?: AiAgentPageContext) {
+function createAiAgent(input: {
+  userId: number
+  conversationId: number
+  agentRunId: string
+  context?: AiAgentPageContext
+}) {
   const compression = getContextCompressionOptions()
   const model = createModel()
 
   return createAgent({
     model,
-    tools: createAiAgentTools(userId),
-    systemPrompt: createSystemPrompt(context),
+    tools: createAiAgentTools(input),
+    systemPrompt: createSystemPrompt(input.context),
     checkpointer,
     middleware: compression.enabled
       ? [
@@ -126,10 +130,11 @@ export async function createAiAgentStream(input: {
   messages: AiAgentMessage[]
   context?: AiAgentPageContext
 }) {
-  const agent = createAiAgent(input.userId, input.context)
+  const agentRunId = crypto.randomUUID()
+  const agent = createAiAgent({ ...input, agentRunId })
   const threadId = createAiAgentThreadId(input.userId, input.conversationId)
 
-  return agent.streamEvents(
+  const stream = await agent.streamEvents(
     {
       messages: input.messages.map((message) => ({
         type: message.role,
@@ -141,4 +146,5 @@ export async function createAiAgentStream(input: {
       version: 'v3',
     }
   )
+  return { stream, agentRunId }
 }

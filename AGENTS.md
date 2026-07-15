@@ -70,6 +70,15 @@ These rules apply to every change in this repository. Prefer the existing archit
 - Implement long-running conversation reduction as a rolling, persisted summary with an explicit covered-message boundary. Preserve the system prompt and recent messages in every model request.
 - Context compression must be enabled by default, configurable through validated backend environment variables, and must fall back to a bounded recent-message window when summarization fails.
 
+## AI Controlled Actions
+
+- Agent Tools must never directly execute destructive or security-sensitive business mutations. They may only create a persisted action proposal.
+- Every proposal records the authenticated requester, conversation, action, target type and ID, non-sensitive target summary, payload, status, expiry, and final confirmer.
+- Confirm execution must re-check conversation ownership, current authorization, proposal status and expiry, and the target's current state before invoking the registered domain executor.
+- Register new controlled actions in the Agent action registry with their stable action code, named permission, safe target summary, preparation logic, and executor. Reuse the shared in-assistant approval strip and generic confirmation endpoint; do not add action-specific dialogs or Markdown confirmation controls.
+- The approval strip is non-blocking and appears above the assistant input after the response is complete. Its dismiss/cancel control hides the prompt only; it must not discard the persisted proposal, so an explicit approval reply can still confirm that same proposal.
+- Model text and Markdown are never an authorization or confirmation channel. A normalized explicit approval reply may only select the currently pending persisted proposal; only the backend confirmation flow may invoke an executor.
+
 ## Frontend Components And UX
 
 - Use `ListPage` for CRUD and management list pages, `DataTable` for tabular data, `ConfirmDialog` for destructive/security-sensitive confirmations, and `PageShell` only for non-list pages.

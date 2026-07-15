@@ -7,6 +7,60 @@
 import { BaseModel, column } from '@adonisjs/lucid/orm'
 import { DateTime } from 'luxon'
 
+export class AiAgentConfirmationSchema extends BaseModel {
+  static $columns = [
+    'action',
+    'agentRunId',
+    'assistantMessageId',
+    'confirmedAt',
+    'confirmedByUserId',
+    'conversationId',
+    'createdAt',
+    'expiresAt',
+    'id',
+    'payload',
+    'requestedByUserId',
+    'status',
+    'targetId',
+    'targetSummary',
+    'targetType',
+    'updatedAt',
+  ] as const
+  $columns = AiAgentConfirmationSchema.$columns
+  @column()
+  declare action: string
+  @column()
+  declare agentRunId: string
+  @column()
+  declare assistantMessageId: number | null
+  @column.dateTime()
+  declare confirmedAt: DateTime | null
+  @column()
+  declare confirmedByUserId: number | null
+  @column()
+  declare conversationId: number
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column.dateTime()
+  declare expiresAt: DateTime
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare payload: any
+  @column()
+  declare requestedByUserId: number
+  @column()
+  declare status: string
+  @column()
+  declare targetId: string | null
+  @column()
+  declare targetSummary: any | null
+  @column()
+  declare targetType: string | null
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
 export class AiChatConversationSchema extends BaseModel {
   static $columns = [
     'contextSummary',
