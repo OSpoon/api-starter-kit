@@ -49,6 +49,12 @@ export interface AiChatClientAction {
   requiresConfirmation?: boolean
 }
 
+export interface AiChatStreamOptions {
+  signal?: AbortSignal
+  context?: AiChatPageContext
+  regenerateAssistantMessageId?: number
+}
+
 function authOptions(token: string | null) {
   return { token }
 }
@@ -100,8 +106,7 @@ export async function streamAiChatMessage(
   id: number,
   content: string,
   onEvent: (event: AiChatStreamEvent) => void,
-  signal?: AbortSignal,
-  context?: AiChatPageContext
+  options: AiChatStreamOptions = {}
 ) {
   const headers = new Headers({
     Accept: 'text/event-stream',
@@ -115,8 +120,12 @@ export async function streamAiChatMessage(
   const response = await fetch(`/api/v1/ai-chat/conversations/${id}/messages`, {
     method: 'POST',
     headers,
-    body: JSON.stringify({ content, context }),
-    signal,
+    body: JSON.stringify({
+      content,
+      context: options.context,
+      regenerateAssistantMessageId: options.regenerateAssistantMessageId,
+    }),
+    signal: options.signal,
   })
 
   if (!response.ok || !response.body) {

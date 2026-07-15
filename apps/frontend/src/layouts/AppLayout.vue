@@ -186,20 +186,22 @@ async function handleAiRetryMessage(message: DisplayAiChatMessage) {
     return
   }
 
-  await handleAiSend(previousUserMessage.content)
+  await handleAiSend(previousUserMessage.content, Number(message.id))
 }
 
-async function handleAiSend(message: string) {
+async function handleAiSend(message: string, regenerateAssistantMessageId?: number) {
   aiAbortController.value?.abort()
   const abortController = new AbortController()
   aiAbortController.value = abortController
   aiLoading.value = true
   const currentMessages = aiConversation.value?.messages ?? []
-  const userMessage: LocalAiChatMessage = {
-    id: `local-user-${Date.now()}`,
-    role: 'user' as const,
-    content: message,
-  }
+  const userMessage = regenerateAssistantMessageId
+    ? null
+    : {
+        id: `local-user-${Date.now()}`,
+        role: 'user' as const,
+        content: message,
+      }
   const assistantMessage: LocalAiChatMessage = {
     id: `streaming-assistant-${Date.now()}`,
     role: 'assistant' as const,
@@ -207,7 +209,12 @@ async function handleAiSend(message: string) {
     status: 'pending' as const,
   }
   aiStreamingMessageId.value = assistantMessage.id
-  aiStreamingMessages.value = [...currentMessages, userMessage, assistantMessage]
+  aiStreamingMessages.value = regenerateAssistantMessageId
+    ? [
+        ...currentMessages.filter((item) => item.id !== regenerateAssistantMessageId),
+        assistantMessage,
+      ]
+    : [...currentMessages, userMessage!, assistantMessage]
 
   try {
     const conversation = await ensureAiConversation()
@@ -222,7 +229,7 @@ async function handleAiSend(message: string) {
             ...aiConversations.value.filter((item) => item.id !== event.conversation.id),
           ]
           aiStreamingMessages.value = aiStreamingMessages.value.map((item) =>
-            item.id === userMessage.id ? event.message : item
+            userMessage && item.id === userMessage.id ? event.message : item
           )
         }
 
@@ -237,20 +244,18 @@ async function handleAiSend(message: string) {
         if (event.type === 'done') {
           aiConversation.value = event.conversation
           aiStreamingMessageId.value = null
-          assistantMessage.content = event.message.content
-          assistantMessage.status = 'done'
-          aiStreamingMessages.value = aiStreamingMessages.value.map((item) =>
-            item.id === assistantMessage.id ? { ...assistantMessage } : item
-          )
+          aiStreamingMessages.value = []
         }
 
         if (event.type === 'error') {
           throw new Error(event.message)
         }
       },
-      abortController.signal
-      ,
-      aiPageContext.value
+      {
+        signal: abortController.signal,
+        context: aiPageContext.value,
+        regenerateAssistantMessageId,
+      }
     )
     await refreshAiConversations()
   } catch (error) {

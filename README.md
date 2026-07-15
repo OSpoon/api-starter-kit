@@ -217,21 +217,23 @@ pnpm --dir apps/frontend build
 
 ## AI 助手
 
-AI 助手使用 OpenAI SDK，可接入 OpenAI、DeepSeek、Qwen 等 OpenAI 兼容服务。它默认提供纯聊天、流式输出、多轮上下文、停止生成、重试、复制和会话历史。上下文自动压缩默认启用：原始消息始终保留在数据库中，服务端会在达到消息数或 token 阈值时生成滚动摘要，并只将摘要和最近消息发送给模型。
+AI 助手使用 LangGraph.js 作为 Agent 运行层，并通过 OpenAI 兼容接口接入 OpenAI、DeepSeek、Qwen 和 Ollama 等服务。它提供流式输出、持久化 Agent checkpoint、多轮上下文和会话历史。原始消息始终保留在应用数据库中；LangGraph 在达到消息数或 token 阈值时压缩 Agent 工作上下文，同时 PostgreSQL checkpoint 为后续的工具执行中断、确认与恢复提供基础。
 
 后端配置位于 `apps/backend/.env`：
 
-| 变量                                      | 说明                                                                           |
-| ----------------------------------------- | ------------------------------------------------------------------------------ |
-| `AI_OPENAI_API_KEY`                       | 服务商 API Key，Ollama 默认值为 `ollama`                                       |
-| `AI_OPENAI_BASE_URL`                      | OpenAI 兼容 API 地址，默认本地 Ollama                                          |
-| `AI_OPENAI_MODEL`                         | 模型名称，默认 `llama3.2:1b`                                                   |
-| `AI_SYSTEM_PROMPT`                        | 可选的项目系统提示词                                                           |
-| `AI_TEMPERATURE`                          | 生成温度，服务端限制为 `0-2`                                                   |
-| `AI_MAX_HISTORY_MESSAGES`                 | 未压缩消息达到该数量时触发摘要；压缩不可用时作为最近消息回退窗口，范围 `1-100` |
-| `AI_CONTEXT_COMPRESSION_ENABLED`          | 是否启用上下文自动压缩，默认 `true`                                            |
-| `AI_CONTEXT_COMPRESSION_THRESHOLD_TOKENS` | 触发上下文摘要的估算 token 阈值，默认 `6000`，范围 `1024-1000000`              |
-| `AI_CONTEXT_COMPRESSION_RECENT_MESSAGES`  | 摘要后仍保留的最近消息数，默认 `8`，范围 `1-AI_MAX_HISTORY_MESSAGES`           |
+| 变量                                      | 说明                                                                     |
+| ----------------------------------------- | ------------------------------------------------------------------------ |
+| `AI_OPENAI_API_KEY`                       | 服务商 API Key，Ollama 默认值为 `ollama`                                 |
+| `AI_OPENAI_BASE_URL`                      | OpenAI 兼容 API 地址，默认本地 Ollama                                    |
+| `AI_OPENAI_MODEL`                         | 模型名称，默认 `llama3.2:1b`                                             |
+| `AI_SYSTEM_PROMPT`                        | 可选的项目系统提示词                                                     |
+| `AI_TEMPERATURE`                          | 生成温度，服务端限制为 `0-2`                                             |
+| `AI_MAX_HISTORY_MESSAGES`                 | LangGraph 摘要后保留最近消息数的上限，范围 `1-100`                       |
+| `AI_CONTEXT_COMPRESSION_ENABLED`          | 是否启用上下文自动压缩，默认 `true`                                      |
+| `AI_CONTEXT_COMPRESSION_THRESHOLD_TOKENS` | 触发 LangGraph 上下文摘要的 token 阈值，默认 `6000`，范围 `1024-1000000` |
+| `AI_CONTEXT_COMPRESSION_RECENT_MESSAGES`  | 摘要后仍保留的最近消息数，默认 `8`，范围 `1-AI_MAX_HISTORY_MESSAGES`     |
+
+首次使用前必须通过项目迁移创建 `langgraph` checkpoint schema；不要在应用启动时运行框架的 `setup()` DDL。业务能力必须先在后端 Agent capability registry 中注册，并通过既有 service、Vine validator、Bouncer 权限与审计机制执行。当前迁移仅建立运行时和 checkpoint，尚未开放任何服务端业务工具。
 
 助手默认仅发送当前路由与页面标题。项目可以显式注册上下文 provider 或客户端动作；未注册时不会读取页面数据，也不会执行业务操作。相关扩展点位于：
 
@@ -308,30 +310,30 @@ docker compose up -d
 
 文件：`apps/backend/.env`
 
-| 变量                                      | 说明                                                   |
-| ----------------------------------------- | ------------------------------------------------------ |
-| `NODE_ENV`                                | 运行环境：`development`、`production`、`test`          |
-| `HOST` / `PORT`                           | 后端监听地址                                           |
-| `LOG_LEVEL`                               | 日志级别                                               |
-| `APP_KEY`                                 | AdonisJS 应用密钥                                      |
-| `APP_URL`                                 | 后端对外地址                                           |
-| `ADMIN_EMAIL`                             | 默认管理员邮箱                                         |
-| `ADMIN_PASSWORD`                          | 默认管理员密码                                         |
-| `ADMIN_FULL_NAME`                         | 默认管理员名称                                         |
-| `SESSION_DRIVER`                          | Session 驱动                                           |
-| `DB_HOST` / `DB_PORT`                     | PostgreSQL 地址                                        |
-| `DB_USER` / `DB_PASSWORD` / `DB_DATABASE` | PostgreSQL 凭据                                        |
-| `CORS_ORIGIN`                             | 允许访问 API 的前端源，逗号分隔                        |
-| `TZ`                                      | 运行时区，建议 `Asia/Shanghai`                         |
-| `AI_OPENAI_API_KEY`                       | OpenAI 兼容服务的 API Key，默认 `ollama`               |
-| `AI_OPENAI_BASE_URL`                      | OpenAI 兼容服务地址，默认本地 Ollama                   |
-| `AI_OPENAI_MODEL`                         | 模型名称，默认 `llama3.2:1b`                           |
-| `AI_SYSTEM_PROMPT`                        | 可选的 AI 系统提示词                                   |
-| `AI_TEMPERATURE`                          | AI 生成温度，范围 `0-2`                                |
-| `AI_MAX_HISTORY_MESSAGES`                 | 未压缩消息数量阈值与摘要失败时的回退窗口，范围 `1-100` |
-| `AI_CONTEXT_COMPRESSION_ENABLED`          | 是否启用 AI 上下文自动压缩，默认 `true`                |
-| `AI_CONTEXT_COMPRESSION_THRESHOLD_TOKENS` | 上下文摘要的估算 token 阈值，默认 `6000`               |
-| `AI_CONTEXT_COMPRESSION_RECENT_MESSAGES`  | 摘要后保留的最近消息数，默认 `8`                       |
+| 变量                                      | 说明                                               |
+| ----------------------------------------- | -------------------------------------------------- |
+| `NODE_ENV`                                | 运行环境：`development`、`production`、`test`      |
+| `HOST` / `PORT`                           | 后端监听地址                                       |
+| `LOG_LEVEL`                               | 日志级别                                           |
+| `APP_KEY`                                 | AdonisJS 应用密钥                                  |
+| `APP_URL`                                 | 后端对外地址                                       |
+| `ADMIN_EMAIL`                             | 默认管理员邮箱                                     |
+| `ADMIN_PASSWORD`                          | 默认管理员密码                                     |
+| `ADMIN_FULL_NAME`                         | 默认管理员名称                                     |
+| `SESSION_DRIVER`                          | Session 驱动                                       |
+| `DB_HOST` / `DB_PORT`                     | PostgreSQL 地址                                    |
+| `DB_USER` / `DB_PASSWORD` / `DB_DATABASE` | PostgreSQL 凭据                                    |
+| `CORS_ORIGIN`                             | 允许访问 API 的前端源，逗号分隔                    |
+| `TZ`                                      | 运行时区，建议 `Asia/Shanghai`                     |
+| `AI_OPENAI_API_KEY`                       | OpenAI 兼容服务的 API Key，默认 `ollama`           |
+| `AI_OPENAI_BASE_URL`                      | OpenAI 兼容服务地址，默认本地 Ollama               |
+| `AI_OPENAI_MODEL`                         | 模型名称，默认 `llama3.2:1b`                       |
+| `AI_SYSTEM_PROMPT`                        | 可选的 AI 系统提示词                               |
+| `AI_TEMPERATURE`                          | AI 生成温度，范围 `0-2`                            |
+| `AI_MAX_HISTORY_MESSAGES`                 | LangGraph 摘要后保留最近消息数的上限，范围 `1-100` |
+| `AI_CONTEXT_COMPRESSION_ENABLED`          | 是否启用 AI 上下文自动压缩，默认 `true`            |
+| `AI_CONTEXT_COMPRESSION_THRESHOLD_TOKENS` | LangGraph 上下文摘要的 token 阈值，默认 `6000`     |
+| `AI_CONTEXT_COMPRESSION_RECENT_MESSAGES`  | 摘要后保留的最近消息数，默认 `8`                   |
 
 ### 前端
 

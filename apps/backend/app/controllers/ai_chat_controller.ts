@@ -3,12 +3,13 @@ import { ApiOperation, ApiResponse, ApiSecurity } from '@foadonis/openapi/decora
 
 import AiChatConversation from '#models/ai_chat_conversation'
 import AiChatMessage from '#models/ai_chat_message'
-import { buildAiChatContext } from '#services/ai_chat_context_service'
 import {
-  createChatCompletionStream,
-  createConversationSummary,
-  getContextCompressionOptions,
-} from '#services/ai_chat_service'
+  createAiAgentStream,
+  deleteAiAgentCheckpoint,
+  hasAiAgentCheckpoint,
+} from '#services/ai_agent_service'
+import { createAiAgentInputMessages } from '#services/ai_agent_state'
+import { resolveAiChatRegeneration } from '#services/ai_chat_regeneration'
 import {
   serializeAiChatConversation,
   serializeAiChatConversationWithMessages,
@@ -89,13 +90,35 @@ export default class AiChatController {
       .preload('messages', (query) => query.orderBy('created_at', 'asc'))
       .firstOrFail()
 
-    const userMessage = await AiChatMessage.create({
-      conversationId: conversation.id,
-      role: 'user',
-      content: payload.content,
-    })
+    const regeneration = payload.regenerateAssistantMessageId
+      ? resolveAiChatRegeneration(conversation.messages, payload.regenerateAssistantMessageId)
+      : null
 
-    if (conversation.messages.length === 0 && conversation.title === 'New chat') {
+    if (payload.regenerateAssistantMessageId) {
+      if (!regeneration) {
+        return response.unprocessableEntity({ message: '只能重新生成当前对话的最后一条助手回复' })
+      }
+
+      await AiChatMessage.query()
+        .where('id', regeneration.assistantMessage.id)
+        .where('conversation_id', conversation.id)
+        .delete()
+      await deleteAiAgentCheckpoint(conversation.id, user.id)
+    }
+
+    const userMessage =
+      regeneration?.userMessage ??
+      (await AiChatMessage.create({
+        conversationId: conversation.id,
+        role: 'user',
+        content: payload.content,
+      }))
+
+    if (
+      !payload.regenerateAssistantMessageId &&
+      conversation.messages.length === 0 &&
+      conversation.title === 'New chat'
+    ) {
       conversation.title = createTitle(payload.content)
       await conversation.save()
     }
@@ -114,45 +137,35 @@ export default class AiChatController {
     let assistantContent = ''
 
     try {
-      const context = await buildAiChatContext(
-        [
-          ...conversation.messages.map((message) => ({
-            id: message.id,
-            role: message.role,
-            content: message.content,
-          })),
-          {
-            id: userMessage.id,
-            role: userMessage.role,
-            content: userMessage.content,
-          },
-        ],
-        {
-          summary: conversation.contextSummary,
-          summaryUntilMessageId: conversation.summaryUntilMessageId,
-        },
-        {
-          ...getContextCompressionOptions(),
-          summarize: createConversationSummary,
+      const hasCheckpoint = payload.regenerateAssistantMessageId
+        ? false
+        : await hasAiAgentCheckpoint(conversation.id, user.id)
+      const persistedMessages = payload.regenerateAssistantMessageId
+        ? regeneration!.messages
+        : conversation.messages
+      const messages = payload.regenerateAssistantMessageId
+        ? persistedMessages.map((message) => ({ role: message.role, content: message.content }))
+        : createAiAgentInputMessages(
+            persistedMessages.map((message) => ({ role: message.role, content: message.content })),
+            { role: userMessage.role, content: userMessage.content },
+            hasCheckpoint
+          )
+      const run = await createAiAgentStream({
+        conversationId: conversation.id,
+        userId: user.id,
+        messages,
+        context: payload.context,
+      })
+
+      for await (const message of run.messages) {
+        for await (const delta of message.text) {
+          if (!delta) {
+            continue
+          }
+
+          assistantContent += delta
+          writeSse(response, 'delta', { content: delta })
         }
-      )
-
-      if (context.didCompress) {
-        conversation.contextSummary = context.state.summary
-        conversation.summaryUntilMessageId = context.state.summaryUntilMessageId
-        await conversation.save()
-      }
-
-      const stream = await createChatCompletionStream(context.messages, payload.context)
-
-      for await (const chunk of stream) {
-        const delta = chunk.choices[0]?.delta?.content
-        if (!delta) {
-          continue
-        }
-
-        assistantContent += delta
-        writeSse(response, 'delta', { content: delta })
       }
 
       const assistantMessage = await AiChatMessage.create({

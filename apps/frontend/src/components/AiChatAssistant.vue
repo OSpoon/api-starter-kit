@@ -333,9 +333,15 @@ function canCopyMessage(message: ChatMessage) {
 }
 
 function canRetryMessage(message: ChatMessage) {
+  const latestAssistantMessage = [...displayMessages.value]
+    .reverse()
+    .find((item) => item.role === 'assistant')
+
   return (
     props.showMessageActions &&
     message.role === 'assistant' &&
+    message.id === latestAssistantMessage?.id &&
+    Number.isInteger(Number(message.id)) &&
     !isStreamingAssistantMessage(message) &&
     message.id !== 'welcome'
   )
