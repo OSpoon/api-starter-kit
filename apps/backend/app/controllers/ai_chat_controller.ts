@@ -27,6 +27,20 @@ function writeSse(response: HttpContext['response'], event: string, data: unknow
   response.response.write(`data: ${JSON.stringify(data)}\n\n`)
 }
 
+async function streamAiAgentToolStatuses(
+  run: Awaited<ReturnType<typeof createAiAgentStream>>,
+  response: HttpContext['response']
+) {
+  for await (const toolCall of run.toolCalls) {
+    writeSse(response, 'agent_status', { name: toolCall.name, state: 'running' })
+    const state = await toolCall.status
+    writeSse(response, 'agent_status', {
+      name: toolCall.name,
+      state: state === 'finished' ? 'done' : 'error',
+    })
+  }
+}
+
 @ApiSecurity('bearerAuth')
 export default class AiChatController {
   @ApiOperation({
@@ -156,6 +170,7 @@ export default class AiChatController {
         messages,
         context: payload.context,
       })
+      const toolStatusTask = streamAiAgentToolStatuses(run, response)
 
       for await (const message of run.messages) {
         for await (const delta of message.text) {
@@ -167,6 +182,7 @@ export default class AiChatController {
           writeSse(response, 'delta', { content: delta })
         }
       }
+      await toolStatusTask
 
       const assistantMessage = await AiChatMessage.create({
         conversationId: conversation.id,

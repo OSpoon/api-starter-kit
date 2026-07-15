@@ -7,7 +7,7 @@ import AppSidebar from '@/components/AppSidebar.vue'
 import SiteHeader from '@/components/SiteHeader.vue'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { getAiChatActions, runAiChatAction } from '@/lib/ai-chat-actions'
-import type { AiChatClientAction } from '@/lib/ai-chat-api'
+import type { AiChatAgentActivity, AiChatClientAction } from '@/lib/ai-chat-api'
 import {
   type AiChatConversation,
   type AiChatConversationSummary,
@@ -33,7 +33,13 @@ const aiConversations = ref<AiChatConversationSummary[]>([])
 const aiStreamingMessages = ref<
   Array<
     | AiChatMessage
-    | { id: string; role: 'user' | 'assistant'; content: string; status?: AiMessageContentStatus }
+    | {
+        id: string
+        role: 'user' | 'assistant'
+        content: string
+        status?: AiMessageContentStatus
+        activity?: AiChatAgentActivity
+      }
   >
 >([])
 const aiStreamingMessageId = ref<string | number | null>(null)
@@ -45,6 +51,7 @@ type LocalAiChatMessage = {
   role: 'user' | 'assistant'
   content: string
   status?: AiMessageContentStatus
+  activity?: AiChatAgentActivity
 }
 
 type DisplayAiChatMessage = {
@@ -52,6 +59,7 @@ type DisplayAiChatMessage = {
   role: 'user' | 'assistant'
   content: string
   status?: AiMessageContentStatus
+  activity?: AiChatAgentActivity
 }
 
 const breadcrumbs = computed(() => {
@@ -236,6 +244,13 @@ async function handleAiSend(message: string, regenerateAssistantMessageId?: numb
         if (event.type === 'delta') {
           assistantMessage.content += event.content
           assistantMessage.status = 'streaming'
+          aiStreamingMessages.value = aiStreamingMessages.value.map((item) =>
+            item.id === assistantMessage.id ? { ...assistantMessage } : item
+          )
+        }
+
+        if (event.type === 'agent_status') {
+          assistantMessage.activity = { name: event.name, state: event.state }
           aiStreamingMessages.value = aiStreamingMessages.value.map((item) =>
             item.id === assistantMessage.id ? { ...assistantMessage } : item
           )

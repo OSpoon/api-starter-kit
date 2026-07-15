@@ -113,6 +113,13 @@
     "minimize": "Minimize",
     "copy_message": "Copy message",
     "retry_message": "Regenerate",
+    "activities": {
+      "diagnose_my_access": {
+        "running": "Checking your permissions…",
+        "done": "Permission check completed",
+        "error": "Permission check did not complete"
+      }
+    },
     "stop_generating": "Stop generating",
     "copy_success": "Message copied",
     "copy_failed": "Copy failed",

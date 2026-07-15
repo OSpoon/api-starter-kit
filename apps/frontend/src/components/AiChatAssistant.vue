@@ -27,7 +27,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Textarea } from '@/components/ui/textarea'
-import type { AiChatClientAction } from '@/lib/ai-chat-api'
+import type { AiChatAgentActivity, AiChatClientAction } from '@/lib/ai-chat-api'
 
 type ChatRole = 'assistant' | 'user'
 type ChatMessageStatus = AiMessageContentStatus
@@ -37,6 +37,7 @@ interface ChatMessage {
   role: ChatRole
   content: string
   status?: ChatMessageStatus
+  activity?: AiChatAgentActivity
 }
 
 interface ChatConversation {
@@ -328,6 +329,10 @@ function getAssistantMessageStatus(message: ChatMessage): ChatMessageStatus {
   return 'done'
 }
 
+function getActivityLabel(activity: AiChatAgentActivity) {
+  return t(`ai_chat.activities.${activity.name}.${activity.state}`)
+}
+
 function canCopyMessage(message: ChatMessage) {
   return props.showMessageActions && message.content.trim().length > 0
 }
@@ -514,6 +519,12 @@ onUnmounted(() => {
                     {{ message.content }}
                   </template>
                 </div>
+                <p
+                  v-if="message.role === 'assistant' && message.activity"
+                  class="text-xs text-muted-foreground"
+                >
+                  {{ getActivityLabel(message.activity) }}
+                </p>
                 <div
                   v-if="message.role === 'assistant' && getMessageActions(message.content).length"
                   class="flex flex-wrap gap-2"

@@ -113,6 +113,13 @@
     "minimize": "最小化",
     "copy_message": "复制消息",
     "retry_message": "重新生成",
+    "activities": {
+      "diagnose_my_access": {
+        "running": "正在检查我的权限…",
+        "done": "已完成权限检查",
+        "error": "权限检查未完成"
+      }
+    },
     "stop_generating": "停止生成",
     "copy_success": "消息已复制",
     "copy_failed": "复制失败",

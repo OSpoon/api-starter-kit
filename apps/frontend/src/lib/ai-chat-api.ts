@@ -55,6 +55,11 @@ export interface AiChatStreamOptions {
   regenerateAssistantMessageId?: number
 }
 
+export interface AiChatAgentActivity {
+  name: string
+  state: 'running' | 'done' | 'error'
+}
+
 function authOptions(token: string | null) {
   return { token }
 }
@@ -98,6 +103,7 @@ export async function sendAiChatMessage(token: string | null, id: number, conten
 type AiChatStreamEvent =
   | { type: 'user'; conversation: AiChatConversationSummary; message: AiChatMessage }
   | { type: 'delta'; content: string }
+  | { type: 'agent_status'; name: string; state: AiChatAgentActivity['state'] }
   | { type: 'done'; conversation: AiChatConversation; message: AiChatMessage }
   | { type: 'error'; message: string }
 
