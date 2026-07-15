@@ -77,7 +77,8 @@
     "otplib": "^13.4.1",
     "pg": "^8.22.0",
     "qrcode": "^1.5.4",
-    "reflect-metadata": "^0.2.2"
+    "reflect-metadata": "^0.2.2",
+    "zod": "3.25.76"
   },
   "hotHook": {
     "boundaries": [

@@ -2,7 +2,7 @@ import { PostgresSaver } from '@langchain/langgraph-checkpoint-postgres'
 import { ChatOpenAI } from '@langchain/openai'
 import { createAgent, summarizationMiddleware } from 'langchain'
 
-import { aiAgentCapabilities } from '#services/ai_agent_registry'
+import { aiAgentCapabilities, createAiAgentTools } from '#services/ai_agent_registry'
 import { createAiAgentThreadId } from '#services/ai_agent_state'
 import env from '#start/env'
 
@@ -86,13 +86,13 @@ function createModel() {
   })
 }
 
-function createAiAgent(context?: AiAgentPageContext) {
+function createAiAgent(userId: number, context?: AiAgentPageContext) {
   const compression = getContextCompressionOptions()
   const model = createModel()
 
   return createAgent({
     model,
-    tools: [],
+    tools: createAiAgentTools(userId),
     systemPrompt: createSystemPrompt(context),
     checkpointer,
     middleware: compression.enabled
@@ -126,7 +126,7 @@ export async function createAiAgentStream(input: {
   messages: AiAgentMessage[]
   context?: AiAgentPageContext
 }) {
-  const agent = createAiAgent(input.context)
+  const agent = createAiAgent(input.userId, input.context)
   const threadId = createAiAgentThreadId(input.userId, input.conversationId)
 
   return agent.streamEvents(
