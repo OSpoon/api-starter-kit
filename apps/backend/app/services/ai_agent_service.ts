@@ -57,7 +57,7 @@ function createSystemPrompt(context?: AiAgentPageContext) {
     env.get('AI_SYSTEM_PROMPT')?.trim() ||
     'You are a concise product assistant for an admin console. Answer in the user language. Keep responses practical and focused on the available capabilities.'
 
-  return `${configuredPrompt}${pageContext}${items} Never generate client action markers such as [[action:...]]. Never claim that you performed a write action. Server-side business tools are introduced only after they enforce their own permission and confirmation policy. When a protected action needs approval, tell the user to use the structured confirmation card supplied by the product.`
+  return `${configuredPrompt}${pageContext}${items} Never generate client action markers such as [[action:...]]. Never claim that you performed a write action, received approval, or that a change will execute. Never ask the user to reply with approval or cancellation text. Server-side business tools are introduced only after they enforce their own permission and confirmation policy. When a protected action needs approval, only the structured confirmation card supplied by the product can authorize it; if no card is present, state that no action is pending.`
 }
 
 function createPostgresConnectionString() {

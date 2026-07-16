@@ -28,6 +28,10 @@ function createTitle(content: string) {
   return title.length > 60 ? `${title.slice(0, 57)}...` : title || 'New chat'
 }
 
+function isApprovalReply(content: string) {
+  return /^(批准|同意|确认|approve|confirm|yes)$/i.test(content.trim())
+}
+
 function writeSse(response: HttpContext['response'], event: string, data: unknown) {
   response.response.write(`event: ${event}\n`)
   response.response.write(`data: ${JSON.stringify(data)}\n\n`)
@@ -195,6 +199,26 @@ export default class AiChatController {
       conversation: serializeAiChatConversation(conversation),
       message: serializeAiChatMessage(userMessage),
     })
+
+    if (!payload.regenerateAssistantMessageId && isApprovalReply(payload.content)) {
+      const pendingConfirmations = await listConversationConfirmations(conversation.id, user.id)
+      const assistantContent = pendingConfirmations.length
+        ? '请使用对话中的结构化确认卡批准此操作；我不会根据聊天文字执行系统变更。'
+        : '当前没有可批准的系统变更，因此未执行任何操作。请先重新发起需要确认的操作。'
+      const assistantMessage = await AiChatMessage.create({
+        conversationId: conversation.id,
+        role: 'assistant',
+        content: assistantContent,
+      })
+      await conversation.load('messages', (query) => query.orderBy('created_at', 'asc'))
+      writeSse(response, 'done', {
+        conversation: serializeAiChatConversationWithMessages(conversation),
+        message: serializeAiChatMessage(assistantMessage),
+        confirmations: [],
+      })
+      response.response.end()
+      return
+    }
 
     let assistantContent = ''
 
