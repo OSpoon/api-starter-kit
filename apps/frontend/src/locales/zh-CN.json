@@ -128,6 +128,16 @@
         "running": "正在准备吊销确认…",
         "done": "已生成吊销确认",
         "error": "未能生成吊销确认"
+      },
+      "propose_system_management_change": {
+        "running": "正在准备系统管理变更…",
+        "done": "已完成变更检查",
+        "error": "系统管理变更未完成"
+      },
+      "generic": {
+        "running": "正在执行操作…",
+        "done": "操作已完成",
+        "error": "操作未完成"
       }
     },
     "confirmations": {

@@ -2,7 +2,10 @@ import type { HttpContext } from '@adonisjs/core/http'
 import { DateTime } from 'luxon'
 
 import AiAgentConfirmation from '#models/ai_agent_confirmation'
-import { getAiAgentAction } from '#services/ai_agent_action_registry'
+import {
+  AiAgentActionAuthorizationError,
+  getAiAgentAction,
+} from '#services/ai_agent_action_registry'
 import { recordAuditEvent } from '#services/audit_log'
 
 const confirmationLifetimeMinutes = 5
@@ -19,7 +22,7 @@ export type AiAgentConfirmationSummary = {
 export class AiAgentConfirmationError extends Error {
   constructor(
     message: string,
-    readonly status: 404 | 409 | 422
+    readonly status: 403 | 404 | 409 | 422
   ) {
     super(message)
   }
@@ -142,6 +145,9 @@ export async function confirmAiAgentAction(
   try {
     await action.execute({ confirmation, ctx })
   } catch (error) {
+    if (error instanceof AiAgentActionAuthorizationError) {
+      throw new AiAgentConfirmationError(error.message, 403)
+    }
     confirmation.status = 'failed'
     await confirmation.save()
     throw new AiAgentConfirmationError(

@@ -96,7 +96,7 @@ const emit = defineEmits<{
   dismissConfirmation: []
 }>()
 
-const { t } = useI18n()
+const { t, te } = useI18n()
 
 const internalOpen = ref(false)
 const input = ref('')
@@ -336,7 +336,8 @@ function getAssistantMessageStatus(message: ChatMessage): ChatMessageStatus {
 }
 
 function getActivityLabel(activity: AiChatAgentActivity) {
-  return t(`ai_chat.activities.${activity.name}.${activity.state}`)
+  const key = `ai_chat.activities.${activity.name}.${activity.state}`
+  return te(key) ? t(key) : t(`ai_chat.activities.generic.${activity.state}`)
 }
 
 function getApprovalTarget(approval: AiChatConfirmation) {

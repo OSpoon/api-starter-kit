@@ -128,6 +128,16 @@
         "running": "Preparing revocation confirmation…",
         "done": "Revocation confirmation created",
         "error": "Could not create revocation confirmation"
+      },
+      "propose_system_management_change": {
+        "running": "Preparing a system-management change…",
+        "done": "Change check completed",
+        "error": "System-management change did not complete"
+      },
+      "generic": {
+        "running": "Running operation…",
+        "done": "Operation completed",
+        "error": "Operation did not complete"
       }
     },
     "confirmations": {

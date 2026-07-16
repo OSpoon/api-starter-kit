@@ -12,6 +12,7 @@ import AuditLog from '#models/audit_log'
 import Permission from '#models/permission'
 import Role from '#models/role'
 import User from '#models/user'
+import { createAiAgentTools } from '#services/ai_agent_registry'
 import { generateInitialPassword } from '#services/user_credentials'
 
 async function createConfirmation(user: User) {
@@ -106,5 +107,32 @@ test.group('AI agent confirmations', (group) => {
     const pendingRequest = await AiAgentConfirmation.findOrFail(confirmation.id)
     assert.isNull(activeApiKey.revokedAt)
     assert.equal(pendingRequest.status, 'pending')
+  })
+
+  test('returns a business result when proposing revocation for an unknown API Key', async ({
+    assert,
+  }) => {
+    const superAdminRole = await Role.findByOrFail('code', 'super-admin')
+    const user = await User.create({
+      fullName: 'Unknown key admin',
+      email: `unknown-key-admin-${Date.now()}@example.com`,
+      password: generateInitialPassword(),
+    })
+    await user.related('roles').sync([superAdminRole.id])
+    const proposalTool = createAiAgentTools({
+      userId: user.id,
+      conversationId: 1,
+      agentRunId: crypto.randomUUID(),
+    }).find((tool) => tool.name === 'propose_system_management_change')
+
+    const output = await proposalTool!.invoke({
+      action: 'revoke_api_key',
+      input: { apiKeyId: 999_999_999 },
+    })
+
+    assert.deepEqual(JSON.parse(String(output)), {
+      kind: 'action_error',
+      message: 'API Key 不存在',
+    })
   })
 })

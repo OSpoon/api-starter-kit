@@ -287,6 +287,9 @@ export default class AiChatController {
         if (error.status === 409) {
           return response.conflict({ message: error.message })
         }
+        if (error.status === 403) {
+          return response.forbidden({ message: error.message })
+        }
         return response.unprocessableEntity({ message: error.message })
       }
       throw error
