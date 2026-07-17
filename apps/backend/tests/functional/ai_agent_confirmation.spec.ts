@@ -78,6 +78,12 @@ test.group('AI agent confirmations', (group) => {
         .where('target_id', String(apiKey.id))
         .first()
     )
+    assert.exists(
+      await AuditLog.query()
+        .where('action', 'agent.api_key_revoked')
+        .where('target_id', String(apiKey.id))
+        .first()
+    )
   })
 
   test('denies confirmation when the current user lacks API Key delete permission', async ({

@@ -6,11 +6,11 @@ import { toast } from 'vue-sonner'
 import DataTable from '@/components/common/DataTable.vue'
 import ListPage from '@/components/common/ListPage.vue'
 import { Badge } from '@/components/ui/badge'
-import { type AuditLogEntry,listAuditLogs } from '@/lib/rbac-api'
+import { type AuditLogEntry, listAuditLogs } from '@/lib/rbac-api'
 import { useAuthStore } from '@/stores/auth'
 
 const auth = useAuthStore()
-const { t } = useI18n()
+const { t, te } = useI18n()
 const loading = ref(false)
 const page = ref(1)
 const entries = ref<AuditLogEntry[]>([])
@@ -21,20 +21,27 @@ const columns = computed<ColumnDef<AuditLogEntry>[]>(() => [
     accessorKey: 'createdAt',
     meta: { label: t('audit_logs.time') },
     header: () => t('audit_logs.time'),
-    cell: ({ row }) => new Intl.DateTimeFormat(undefined, {
-      dateStyle: 'medium', timeStyle: 'medium',
-    }).format(new Date(row.original.createdAt)),
+    cell: ({ row }) =>
+      new Intl.DateTimeFormat(undefined, {
+        dateStyle: 'medium',
+        timeStyle: 'medium',
+      }).format(new Date(row.original.createdAt)),
   },
   {
     id: 'actor',
     meta: { label: t('audit_logs.actor') },
     header: () => t('audit_logs.actor'),
-    cell: ({ row }) => row.original.actor
-      ? h('div', [
-          h('p', { class: 'font-medium' }, row.original.actor.fullName || row.original.actor.email),
-          h('p', { class: 'text-xs text-muted-foreground' }, row.original.actor.email),
-        ])
-      : t('audit_logs.system'),
+    cell: ({ row }) =>
+      row.original.actor
+        ? h('div', [
+            h(
+              'p',
+              { class: 'font-medium' },
+              row.original.actor.fullName || row.original.actor.email
+            ),
+            h('p', { class: 'text-xs text-muted-foreground' }, row.original.actor.email),
+          ])
+        : t('audit_logs.system'),
   },
   {
     accessorKey: 'action',
@@ -46,7 +53,8 @@ const columns = computed<ColumnDef<AuditLogEntry>[]>(() => [
     id: 'target',
     meta: { label: t('audit_logs.target') },
     header: () => t('audit_logs.target'),
-    cell: ({ row }) => `${targetTypeLabel(row.original.targetType)}${row.original.targetId ? ` #${row.original.targetId}` : ''}`,
+    cell: ({ row }) =>
+      `${targetTypeLabel(row.original.targetType)}${row.original.targetId ? ` #${row.original.targetId}` : ''}`,
   },
   {
     accessorKey: 'ipAddress',
@@ -57,11 +65,13 @@ const columns = computed<ColumnDef<AuditLogEntry>[]>(() => [
 ])
 
 function actionLabel(action: string) {
-  return t(`audit_logs.actions.${action}`)
+  const key = `audit_logs.actions.${action}`
+  return te(key) ? t(key) : action
 }
 
 function targetTypeLabel(targetType: string) {
-  return t(`audit_logs.targets.${targetType}`)
+  const key = `audit_logs.targets.${targetType}`
+  return te(key) ? t(key) : targetType
 }
 
 async function load(nextPage = page.value) {
@@ -91,7 +101,9 @@ watch(page, (nextPage) => load(nextPage), { immediate: true })
     :show-action="false"
     @refresh="load(1)"
   >
-    <template #refresh-icon><RefreshCw class="size-4" :class="{ 'animate-spin': loading }" /></template>
+    <template #refresh-icon
+      ><RefreshCw class="size-4" :class="{ 'animate-spin': loading }"
+    /></template>
     <DataTable
       :columns="columns"
       :data="entries"

@@ -115,11 +115,18 @@ const revokeApiKeyAction: AiAgentActionDefinition = {
     }
   },
   async execute({ confirmation, ctx }) {
-    await ensurePermission(ctx, 'api-keys:delete')
+    const actor = await ensurePermission(ctx, 'api-keys:delete')
     const apiKey = await ApiKey.find(integer(confirmation.payload, 'apiKeyId'))
     if (!apiKey || apiKey.revokedAt) throw new Error('API Key 已不存在或已被吊销')
     apiKey.revokedAt = DateTime.now()
     await apiKey.save()
+    await recordAuditEvent(ctx, {
+      actorUserId: actor.id,
+      action: 'agent.api_key_revoked',
+      targetType: 'api_key',
+      targetId: apiKey.id,
+      metadata: { name: apiKey.name, prefix: apiKey.prefix, source: 'ai_agent' },
+    })
   },
 }
 

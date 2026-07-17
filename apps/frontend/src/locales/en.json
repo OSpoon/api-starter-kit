@@ -308,24 +308,39 @@
     "source": "Source IP",
     "system": "System",
     "actions": {
-      "user.created": "User created",
-      "user.updated": "User updated",
-      "user.deleted": "User deleted",
-      "user.password_reset": "User password reset",
-      "role.created": "Role created",
-      "role.updated": "Role updated",
-      "role.deleted": "Role deleted",
-      "permission.created": "Permission created",
-      "permission.updated": "Permission updated",
-      "permission.deleted": "Permission deleted",
-      "account.password_changed": "Password changed",
-      "account.two_factor_enabled": "2FA enabled",
-      "account.two_factor_disabled": "2FA disabled"
+      "user": {
+        "created": "User created",
+        "updated": "User updated",
+        "deleted": "User deleted",
+        "password_reset": "User password reset"
+      },
+      "role": {
+        "created": "Role created",
+        "updated": "Role updated",
+        "deleted": "Role deleted"
+      },
+      "permission": {
+        "created": "Permission created",
+        "updated": "Permission updated",
+        "deleted": "Permission deleted"
+      },
+      "account": {
+        "password_changed": "Password changed",
+        "two_factor_enabled": "2FA enabled",
+        "two_factor_disabled": "2FA disabled"
+      },
+      "agent": {
+        "access_diagnosed": "AI access diagnosed",
+        "action_confirmed": "AI action confirmed",
+        "api_key_revoked": "API key revoked by AI"
+      }
     },
     "targets": {
       "user": "User",
       "role": "Role",
-      "permission": "Permission"
+      "permission": "Permission",
+      "api_key": "API key",
+      "agent_action": "AI action"
     }
   },
   "profile": {

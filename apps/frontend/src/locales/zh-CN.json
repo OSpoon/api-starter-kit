@@ -308,24 +308,39 @@
     "source": "来源 IP",
     "system": "系统",
     "actions": {
-      "user.created": "创建用户",
-      "user.updated": "更新用户",
-      "user.deleted": "删除用户",
-      "user.password_reset": "重置用户密码",
-      "role.created": "创建角色",
-      "role.updated": "更新角色",
-      "role.deleted": "删除角色",
-      "permission.created": "创建权限",
-      "permission.updated": "更新权限",
-      "permission.deleted": "删除权限",
-      "account.password_changed": "修改登录密码",
-      "account.two_factor_enabled": "启用 2FA",
-      "account.two_factor_disabled": "停用 2FA"
+      "user": {
+        "created": "创建用户",
+        "updated": "更新用户",
+        "deleted": "删除用户",
+        "password_reset": "重置用户密码"
+      },
+      "role": {
+        "created": "创建角色",
+        "updated": "更新角色",
+        "deleted": "删除角色"
+      },
+      "permission": {
+        "created": "创建权限",
+        "updated": "更新权限",
+        "deleted": "删除权限"
+      },
+      "account": {
+        "password_changed": "修改登录密码",
+        "two_factor_enabled": "启用 2FA",
+        "two_factor_disabled": "停用 2FA"
+      },
+      "agent": {
+        "access_diagnosed": "AI 权限诊断",
+        "action_confirmed": "AI 操作已确认",
+        "api_key_revoked": "AI 已吊销 API 密钥"
+      }
     },
     "targets": {
       "user": "用户",
       "role": "角色",
-      "permission": "权限"
+      "permission": "权限",
+      "api_key": "API 密钥",
+      "agent_action": "AI 操作"
     }
   },
   "profile": {
