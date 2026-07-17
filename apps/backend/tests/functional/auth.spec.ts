@@ -123,4 +123,25 @@ test.group('auth api', (group) => {
     locked.assertStatus(401)
     locked.assertBodyContains({ message: '邮箱或密码错误' })
   })
+
+  test('allows login with a password changed through the profile endpoint', async ({ client }) => {
+    const email = `password-change-${Date.now()}@example.com`
+    const oldPassword = 'Orchard-Slate-Meteor-7281!'
+    const newPassword = 'Lantern-Violet-Quartz-8412!'
+    const user = await User.create({ fullName: 'Password user', email, password: oldPassword })
+    const token = await User.accessTokens.create(user)
+
+    const changed = await client
+      .put('/api/v1/account/password')
+      .bearerToken(token.value!.release())
+      .json({
+        currentPassword: oldPassword,
+        password: newPassword,
+        passwordConfirmation: newPassword,
+      })
+    changed.assertStatus(200)
+
+    const login = await client.post('/api/v1/auth/login').json({ email, password: newPassword })
+    login.assertStatus(200)
+  })
 })

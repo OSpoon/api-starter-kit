@@ -1,11 +1,9 @@
 import crypto from 'node:crypto'
 
-import { PostgresSaver } from '@langchain/langgraph-checkpoint-postgres'
 import { ChatOpenAI } from '@langchain/openai'
-import { createAgent, summarizationMiddleware } from 'langchain'
+import { createAgent } from 'langchain'
 
 import { aiAgentCapabilities, createAiAgentTools } from '#services/ai_agent_registry'
-import { createAiAgentThreadId } from '#services/ai_agent_state'
 import env from '#start/env'
 
 export interface AiAgentPageContext {
@@ -32,7 +30,7 @@ function getHistoryMessageLimit() {
   return Math.min(Math.max(env.get('AI_MAX_HISTORY_MESSAGES') ?? 20, 1), 100)
 }
 
-function getContextCompressionOptions() {
+export function getContextCompressionOptions() {
   return {
     enabled: env.get('AI_CONTEXT_COMPRESSION_ENABLED') ?? true,
     thresholdTokens: Math.min(
@@ -46,6 +44,31 @@ function getContextCompressionOptions() {
   }
 }
 
+export async function summarizeAiConversation(input: {
+  existingSummary: string | null
+  messages: AiAgentMessage[]
+}) {
+  const sourceMessages = input.messages
+    .map((message) => `${message.role}: ${message.content}`)
+    .join('\n\n')
+  const response = await createModel().invoke([
+    {
+      role: 'system',
+      content:
+        'Create a compact factual conversation summary for future assistant context. Preserve user goals, confirmed facts, decisions, constraints, unresolved questions, and pending action proposals. Do not invent details or include secrets.',
+    },
+    {
+      role: 'user',
+      content: `${input.existingSummary ? `Previous summary:\n${input.existingSummary}\n\n` : ''}Messages to incorporate:\n${sourceMessages}`,
+    },
+  ])
+  const summary = typeof response.content === 'string' ? response.content.trim() : ''
+  if (!summary) {
+    throw new Error('AI context summarization returned no text')
+  }
+  return summary
+}
+
 function createSystemPrompt(context?: AiAgentPageContext) {
   const pageContext = context
     ? ` The user is currently on the "${context.title}" page (${context.route}). Treat this as navigation context only; do not assume access to page data.`
@@ -57,22 +80,8 @@ function createSystemPrompt(context?: AiAgentPageContext) {
     env.get('AI_SYSTEM_PROMPT')?.trim() ||
     'You are a concise product assistant for an admin console. Answer in the user language. Keep responses practical and focused on the available capabilities.'
 
-  return `${configuredPrompt}${pageContext}${items} Never generate client action markers such as [[action:...]]. Never claim that you performed a write action, received approval, or that a change will execute. Never ask the user to reply with approval or cancellation text. Server-side business tools are introduced only after they enforce their own permission and confirmation policy. When a protected action needs approval, only the structured confirmation card supplied by the product can authorize it; if no card is present, state that no action is pending.`
+  return `${configuredPrompt}${pageContext}${items} Never generate client action markers such as [[action:...]]. Never claim that you performed a write action, received approval, or that a change will execute. Never ask the user to reply with approval or cancellation text. Server-side business tools are introduced only after they enforce their own permission and confirmation policy. If a permission check denies an operation, clearly state that the user lacks that permission and end the response; never propose a request, ask for confirmation, or instruct the user to seek a text-based approval. When a protected action needs approval, only the structured confirmation card supplied by the product can authorize it; if no card is present, state that no action is pending.`
 }
-
-function createPostgresConnectionString() {
-  const user = encodeURIComponent(env.get('DB_USER'))
-  const password = encodeURIComponent(env.get('DB_PASSWORD'))
-  const host = env.get('DB_HOST')
-  const port = env.get('DB_PORT')
-  const database = encodeURIComponent(env.get('DB_DATABASE'))
-
-  return `postgresql://${user}:${password}@${host}:${port}/${database}`
-}
-
-const checkpointer = PostgresSaver.fromConnString(createPostgresConnectionString(), {
-  schema: 'langgraph',
-})
 
 function createModel() {
   return new ChatOpenAI({
@@ -91,37 +100,17 @@ function createAiAgent(input: {
   agentRunId: string
   context?: AiAgentPageContext
 }) {
-  const compression = getContextCompressionOptions()
   const model = createModel()
 
   return createAgent({
     model,
     tools: createAiAgentTools(input),
     systemPrompt: createSystemPrompt(input.context),
-    checkpointer,
-    middleware: compression.enabled
-      ? [
-          summarizationMiddleware({
-            model,
-            trigger: { tokens: compression.thresholdTokens },
-            keep: { messages: compression.recentMessageCount },
-          }),
-        ]
-      : [],
   })
 }
 
 export function getAiAgentCapabilities() {
   return aiAgentCapabilities
-}
-
-export async function hasAiAgentCheckpoint(conversationId: number, userId: number) {
-  const threadId = createAiAgentThreadId(userId, conversationId)
-  return Boolean(await checkpointer.getTuple({ configurable: { thread_id: threadId } }))
-}
-
-export async function deleteAiAgentCheckpoint(conversationId: number, userId: number) {
-  await checkpointer.deleteThread(createAiAgentThreadId(userId, conversationId))
 }
 
 export async function createAiAgentStream(input: {
@@ -132,7 +121,6 @@ export async function createAiAgentStream(input: {
 }) {
   const agentRunId = crypto.randomUUID()
   const agent = createAiAgent({ ...input, agentRunId })
-  const threadId = createAiAgentThreadId(input.userId, input.conversationId)
 
   const stream = await agent.streamEvents(
     {
@@ -141,10 +129,7 @@ export async function createAiAgentStream(input: {
         content: message.content,
       })),
     },
-    {
-      configurable: { thread_id: threadId },
-      version: 'v3',
-    }
+    { version: 'v3' }
   )
   return { stream, agentRunId }
 }

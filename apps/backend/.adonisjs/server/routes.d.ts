@@ -25,10 +25,12 @@ export type ScannedRoutes = {
     'users.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'users.reset_password': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'users.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'roles.catalog': { paramsTuple?: []; params?: {} }
     'roles.index': { paramsTuple?: []; params?: {} }
     'roles.store': { paramsTuple?: []; params?: {} }
     'roles.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'roles.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'permissions.catalog': { paramsTuple?: []; params?: {} }
     'permissions.index': { paramsTuple?: []; params?: {} }
     'permissions.store': { paramsTuple?: []; params?: {} }
     'permissions.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
@@ -48,7 +50,9 @@ export type ScannedRoutes = {
     'profile.profile.show': { paramsTuple?: []; params?: {} }
     'api_keys.index': { paramsTuple?: []; params?: {} }
     'users.index': { paramsTuple?: []; params?: {} }
+    'roles.catalog': { paramsTuple?: []; params?: {} }
     'roles.index': { paramsTuple?: []; params?: {} }
+    'permissions.catalog': { paramsTuple?: []; params?: {} }
     'permissions.index': { paramsTuple?: []; params?: {} }
     'audit_logs.index': { paramsTuple?: []; params?: {} }
     'ai_chat.index': { paramsTuple?: []; params?: {} }
@@ -61,7 +65,9 @@ export type ScannedRoutes = {
     'profile.profile.show': { paramsTuple?: []; params?: {} }
     'api_keys.index': { paramsTuple?: []; params?: {} }
     'users.index': { paramsTuple?: []; params?: {} }
+    'roles.catalog': { paramsTuple?: []; params?: {} }
     'roles.index': { paramsTuple?: []; params?: {} }
+    'permissions.catalog': { paramsTuple?: []; params?: {} }
     'permissions.index': { paramsTuple?: []; params?: {} }
     'audit_logs.index': { paramsTuple?: []; params?: {} }
     'ai_chat.index': { paramsTuple?: []; params?: {} }

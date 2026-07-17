@@ -2,6 +2,7 @@ import type { HttpContext } from '@adonisjs/core/http'
 
 import Permission from '#models/permission'
 import { recordAuditEvent } from '#services/audit_log'
+import { clampLimit } from '#services/pagination'
 import { createPermissionValidator, updatePermissionValidator } from '#validators/rbac'
 
 function serializePermission(permission: Permission) {
@@ -17,12 +18,35 @@ function serializePermission(permission: Permission) {
 }
 
 export default class PermissionsController {
-  async index({ serialize }: HttpContext) {
-    const permissions = await Permission.query()
-      .withCount('roles')
-      .orderBy('group_name')
-      .orderBy('code')
-    return serialize(permissions.map(serializePermission))
+  async catalog({ serialize }: HttpContext) {
+    const permissions = await Permission.query().orderBy('group_name').orderBy('code')
+    return serialize(
+      permissions.map((permission) => ({
+        id: permission.id,
+        code: permission.code,
+        name: permission.name,
+        groupName: permission.groupName,
+      }))
+    )
+  }
+
+  async index({ request, serialize }: HttpContext) {
+    const page = Math.max(Number(request.input('page', 1)) || 1, 1)
+    const search = String(request.input('search', '')).trim()
+    const groupName = String(request.input('groupName', '')).trim()
+    const query = Permission.query().withCount('roles').orderBy('group_name').orderBy('code')
+    if (search) {
+      query.where((builder) => {
+        builder
+          .whereILike('code', `%${search}%`)
+          .orWhereILike('name', `%${search}%`)
+          .orWhereILike('group_name', `%${search}%`)
+          .orWhereILike('description', `%${search}%`)
+      })
+    }
+    if (groupName) query.where('group_name', groupName)
+    const paginator = await query.paginate(page, clampLimit(request.input('limit'), 20, 100))
+    return serialize({ items: paginator.all().map(serializePermission), meta: paginator.getMeta() })
   }
 
   async store(ctx: HttpContext) {

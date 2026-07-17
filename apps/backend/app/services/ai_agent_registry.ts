@@ -288,9 +288,9 @@ export function createAiAgentTools(input: {
     ),
     tool(
       async ({ action, input: actionInput }) => {
-        const definition = getAiAgentAction(action)!
-        await ensurePermission(input.userId, definition.permission)
         try {
+          const definition = getAiAgentAction(action)!
+          await ensurePermission(input.userId, definition.permission)
           const confirmation = await proposeAiAgentAction({
             action,
             actionInput,
@@ -303,7 +303,10 @@ export function createAiAgentTools(input: {
           if (error instanceof AiAgentConfirmationError) {
             return JSON.stringify({ kind: 'action_error', message: error.message })
           }
-          throw error
+          return JSON.stringify({
+            kind: 'action_error',
+            message: error instanceof Error ? error.message : '无法准备受控操作',
+          })
         }
       },
       {

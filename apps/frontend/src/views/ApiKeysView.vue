@@ -27,6 +27,8 @@ const { t } = useI18n()
 const { runWithToast } = useAsyncToast()
 
 const keys = ref<ApiKeySummary[]>([])
+const page = ref(1)
+const pageCount = ref(1)
 const loading = ref(false)
 const {
   open: dialogOpen,
@@ -90,6 +92,8 @@ const columns = computed<ColumnDef<ApiKeySummary>[]>(() => [
                 variant: 'ghost',
                 size: 'icon',
                 class: 'shrink-0 text-muted-foreground hover:text-primary',
+                title: t('api_keys.copy_success'),
+                'aria-label': t('api_keys.copy_success'),
                 onClick: () => void copyTokenValue(key.key!),
               },
               () => h(Copy, { class: 'size-4' })
@@ -141,6 +145,8 @@ const columns = computed<ColumnDef<ApiKeySummary>[]>(() => [
                 variant: 'ghost',
                 size: 'icon',
                 class: 'text-destructive',
+                title: t('common.delete'),
+                'aria-label': t('common.delete'),
                 onClick: () => requestRevokeKey(key.id, Boolean(key.revokedAt)),
               },
               () => h(Trash2, { class: 'size-4' })
@@ -151,10 +157,13 @@ const columns = computed<ColumnDef<ApiKeySummary>[]>(() => [
   },
 ])
 
-async function fetchKeys() {
+async function fetchKeys(nextPage = page.value) {
   loading.value = true
   try {
-    keys.value = await listApiKeys(auth.token)
+    const result = await listApiKeys(auth.token, nextPage)
+    keys.value = result.items
+    page.value = result.meta.currentPage
+    pageCount.value = result.meta.lastPage
   } catch (error) {
     toast.error(error instanceof Error ? error.message : t('api_keys.fetch_failed'))
   } finally {
@@ -222,10 +231,15 @@ async function confirmRevokeKey() {
     pendingRevokeId.value = null
 
     if ('deleted' in result && result.deleted) {
-      keys.value = keys.value.filter((key) => key.id !== id)
+      const nextPage = keys.value.length <= 1 && page.value > 1 ? page.value - 1 : page.value
+      if (nextPage !== page.value) {
+        page.value = nextPage
+      } else {
+        await fetchKeys(nextPage)
+      }
       toast.success(t('api_keys.remove_success'))
     } else {
-      keys.value = keys.value.map((key) => (key.id === result.id ? result : key))
+      await fetchKeys()
       toast.success(t('api_keys.revoke_success'))
     }
   } catch (error) {
@@ -251,6 +265,8 @@ async function copyToken() {
 onMounted(() => {
   void fetchKeys()
 })
+
+watch(page, (nextPage) => void fetchKeys(nextPage))
 </script>
 
 <template>
@@ -278,6 +294,8 @@ onMounted(() => {
       :search-placeholder="t('api_keys.filter_keyword')"
       storage-key="api-keys-table"
       :empty-message="loading ? t('common.loading') : t('api_keys.no_keys')"
+      :server-pagination="{ page, pageCount }"
+      @page-change="page = $event"
     />
 
     <template #dialogs>

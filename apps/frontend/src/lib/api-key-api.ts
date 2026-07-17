@@ -1,5 +1,5 @@
 import { apiRequest } from '@/lib/api'
-import { readItem, readList } from '@/lib/api-types'
+import { readItem } from '@/lib/api-types'
 
 export interface ApiKeySummary {
   id: number
@@ -11,6 +11,10 @@ export interface ApiKeySummary {
   revokedAt?: string | null
   createdAt: string
   deleted?: boolean
+}
+export interface ApiKeyPage {
+  items: ApiKeySummary[]
+  meta: { currentPage: number; lastPage: number }
 }
 
 export type BadgeTone = 'success' | 'danger' | 'warning' | 'info' | 'muted'
@@ -31,9 +35,12 @@ function authOptions(token: string | null) {
   return { token }
 }
 
-export async function listApiKeys(token: string | null) {
-  const response = await apiRequest<ApiKeySummary[]>('/api/v1/api-keys', authOptions(token))
-  return readList(response)
+export async function listApiKeys(token: string | null, page = 1) {
+  const response = await apiRequest<ApiKeyPage>(
+    `/api/v1/api-keys?page=${page}&limit=20`,
+    authOptions(token)
+  )
+  return readItem(response)
 }
 
 export async function createApiKey(

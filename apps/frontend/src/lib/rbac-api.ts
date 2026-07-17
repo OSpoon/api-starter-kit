@@ -1,5 +1,5 @@
 import { apiRequest } from '@/lib/api'
-import { readItem, readList } from '@/lib/api-types'
+import { readItem } from '@/lib/api-types'
 
 export interface SystemRole {
   id: number
@@ -47,11 +47,28 @@ export interface AuditLogPage {
   items: AuditLogEntry[]
   meta: { currentPage: number; perPage: number; lastPage: number; total: number }
 }
+export interface SystemPage<T> {
+  items: T[]
+  meta: { currentPage: number; lastPage: number }
+}
+export type SystemRoleOption = Pick<SystemRole, 'id' | 'code' | 'name'>
+export type SystemPermissionOption = Pick<SystemPermission, 'id' | 'code' | 'name' | 'groupName'>
 
 const authOptions = (token: string | null) => ({ token })
 
-export async function listSystemUsers(token: string | null) {
-  return readList(await apiRequest<SystemUser[]>('/api/v1/system/users', authOptions(token)))
+function listQuery(page: number, search = '', extra: Record<string, string> = {}) {
+  const query = new URLSearchParams({ page: String(page), limit: '20', ...extra })
+  if (search.trim()) query.set('search', search.trim())
+  return query.toString()
+}
+
+export async function listSystemUsers(token: string | null, page = 1, search = '') {
+  return readItem(
+    await apiRequest<SystemPage<SystemUser>>(
+      `/api/v1/system/users?${listQuery(page, search)}`,
+      authOptions(token)
+    )
+  )
 }
 
 export type SystemUserPayload = {
@@ -72,7 +89,11 @@ export async function createSystemUser(token: string | null, payload: SystemUser
   )
 }
 
-export async function updateSystemUser(token: string | null, id: number, payload: SystemUserPayload) {
+export async function updateSystemUser(
+  token: string | null,
+  id: number,
+  payload: SystemUserPayload
+) {
   return readItem(
     await apiRequest<SystemUser>(`/api/v1/system/users/${id}`, {
       ...authOptions(token),
@@ -100,8 +121,19 @@ export async function resetSystemUserPassword(token: string | null, id: number) 
   )
 }
 
-export async function listSystemRoles(token: string | null) {
-  return readList(await apiRequest<SystemRole[]>('/api/v1/system/roles', authOptions(token)))
+export async function listSystemRoles(token: string | null, page = 1, search = '') {
+  return readItem(
+    await apiRequest<SystemPage<SystemRole>>(
+      `/api/v1/system/roles?${listQuery(page, search)}`,
+      authOptions(token)
+    )
+  )
+}
+
+export async function listSystemRoleCatalog(token: string | null) {
+  return readItem(
+    await apiRequest<SystemRoleOption[]>('/api/v1/system/roles/catalog', authOptions(token))
+  )
 }
 
 export async function createSystemRole(
@@ -140,9 +172,26 @@ export async function deleteSystemRole(token: string | null, id: number) {
   )
 }
 
-export async function listSystemPermissions(token: string | null) {
-  return readList(
-    await apiRequest<SystemPermission[]>('/api/v1/system/permissions', authOptions(token))
+export async function listSystemPermissions(
+  token: string | null,
+  page = 1,
+  search = '',
+  groupName = ''
+) {
+  return readItem(
+    await apiRequest<SystemPage<SystemPermission>>(
+      `/api/v1/system/permissions?${listQuery(page, search, groupName ? { groupName } : {})}`,
+      authOptions(token)
+    )
+  )
+}
+
+export async function listSystemPermissionCatalog(token: string | null) {
+  return readItem(
+    await apiRequest<SystemPermissionOption[]>(
+      '/api/v1/system/permissions/catalog',
+      authOptions(token)
+    )
   )
 }
 
@@ -151,18 +200,29 @@ export type SystemPermissionPayload = Pick<
   'code' | 'name' | 'groupName' | 'description'
 >
 
-export async function createSystemPermission(token: string | null, payload: SystemPermissionPayload) {
+export async function createSystemPermission(
+  token: string | null,
+  payload: SystemPermissionPayload
+) {
   return readItem(
     await apiRequest<SystemPermission>('/api/v1/system/permissions', {
-      ...authOptions(token), method: 'POST', body: JSON.stringify(payload),
+      ...authOptions(token),
+      method: 'POST',
+      body: JSON.stringify(payload),
     })
   )
 }
 
-export async function updateSystemPermission(token: string | null, id: number, payload: Omit<SystemPermissionPayload, 'code'>) {
+export async function updateSystemPermission(
+  token: string | null,
+  id: number,
+  payload: Omit<SystemPermissionPayload, 'code'>
+) {
   return readItem(
     await apiRequest<SystemPermission>(`/api/v1/system/permissions/${id}`, {
-      ...authOptions(token), method: 'PUT', body: JSON.stringify(payload),
+      ...authOptions(token),
+      method: 'PUT',
+      body: JSON.stringify(payload),
     })
   )
 }
@@ -170,13 +230,17 @@ export async function updateSystemPermission(token: string | null, id: number, p
 export async function deleteSystemPermission(token: string | null, id: number) {
   return readItem(
     await apiRequest<{ id: number; deleted: boolean }>(`/api/v1/system/permissions/${id}`, {
-      ...authOptions(token), method: 'DELETE',
+      ...authOptions(token),
+      method: 'DELETE',
     })
   )
 }
 
 export async function listAuditLogs(token: string | null, page = 1) {
   return readItem(
-    await apiRequest<AuditLogPage>(`/api/v1/system/audit-logs?page=${page}&limit=20`, authOptions(token))
+    await apiRequest<AuditLogPage>(
+      `/api/v1/system/audit-logs?page=${page}&limit=20`,
+      authOptions(token)
+    )
   )
 }

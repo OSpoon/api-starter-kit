@@ -136,6 +136,37 @@ test.group('AI agent confirmations', (group) => {
     })
   })
 
+  test('returns a terminal business result instead of throwing when proposal permission is denied', async ({
+    assert,
+  }) => {
+    const user = await User.create({
+      fullName: 'Proposal reader',
+      email: `proposal-reader-${Date.now()}@example.com`,
+      password: generateInitialPassword(),
+    })
+    const apiKey = await ApiKey.create({
+      name: `Denied proposal key ${Date.now()}`,
+      prefix: 'id_denied_key',
+      keyHash: `hash-${Date.now()}`,
+    })
+    const proposalTool = createAiAgentTools({
+      userId: user.id,
+      conversationId: 1,
+      agentRunId: crypto.randomUUID(),
+    }).find((tool) => tool.name === 'propose_system_management_change')
+
+    const output = await proposalTool!.invoke({
+      action: 'revoke_api_key',
+      input: { apiKeyId: apiKey.id },
+    })
+
+    assert.deepEqual(JSON.parse(String(output)), {
+      kind: 'action_error',
+      message: '当前账号没有执行此操作的权限',
+    })
+    assert.isNull(await AiAgentConfirmation.query().where('requested_by_user_id', user.id).first())
+  })
+
   test('does not send an approval reply without a pending proposal to the model', async ({
     client,
     assert,
@@ -153,7 +184,7 @@ test.group('AI agent confirmations', (group) => {
     const response = await client
       .post(`/api/v1/ai-chat/conversations/${conversation.id}/messages`)
       .bearerToken(token.value!.release())
-      .json({ content: '批准' })
+      .json({ content: '是，我确认要吊销ID为25的API密钥' })
 
     response.assertStatus(200)
     const assistantMessage = await AiChatMessage.query()
