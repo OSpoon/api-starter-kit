@@ -2,6 +2,7 @@ import type { HttpContext } from '@adonisjs/core/http'
 
 import User from '#models/user'
 import { recordAuditEvent } from '#services/audit_log'
+import { clampLimit } from '#services/pagination'
 import {
   countSuperAdminUsers,
   includesSuperAdminRole,
@@ -38,11 +39,16 @@ function hasSameRoleIds(currentRoleIds: number[], nextRoleIds: number[]) {
 }
 
 export default class UsersController {
-  async index({ serialize }: HttpContext) {
-    const users = await User.query()
+  async index({ request, serialize }: HttpContext) {
+    const page = Math.max(Number(request.input('page', 1)) || 1, 1)
+    const paginator = await User.query()
       .orderBy('id')
       .preload('roles', (roles) => roles.preload('permissions'))
-    return serialize(users.map(serializeUserListItem))
+      .paginate(page, clampLimit(request.input('limit'), 20, 100))
+    return serialize({
+      items: paginator.all().map(serializeUserListItem),
+      meta: paginator.getMeta(),
+    })
   }
 
   async store(ctx: HttpContext) {

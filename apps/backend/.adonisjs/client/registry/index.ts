@@ -132,6 +132,12 @@ const routes = {
     tokens: [{"old":"/api/v1/system/users/:id","type":0,"val":"api","end":""},{"old":"/api/v1/system/users/:id","type":0,"val":"v1","end":""},{"old":"/api/v1/system/users/:id","type":0,"val":"system","end":""},{"old":"/api/v1/system/users/:id","type":0,"val":"users","end":""},{"old":"/api/v1/system/users/:id","type":1,"val":"id","end":""}],
     types: placeholder as Registry['users.destroy']['types'],
   },
+  'roles.catalog': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/v1/system/roles/catalog',
+    tokens: [{"old":"/api/v1/system/roles/catalog","type":0,"val":"api","end":""},{"old":"/api/v1/system/roles/catalog","type":0,"val":"v1","end":""},{"old":"/api/v1/system/roles/catalog","type":0,"val":"system","end":""},{"old":"/api/v1/system/roles/catalog","type":0,"val":"roles","end":""},{"old":"/api/v1/system/roles/catalog","type":0,"val":"catalog","end":""}],
+    types: placeholder as Registry['roles.catalog']['types'],
+  },
   'roles.index': {
     methods: ["GET","HEAD"],
     pattern: '/api/v1/system/roles',
@@ -155,6 +161,12 @@ const routes = {
     pattern: '/api/v1/system/roles/:id',
     tokens: [{"old":"/api/v1/system/roles/:id","type":0,"val":"api","end":""},{"old":"/api/v1/system/roles/:id","type":0,"val":"v1","end":""},{"old":"/api/v1/system/roles/:id","type":0,"val":"system","end":""},{"old":"/api/v1/system/roles/:id","type":0,"val":"roles","end":""},{"old":"/api/v1/system/roles/:id","type":1,"val":"id","end":""}],
     types: placeholder as Registry['roles.destroy']['types'],
+  },
+  'permissions.catalog': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/v1/system/permissions/catalog',
+    tokens: [{"old":"/api/v1/system/permissions/catalog","type":0,"val":"api","end":""},{"old":"/api/v1/system/permissions/catalog","type":0,"val":"v1","end":""},{"old":"/api/v1/system/permissions/catalog","type":0,"val":"system","end":""},{"old":"/api/v1/system/permissions/catalog","type":0,"val":"permissions","end":""},{"old":"/api/v1/system/permissions/catalog","type":0,"val":"catalog","end":""}],
+    types: placeholder as Registry['permissions.catalog']['types'],
   },
   'permissions.index': {
     methods: ["GET","HEAD"],

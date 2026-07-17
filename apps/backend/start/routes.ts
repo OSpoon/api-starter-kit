@@ -76,6 +76,9 @@ router
         router
           .delete('users/:id', [UsersController, 'destroy'])
           .use(middleware.permission(['users:delete']))
+        router
+          .get('roles/catalog', [RolesController, 'catalog'])
+          .use(middleware.permission(['roles:read']))
         router.get('roles', [RolesController, 'index']).use(middleware.permission(['roles:read']))
         router
           .post('roles', [RolesController, 'store'])
@@ -86,6 +89,9 @@ router
         router
           .delete('roles/:id', [RolesController, 'destroy'])
           .use(middleware.permission(['roles:delete']))
+        router
+          .get('permissions/catalog', [PermissionsController, 'catalog'])
+          .use(middleware.permission(['permissions:read']))
         router
           .get('permissions', [PermissionsController, 'index'])
           .use(middleware.permission(['permissions:read']))

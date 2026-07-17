@@ -1,5 +1,4 @@
 import type { HttpContext } from '@adonisjs/core/http'
-import hash from '@adonisjs/core/services/hash'
 import { ApiOperation, ApiResponse, ApiSecurity } from '@foadonis/openapi/decorators'
 import { DateTime } from 'luxon'
 
@@ -52,7 +51,10 @@ export default class ProfileController {
       })
     }
 
-    user.password = await hash.make(payload.password)
+    // User's auth finder hashes dirty passwords before persistence. Keep every
+    // credential write path (creation, reset, and self-service change) on the
+    // same raw-password contract to avoid hashing an already-hashed value.
+    user.password = payload.password
     user.passwordChangedAt = DateTime.now()
     await user.save()
     await recordAuditEvent(ctx, {

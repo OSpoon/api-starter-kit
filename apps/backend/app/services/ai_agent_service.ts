@@ -2,7 +2,7 @@ import crypto from 'node:crypto'
 
 import { PostgresSaver } from '@langchain/langgraph-checkpoint-postgres'
 import { ChatOpenAI } from '@langchain/openai'
-import { createAgent, summarizationMiddleware } from 'langchain'
+import { createAgent } from 'langchain'
 
 import { aiAgentCapabilities, createAiAgentTools } from '#services/ai_agent_registry'
 import { createAiAgentThreadId } from '#services/ai_agent_state'
@@ -32,7 +32,7 @@ function getHistoryMessageLimit() {
   return Math.min(Math.max(env.get('AI_MAX_HISTORY_MESSAGES') ?? 20, 1), 100)
 }
 
-function getContextCompressionOptions() {
+export function getContextCompressionOptions() {
   return {
     enabled: env.get('AI_CONTEXT_COMPRESSION_ENABLED') ?? true,
     thresholdTokens: Math.min(
@@ -44,6 +44,31 @@ function getContextCompressionOptions() {
       getHistoryMessageLimit()
     ),
   }
+}
+
+export async function summarizeAiConversation(input: {
+  existingSummary: string | null
+  messages: AiAgentMessage[]
+}) {
+  const sourceMessages = input.messages
+    .map((message) => `${message.role}: ${message.content}`)
+    .join('\n\n')
+  const response = await createModel().invoke([
+    {
+      role: 'system',
+      content:
+        'Create a compact factual conversation summary for future assistant context. Preserve user goals, confirmed facts, decisions, constraints, unresolved questions, and pending action proposals. Do not invent details or include secrets.',
+    },
+    {
+      role: 'user',
+      content: `${input.existingSummary ? `Previous summary:\n${input.existingSummary}\n\n` : ''}Messages to incorporate:\n${sourceMessages}`,
+    },
+  ])
+  const summary = typeof response.content === 'string' ? response.content.trim() : ''
+  if (!summary) {
+    throw new Error('AI context summarization returned no text')
+  }
+  return summary
 }
 
 function createSystemPrompt(context?: AiAgentPageContext) {
@@ -91,7 +116,6 @@ function createAiAgent(input: {
   agentRunId: string
   context?: AiAgentPageContext
 }) {
-  const compression = getContextCompressionOptions()
   const model = createModel()
 
   return createAgent({
@@ -99,15 +123,6 @@ function createAiAgent(input: {
     tools: createAiAgentTools(input),
     systemPrompt: createSystemPrompt(input.context),
     checkpointer,
-    middleware: compression.enabled
-      ? [
-          summarizationMiddleware({
-            model,
-            trigger: { tokens: compression.thresholdTokens },
-            keep: { messages: compression.recentMessageCount },
-          }),
-        ]
-      : [],
   })
 }
 

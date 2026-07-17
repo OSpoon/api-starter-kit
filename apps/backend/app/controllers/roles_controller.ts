@@ -3,6 +3,7 @@ import type { HttpContext } from '@adonisjs/core/http'
 import Permission from '#models/permission'
 import Role from '#models/role'
 import { recordAuditEvent } from '#services/audit_log'
+import { clampLimit } from '#services/pagination'
 import { createRoleValidator, updateRoleValidator } from '#validators/rbac'
 
 function serializeRole(role: Role) {
@@ -25,13 +26,20 @@ async function ensurePermissionIds(permissionIds: number[]) {
 }
 
 export default class RolesController {
-  async index({ serialize }: HttpContext) {
-    const roles = await Role.query()
+  async catalog({ serialize }: HttpContext) {
+    const roles = await Role.query().orderBy('is_system', 'desc').orderBy('name')
+    return serialize(roles.map((role) => ({ id: role.id, code: role.code, name: role.name })))
+  }
+
+  async index({ request, serialize }: HttpContext) {
+    const page = Math.max(Number(request.input('page', 1)) || 1, 1)
+    const paginator = await Role.query()
       .preload('permissions')
       .withCount('users')
       .orderBy('is_system', 'desc')
       .orderBy('name')
-    return serialize(roles.map(serializeRole))
+      .paginate(page, clampLimit(request.input('limit'), 20, 100))
+    return serialize({ items: paginator.all().map(serializeRole), meta: paginator.getMeta() })
   }
 
   async store(ctx: HttpContext) {
@@ -89,12 +97,19 @@ export default class RolesController {
 
   async destroy(ctx: HttpContext) {
     const { auth, params, response, serialize } = ctx
-    const role = await Role.query().where('id', params.id).withCount('users').firstOrFail()
+    const role = await Role.query()
+      .where('id', params.id)
+      .withCount('users')
+      .withCount('permissions')
+      .firstOrFail()
     if (role.isSystem) {
       return response.forbidden({ message: '系统内置角色不可删除' })
     }
     if (Number(role.$extras.users_count ?? 0) > 0) {
       return response.conflict({ message: '角色仍分配给用户，无法删除' })
+    }
+    if (Number(role.$extras.permissions_count ?? 0) > 0) {
+      return response.conflict({ message: '角色仍有已分配的权限，无法删除' })
     }
     await role.delete()
     await recordAuditEvent(ctx, {

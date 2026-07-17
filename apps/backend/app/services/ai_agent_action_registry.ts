@@ -288,10 +288,18 @@ const updateRoleAction: AiAgentActionDefinition = {
 const deleteRoleAction: AiAgentActionDefinition = {
   permission: 'roles:delete',
   async prepare(input) {
-    const role = await Role.query().where('id', integer(input, 'roleId')).withCount('users').first()
+    const role = await Role.query()
+      .where('id', integer(input, 'roleId'))
+      .withCount('users')
+      .withCount('permissions')
+      .first()
     if (!role) throw new Error('角色不存在')
-    if (role.isSystem || Number(role.$extras.users_count ?? 0) > 0)
-      throw new Error('系统角色或仍被用户使用的角色不可删除')
+    if (
+      role.isSystem ||
+      Number(role.$extras.users_count ?? 0) > 0 ||
+      Number(role.$extras.permissions_count ?? 0) > 0
+    )
+      throw new Error('系统角色、仍被用户使用或仍分配权限的角色不可删除')
     return {
       targetType: 'role',
       targetId: String(role.id),
@@ -304,9 +312,15 @@ const deleteRoleAction: AiAgentActionDefinition = {
     const role = await Role.query()
       .where('id', integer(confirmation.payload, 'roleId'))
       .withCount('users')
+      .withCount('permissions')
       .first()
-    if (!role || role.isSystem || Number(role.$extras.users_count ?? 0) > 0)
-      throw new Error('角色不存在、受保护或仍被用户使用')
+    if (
+      !role ||
+      role.isSystem ||
+      Number(role.$extras.users_count ?? 0) > 0 ||
+      Number(role.$extras.permissions_count ?? 0) > 0
+    )
+      throw new Error('角色不存在、受保护、仍被用户使用或仍分配权限')
     await role.delete()
     await recordAuditEvent(ctx, {
       actorUserId: actor.id,

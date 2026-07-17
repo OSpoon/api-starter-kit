@@ -2,6 +2,7 @@ import type { HttpContext } from '@adonisjs/core/http'
 
 import Permission from '#models/permission'
 import { recordAuditEvent } from '#services/audit_log'
+import { clampLimit } from '#services/pagination'
 import { createPermissionValidator, updatePermissionValidator } from '#validators/rbac'
 
 function serializePermission(permission: Permission) {
@@ -17,12 +18,26 @@ function serializePermission(permission: Permission) {
 }
 
 export default class PermissionsController {
-  async index({ serialize }: HttpContext) {
-    const permissions = await Permission.query()
+  async catalog({ serialize }: HttpContext) {
+    const permissions = await Permission.query().orderBy('group_name').orderBy('code')
+    return serialize(
+      permissions.map((permission) => ({
+        id: permission.id,
+        code: permission.code,
+        name: permission.name,
+        groupName: permission.groupName,
+      }))
+    )
+  }
+
+  async index({ request, serialize }: HttpContext) {
+    const page = Math.max(Number(request.input('page', 1)) || 1, 1)
+    const paginator = await Permission.query()
       .withCount('roles')
       .orderBy('group_name')
       .orderBy('code')
-    return serialize(permissions.map(serializePermission))
+      .paginate(page, clampLimit(request.input('limit'), 20, 100))
+    return serialize({ items: paginator.all().map(serializePermission), meta: paginator.getMeta() })
   }
 
   async store(ctx: HttpContext) {

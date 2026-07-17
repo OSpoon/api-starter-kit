@@ -68,9 +68,16 @@ test.group('rbac', (group) => {
 
     const response = await client.get('/api/v1/system/users').bearerToken(token.value!.release())
     response.assertStatus(200)
-    const body = response.body() as unknown as Array<{ id: number; roles?: unknown[] }>
-    const listedUser = body.find((item) => item.id === user.id)
+    const body = response.body() as unknown as {
+      data: {
+        items: Array<{ id: number; roles?: unknown[] }>
+        meta: { currentPage: number; lastPage: number }
+      }
+    }
+    const listedUser = body.data.items.find((item) => item.id === user.id)
     assert.isArray(listedUser?.roles)
+    assert.equal(body.data.meta.currentPage, 1)
+    assert.isAtLeast(body.data.meta.lastPage, 1)
   })
 
   test('denies a non-super-admin from maintaining a super-admin account', async ({
@@ -144,7 +151,10 @@ test.group('rbac', (group) => {
       })
     createResponse.assertStatus(200)
 
-    const auditLog = await AuditLog.query().where('action', 'permission.created').firstOrFail()
+    const auditLog = await AuditLog.query()
+      .where('action', 'permission.created')
+      .where('actorUserId', admin.id)
+      .firstOrFail()
     assert.equal(auditLog.actorUserId, admin.id)
     assert.equal(auditLog.targetType, 'permission')
 
@@ -171,5 +181,26 @@ test.group('rbac', (group) => {
       .get('/api/v1/system/audit-logs')
       .bearerToken(adminToken.value!.release())
     allowedResponse.assertStatus(200)
+  })
+
+  test('refuses to delete a role that still owns permission grants', async ({ client, assert }) => {
+    const superAdminRole = await Role.findByOrFail('code', 'super-admin')
+    const admin = await User.create({
+      fullName: 'Role delete admin',
+      email: `role-delete-admin-${Date.now()}@example.com`,
+      password: generateInitialPassword(),
+    })
+    await admin.related('roles').sync([superAdminRole.id])
+    const token = await User.accessTokens.create(admin)
+    const role = await Role.create({ code: `granted-role-${Date.now()}`, name: 'Granted role' })
+    const permission = await Permission.findByOrFail('code', 'dashboard:view')
+    await role.related('permissions').sync([permission.id])
+
+    const response = await client
+      .delete(`/api/v1/system/roles/${role.id}`)
+      .bearerToken(token.value!.release())
+
+    response.assertStatus(409)
+    assert.isNotNull(await Role.find(role.id))
   })
 })

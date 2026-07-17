@@ -259,6 +259,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/users_controller').default['destroy']>>>
     }
   }
+  'roles.catalog': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/system/roles/catalog'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/roles_controller').default['catalog']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/roles_controller').default['catalog']>>>
+    }
+  }
   'roles.index': {
     methods: ["GET","HEAD"]
     pattern: '/api/v1/system/roles'
@@ -305,6 +317,18 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/roles_controller').default['destroy']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/roles_controller').default['destroy']>>>
+    }
+  }
+  'permissions.catalog': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/system/permissions/catalog'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/permissions_controller').default['catalog']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/permissions_controller').default['catalog']>>>
     }
   }
   'permissions.index': {

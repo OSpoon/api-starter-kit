@@ -27,6 +27,8 @@ const { t } = useI18n()
 const { runWithToast } = useAsyncToast()
 
 const keys = ref<ApiKeySummary[]>([])
+const page = ref(1)
+const pageCount = ref(1)
 const loading = ref(false)
 const {
   open: dialogOpen,
@@ -151,10 +153,13 @@ const columns = computed<ColumnDef<ApiKeySummary>[]>(() => [
   },
 ])
 
-async function fetchKeys() {
+async function fetchKeys(nextPage = page.value) {
   loading.value = true
   try {
-    keys.value = await listApiKeys(auth.token)
+    const result = await listApiKeys(auth.token, nextPage)
+    keys.value = result.items
+    page.value = result.meta.currentPage
+    pageCount.value = result.meta.lastPage
   } catch (error) {
     toast.error(error instanceof Error ? error.message : t('api_keys.fetch_failed'))
   } finally {
@@ -251,6 +256,8 @@ async function copyToken() {
 onMounted(() => {
   void fetchKeys()
 })
+
+watch(page, (nextPage) => void fetchKeys(nextPage))
 </script>
 
 <template>
@@ -278,6 +285,8 @@ onMounted(() => {
       :search-placeholder="t('api_keys.filter_keyword')"
       storage-key="api-keys-table"
       :empty-message="loading ? t('common.loading') : t('api_keys.no_keys')"
+      :server-pagination="{ page, pageCount }"
+      @page-change="page = $event"
     />
 
     <template #dialogs>

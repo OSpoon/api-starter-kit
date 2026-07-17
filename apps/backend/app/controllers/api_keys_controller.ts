@@ -9,6 +9,7 @@ import {
   resolveExpiresAt,
   serializeApiKey,
 } from '#services/api_key_service'
+import { clampLimit } from '#services/pagination'
 import { apiKeyValidator } from '#validators/api_key'
 
 @ApiSecurity('bearerAuth')
@@ -18,14 +19,18 @@ export default class ApiKeysController {
     description: '返回外部系统接入密钥列表。用于界面受控展示，原始 key 会按后端策略返回。',
   })
   @ApiResponse({ status: 200, description: 'API Key 列表' })
-  async index({ serialize }: HttpContext) {
-    const keys = await ApiKey.query().orderBy('created_at', 'desc')
-    return serialize(
-      keys.map((key) => ({
+  async index({ request, serialize }: HttpContext) {
+    const page = Math.max(Number(request.input('page', 1)) || 1, 1)
+    const paginator = await ApiKey.query()
+      .orderBy('created_at', 'desc')
+      .paginate(page, clampLimit(request.input('limit'), 20, 100))
+    return serialize({
+      items: paginator.all().map((key) => ({
         ...serializeApiKey(key),
         key: decryptStoredKey(key.keyEncrypted),
-      }))
-    )
+      })),
+      meta: paginator.getMeta(),
+    })
   }
 
   @ApiOperation({
