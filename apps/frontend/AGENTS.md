@@ -29,6 +29,32 @@ For new domain work, place reusable domain UI under
 and page-local orchestration in the feature page. `components/common` and `lib`
 remain cross-domain only.
 
+## Agent Preflight And Reference Implementations
+
+Before changing a frontend product surface, record the answers to these
+questions in the task plan or implementation summary:
+
+1. What is the route's `meta.pageKind`, root page primitive, and route-level
+   permission?
+2. Which existing page is the comparable implementation?
+3. Which shared component owns the page shell, list/table, form dialog,
+   confirmation, and empty/loading/error feedback?
+4. Which locale keys, action permissions, and desktop/mobile states change?
+5. Which verification commands from the repository `AGENTS.md` apply?
+
+Use these pages as the first reference instead of inventing a parallel pattern:
+
+| Need                                                     | Reference implementation                             |
+| -------------------------------------------------------- | ---------------------------------------------------- |
+| Management list, table, create/revoke dialogs            | `src/views/ApiKeysView.vue`                          |
+| RBAC list and permission assignment                      | `src/views/AccessControlView.vue`                    |
+| User settings, compact centered content, security states | `src/views/ProfileView.vue`                          |
+| Analytics data presentation                              | `src/views/AnalyticsTemplateView.vue`                |
+| Feature-owned utility page                               | `src/features/operations/OperationsTemplatePage.vue` |
+
+Do not copy a reference page wholesale. Reuse its shared primitives and retain
+only the domain-specific content required by the new route.
+
 ## Mandatory Reuse
 
 - Use `components/common/ListPage.vue` for every CRUD or management list page. Do not recreate its page header, refresh/create actions, framed list surface, or dialog placement in a view.

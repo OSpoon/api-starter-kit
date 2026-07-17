@@ -1,0 +1,12 @@
+---
+description: Canonical project development standard
+alwaysApply: true
+---
+
+Before planning or editing, read `AGENTS.md` at the repository root and the
+closest nested `AGENTS.md` for the target files.
+
+`AGENTS.md` is the single source of truth for this project. Do not duplicate,
+weaken, or replace its page planning, shared-component reuse, security,
+localization, or verification rules. If instructions conflict, apply the
+closest `AGENTS.md` and report the conflict.

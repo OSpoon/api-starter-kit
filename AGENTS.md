@@ -17,6 +17,23 @@ These rules apply to every change in this repository. Prefer the existing archit
 4. Keep edits narrowly scoped. Do not mix refactors, formatting churn, or dependency upgrades with an unrelated feature.
 5. Verify the affected layer and all changed contracts before reporting completion.
 
+## Agent Entry Points
+
+`AGENTS.md` is the canonical, repository-wide instruction source for every
+coding agent. Read this file and the closest nested `AGENTS.md` before
+planning or editing.
+
+- Tool-specific instruction files such as `CLAUDE.md`,
+  `.github/copilot-instructions.md`, and `.cursor/rules/project-standard.mdc`
+  are entry points only. They must point here rather than duplicate or weaken
+  these rules.
+- When an entry point and an `AGENTS.md` differ, follow the closest
+  `AGENTS.md`, then report the conflict. Do not choose the less restrictive
+  interpretation.
+- Before starting a task, state the applicable page, API, security, or schema
+  contract; name the comparable implementation; and identify the verification
+  commands from this document.
+
 ## Naming And Module Boundaries
 
 - Name files for their reusable responsibility, not their current screen or organizational domain. Prefer `ListPage` over `ManagementListPage`.
