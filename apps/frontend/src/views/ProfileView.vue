@@ -247,6 +247,7 @@ onMounted(async () => {
       <FormDialogContent
         :title="t('profile.disable_2fa_title')"
         :description="t('profile.two_factor_confirm_desc')"
+        class="sm:max-w-106.25"
       >
         <div class="grid gap-2 p-6 pt-4">
           <Label for="disable-password">{{ t('profile.current_password') }}</Label>
@@ -264,29 +265,33 @@ onMounted(async () => {
     </Dialog>
 
     <Dialog v-model:open="showEnableDialog">
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{{ t('profile.enable_2fa_title') }}</DialogTitle>
-          <DialogDescription>{{ t('profile.dialog_enable_desc') }}</DialogDescription>
-        </DialogHeader>
-        <div class="flex flex-col items-center space-y-4 py-4">
-          <div v-if="qrCodeUrl" class="rounded-sm bg-white p-2">
-            <img :src="qrCodeUrl" alt="2FA QR Code" class="size-48" />
+      <FormDialogContent
+        :title="t('profile.enable_2fa_title')"
+        :description="t('profile.dialog_enable_desc')"
+        class="sm:max-w-106.25"
+      >
+        <form class="flex min-h-0 flex-1 flex-col" @submit.prevent="confirmEnable2FA">
+          <div
+            class="flex min-h-0 flex-1 flex-col items-center gap-4 overflow-y-auto px-6 pt-4 pb-6"
+          >
+            <div v-if="qrCodeUrl" class="rounded-sm bg-white p-2">
+              <img :src="qrCodeUrl" alt="2FA QR Code" class="size-48" />
+            </div>
+            <div class="flex w-full max-w-xs flex-col items-center gap-2">
+              <Label for="enable-code">{{ t('auth.2fa_code') }}</Label>
+              <SegmentedCodeInput id="enable-code" v-model="enableCode" />
+            </div>
           </div>
-          <div class="flex w-full max-w-xs flex-col items-center space-y-2">
-            <Label for="enable-code">{{ t('auth.2fa_code') }}</Label>
-            <SegmentedCodeInput id="enable-code" v-model="enableCode" />
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" @click="showEnableDialog = false">
-            {{ t('common.cancel') }}
-          </Button>
-          <Button :disabled="isLoading" @click="confirmEnable2FA">
-            {{ t('profile.verify_enable') }}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
+          <FormDialogFooter class="shrink-0 justify-end">
+            <Button type="button" variant="outline" @click="showEnableDialog = false">
+              {{ t('common.cancel') }}
+            </Button>
+            <Button type="submit" :disabled="isLoading">
+              {{ t('profile.verify_enable') }}
+            </Button>
+          </FormDialogFooter>
+        </form>
+      </FormDialogContent>
     </Dialog>
 
     <Dialog v-model:open="showRecoveryCodes">
