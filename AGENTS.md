@@ -38,6 +38,7 @@ planning or editing.
 
 - Name files for their reusable responsibility, not their current screen or organizational domain. Prefer `ListPage` over `ManagementListPage`.
 - Vue views compose page-level workflows. Reusable visual behavior belongs in `components/common`, reusable domain UI in a feature component, and shared client logic in `composables` or `lib`.
+- Treat composable APIs as a frontend standard: extract stable, reusable state machines and side effects—such as loading, pagination, filters, form orchestration, API requests, and lifecycle watchers—into `composables`. Keep views focused on route-level composition and keep feature components focused on rendering and interaction. Do not create a composable solely to relocate one-off presentational markup or a single trivial computed value.
 - Backend controllers coordinate request/response only. Validators own request shape, services own reusable domain logic, models own persistence relations, and transformers own output shape.
 - Do not import a view into another view. Do not import a controller from another controller.
 - Avoid barrel files unless the local package already establishes that pattern.
