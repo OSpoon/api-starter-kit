@@ -1,15 +1,18 @@
 <script setup lang="ts">
+import { Copy } from '@lucide/vue'
 import { toast } from 'vue-sonner'
 
 import DescriptionActionRow from '@/components/common/DescriptionActionRow.vue'
+import FormDialogContent from '@/components/common/FormDialogContent.vue'
+import FormDialogFooter from '@/components/common/FormDialogFooter.vue'
 import SegmentedCodeInput from '@/components/common/SegmentedCodeInput.vue'
+import SettingsPageTemplate from '@/components/templates/SettingsPageTemplate.vue'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
@@ -17,6 +20,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
 import { disable2fa, enable2fa, generate2fa } from '@/lib/account-api'
+import { copyText } from '@/lib/clipboard'
 import { PASSWORD_EXPIRY_DAYS, passwordDaysRemaining } from '@/lib/password'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth'
@@ -35,7 +39,7 @@ const enableCode = ref('')
 const recoveryCodes = ref<string[]>([])
 const showRecoveryCodes = ref(false)
 
-const displayName = computed(() => auth.user?.fullName || auth.user?.email || 'System Admin')
+const displayName = computed(() => auth.user?.fullName || auth.user?.email || t('profile.no_name'))
 const passwordBaseDate = computed(() => auth.user?.passwordChangedAt || auth.user?.createdAt)
 const passwordExpiresAt = computed(() =>
   passwordBaseDate.value
@@ -59,6 +63,19 @@ function formatDate(value?: string | Date | null) {
     hour: '2-digit',
     minute: '2-digit',
   }).format(new Date(value))
+}
+
+async function copyEmail() {
+  if (!auth.user?.email) {
+    return
+  }
+
+  try {
+    await copyText(auth.user.email)
+    toast.success(t('profile.toast.email_copied'))
+  } catch {
+    toast.error(t('profile.toast.email_copy_failed'))
+  }
 }
 
 async function startEnable2FA() {
@@ -128,28 +145,35 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="mx-auto flex flex-col gap-8 p-8" style="width: min(100%, 48rem)">
-    <div>
-      <h1 class="text-3xl font-bold tracking-tight">{{ t('profile.title') }}</h1>
-      <p class="text-muted-foreground">{{ t('profile.desc') }}</p>
-    </div>
-
+  <SettingsPageTemplate :title="t('profile.title')" :description="t('profile.desc')">
     <Card class="rounded-xl">
       <CardHeader>
         <CardTitle>{{ t('profile.basic_info') }}</CardTitle>
         <CardDescription>{{ t('profile.basic_desc') }}</CardDescription>
       </CardHeader>
-      <CardContent class="space-y-6">
-        <div class="grid max-w-lg gap-4">
-          <div class="grid gap-2">
-            <Label>{{ t('profile.full_name') }}</Label>
-            <Input :model-value="displayName" disabled />
+      <CardContent>
+        <dl class="grid gap-3 sm:grid-cols-2">
+          <div class="rounded-lg border bg-muted/20 p-4">
+            <dt class="text-sm font-medium text-muted-foreground">{{ t('profile.full_name') }}</dt>
+            <dd class="mt-1.5 font-medium break-words">{{ displayName }}</dd>
           </div>
-          <div class="grid gap-2">
-            <Label>{{ t('profile.email') }}</Label>
-            <Input :model-value="auth.user?.email" disabled />
+          <div class="rounded-lg border bg-muted/20 p-4">
+            <dt class="text-sm font-medium text-muted-foreground">{{ t('profile.email') }}</dt>
+            <dd class="mt-1.5 flex min-w-0 items-center justify-between gap-3">
+              <span class="truncate font-medium">{{ auth.user?.email || '-' }}</span>
+              <Button
+                v-if="auth.user?.email"
+                variant="ghost"
+                size="icon"
+                :aria-label="t('profile.copy_email')"
+                :title="t('profile.copy_email')"
+                @click="copyEmail"
+              >
+                <Copy class="size-4" />
+              </Button>
+            </dd>
           </div>
-        </div>
+        </dl>
       </CardContent>
     </Card>
 
@@ -158,7 +182,7 @@ onMounted(async () => {
         <CardTitle>{{ t('profile.security_title') }}</CardTitle>
         <CardDescription>{{ t('profile.security_desc') }}</CardDescription>
       </CardHeader>
-      <CardContent class="space-y-6">
+      <CardContent class="space-y-5">
         <DescriptionActionRow
           :title="t('profile.password_title')"
           :description="t('profile.password_hint')"
@@ -170,7 +194,7 @@ onMounted(async () => {
           </template>
         </DescriptionActionRow>
 
-        <div class="rounded-lg border bg-muted/40 p-4">
+        <div class="rounded-lg border bg-muted/40 p-5">
           <div class="flex items-start justify-between gap-4">
             <div>
               <div class="font-medium">{{ t('profile.password_expiry_title') }}</div>
@@ -178,15 +202,20 @@ onMounted(async () => {
             </div>
             <div
               :class="
-                cn('text-xl font-bold', passwordDaysLeft < 14 ? `
+                cn(
+                  'text-xl font-bold',
+                  passwordDaysLeft < 14
+                    ? `
                   text-destructive
-                ` : `text-primary`)
+                `
+                    : `text-primary`
+                )
               "
             >
               {{ t('profile.password_days_left', { days: passwordDaysLeft }) }}
             </div>
           </div>
-          <div class="mt-6 text-sm text-muted-foreground">
+          <div class="mt-4 text-sm text-muted-foreground">
             {{ t('profile.password_last_changed', { date: formatDate(passwordBaseDate) }) }}<br />
             {{ t('profile.password_expires_at', { date: formatDate(passwordExpiresAt) }) }}
           </div>
@@ -215,24 +244,23 @@ onMounted(async () => {
     </Card>
 
     <Dialog v-model:open="showDisableDialog">
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{{ t('profile.disable_2fa_title') }}</DialogTitle>
-          <DialogDescription>{{ t('profile.two_factor_confirm_desc') }}</DialogDescription>
-        </DialogHeader>
-        <div class="space-y-2 py-4">
+      <FormDialogContent
+        :title="t('profile.disable_2fa_title')"
+        :description="t('profile.two_factor_confirm_desc')"
+      >
+        <div class="grid gap-2 p-6 pt-4">
           <Label for="disable-password">{{ t('profile.current_password') }}</Label>
           <Input id="disable-password" v-model="disablePassword" type="password" />
         </div>
-        <DialogFooter>
+        <FormDialogFooter class="justify-end">
           <Button variant="outline" @click="showDisableDialog = false">
             {{ t('common.cancel') }}
           </Button>
           <Button variant="destructive" :disabled="isLoading" @click="confirmDisable2FA">
             {{ t('profile.disable_2fa') }}
           </Button>
-        </DialogFooter>
-      </DialogContent>
+        </FormDialogFooter>
+      </FormDialogContent>
     </Dialog>
 
     <Dialog v-model:open="showEnableDialog">
@@ -283,5 +311,5 @@ onMounted(async () => {
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  </div>
+  </SettingsPageTemplate>
 </template>

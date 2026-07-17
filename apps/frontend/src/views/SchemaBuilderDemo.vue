@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import PageShell from '@/components/common/PageShell.vue'
 import JsonSchemaEditor from '@/components/json-schema/components/JsonSchemaEditor.vue'
 import {
   createSchemaStore,
@@ -60,13 +61,9 @@ onBeforeMount(() => {
 </script>
 
 <template>
-  <div class="flex h-full flex-col p-4">
-    <div class="mb-4">
-      <h1 class="text-2xl font-semibold tracking-tight">{{ t.schemaDemoTitle }}</h1>
-      <p class="mt-1 text-sm text-muted-foreground">{{ t.schemaDemoDescription }}</p>
-    </div>
+  <PageShell :title="t.schemaDemoTitle ?? ''" :description="t.schemaDemoDescription" class="gap-4">
     <div class="min-h-0 flex-1">
       <JsonSchemaEditor />
     </div>
-  </div>
+  </PageShell>
 </template>
