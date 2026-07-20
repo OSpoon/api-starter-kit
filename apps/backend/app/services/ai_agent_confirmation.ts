@@ -213,5 +213,8 @@ export async function confirmAiAgentAction(
     metadata: { action: confirmation.action, confirmationId: confirmation.id, source: 'ai_agent' },
   })
 
-  return { ...serializeConfirmation(confirmation), ...(executionResult ? { result: executionResult } : {}) }
+  return {
+    ...serializeConfirmation(confirmation),
+    ...(executionResult ? { result: executionResult } : {}),
+  }
 }

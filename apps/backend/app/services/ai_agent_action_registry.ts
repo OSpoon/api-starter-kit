@@ -1,6 +1,7 @@
 import { Bouncer } from '@adonisjs/bouncer'
 import type { HttpContext } from '@adonisjs/core/http'
 import { DateTime } from 'luxon'
+import { z } from 'zod'
 
 import { access } from '#abilities/main'
 import type AiAgentConfirmation from '#models/ai_agent_confirmation'
@@ -8,8 +9,8 @@ import ApiKey from '#models/api_key'
 import Permission from '#models/permission'
 import Role from '#models/role'
 import User from '#models/user'
-import { recordAuditEvent } from '#services/audit_log'
 import { createApiKey } from '#services/api_key_service'
+import { recordAuditEvent } from '#services/audit_log'
 import type { PermissionCode } from '#services/permission_catalog'
 import {
   countSuperAdminUsers,
@@ -43,10 +44,86 @@ export type AiAgentActionPreparation = {
 export type AiAgentActionDefinition = {
   permission: PermissionCode
   prepare: (input: Record<string, unknown>) => Promise<AiAgentActionPreparation>
-  execute: (input: { confirmation: AiAgentConfirmation; ctx: HttpContext }) => Promise<Record<string, unknown> | void>
+  execute: (input: {
+    confirmation: AiAgentConfirmation
+    ctx: HttpContext
+  }) => Promise<Record<string, unknown> | void>
 }
 
 export class AiAgentActionAuthorizationError extends Error {}
+
+const actionId = z.number().int().positive()
+export const aiAgentChangeSchema = z.discriminatedUnion('action', [
+  z.object({ action: z.literal('revoke_api_key'), input: z.object({ apiKeyId: actionId }) }),
+  z.object({
+    action: z.literal('create_api_key'),
+    input: z.object({
+      name: z.string().trim().min(1).max(120),
+      expiresIn: z.enum(['30d', '90d', '180d', 'long']).optional(),
+    }),
+  }),
+  z.object({ action: z.literal('reset_user_password'), input: z.object({ userId: actionId }) }),
+  z.object({ action: z.literal('disable_user'), input: z.object({ userId: actionId }) }),
+  z.object({ action: z.literal('enable_user'), input: z.object({ userId: actionId }) }),
+  z.object({
+    action: z.literal('update_user'),
+    input: z.object({
+      userId: actionId,
+      fullName: z.string().trim().min(1).max(120),
+      email: z.string().trim().email().max(254),
+      roleIds: z.array(actionId),
+    }),
+  }),
+  z.object({ action: z.literal('delete_user'), input: z.object({ userId: actionId }) }),
+  z.object({
+    action: z.literal('create_role'),
+    input: z.object({
+      code: z
+        .string()
+        .trim()
+        .min(2)
+        .max(100)
+        .regex(/^[a-z0-9-]+$/),
+      name: z.string().trim().min(1).max(120),
+      description: z.string().trim().max(1000).nullable().optional(),
+      permissionIds: z.array(actionId),
+    }),
+  }),
+  z.object({
+    action: z.literal('update_role'),
+    input: z.object({
+      roleId: actionId,
+      name: z.string().trim().min(1).max(120),
+      description: z.string().trim().max(1000).nullable().optional(),
+      permissionIds: z.array(actionId),
+    }),
+  }),
+  z.object({ action: z.literal('delete_role'), input: z.object({ roleId: actionId }) }),
+  z.object({
+    action: z.literal('create_permission'),
+    input: z.object({
+      code: z
+        .string()
+        .trim()
+        .min(2)
+        .max(100)
+        .regex(/^[a-z0-9-]+:[a-z0-9-]+$/),
+      name: z.string().trim().min(1).max(120),
+      groupName: z.string().trim().min(1).max(120),
+      description: z.string().trim().max(1000).nullable().optional(),
+    }),
+  }),
+  z.object({
+    action: z.literal('update_permission'),
+    input: z.object({
+      permissionId: actionId,
+      name: z.string().trim().min(1).max(120),
+      groupName: z.string().trim().min(1).max(120),
+      description: z.string().trim().max(1000).nullable().optional(),
+    }),
+  }),
+  z.object({ action: z.literal('delete_permission'), input: z.object({ permissionId: actionId }) }),
+])
 
 async function ensurePermission(ctx: HttpContext, permission: PermissionCode) {
   const user = ctx.auth.getUserOrFail()
@@ -143,7 +220,12 @@ const createApiKeyAction: AiAgentActionDefinition = {
     const expiresIn = input.expiresIn
     if (expiresIn !== undefined && !['30d', '90d', '180d', 'long'].includes(String(expiresIn)))
       throw new Error('expiresIn 无效')
-    return { targetType: 'api_key', targetId: name, targetSummary: { name }, payload: { name, expiresIn } }
+    return {
+      targetType: 'api_key',
+      targetId: name,
+      targetSummary: { name },
+      payload: { name, expiresIn },
+    }
   },
   async execute({ confirmation, ctx }) {
     const actor = await ensurePermission(ctx, 'api-keys:create')
@@ -151,22 +233,50 @@ const createApiKeyAction: AiAgentActionDefinition = {
       name: string(confirmation.payload, 'name', 120),
       expiresIn: confirmation.payload.expiresIn as '30d' | '90d' | '180d' | 'long' | undefined,
     })
-    await recordAuditEvent(ctx, { actorUserId: actor.id, action: 'agent.api_key_created', targetType: 'api_key', targetId: apiKey.id, metadata: { name: apiKey.name, prefix: apiKey.prefix, source: 'ai_agent' } })
+    await recordAuditEvent(ctx, {
+      actorUserId: actor.id,
+      action: 'agent.api_key_created',
+      targetType: 'api_key',
+      targetId: apiKey.id,
+      metadata: { name: apiKey.name, prefix: apiKey.prefix, source: 'ai_agent' },
+    })
     return { credential: { kind: 'api_key', value: secret, label: apiKey.name } }
   },
 }
 
-function userTargetSummary(user: User) { return { fullName: user.fullName, email: user.email } }
+function userTargetSummary(user: User) {
+  return { fullName: user.fullName, email: user.email }
+}
 
 const resetUserPasswordAction: AiAgentActionDefinition = {
   permission: 'users:update',
-  async prepare(input) { const user = await User.find(integer(input, 'userId')); if (!user) throw new Error('用户不存在'); return { targetType: 'user', targetId: String(user.id), targetSummary: userTargetSummary(user), payload: { userId: user.id } } },
+  async prepare(input) {
+    const user = await User.find(integer(input, 'userId'))
+    if (!user) throw new Error('用户不存在')
+    return {
+      targetType: 'user',
+      targetId: String(user.id),
+      targetSummary: userTargetSummary(user),
+      payload: { userId: user.id },
+    }
+  },
   async execute({ confirmation, ctx }) {
-    const actor = await ensurePermission(ctx, 'users:update'); const user = await User.find(integer(confirmation.payload, 'userId'))
-    if (!user) throw new Error('用户不存在'); if (user.id === actor.id) throw new Error('请通过个人资料页面修改当前账号的密码')
-    if ((await isSuperAdmin(user)) && !(await isSuperAdmin(actor))) throw new Error('仅超级管理员可以重置超级管理员的密码')
-    const password = generateInitialPassword(); user.password = password; await user.save()
-    await recordAuditEvent(ctx, { actorUserId: actor.id, action: 'user.password_reset', targetType: 'user', targetId: user.id, metadata: { source: 'ai_agent' } })
+    const actor = await ensurePermission(ctx, 'users:update')
+    const user = await User.find(integer(confirmation.payload, 'userId'))
+    if (!user) throw new Error('用户不存在')
+    if (user.id === actor.id) throw new Error('请通过个人资料页面修改当前账号的密码')
+    if ((await isSuperAdmin(user)) && !(await isSuperAdmin(actor)))
+      throw new Error('仅超级管理员可以重置超级管理员的密码')
+    const password = generateInitialPassword()
+    user.password = password
+    await user.save()
+    await recordAuditEvent(ctx, {
+      actorUserId: actor.id,
+      action: 'user.password_reset',
+      targetType: 'user',
+      targetId: user.id,
+      metadata: { source: 'ai_agent' },
+    })
     return { credential: { kind: 'password', value: password, label: user.email } }
   },
 }
@@ -174,8 +284,37 @@ const resetUserPasswordAction: AiAgentActionDefinition = {
 function userEnabledAction(disabled: boolean): AiAgentActionDefinition {
   return {
     permission: 'users:update',
-    async prepare(input) { const user = await User.find(integer(input, 'userId')); if (!user) throw new Error('用户不存在'); if (Boolean(user.disabledAt) === disabled) throw new Error(disabled ? '用户已被禁用' : '用户未被禁用'); return { targetType: 'user', targetId: String(user.id), targetSummary: userTargetSummary(user), payload: { userId: user.id } } },
-    async execute({ confirmation, ctx }) { const actor = await ensurePermission(ctx, 'users:update'); const user = await User.find(integer(confirmation.payload, 'userId')); if (!user) throw new Error('用户不存在'); if (user.id === actor.id) throw new Error('不能修改当前登录账号的启用状态'); if ((await isSuperAdmin(user)) && !(await isSuperAdmin(actor))) throw new Error('仅超级管理员可以维护超级管理员账户'); if (Boolean(user.disabledAt) === disabled) throw new Error(disabled ? '用户已被禁用' : '用户未被禁用'); user.disabledAt = disabled ? DateTime.now() : null; await user.save(); await recordAuditEvent(ctx, { actorUserId: actor.id, action: disabled ? 'user.disabled' : 'user.enabled', targetType: 'user', targetId: user.id, metadata: { source: 'ai_agent' } }) },
+    async prepare(input) {
+      const user = await User.find(integer(input, 'userId'))
+      if (!user) throw new Error('用户不存在')
+      if (Boolean(user.disabledAt) === disabled)
+        throw new Error(disabled ? '用户已被禁用' : '用户未被禁用')
+      return {
+        targetType: 'user',
+        targetId: String(user.id),
+        targetSummary: userTargetSummary(user),
+        payload: { userId: user.id },
+      }
+    },
+    async execute({ confirmation, ctx }) {
+      const actor = await ensurePermission(ctx, 'users:update')
+      const user = await User.find(integer(confirmation.payload, 'userId'))
+      if (!user) throw new Error('用户不存在')
+      if (user.id === actor.id) throw new Error('不能修改当前登录账号的启用状态')
+      if ((await isSuperAdmin(user)) && !(await isSuperAdmin(actor)))
+        throw new Error('仅超级管理员可以维护超级管理员账户')
+      if (Boolean(user.disabledAt) === disabled)
+        throw new Error(disabled ? '用户已被禁用' : '用户未被禁用')
+      user.disabledAt = disabled ? DateTime.now() : null
+      await user.save()
+      await recordAuditEvent(ctx, {
+        actorUserId: actor.id,
+        action: disabled ? 'user.disabled' : 'user.enabled',
+        targetType: 'user',
+        targetId: user.id,
+        metadata: { source: 'ai_agent' },
+      })
+    },
   }
 }
 
@@ -517,4 +656,13 @@ const aiAgentActions: Record<AiAgentActionName, AiAgentActionDefinition> = {
 
 export function getAiAgentAction(action: string) {
   return aiAgentActions[action as AiAgentActionName] ?? null
+}
+
+export function getAiAgentActionCapabilities() {
+  return Object.entries(aiAgentActions).map(([name, action]) => ({
+    name,
+    description: `Prepare ${name.replaceAll('_', ' ')} for explicit confirmation.`,
+    permission: action.permission,
+    requiresConfirmation: true,
+  }))
 }

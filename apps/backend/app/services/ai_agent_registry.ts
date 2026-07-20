@@ -8,7 +8,11 @@ import Permission from '#models/permission'
 import Role from '#models/role'
 import User from '#models/user'
 import { buildMyAccessDiagnosis } from '#services/ai_access_diagnostic'
-import { getAiAgentAction } from '#services/ai_agent_action_registry'
+import {
+  aiAgentChangeSchema,
+  getAiAgentAction,
+  getAiAgentActionCapabilities,
+} from '#services/ai_agent_action_registry'
 import { AiAgentConfirmationError, proposeAiAgentAction } from '#services/ai_agent_confirmation'
 import { type PermissionCode, permissionCodes } from '#services/permission_catalog'
 import { loadUserAccess } from '#services/user_access'
@@ -20,7 +24,7 @@ export interface AiAgentCapability {
   requiresConfirmation: boolean
 }
 
-export const aiAgentCapabilities: readonly AiAgentCapability[] = [
+const readAgentCapabilities: readonly AiAgentCapability[] = [
   {
     name: 'diagnose_my_access',
     description: 'Explain the current user’s effective access.',
@@ -56,12 +60,11 @@ export const aiAgentCapabilities: readonly AiAgentCapability[] = [
     permission: 'audit-logs:read',
     requiresConfirmation: false,
   },
-  {
-    name: 'propose_system_management_change',
-    description:
-      'Prepare any supported non-secret system-management change for explicit confirmation.',
-    requiresConfirmation: true,
-  },
+]
+
+export const aiAgentCapabilities: readonly AiAgentCapability[] = [
+  ...readAgentCapabilities,
+  ...getAiAgentActionCapabilities(),
 ]
 
 async function ensurePermission(userId: number, permission: PermissionCode) {
@@ -70,73 +73,6 @@ async function ensurePermission(userId: number, permission: PermissionCode) {
   if (!(await bouncer.allows('access', permission))) throw new Error('当前账号没有执行此操作的权限')
   return user
 }
-
-const changeSchemas = {
-  revoke_api_key: z.object({ apiKeyId: z.number().int().positive() }),
-  create_api_key: z.object({ name: z.string().trim().min(1).max(120), expiresIn: z.enum(['30d', '90d', '180d', 'long']).optional() }),
-  reset_user_password: z.object({ userId: z.number().int().positive() }),
-  disable_user: z.object({ userId: z.number().int().positive() }),
-  enable_user: z.object({ userId: z.number().int().positive() }),
-  update_user: z.object({
-    userId: z.number().int().positive(),
-    fullName: z.string().trim().min(1).max(120),
-    email: z.string().trim().email().max(254),
-    roleIds: z.array(z.number().int().positive()),
-  }),
-  delete_user: z.object({ userId: z.number().int().positive() }),
-  create_role: z.object({
-    code: z
-      .string()
-      .trim()
-      .min(2)
-      .max(100)
-      .regex(/^[a-z0-9-]+$/),
-    name: z.string().trim().min(1).max(120),
-    description: z.string().trim().max(1000).nullable().optional(),
-    permissionIds: z.array(z.number().int().positive()),
-  }),
-  update_role: z.object({
-    roleId: z.number().int().positive(),
-    name: z.string().trim().min(1).max(120),
-    description: z.string().trim().max(1000).nullable().optional(),
-    permissionIds: z.array(z.number().int().positive()),
-  }),
-  delete_role: z.object({ roleId: z.number().int().positive() }),
-  create_permission: z.object({
-    code: z
-      .string()
-      .trim()
-      .min(2)
-      .max(100)
-      .regex(/^[a-z0-9-]+:[a-z0-9-]+$/),
-    name: z.string().trim().min(1).max(120),
-    groupName: z.string().trim().min(1).max(120),
-    description: z.string().trim().max(1000).nullable().optional(),
-  }),
-  update_permission: z.object({
-    permissionId: z.number().int().positive(),
-    name: z.string().trim().min(1).max(120),
-    groupName: z.string().trim().min(1).max(120),
-    description: z.string().trim().max(1000).nullable().optional(),
-  }),
-  delete_permission: z.object({ permissionId: z.number().int().positive() }),
-} as const
-
-const changeSchema = z.discriminatedUnion('action', [
-  z.object({ action: z.literal('revoke_api_key'), input: changeSchemas.revoke_api_key }),
-  z.object({ action: z.literal('create_api_key'), input: changeSchemas.create_api_key }),
-  z.object({ action: z.literal('reset_user_password'), input: changeSchemas.reset_user_password }),
-  z.object({ action: z.literal('disable_user'), input: changeSchemas.disable_user }),
-  z.object({ action: z.literal('enable_user'), input: changeSchemas.enable_user }),
-  z.object({ action: z.literal('update_user'), input: changeSchemas.update_user }),
-  z.object({ action: z.literal('delete_user'), input: changeSchemas.delete_user }),
-  z.object({ action: z.literal('create_role'), input: changeSchemas.create_role }),
-  z.object({ action: z.literal('update_role'), input: changeSchemas.update_role }),
-  z.object({ action: z.literal('delete_role'), input: changeSchemas.delete_role }),
-  z.object({ action: z.literal('create_permission'), input: changeSchemas.create_permission }),
-  z.object({ action: z.literal('update_permission'), input: changeSchemas.update_permission }),
-  z.object({ action: z.literal('delete_permission'), input: changeSchemas.delete_permission }),
-])
 
 export function createAiAgentTools(input: {
   userId: number
@@ -338,7 +274,7 @@ export function createAiAgentTools(input: {
         name: 'propose_system_management_change',
         description:
           'Prepare a requested system-management change only after the user clearly asks for it. Never execute it directly; the structured confirmation card must be approved.',
-        schema: changeSchema,
+        schema: aiAgentChangeSchema,
       }
     ),
   ]
