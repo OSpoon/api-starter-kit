@@ -113,6 +113,36 @@ test.group('AI agent confirmations', (group) => {
     const pendingRequest = await AiAgentConfirmation.findOrFail(confirmation.id)
     assert.isNull(activeApiKey.revokedAt)
     assert.equal(pendingRequest.status, 'pending')
+    assert.isNull(pendingRequest.executionToken)
+  })
+
+  test('claims a confirmation before execution so concurrent approvals run only once', async ({
+    client,
+    assert,
+  }) => {
+    const superAdminRole = await Role.findByOrFail('code', 'super-admin')
+    const user = await User.create({
+      fullName: 'Concurrent confirmation admin',
+      email: `concurrent-confirmation-${Date.now()}@example.com`,
+      password: generateInitialPassword(),
+    })
+    await user.related('roles').sync([superAdminRole.id])
+    const token = await User.accessTokens.create(user)
+    const { apiKey, confirmation, conversation } = await createConfirmation(user)
+    const endpoint = `/api/v1/ai-chat/conversations/${conversation.id}/confirmations/${confirmation.id}/confirm`
+
+    const [first, second] = await Promise.all([
+      client.post(endpoint).bearerToken(token.value!.release()),
+      client.post(endpoint).bearerToken(token.value!.release()),
+    ])
+
+    assert.sameMembers([first.status(), second.status()], [200, 409])
+    const revokedApiKey = await ApiKey.findOrFail(apiKey.id)
+    assert.isNotNull(revokedApiKey.revokedAt)
+    const auditEvents = await AuditLog.query()
+      .where('action', 'agent.api_key_revoked')
+      .where('target_id', apiKey.id)
+    assert.equal(auditEvents.length, 1)
   })
 
   test('returns a business result when proposing revocation for an unknown API Key', async ({

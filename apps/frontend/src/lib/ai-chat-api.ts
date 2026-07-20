@@ -71,6 +71,7 @@ export interface AiChatStreamOptions {
 export interface AiChatAgentActivity {
   name: string
   state: 'running' | 'done' | 'error'
+  message?: string
 }
 
 function authOptions(token: string | null) {
@@ -116,7 +117,12 @@ export async function sendAiChatMessage(token: string | null, id: number, conten
 type AiChatStreamEvent =
   | { type: 'user'; conversation: AiChatConversationSummary; message: AiChatMessage }
   | { type: 'delta'; content: string }
-  | { type: 'agent_status'; name: string; state: AiChatAgentActivity['state'] }
+  | {
+      type: 'agent_status'
+      name: string
+      state: AiChatAgentActivity['state']
+      message?: string
+    }
   | ({ type: 'agent_confirmation' } & AiChatPendingConfirmation)
   | {
       type: 'done'
@@ -124,7 +130,7 @@ type AiChatStreamEvent =
       message: AiChatMessage
       confirmations: Omit<AiChatConfirmation, 'messageId'>[]
     }
-  | { type: 'error'; message: string }
+  | { type: 'error'; message: string; assistantMessage?: AiChatMessage }
 
 export async function streamAiChatMessage(
   token: string | null,

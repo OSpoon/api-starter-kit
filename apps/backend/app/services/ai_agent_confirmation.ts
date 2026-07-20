@@ -1,3 +1,5 @@
+import crypto from 'node:crypto'
+
 import type { HttpContext } from '@adonisjs/core/http'
 import { DateTime } from 'luxon'
 
@@ -88,12 +90,15 @@ export async function attachAgentRunConfirmations(input: {
     .where('requested_by_user_id', input.userId)
     .where('agent_run_id', input.agentRunId)
     .where('status', 'pending')
+    .whereNull('execution_token')
     .whereNull('assistant_message_id')
 
   await AiAgentConfirmation.query()
     .where('conversation_id', input.conversationId)
     .where('requested_by_user_id', input.userId)
     .where('agent_run_id', input.agentRunId)
+    .where('status', 'pending')
+    .whereNull('execution_token')
     .whereNull('assistant_message_id')
     .update({ assistantMessageId: input.assistantMessageId })
 
@@ -105,6 +110,7 @@ export async function listConversationConfirmations(conversationId: number, user
     .where('conversation_id', conversationId)
     .where('requested_by_user_id', userId)
     .where('status', 'pending')
+    .whereNull('execution_token')
     .where('expires_at', '>', DateTime.now().toSQL()!)
     .whereNotNull('assistant_message_id')
 
@@ -114,10 +120,26 @@ export async function listConversationConfirmations(conversationId: number, user
   }))
 }
 
+export async function failUnattachedAgentRunConfirmations(input: {
+  conversationId: number
+  userId: number
+  agentRunId: string
+}) {
+  await AiAgentConfirmation.query()
+    .where('conversation_id', input.conversationId)
+    .where('requested_by_user_id', input.userId)
+    .where('agent_run_id', input.agentRunId)
+    .where('status', 'pending')
+    .whereNull('assistant_message_id')
+    .update({ status: 'failed' })
+}
+
 export async function confirmAiAgentAction(
   ctx: HttpContext,
   input: { confirmationId: number; conversationId: number; userId: number }
 ) {
+  const now = DateTime.now()
+  const executionToken = crypto.randomUUID()
   const confirmation = await AiAgentConfirmation.query()
     .where('id', input.confirmationId)
     .where('conversation_id', input.conversationId)
@@ -129,11 +151,28 @@ export async function confirmAiAgentAction(
   if (confirmation.status !== 'pending') {
     throw new AiAgentConfirmationError('确认请求已处理', 409)
   }
-  if (confirmation.expiresAt <= DateTime.now()) {
+  if (confirmation.expiresAt <= now) {
     confirmation.status = 'expired'
     await confirmation.save()
     throw new AiAgentConfirmationError('确认请求已过期，请重新发起', 422)
   }
+
+  if (confirmation.executionToken) {
+    throw new AiAgentConfirmationError('确认请求正在处理中', 409)
+  }
+
+  const claimed = await AiAgentConfirmation.query()
+    .where('id', confirmation.id)
+    .where('status', 'pending')
+    .whereNull('execution_token')
+    .where('expires_at', '>', now.toSQL()!)
+    .update({ executionToken, executionStartedAt: now })
+  if (claimed[0] !== 1) {
+    throw new AiAgentConfirmationError('确认请求已被处理或已过期', 409)
+  }
+
+  confirmation.executionToken = executionToken
+  confirmation.executionStartedAt = now
 
   const action = getAiAgentAction(confirmation.action)
   if (!action) {
@@ -146,6 +185,10 @@ export async function confirmAiAgentAction(
     await action.execute({ confirmation, ctx })
   } catch (error) {
     if (error instanceof AiAgentActionAuthorizationError) {
+      await AiAgentConfirmation.query()
+        .where('id', confirmation.id)
+        .where('execution_token', executionToken)
+        .update({ executionToken: null, executionStartedAt: null })
       throw new AiAgentConfirmationError(error.message, 403)
     }
     confirmation.status = 'failed'

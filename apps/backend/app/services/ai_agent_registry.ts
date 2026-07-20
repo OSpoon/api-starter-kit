@@ -134,10 +134,18 @@ export function createAiAgentTools(input: {
   userId: number
   conversationId: number
   agentRunId: string
+  signal?: AbortSignal
 }) {
+  const throwIfAborted = () => {
+    if (input.signal?.aborted) {
+      throw new DOMException('AI request was cancelled', 'AbortError')
+    }
+  }
+
   return [
     tool(
       async ({ permissionCode }) => {
+        throwIfAborted()
         const user = await User.findOrFail(input.userId)
         await loadUserAccess(user)
         const diagnosis = buildMyAccessDiagnosis(
@@ -165,6 +173,7 @@ export function createAiAgentTools(input: {
     ),
     tool(
       async () => {
+        throwIfAborted()
         await ensurePermission(input.userId, 'api-keys:read')
         const { default: ApiKey } = await import('#models/api_key')
         const keys = await ApiKey.query()
@@ -189,6 +198,7 @@ export function createAiAgentTools(input: {
     ),
     tool(
       async ({ limit }) => {
+        throwIfAborted()
         await ensurePermission(input.userId, 'users:read')
         const users = await User.query().preload('roles').orderBy('id').limit(limit)
         return JSON.stringify(
@@ -209,12 +219,14 @@ export function createAiAgentTools(input: {
     ),
     tool(
       async () => {
+        throwIfAborted()
         await ensurePermission(input.userId, 'roles:read')
         const roles = await Role.query()
-          .preload('permissions')
+          .preload('permissions', (query) => query.orderBy('code').limit(200))
           .withCount('users')
           .orderBy('is_system', 'desc')
           .orderBy('name')
+          .limit(100)
         return JSON.stringify(
           roles.map((role) => ({
             id: role.id,
@@ -239,11 +251,13 @@ export function createAiAgentTools(input: {
     ),
     tool(
       async () => {
+        throwIfAborted()
         await ensurePermission(input.userId, 'permissions:read')
         const permissions = await Permission.query()
           .withCount('roles')
           .orderBy('group_name')
           .orderBy('code')
+          .limit(200)
         return JSON.stringify(
           permissions.map((permission) => ({
             id: permission.id,
@@ -264,6 +278,7 @@ export function createAiAgentTools(input: {
     ),
     tool(
       async ({ limit }) => {
+        throwIfAborted()
         await ensurePermission(input.userId, 'audit-logs:read')
         const logs = await AuditLog.query().preload('actor').orderBy('id', 'desc').limit(limit)
         return JSON.stringify(
@@ -289,6 +304,7 @@ export function createAiAgentTools(input: {
     tool(
       async ({ action, input: actionInput }) => {
         try {
+          throwIfAborted()
           const definition = getAiAgentAction(action)!
           await ensurePermission(input.userId, definition.permission)
           const confirmation = await proposeAiAgentAction({
@@ -298,6 +314,7 @@ export function createAiAgentTools(input: {
             userId: input.userId,
             agentRunId: input.agentRunId,
           })
+          throwIfAborted()
           return JSON.stringify({ kind: 'confirmation', confirmation })
         } catch (error) {
           if (error instanceof AiAgentConfirmationError) {

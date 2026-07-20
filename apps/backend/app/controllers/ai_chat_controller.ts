@@ -7,6 +7,7 @@ import {
   AiAgentConfirmationError,
   attachAgentRunConfirmations,
   confirmAiAgentAction as executeAiAgentAction,
+  failUnattachedAgentRunConfirmations,
   listConversationConfirmations,
 } from '#services/ai_agent_confirmation'
 import {
@@ -37,8 +38,20 @@ function isApprovalReply(content: string) {
 }
 
 function writeSse(response: HttpContext['response'], event: string, data: unknown) {
+  if (response.response.writableEnded || response.response.destroyed) {
+    return
+  }
   response.response.write(`event: ${event}\n`)
   response.response.write(`data: ${JSON.stringify(data)}\n\n`)
+}
+
+function isAbortError(error: unknown) {
+  return error instanceof DOMException && error.name === 'AbortError'
+}
+
+function getSafeAiErrorMessage(error: unknown) {
+  if (isAbortError(error)) return '已停止生成本次回复。'
+  return '本次 AI 请求未完成，请稍后重试。'
 }
 
 function parseAgentConfirmation(output: unknown) {
@@ -76,19 +89,46 @@ function parseAgentConfirmation(output: unknown) {
   }
 }
 
+function parseAgentToolError(output: unknown) {
+  const content =
+    typeof output === 'string'
+      ? output
+      : output &&
+          typeof output === 'object' &&
+          'content' in output &&
+          typeof output.content === 'string'
+        ? output.content
+        : null
+  if (!content) return null
+
+  try {
+    const payload = JSON.parse(content) as { kind?: string; message?: unknown }
+    return payload.kind === 'action_error' && typeof payload.message === 'string'
+      ? payload.message
+      : null
+  } catch {
+    return null
+  }
+}
+
 async function streamAiAgentToolStatuses(
   run: Awaited<ReturnType<typeof createAiAgentStream>>,
-  response: HttpContext['response']
+  response: HttpContext['response'],
+  signal: AbortSignal
 ) {
   for await (const toolCall of run.stream.toolCalls) {
+    if (signal.aborted) throw new DOMException('AI request was cancelled', 'AbortError')
     writeSse(response, 'agent_status', { name: toolCall.name, state: 'running' })
     const state = await toolCall.status
+    const output = state === 'finished' ? await toolCall.output : null
+    const toolError = parseAgentToolError(output)
     writeSse(response, 'agent_status', {
       name: toolCall.name,
-      state: state === 'finished' ? 'done' : 'error',
+      state: state === 'finished' && !toolError ? 'done' : 'error',
+      ...(toolError ? { message: toolError } : {}),
     })
     if (state === 'finished') {
-      const confirmation = parseAgentConfirmation(await toolCall.output)
+      const confirmation = parseAgentConfirmation(output)
       if (confirmation) {
         writeSse(response, 'agent_confirmation', confirmation)
       }
@@ -200,6 +240,9 @@ export default class AiChatController {
     response.header('Connection', 'keep-alive')
     response.header('X-Accel-Buffering', 'no')
     response.writeHead(200)
+    const abortController = new AbortController()
+    const abortOnDisconnect = () => abortController.abort()
+    response.response.once('close', abortOnDisconnect)
 
     writeSse(response, 'user', {
       conversation: serializeAiChatConversation(conversation),
@@ -227,6 +270,7 @@ export default class AiChatController {
     }
 
     let assistantContent = ''
+    let agentRunId: string | null = null
 
     try {
       const persistedMessages = payload.regenerateAssistantMessageId
@@ -282,10 +326,15 @@ export default class AiChatController {
         userId: user.id,
         messages,
         context: payload.context,
+        signal: abortController.signal,
       })
-      const toolStatusTask = streamAiAgentToolStatuses(run, response)
+      agentRunId = run.agentRunId
+      const toolStatusTask = streamAiAgentToolStatuses(run, response, abortController.signal)
 
       for await (const message of run.stream.messages) {
+        if (abortController.signal.aborted) {
+          throw new DOMException('AI request was cancelled', 'AbortError')
+        }
         for await (const delta of message.text) {
           if (!delta) {
             continue
@@ -316,10 +365,25 @@ export default class AiChatController {
         confirmations,
       })
     } catch (error) {
+      if (agentRunId) {
+        await failUnattachedAgentRunConfirmations({
+          conversationId: conversation.id,
+          userId: user.id,
+          agentRunId,
+        })
+      }
+      const message = getSafeAiErrorMessage(error)
+      const failedAssistantMessage = await AiChatMessage.create({
+        conversationId: conversation.id,
+        role: 'assistant',
+        content: assistantContent.trim() ? `${assistantContent}\n\n${message}` : message,
+      })
       writeSse(response, 'error', {
-        message: error instanceof Error ? error.message : 'AI request failed',
+        message,
+        assistantMessage: serializeAiChatMessage(failedAssistantMessage),
       })
     } finally {
+      response.response.off('close', abortOnDisconnect)
       response.response.end()
     }
   }

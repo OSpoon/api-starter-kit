@@ -48,6 +48,12 @@ export default class AiAgentConfirmation extends BaseModel {
   @column()
   declare confirmedByUserId: number | null
 
+  @column()
+  declare executionToken: string | null
+
+  @column.dateTime()
+  declare executionStartedAt: DateTime | null
+
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
 

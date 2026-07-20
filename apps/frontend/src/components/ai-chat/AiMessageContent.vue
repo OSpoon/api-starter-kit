@@ -21,13 +21,14 @@ const { t } = useI18n()
 
 const isPending = computed(() => props.status === 'pending' && props.content.trim().length === 0)
 const isStreaming = computed(() => props.streaming || props.status === 'streaming')
+const isError = computed(() => props.status === 'error')
 </script>
 
 <template>
   <div v-if="isPending" class="ai-message-content-waiting">
     <span>{{ t('ai_chat.waiting') }}</span>
   </div>
-  <div v-else class="ai-message-content-markdown">
+  <div v-else class="ai-message-content-markdown" :class="{ 'ai-message-content-error': isError }">
     <MarkdownRender
       custom-id="ai-chat"
       mode="chat"
@@ -60,6 +61,10 @@ const isStreaming = computed(() => props.streaming || props.status === 'streamin
   color: hsl(var(--muted-foreground));
   font-size: 12px;
   line-height: 1;
+}
+
+.ai-message-content-error {
+  color: hsl(var(--destructive));
 }
 
 .ai-message-content-waiting span {

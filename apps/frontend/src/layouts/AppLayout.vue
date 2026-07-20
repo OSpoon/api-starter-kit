@@ -136,6 +136,9 @@ async function handleAiSelectConversation(id: string | number) {
     aiAbortController.value = null
     aiStreamingMessages.value = []
     aiStreamingMessageId.value = null
+    aiConfirmations.value = []
+    pendingAiConfirmation.value = null
+    aiApprovalDismissed.value = false
     aiConversation.value = await getAiChatConversation(auth.token, Number(id))
     aiConfirmations.value = aiConversation.value.confirmations ?? []
     presentLatestAiConfirmation(aiConfirmations.value)
@@ -210,6 +213,8 @@ async function handleAiRunAction(action: AiChatClientAction) {
 function presentLatestAiConfirmation(confirmations: AiChatConfirmation[]) {
   const confirmation = confirmations.at(-1)
   if (!confirmation) {
+    pendingAiConfirmation.value = null
+    aiApprovalDismissed.value = false
     return
   }
 
@@ -322,7 +327,11 @@ async function handleAiSend(message: string, regenerateAssistantMessageId?: numb
         }
 
         if (event.type === 'agent_status') {
-          assistantMessage.activity = { name: event.name, state: event.state }
+          assistantMessage.activity = {
+            name: event.name,
+            state: event.state,
+            message: event.message,
+          }
           aiStreamingMessages.value = aiStreamingMessages.value.map((item) =>
             item.id === assistantMessage.id ? { ...assistantMessage } : item
           )
@@ -364,6 +373,11 @@ async function handleAiSend(message: string, regenerateAssistantMessageId?: numb
         }
 
         if (event.type === 'error') {
+          assistantMessage.content = event.assistantMessage?.content ?? event.message
+          assistantMessage.status = 'error'
+          aiStreamingMessages.value = aiStreamingMessages.value.map((item) =>
+            item.id === assistantMessage.id ? { ...assistantMessage } : item
+          )
           throw new Error(event.message)
         }
       },

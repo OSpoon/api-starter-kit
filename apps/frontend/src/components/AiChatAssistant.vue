@@ -336,6 +336,9 @@ function getAssistantMessageStatus(message: ChatMessage): ChatMessageStatus {
 }
 
 function getActivityLabel(activity: AiChatAgentActivity) {
+  if (activity.state === 'error' && activity.message) {
+    return activity.message
+  }
   const key = `ai_chat.activities.${activity.name}.${activity.state}`
   return te(key) ? t(key) : t(`ai_chat.activities.generic.${activity.state}`)
 }
@@ -589,7 +592,10 @@ onUnmounted(() => {
       </div>
 
       <div class="p-3 pt-0">
-        <div v-if="approval" class="mb-2 flex items-center gap-2 border-t px-1 pt-2 text-xs">
+        <div
+          v-if="approval"
+          class="mb-2 flex items-center gap-2 rounded-md border bg-muted/60 px-2.5 py-2 text-xs"
+        >
           <p class="min-w-0 flex-1 truncate text-muted-foreground">
             {{
               t('ai_chat.approval.pending', {
