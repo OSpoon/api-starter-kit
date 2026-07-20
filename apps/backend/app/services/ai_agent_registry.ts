@@ -73,6 +73,10 @@ async function ensurePermission(userId: number, permission: PermissionCode) {
 
 const changeSchemas = {
   revoke_api_key: z.object({ apiKeyId: z.number().int().positive() }),
+  create_api_key: z.object({ name: z.string().trim().min(1).max(120), expiresIn: z.enum(['30d', '90d', '180d', 'long']).optional() }),
+  reset_user_password: z.object({ userId: z.number().int().positive() }),
+  disable_user: z.object({ userId: z.number().int().positive() }),
+  enable_user: z.object({ userId: z.number().int().positive() }),
   update_user: z.object({
     userId: z.number().int().positive(),
     fullName: z.string().trim().min(1).max(120),
@@ -120,6 +124,10 @@ const changeSchemas = {
 
 const changeSchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('revoke_api_key'), input: changeSchemas.revoke_api_key }),
+  z.object({ action: z.literal('create_api_key'), input: changeSchemas.create_api_key }),
+  z.object({ action: z.literal('reset_user_password'), input: changeSchemas.reset_user_password }),
+  z.object({ action: z.literal('disable_user'), input: changeSchemas.disable_user }),
+  z.object({ action: z.literal('enable_user'), input: changeSchemas.enable_user }),
   z.object({ action: z.literal('update_user'), input: changeSchemas.update_user }),
   z.object({ action: z.literal('delete_user'), input: changeSchemas.delete_user }),
   z.object({ action: z.literal('create_role'), input: changeSchemas.create_role }),

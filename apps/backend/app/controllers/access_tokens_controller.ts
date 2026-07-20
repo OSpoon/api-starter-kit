@@ -25,6 +25,10 @@ export default class AccessTokensController {
 
     const userRecord = await User.findBy('email', email)
 
+    if (userRecord?.disabledAt) {
+      throw INVALID_CREDENTIALS
+    }
+
     if (userRecord?.lockedUntil && userRecord.lockedUntil > DateTime.now()) {
       throw INVALID_CREDENTIALS
     }

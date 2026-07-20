@@ -33,6 +33,7 @@ export interface AiChatConfirmation {
   targetSummary: Record<string, unknown>
   expiresAt: string | null
 }
+export interface AiChatCredentialDisclosure { kind: 'api_key' | 'password'; value: string; label: string }
 
 export type AiChatPendingConfirmation = Omit<AiChatConfirmation, 'messageId'>
 
@@ -216,7 +217,7 @@ export async function confirmAiAgentAction(
   conversationId: number,
   confirmationId: number
 ) {
-  const response = await apiRequest<Omit<AiChatConfirmation, 'messageId'>>(
+  const response = await apiRequest<Omit<AiChatConfirmation, 'messageId'> & { result?: { credential?: AiChatCredentialDisclosure } }>(
     `/api/v1/ai-chat/conversations/${conversationId}/confirmations/${confirmationId}/confirm`,
     {
       ...authOptions(token),

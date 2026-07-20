@@ -11,6 +11,7 @@ import type {
   AiChatAgentActivity,
   AiChatClientAction,
   AiChatConfirmation,
+  AiChatCredentialDisclosure,
   AiChatPendingConfirmation,
 } from '@/lib/ai-chat-api'
 import {
@@ -55,6 +56,7 @@ const pendingAiConfirmation = ref<AiChatConfirmation | null>(null)
 const aiConfirmations = ref<AiChatConfirmation[]>([])
 const aiConfirming = ref(false)
 const aiApprovalDismissed = ref(false)
+const aiCredentialDisclosure = ref<AiChatCredentialDisclosure | null>(null)
 
 type LocalAiChatMessage = {
   id: string
@@ -235,7 +237,8 @@ async function confirmAiConfirmation() {
 
   aiConfirming.value = true
   try {
-    await confirmAiAgentAction(auth.token, conversation.id, confirmation.id)
+    const result = await confirmAiAgentAction(auth.token, conversation.id, confirmation.id)
+    aiCredentialDisclosure.value = result.result?.credential ?? null
     aiConfirmations.value = aiConfirmations.value.filter((item) => item.id !== confirmation.id)
     pendingAiConfirmation.value = null
     aiApprovalDismissed.value = false
@@ -450,6 +453,7 @@ onMounted(() => {
         :actions="aiActions"
         :approval="aiApprovalDismissed ? null : pendingAiConfirmation"
         :approval-loading="aiConfirming"
+        :credential-disclosure="aiCredentialDisclosure"
         @clear="handleAiNewChat"
         @copy-message="handleAiCopyMessage"
         @delete-conversation="handleAiDeleteConversation"
@@ -457,6 +461,7 @@ onMounted(() => {
         @run-action="handleAiRunAction"
         @approve-confirmation="confirmAiConfirmation"
         @dismiss-confirmation="dismissAiConfirmation"
+        @dismiss-credential="aiCredentialDisclosure = null"
         @send="handleAiSend"
         @select-conversation="handleAiSelectConversation"
         @stop="handleAiStop"

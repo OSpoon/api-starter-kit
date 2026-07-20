@@ -31,6 +31,9 @@ export default class User extends compose(UserSchema, withAuthFinder(hash)) {
   @column.dateTime()
   declare passwordChangedAt: DateTime | null
 
+  @column.dateTime()
+  declare disabledAt: DateTime | null
+
   @manyToMany(() => Role, {
     pivotTable: 'user_roles',
     pivotTimestamps: { createdAt: 'created_at', updatedAt: false },

@@ -181,8 +181,9 @@ export async function confirmAiAgentAction(
     throw new AiAgentConfirmationError('不支持的确认操作', 422)
   }
 
+  let executionResult: Record<string, unknown> | void
   try {
-    await action.execute({ confirmation, ctx })
+    executionResult = await action.execute({ confirmation, ctx })
   } catch (error) {
     if (error instanceof AiAgentActionAuthorizationError) {
       await AiAgentConfirmation.query()
@@ -212,5 +213,5 @@ export async function confirmAiAgentAction(
     metadata: { action: confirmation.action, confirmationId: confirmation.id, source: 'ai_agent' },
   })
 
-  return serializeConfirmation(confirmation)
+  return { ...serializeConfirmation(confirmation), ...(executionResult ? { result: executionResult } : {}) }
 }

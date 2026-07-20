@@ -9,15 +9,21 @@ import Permission from '#models/permission'
 import Role from '#models/role'
 import User from '#models/user'
 import { recordAuditEvent } from '#services/audit_log'
+import { createApiKey } from '#services/api_key_service'
 import type { PermissionCode } from '#services/permission_catalog'
 import {
   countSuperAdminUsers,
   includesSuperAdminRole,
   isSuperAdmin,
 } from '#services/super_admin_access'
+import { generateInitialPassword } from '#services/user_credentials'
 
 export type AiAgentActionName =
   | 'revoke_api_key'
+  | 'create_api_key'
+  | 'reset_user_password'
+  | 'disable_user'
+  | 'enable_user'
   | 'update_user'
   | 'delete_user'
   | 'create_role'
@@ -37,7 +43,7 @@ export type AiAgentActionPreparation = {
 export type AiAgentActionDefinition = {
   permission: PermissionCode
   prepare: (input: Record<string, unknown>) => Promise<AiAgentActionPreparation>
-  execute: (input: { confirmation: AiAgentConfirmation; ctx: HttpContext }) => Promise<void>
+  execute: (input: { confirmation: AiAgentConfirmation; ctx: HttpContext }) => Promise<Record<string, unknown> | void>
 }
 
 export class AiAgentActionAuthorizationError extends Error {}
@@ -128,6 +134,49 @@ const revokeApiKeyAction: AiAgentActionDefinition = {
       metadata: { name: apiKey.name, prefix: apiKey.prefix, source: 'ai_agent' },
     })
   },
+}
+
+const createApiKeyAction: AiAgentActionDefinition = {
+  permission: 'api-keys:create',
+  async prepare(input) {
+    const name = string(input, 'name', 120)
+    const expiresIn = input.expiresIn
+    if (expiresIn !== undefined && !['30d', '90d', '180d', 'long'].includes(String(expiresIn)))
+      throw new Error('expiresIn 无效')
+    return { targetType: 'api_key', targetId: name, targetSummary: { name }, payload: { name, expiresIn } }
+  },
+  async execute({ confirmation, ctx }) {
+    const actor = await ensurePermission(ctx, 'api-keys:create')
+    const { apiKey, secret } = await createApiKey({
+      name: string(confirmation.payload, 'name', 120),
+      expiresIn: confirmation.payload.expiresIn as '30d' | '90d' | '180d' | 'long' | undefined,
+    })
+    await recordAuditEvent(ctx, { actorUserId: actor.id, action: 'agent.api_key_created', targetType: 'api_key', targetId: apiKey.id, metadata: { name: apiKey.name, prefix: apiKey.prefix, source: 'ai_agent' } })
+    return { credential: { kind: 'api_key', value: secret, label: apiKey.name } }
+  },
+}
+
+function userTargetSummary(user: User) { return { fullName: user.fullName, email: user.email } }
+
+const resetUserPasswordAction: AiAgentActionDefinition = {
+  permission: 'users:update',
+  async prepare(input) { const user = await User.find(integer(input, 'userId')); if (!user) throw new Error('用户不存在'); return { targetType: 'user', targetId: String(user.id), targetSummary: userTargetSummary(user), payload: { userId: user.id } } },
+  async execute({ confirmation, ctx }) {
+    const actor = await ensurePermission(ctx, 'users:update'); const user = await User.find(integer(confirmation.payload, 'userId'))
+    if (!user) throw new Error('用户不存在'); if (user.id === actor.id) throw new Error('请通过个人资料页面修改当前账号的密码')
+    if ((await isSuperAdmin(user)) && !(await isSuperAdmin(actor))) throw new Error('仅超级管理员可以重置超级管理员的密码')
+    const password = generateInitialPassword(); user.password = password; await user.save()
+    await recordAuditEvent(ctx, { actorUserId: actor.id, action: 'user.password_reset', targetType: 'user', targetId: user.id, metadata: { source: 'ai_agent' } })
+    return { credential: { kind: 'password', value: password, label: user.email } }
+  },
+}
+
+function userEnabledAction(disabled: boolean): AiAgentActionDefinition {
+  return {
+    permission: 'users:update',
+    async prepare(input) { const user = await User.find(integer(input, 'userId')); if (!user) throw new Error('用户不存在'); if (Boolean(user.disabledAt) === disabled) throw new Error(disabled ? '用户已被禁用' : '用户未被禁用'); return { targetType: 'user', targetId: String(user.id), targetSummary: userTargetSummary(user), payload: { userId: user.id } } },
+    async execute({ confirmation, ctx }) { const actor = await ensurePermission(ctx, 'users:update'); const user = await User.find(integer(confirmation.payload, 'userId')); if (!user) throw new Error('用户不存在'); if (user.id === actor.id) throw new Error('不能修改当前登录账号的启用状态'); if ((await isSuperAdmin(user)) && !(await isSuperAdmin(actor))) throw new Error('仅超级管理员可以维护超级管理员账户'); if (Boolean(user.disabledAt) === disabled) throw new Error(disabled ? '用户已被禁用' : '用户未被禁用'); user.disabledAt = disabled ? DateTime.now() : null; await user.save(); await recordAuditEvent(ctx, { actorUserId: actor.id, action: disabled ? 'user.disabled' : 'user.enabled', targetType: 'user', targetId: user.id, metadata: { source: 'ai_agent' } }) },
+  }
 }
 
 const updateUserAction: AiAgentActionDefinition = {
@@ -452,6 +501,10 @@ const deletePermissionAction: AiAgentActionDefinition = {
 
 const aiAgentActions: Record<AiAgentActionName, AiAgentActionDefinition> = {
   revoke_api_key: revokeApiKeyAction,
+  create_api_key: createApiKeyAction,
+  reset_user_password: resetUserPasswordAction,
+  disable_user: userEnabledAction(true),
+  enable_user: userEnabledAction(false),
   update_user: updateUserAction,
   delete_user: deleteUserAction,
   create_role: createRoleAction,
