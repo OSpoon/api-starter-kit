@@ -109,7 +109,7 @@ pnpm dev
 | PostgreSQL | `localhost:5432`                            |
 | Ollama     | `http://localhost:11434`（启用 profile 后） |
 
-开发环境不经过 Nginx。OpenAPI 文档由后端直接提供：`http://localhost:13333/api-docs`。
+开发环境不经过 Nginx。OpenAPI 文档由后端直接提供，需在后端 `.env` 中设置 `OPENAPI_DOCS_ENABLED=true` 启用：`http://localhost:13333/api-docs`。
 
 默认管理员来自 `apps/backend/.env`：
 
@@ -163,15 +163,16 @@ pnpm --dir apps/frontend build
 | JSON 规范 | `/api-docs.json` | OpenAPI JSON       |
 | YAML 规范 | `/api-docs.yaml` | OpenAPI YAML       |
 
-开发环境请使用后端地址，例如 `http://localhost:13333/api-docs`；生产环境可通过 Nginx 的同路径访问。
+文档路由由后端环境变量 `OPENAPI_DOCS_ENABLED=true` 控制，默认仅在开发环境启用。前端通过 `VITE_API_DOCS_URL` 配置文档链接（留空则隐藏入口），开发环境默认指向 `http://localhost:13333/api-docs`。
 
 基础路径：`/api/v1`
 
 健康检查：
 
-| 方法  | 路径      | 说明     |
-| ----- | --------- | -------- |
-| `GET` | `/health` | 健康检查 |
+| 方法  | 路径            | 说明                            |
+| ----- | --------------- | ------------------------------- |
+| `GET` | `/health`       | 存活检查（轻量，始终返回 ok）   |
+| `GET` | `/health/ready` | 就绪检查（含 DB ping、AI 配置） |
 
 认证与账号：
 
@@ -274,8 +275,14 @@ docker compose up -d
 - 密码策略要求长度和字符混合，并拦截常见弱密码
 - 连续登录失败会触发账号锁定
 - 2FA secret 和 recovery code 加密存储
-- API Key 使用 hash 鉴权，完整明文仅在创建时返回一次
+- API Key 使用 hash 鉴权，完整明文仅在创建时返回一次，不存储可逆密文
 - 生产错误响应脱敏，不暴露 SQL、堆栈和内部异常细节
+- **限流** — 登录/2FA 端点按 IP 限流（10 次/分钟），账户操作和 AI 对话按用户限流
+- **CSP** — 后端 Shield 中间件和 Nginx 均设置 Content-Security-Policy，`default-src 'self'`，`object-src 'none'`，SPA 与 API 响应均受保护
+- **AI 超时与重试** — AI 模型调用配置 `AI_REQUEST_TIMEOUT_MS`（默认 60s）和 `AI_MAX_RETRIES`（默认 2）
+- **AI 输出 XSS 防护** — 前端 Markdown 渲染器 `html-policy="escape"`，完全转义 raw HTML
+- **容器非 root** — Docker 后端镜像以 `node` 用户运行
+- **Nginx 安全头** — `X-Content-Type-Options`、`X-Frame-Options: DENY`、`Referrer-Policy`、`Content-Security-Policy`
 
 ## 项目结构
 

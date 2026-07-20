@@ -672,5 +672,11 @@
     "title": "Page not found",
     "desc": "The page you requested does not exist.",
     "back": "Back to home"
+  },
+  "error_boundary": {
+    "title": "Something went wrong",
+    "message": "An unexpected error occurred. Please try reloading the page.",
+    "reload": "Reload",
+    "go_home": "Go Home"
   }
 }

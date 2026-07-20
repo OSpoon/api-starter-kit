@@ -121,7 +121,7 @@ test.group('auth api', (group) => {
     })
 
     locked.assertStatus(401)
-    locked.assertBodyContains({ message: '邮箱或密码错误' })
+    locked.assertBodyContains({ code: 'E_AUTH_INVALID_CREDENTIALS' })
   })
 
   test('allows login with a password changed through the profile endpoint', async ({ client }) => {

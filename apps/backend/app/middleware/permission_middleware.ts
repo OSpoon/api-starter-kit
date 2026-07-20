@@ -10,7 +10,10 @@ export default class PermissionMiddleware {
     )
 
     if (!allowed.some(Boolean)) {
-      return ctx.response.forbidden({ message: '当前账号没有执行此操作的权限' })
+      return ctx.response.forbidden({
+        code: 'E_AUTH_UNAUTHORIZED',
+        message: 'Insufficient permissions',
+      })
     }
 
     return next()

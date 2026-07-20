@@ -7,8 +7,8 @@ export type ScannedRoutes = {
     'openapi.html': { paramsTuple?: []; params?: {} }
     'openapi.json': { paramsTuple?: []; params?: {} }
     'openapi.yaml': { paramsTuple?: []; params?: {} }
-    'auth.new_account.store': { paramsTuple?: []; params?: {} }
-    'auth.access_tokens.store': { paramsTuple?: []; params?: {} }
+    'auth.signup': { paramsTuple?: []; params?: {} }
+    'auth.login': { paramsTuple?: []; params?: {} }
     'auth.2fa.verify': { paramsTuple?: []; params?: {} }
     'profile.profile.show': { paramsTuple?: []; params?: {} }
     'profile.profile.change_password': { paramsTuple?: []; params?: {} }
@@ -74,8 +74,8 @@ export type ScannedRoutes = {
     'ai_chat.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
   }
   POST: {
-    'auth.new_account.store': { paramsTuple?: []; params?: {} }
-    'auth.access_tokens.store': { paramsTuple?: []; params?: {} }
+    'auth.signup': { paramsTuple?: []; params?: {} }
+    'auth.login': { paramsTuple?: []; params?: {} }
     'auth.2fa.verify': { paramsTuple?: []; params?: {} }
     'profile.2fa.generate': { paramsTuple?: []; params?: {} }
     'profile.2fa.enable': { paramsTuple?: []; params?: {} }

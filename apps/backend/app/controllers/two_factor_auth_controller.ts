@@ -96,10 +96,17 @@ export default class TwoFactorAuthController {
       return response.unauthorized({ message: '用户不存在或未启用 2FA' })
     }
 
-    const { valid } = await verify({ token: payload.code, secret })
+    let totpValid = false
+    try {
+      const result = await verify({ token: payload.code, secret })
+      totpValid = result.valid
+    } catch {
+      // Token is not a valid TOTP format (e.g., a recovery code) — fall through
+      // to recovery code check below.
+    }
     let isRecovery = false
 
-    if (!valid && user.twoFactorRecoveryCodes) {
+    if (!totpValid && user.twoFactorRecoveryCodes) {
       const recoveryCodes = decryptRecoveryCodes(user.twoFactorRecoveryCodes)
       if (recoveryCodes.includes(payload.code)) {
         isRecovery = true
@@ -110,7 +117,7 @@ export default class TwoFactorAuthController {
       }
     }
 
-    if (!valid && !isRecovery) {
+    if (!totpValid && !isRecovery) {
       return response.unauthorized({ message: '验证码无效' })
     }
 

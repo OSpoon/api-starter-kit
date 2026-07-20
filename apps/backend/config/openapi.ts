@@ -11,7 +11,7 @@ export default defineConfig({
     },
     servers: [
       {
-        url: '/api/v1',
+        url: '/',
         description: '当前版本 API',
       },
     ],

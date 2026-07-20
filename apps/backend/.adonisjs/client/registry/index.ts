@@ -24,17 +24,17 @@ const routes = {
     tokens: [{"old":"/api-docs.yaml","type":0,"val":"api-docs.yaml","end":""}],
     types: placeholder as Registry['openapi.yaml']['types'],
   },
-  'auth.new_account.store': {
+  'auth.signup': {
     methods: ["POST"],
     pattern: '/api/v1/auth/signup',
     tokens: [{"old":"/api/v1/auth/signup","type":0,"val":"api","end":""},{"old":"/api/v1/auth/signup","type":0,"val":"v1","end":""},{"old":"/api/v1/auth/signup","type":0,"val":"auth","end":""},{"old":"/api/v1/auth/signup","type":0,"val":"signup","end":""}],
-    types: placeholder as Registry['auth.new_account.store']['types'],
+    types: placeholder as Registry['auth.signup']['types'],
   },
-  'auth.access_tokens.store': {
+  'auth.login': {
     methods: ["POST"],
     pattern: '/api/v1/auth/login',
     tokens: [{"old":"/api/v1/auth/login","type":0,"val":"api","end":""},{"old":"/api/v1/auth/login","type":0,"val":"v1","end":""},{"old":"/api/v1/auth/login","type":0,"val":"auth","end":""},{"old":"/api/v1/auth/login","type":0,"val":"login","end":""}],
-    types: placeholder as Registry['auth.access_tokens.store']['types'],
+    types: placeholder as Registry['auth.login']['types'],
   },
   'auth.2fa.verify': {
     methods: ["POST"],

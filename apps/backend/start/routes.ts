@@ -1,4 +1,5 @@
 import router from '@adonisjs/core/services/router'
+import db from '@adonisjs/lucid/services/db'
 import openapi from '@foadonis/openapi/services/main'
 
 import { controllers } from '#generated/controllers'
@@ -13,23 +14,46 @@ const TwoFactorAuthController = () => import('#controllers/two_factor_auth_contr
 const UsersController = () => import('#controllers/users_controller')
 
 router.get('/api/v1/health', () => {
-  return {
-    status: 'ok',
-  }
+  return { status: 'ok' }
 })
 
-openapi.registerRoutes('/api-docs')
+router.get('/api/v1/health/ready', async ({ response }) => {
+  const checks: Record<string, string> = {}
+  let healthy = true
+
+  try {
+    await db.rawQuery('SELECT 1')
+    checks.database = 'ok'
+  } catch {
+    checks.database = 'error'
+    healthy = false
+  }
+
+  checks.ai = process.env.AI_OPENAI_API_KEY ? 'configured' : 'not_configured'
+
+  if (!healthy) {
+    return response.status(503).send({ status: 'error', checks })
+  }
+  return { status: 'ok', checks }
+})
+
+// OpenAPI docs (Scalar UI) are served directly by the backend on its own port.
+// Enable via OPENAPI_DOCS_ENABLED=true; the route is not registered when disabled.
+if (process.env.OPENAPI_DOCS_ENABLED === 'true') {
+  openapi.registerRoutes('/api-docs')
+}
 
 router
   .group(() => {
     router
       .group(() => {
-        router.post('signup', [controllers.NewAccount, 'store'])
-        router.post('login', [controllers.AccessTokens, 'store'])
+        router.post('signup', [controllers.NewAccount, 'store']).as('signup')
+        router.post('login', [controllers.AccessTokens, 'store']).as('login')
         router.post('2fa/verify', [TwoFactorAuthController, 'verify']).as('2fa.verify')
       })
       .prefix('auth')
       .as('auth')
+      .use(middleware.throttle({ max: 10, windowSeconds: 60, key: 'ip' }))
 
     router
       .group(() => {
@@ -43,6 +67,7 @@ router
       .prefix('account')
       .as('profile')
       .use(middleware.auth())
+      .use(middleware.throttle({ max: 30, windowSeconds: 60, key: 'user' }))
 
     router
       .get('api-keys', [ApiKeysController, 'index'])
@@ -125,5 +150,6 @@ router
       })
       .prefix('ai-chat')
       .use(middleware.auth())
+      .use(middleware.throttle({ max: 20, windowSeconds: 60, key: 'user' }))
   })
   .prefix('/api/v1')

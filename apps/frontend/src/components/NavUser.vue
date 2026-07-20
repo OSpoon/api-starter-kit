@@ -33,6 +33,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from '@/components/ui/sidebar'
+import { loadLocaleMessages } from '@/i18n'
 import { setStoredLocale } from '@/lib/browser-preferences'
 import { modalLayerVersion } from '@/lib/focus'
 
@@ -54,6 +55,7 @@ const route = useRoute()
 const { t, locale } = useI18n()
 const menuOpen = ref(false)
 const colorMode = useColorMode({ attribute: 'class' })
+const apiDocsUrl = import.meta.env.VITE_API_DOCS_URL || ''
 
 watch(
   () => route.path,
@@ -79,7 +81,12 @@ function navigateTo(path: string) {
 
 function openApiDocs() {
   menuOpen.value = false
-  window.location.assign('/api-docs')
+  // API docs are served directly by the backend, not proxied through the
+  // frontend. Open in a new tab to avoid leaving the SPA.
+  const docsUrl = import.meta.env.VITE_API_DOCS_URL
+  if (docsUrl) {
+    window.open(docsUrl, '_blank', 'noopener,noreferrer')
+  }
 }
 
 function handleLogout() {
@@ -88,7 +95,8 @@ function handleLogout() {
   toast.success(t('auth.logout_success'))
 }
 
-function setLocale(newLocale: string) {
+async function setLocale(newLocale: string) {
+  await loadLocaleMessages(newLocale)
   locale.value = newLocale
   setStoredLocale(newLocale)
   toast.success(t('nav.language_switched'))
@@ -106,10 +114,7 @@ function setTheme(mode: 'light' | 'dark' | 'auto') {
         <DropdownMenuTrigger as-child>
           <SidebarMenuButton
             size="lg"
-            class="
-              data-[state=open]:bg-sidebar-accent
-              data-[state=open]:text-sidebar-accent-foreground
-            "
+            class="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
           >
             <Avatar class="size-8 rounded-lg">
               <AvatarImage v-if="user.avatar" :src="user.avatar" :alt="user.name" />
@@ -156,7 +161,7 @@ function setTheme(mode: 'light' | 'dark' | 'auto') {
                 <span>{{ t('nav.help') }}</span>
               </DropdownMenuSubTrigger>
               <DropdownMenuSubContent>
-                <DropdownMenuItem @click="openApiDocs">
+                <DropdownMenuItem v-if="apiDocsUrl" @click="openApiDocs">
                   <BookOpenText />
                   {{ t('nav.api_docs') }}
                 </DropdownMenuItem>

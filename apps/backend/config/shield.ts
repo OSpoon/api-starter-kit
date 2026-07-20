@@ -9,15 +9,42 @@ const shieldConfig = defineConfig({
     /**
      * Enable the Content-Security-Policy header.
      */
-    enabled: false,
+    enabled: true,
 
     /**
      * Per-resource CSP directives.
+     * - 'self' for scripts, styles, images, fonts, connect.
+     * - 'unsafe-inline' for styles (shadcn-vue/Tailwind require inline styles).
+     * - 'unsafe-inline' for scripts is NOT included; use nonces/hashes if needed.
+     * - cdn.jsdelivr.net / fonts.googleapis.com / fonts.gstatic.com
+     *   proxy.scalar.com / api.scalar.com are for the Scalar OpenAPI docs UI
+     *   (the only HTML the backend serves). API endpoints return JSON, so CSP
+     *   does not affect them.
      */
-    directives: {},
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", 'https://cdn.jsdelivr.net'],
+      styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+      imgSrc: ["'self'", 'data:', 'blob:'],
+      // Scalar may load webfonts from various CDNs; fonts are non-executable
+      // and the backend only serves HTML for the docs page (API returns JSON),
+      // so allowing any HTTPS font source is safe here.
+      fontSrc: ["'self'", 'data:', 'https:'],
+      connectSrc: [
+        "'self'",
+        'https://proxy.scalar.com',
+        'https://api.scalar.com',
+        'https://cdn.jsdelivr.net',
+      ],
+      frameAncestors: ["'none'"],
+      baseUri: ["'self'"],
+      formAction: ["'self'"],
+      objectSrc: ["'none'"],
+    },
 
     /**
-     * Report violations without blocking resources.
+     * Report violations without blocking resources during development.
+     * Set to false in production to enforce the policy.
      */
     reportOnly: false,
   },

@@ -8,12 +8,8 @@ export interface ApiDefinition {
     yaml: typeof routes['openapi.yaml']
   }
   auth: {
-    newAccount: {
-      store: typeof routes['auth.new_account.store']
-    }
-    accessTokens: {
-      store: typeof routes['auth.access_tokens.store']
-    }
+    signup: typeof routes['auth.signup']
+    login: typeof routes['auth.login']
     2Fa: {
       verify: typeof routes['auth.2fa.verify']
     }

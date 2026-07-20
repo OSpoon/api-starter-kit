@@ -18,7 +18,7 @@ Follow the repository-level `AGENTS.md` first. This file adds AdonisJS-specific 
 
 ## Authentication And Credentials
 
-- Password generation uses the shared credential service. Password disclosure is one-time and never appears in logs or later read endpoints.
+- Generated credentials (passwords, API keys) use the shared credential service. Only a non-reversible hash is persisted; the raw value is disclosed exactly once in the create response and never appears in logs or later read/list/update endpoints.
 - Password reset, 2FA disablement, API key revocation, account deletion, and other security-sensitive mutations require deliberate server-side checks.
 - A current user must not be able to remove the last protection that would lock all administrators out.
 

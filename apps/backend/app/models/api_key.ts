@@ -14,9 +14,6 @@ export default class ApiKey extends BaseModel {
   @column()
   declare keyHash: string
 
-  @column()
-  declare keyEncrypted: string | null
-
   @column.dateTime()
   declare lastUsedAt: DateTime | null
 

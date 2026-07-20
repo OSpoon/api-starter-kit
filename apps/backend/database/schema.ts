@@ -110,7 +110,6 @@ export class ApiKeySchema extends BaseModel {
     'createdAt',
     'expiresAt',
     'id',
-    'keyEncrypted',
     'keyHash',
     'lastUsedAt',
     'name',
@@ -127,8 +126,6 @@ export class ApiKeySchema extends BaseModel {
   declare expiresAt: DateTime | null
   @column({ isPrimary: true })
   declare id: number
-  @column()
-  declare keyEncrypted: string | null
   @column()
   declare keyHash: string
   @column.dateTime()

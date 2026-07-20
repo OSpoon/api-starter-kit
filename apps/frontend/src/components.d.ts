@@ -25,6 +25,7 @@ declare module 'vue' {
     DataTable: typeof import('./components/common/DataTable.vue')['default']
     DescriptionActionRow: typeof import('./components/common/DescriptionActionRow.vue')['default']
     DetailPageTemplate: typeof import('./components/templates/DetailPageTemplate.vue')['default']
+    ErrorBoundary: typeof import('./components/common/ErrorBoundary.vue')['default']
     FormDialogContent: typeof import('./components/common/FormDialogContent.vue')['default']
     FormDialogFooter: typeof import('./components/common/FormDialogFooter.vue')['default']
     JsonSchemaEditor: typeof import('./components/json-schema/components/JsonSchemaEditor.vue')['default']

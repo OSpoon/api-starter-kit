@@ -43,7 +43,7 @@ export interface Registry {
       errorResponse: unknown
     }
   }
-  'auth.new_account.store': {
+  'auth.signup': {
     methods: ["POST"]
     pattern: '/api/v1/auth/signup'
     types: {
@@ -55,7 +55,7 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/new_account_controller').default['store']>>>
     }
   }
-  'auth.access_tokens.store': {
+  'auth.login': {
     methods: ["POST"]
     pattern: '/api/v1/auth/login'
     types: {

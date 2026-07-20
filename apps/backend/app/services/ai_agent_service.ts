@@ -83,6 +83,14 @@ function createSystemPrompt(context?: AiAgentPageContext) {
   return `${configuredPrompt}${pageContext}${items} Never generate client action markers such as [[action:...]]. Never claim that you performed a write action, received approval, or that a change will execute. Never ask the user to reply with approval or cancellation text. Server-side business tools are introduced only after they enforce their own permission and confirmation policy. If a permission check denies an operation, clearly state that the user lacks that permission and end the response; never propose a request, ask for confirmation, or instruct the user to seek a text-based approval. When a protected action needs approval, only the structured confirmation card supplied by the product can authorize it; if no card is present, state that no action is pending.`
 }
 
+function getRequestTimeout() {
+  return Math.min(Math.max(env.get('AI_REQUEST_TIMEOUT_MS') ?? 60_000, 5_000), 300_000)
+}
+
+function getMaxRetries() {
+  return Math.min(Math.max(env.get('AI_MAX_RETRIES') ?? 2, 0), 5)
+}
+
 function createModel() {
   return new ChatOpenAI({
     apiKey: env.get('AI_OPENAI_API_KEY') || 'no-key',
@@ -91,6 +99,8 @@ function createModel() {
     },
     model: getModel(),
     temperature: getTemperature(),
+    timeout: getRequestTimeout(),
+    maxRetries: getMaxRetries(),
   })
 }
 

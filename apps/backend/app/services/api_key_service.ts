@@ -1,24 +1,11 @@
 import crypto from 'node:crypto'
 
-import encryption from '@adonisjs/core/services/encryption'
 import { DateTime } from 'luxon'
 
 import ApiKey from '#models/api_key'
 
 export function hashApiKey(key: string) {
   return crypto.createHash('sha256').update(key).digest('hex')
-}
-
-export function decryptStoredKey(value: string | null) {
-  if (!value) {
-    return null
-  }
-
-  try {
-    return encryption.decrypt<string>(value)
-  } catch {
-    return null
-  }
 }
 
 export function resolveExpiresAt(payload: {
@@ -46,12 +33,11 @@ export function resolveExpiresAt(payload: {
   return null
 }
 
-export function serializeApiKey(key: ApiKey, options?: { includeSecret?: boolean }) {
+export function serializeApiKey(key: ApiKey) {
   return {
     id: key.id,
     name: key.name,
     prefix: key.prefix,
-    key: options?.includeSecret ? decryptStoredKey(key.keyEncrypted) : undefined,
     lastUsedAt: key.lastUsedAt,
     expiresAt: key.expiresAt,
     revokedAt: key.revokedAt,
@@ -86,7 +72,6 @@ export async function createApiKey(payload: {
     name: payload.name,
     prefix,
     keyHash: hashApiKey(secret),
-    keyEncrypted: encryption.encrypt(secret),
     expiresAt: resolveExpiresAt(payload),
   })
 

@@ -37,9 +37,39 @@ export default defineConfig({
         target: apiProxyTarget,
         changeOrigin: true,
       },
-      '/api-docs': {
-        target: apiProxyTarget,
-        changeOrigin: true,
+    },
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id: string) {
+          if (!id.includes('node_modules')) return undefined
+          if (id.includes('/vue/') || id.includes('vue-router') || id.includes('/pinia/')) {
+            return 'vue-vendor'
+          }
+          if (id.includes('vue-i18n')) return 'i18n-vendor'
+          if (
+            id.includes('reka-ui') ||
+            id.includes('@lucide/vue') ||
+            id.includes('class-variance-authority') ||
+            id.includes('clsx') ||
+            id.includes('tailwind-merge')
+          ) {
+            return 'ui-vendor'
+          }
+          if (
+            id.includes('vee-validate') ||
+            id.includes('@vee-validate') ||
+            id.includes('/zod/') ||
+            id.includes('/ajv/') ||
+            id.includes('ajv-formats')
+          ) {
+            return 'form-vendor'
+          }
+          if (id.includes('@tanstack/vue-table')) return 'table-vendor'
+          if (id.includes('markstream-vue')) return 'markdown-vendor'
+          return undefined
+        },
       },
     },
   },

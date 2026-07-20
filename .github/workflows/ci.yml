@@ -1,0 +1,89 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend:
+    name: Backend (typecheck, lint, test)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install
+        run: pnpm install --frozen-lockfile --ignore-scripts
+        working-directory: .
+
+      - name: Typecheck
+        run: pnpm --filter @api-starter-kit/backend typecheck
+
+      - name: Lint
+        run: pnpm --filter @api-starter-kit/backend lint:check
+
+      - name: Test
+        run: pnpm --filter @api-starter-kit/backend test
+        env:
+          NODE_ENV: test
+
+  frontend:
+    name: Frontend (type-check, lint, build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install
+        run: pnpm install --frozen-lockfile --ignore-scripts
+        working-directory: .
+
+      - name: Type-check
+        run: pnpm --filter frontend type-check
+
+      - name: Lint
+        run: pnpm --filter frontend lint:check
+
+      - name: Build
+        run: pnpm --filter frontend build
+
+  diff-check:
+    name: Git diff --check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for whitespace/conflict errors
+        run: git diff --check origin/main...HEAD

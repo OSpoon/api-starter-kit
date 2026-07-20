@@ -3,12 +3,7 @@ import { ApiOperation, ApiResponse, ApiSecurity } from '@foadonis/openapi/decora
 import { DateTime } from 'luxon'
 
 import ApiKey from '#models/api_key'
-import {
-  createApiKey,
-  decryptStoredKey,
-  resolveExpiresAt,
-  serializeApiKey,
-} from '#services/api_key_service'
+import { createApiKey, resolveExpiresAt, serializeApiKey } from '#services/api_key_service'
 import { clampLimit } from '#services/pagination'
 import { apiKeyValidator } from '#validators/api_key'
 
@@ -16,7 +11,7 @@ import { apiKeyValidator } from '#validators/api_key'
 export default class ApiKeysController {
   @ApiOperation({
     summary: '获取 API Key 列表',
-    description: '返回外部系统接入密钥列表。用于界面受控展示，原始 key 会按后端策略返回。',
+    description: '返回外部系统接入密钥列表。仅返回 prefix 和元数据，不暴露原始密钥。',
   })
   @ApiResponse({ status: 200, description: 'API Key 列表' })
   async index({ request, serialize }: HttpContext) {
@@ -25,10 +20,7 @@ export default class ApiKeysController {
       .orderBy('created_at', 'desc')
       .paginate(page, clampLimit(request.input('limit'), 20, 100))
     return serialize({
-      items: paginator.all().map((key) => ({
-        ...serializeApiKey(key),
-        key: decryptStoredKey(key.keyEncrypted),
-      })),
+      items: paginator.all().map((key) => serializeApiKey(key)),
       meta: paginator.getMeta(),
     })
   }

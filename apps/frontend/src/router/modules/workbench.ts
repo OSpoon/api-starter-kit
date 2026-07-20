@@ -20,6 +20,7 @@ export const workbenchRoutes: RouteRecordRaw[] = [
     children: [
       {
         path: '',
+        name: 'workbench-root',
         redirect: { name: 'dashboard' },
       },
       {

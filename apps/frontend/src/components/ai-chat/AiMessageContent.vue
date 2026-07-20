@@ -41,6 +41,7 @@ const isStreaming = computed(() => props.streaming || props.status === 'streamin
       :render-batch-size="16"
       :render-batch-delay="8"
       :render-batch-budget-ms="4"
+      html-policy="escape"
     />
   </div>
 </template>
