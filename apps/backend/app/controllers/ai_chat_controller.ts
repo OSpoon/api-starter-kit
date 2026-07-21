@@ -12,6 +12,7 @@ import {
 } from '#services/ai_agent_confirmation'
 import {
   createAiAgentStream,
+  getAiRequestTimeout,
   getContextCompressionOptions,
   summarizeAiConversation,
 } from '#services/ai_agent_service'
@@ -271,6 +272,7 @@ export default class AiChatController {
 
     let assistantContent = ''
     let agentRunId: string | null = null
+    const requestTimeout = setTimeout(() => abortController.abort(), getAiRequestTimeout())
 
     try {
       const persistedMessages = payload.regenerateAssistantMessageId
@@ -329,7 +331,16 @@ export default class AiChatController {
         signal: abortController.signal,
       })
       agentRunId = run.agentRunId
-      const toolStatusTask = streamAiAgentToolStatuses(run, response, abortController.signal)
+      let toolStatusError: unknown
+      const toolStatusTask = streamAiAgentToolStatuses(run, response, abortController.signal).catch(
+        (error: unknown) => {
+          // The tool-status iterator shares the Agent event stream with the
+          // message iterator. Handle its rejection immediately: waiting until
+          // after the message loop lets an unavailable LLM become an
+          // unhandled rejection and terminate the HTTP process.
+          toolStatusError = error
+        }
+      )
 
       for await (const message of run.stream.messages) {
         if (abortController.signal.aborted) {
@@ -345,6 +356,9 @@ export default class AiChatController {
         }
       }
       await toolStatusTask
+      if (toolStatusError) {
+        throw toolStatusError
+      }
 
       const assistantMessage = await AiChatMessage.create({
         conversationId: conversation.id,
@@ -383,6 +397,7 @@ export default class AiChatController {
         assistantMessage: serializeAiChatMessage(failedAssistantMessage),
       })
     } finally {
+      clearTimeout(requestTimeout)
       response.response.off('close', abortOnDisconnect)
       response.response.end()
     }

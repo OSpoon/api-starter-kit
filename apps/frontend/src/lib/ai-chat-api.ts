@@ -33,7 +33,11 @@ export interface AiChatConfirmation {
   targetSummary: Record<string, unknown>
   expiresAt: string | null
 }
-export interface AiChatCredentialDisclosure { kind: 'api_key' | 'password'; value: string; label: string }
+export interface AiChatCredentialDisclosure {
+  kind: 'api_key' | 'password'
+  value: string
+  label: string
+}
 
 export type AiChatPendingConfirmation = Omit<AiChatConfirmation, 'messageId'>
 
@@ -68,6 +72,11 @@ export interface AiChatStreamOptions {
   context?: AiChatPageContext
   regenerateAssistantMessageId?: number
 }
+
+// The backend limits a complete AI run to five minutes at most. Keep a small
+// client-side grace period so a proxy or a broken SSE connection cannot leave
+// the assistant in its loading state indefinitely.
+const AI_STREAM_TIMEOUT_MS = 305_000
 
 export interface AiChatAgentActivity {
   name: string
@@ -140,6 +149,18 @@ export async function streamAiChatMessage(
   onEvent: (event: AiChatStreamEvent) => void,
   options: AiChatStreamOptions = {}
 ) {
+  const requestController = new AbortController()
+  const abortFromCaller = () => requestController.abort(options.signal?.reason)
+  const timeout = setTimeout(() => {
+    requestController.abort(new DOMException('AI response timed out', 'TimeoutError'))
+  }, AI_STREAM_TIMEOUT_MS)
+
+  if (options.signal?.aborted) {
+    abortFromCaller()
+  } else {
+    options.signal?.addEventListener('abort', abortFromCaller, { once: true })
+  }
+
   const headers = new Headers({
     Accept: 'text/event-stream',
     'Content-Type': 'application/json',
@@ -149,58 +170,68 @@ export async function streamAiChatMessage(
     headers.set('Authorization', `Bearer ${token}`)
   }
 
-  const response = await fetch(`/api/v1/ai-chat/conversations/${id}/messages`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({
-      content,
-      context: options.context,
-      regenerateAssistantMessageId: options.regenerateAssistantMessageId,
-    }),
-    signal: options.signal,
-  })
+  try {
+    const response = await fetch(`/api/v1/ai-chat/conversations/${id}/messages`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        content,
+        context: options.context,
+        regenerateAssistantMessageId: options.regenerateAssistantMessageId,
+      }),
+      signal: requestController.signal,
+    })
 
-  if (!response.ok || !response.body) {
-    const payload = await response.json().catch(() => null)
-    throw new ApiError(payload?.message ?? 'AI request failed', response.status)
-  }
-
-  const reader = response.body.getReader()
-  const decoder = new TextDecoder()
-  let buffer = ''
-
-  function consumeEvent(raw: string) {
-    const lines = raw.split('\n')
-    const event = lines
-      .find((line) => line.startsWith('event:'))
-      ?.slice('event:'.length)
-      .trim()
-    const data = lines
-      .filter((line) => line.startsWith('data:'))
-      .map((line) => line.slice('data:'.length).trim())
-      .join('\n')
-
-    if (!event || !data) {
-      return
+    if (!response.ok || !response.body) {
+      const payload = await response.json().catch(() => null)
+      throw new ApiError(payload?.message ?? 'AI request failed', response.status)
     }
 
-    onEvent({ type: event, ...JSON.parse(data) } as AiChatStreamEvent)
-  }
+    const reader = response.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+    let receivedTerminalEvent = false
 
-  while (true) {
-    const { done, value } = await reader.read()
-    buffer += decoder.decode(value, { stream: !done })
+    function consumeEvent(raw: string) {
+      const lines = raw.split('\n')
+      const event = lines
+        .find((line) => line.startsWith('event:'))
+        ?.slice('event:'.length)
+        .trim()
+      const data = lines
+        .filter((line) => line.startsWith('data:'))
+        .map((line) => line.slice('data:'.length).trim())
+        .join('\n')
 
-    const events = buffer.split('\n\n')
-    buffer = events.pop() ?? ''
-    events.forEach(consumeEvent)
-
-    if (done) {
-      if (buffer.trim()) {
-        consumeEvent(buffer)
+      if (!event || !data) {
+        return
       }
-      break
+
+      receivedTerminalEvent ||= event === 'done' || event === 'error'
+      onEvent({ type: event, ...JSON.parse(data) } as AiChatStreamEvent)
     }
+
+    while (true) {
+      const { done, value } = await reader.read()
+      buffer += decoder.decode(value, { stream: !done })
+
+      const events = buffer.split('\n\n')
+      buffer = events.pop() ?? ''
+      events.forEach(consumeEvent)
+
+      if (done) {
+        if (buffer.trim()) {
+          consumeEvent(buffer)
+        }
+        if (!receivedTerminalEvent) {
+          throw new Error('AI response ended before completion')
+        }
+        break
+      }
+    }
+  } finally {
+    clearTimeout(timeout)
+    options.signal?.removeEventListener('abort', abortFromCaller)
   }
 }
 
@@ -217,12 +248,11 @@ export async function confirmAiAgentAction(
   conversationId: number,
   confirmationId: number
 ) {
-  const response = await apiRequest<Omit<AiChatConfirmation, 'messageId'> & { result?: { credential?: AiChatCredentialDisclosure } }>(
-    `/api/v1/ai-chat/conversations/${conversationId}/confirmations/${confirmationId}/confirm`,
-    {
-      ...authOptions(token),
-      method: 'POST',
-    }
-  )
+  const response = await apiRequest<
+    Omit<AiChatConfirmation, 'messageId'> & { result?: { credential?: AiChatCredentialDisclosure } }
+  >(`/api/v1/ai-chat/conversations/${conversationId}/confirmations/${confirmationId}/confirm`, {
+    ...authOptions(token),
+    method: 'POST',
+  })
   return readItem(response)
 }

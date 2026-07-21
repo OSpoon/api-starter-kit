@@ -279,7 +279,7 @@ docker compose up -d
 - 生产错误响应脱敏，不暴露 SQL、堆栈和内部异常细节
 - **限流** — 登录/2FA 端点按 IP 限流（10 次/分钟），账户操作和 AI 对话按用户限流
 - **CSP** — 后端 Shield 中间件和 Nginx 均设置 Content-Security-Policy，`default-src 'self'`，`object-src 'none'`，SPA 与 API 响应均受保护
-- **AI 超时与重试** — AI 模型调用配置 `AI_REQUEST_TIMEOUT_MS`（默认 60s）和 `AI_MAX_RETRIES`（默认 2）
+- **AI 超时与重试** — AI 模型调用配置 `AI_REQUEST_TIMEOUT_MS`（默认 60s）和 `AI_MAX_RETRIES`（默认 2）；该超时同时限制完整流式会话，防止上游卡住时请求无限等待
 - **AI 输出 XSS 防护** — 前端 Markdown 渲染器 `html-policy="escape"`，完全转义 raw HTML
 - **容器非 root** — Docker 后端镜像以 `node` 用户运行
 - **Nginx 安全头** — `X-Content-Type-Options`、`X-Frame-Options: DENY`、`Referrer-Policy`、`Content-Security-Policy`

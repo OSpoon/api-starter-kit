@@ -8,6 +8,7 @@ import {
   Minus,
   RotateCcw,
   Send,
+  ShieldCheck,
   Sparkles,
   Square,
   Trash2,
@@ -27,7 +28,12 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Textarea } from '@/components/ui/textarea'
-import type { AiChatAgentActivity, AiChatClientAction, AiChatConfirmation, AiChatCredentialDisclosure } from '@/lib/ai-chat-api'
+import type {
+  AiChatAgentActivity,
+  AiChatClientAction,
+  AiChatConfirmation,
+  AiChatCredentialDisclosure,
+} from '@/lib/ai-chat-api'
 
 type ChatRole = 'assistant' | 'user'
 type ChatMessageStatus = AiMessageContentStatus
@@ -595,14 +601,25 @@ onUnmounted(() => {
       </div>
 
       <div class="p-3 pt-0">
-        <div v-if="credentialDisclosure" class="mb-2 rounded-md border bg-muted/60 px-2.5 py-2 text-xs">
-          <p class="font-medium">{{ credentialDisclosure.label }}</p><code class="mt-1 block break-all">{{ credentialDisclosure.value }}</code>
-          <Button size="sm" variant="ghost" class="mt-1 h-7 px-2" @click="emit('dismissCredential')">{{ t('common.close') }}</Button>
+        <div
+          v-if="credentialDisclosure"
+          class="mb-2 rounded-md border bg-muted/60 px-2.5 py-2 text-xs"
+        >
+          <p class="font-medium">{{ credentialDisclosure.label }}</p>
+          <code class="mt-1 block break-all">{{ credentialDisclosure.value }}</code>
+          <Button
+            size="sm"
+            variant="ghost"
+            class="mt-1 h-7 px-2"
+            @click="emit('dismissCredential')"
+            >{{ t('common.close') }}</Button
+          >
         </div>
         <div
           v-if="approval"
           class="mb-2 flex items-center gap-2 rounded-md border bg-muted/60 px-2.5 py-2 text-xs"
         >
+          <ShieldCheck class="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
           <p class="min-w-0 flex-1 truncate text-muted-foreground">
             {{
               t('ai_chat.approval.pending', {
