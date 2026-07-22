@@ -9,6 +9,7 @@
     "node": ">=24.12.0"
   },
   "scripts": {
+    "docker:up": "node scripts/docker-up.mjs",
     "dev": "turbo dev",
     "build": "turbo build",
     "test": "turbo test",

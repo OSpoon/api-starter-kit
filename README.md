@@ -39,8 +39,7 @@
 
 - Node.js `>= 24.12.0`
 - pnpm `11.9.0`
-- Docker / Docker Compose (可选)
-- PostgreSQL 15
+- Docker / Docker Compose
 
 ### 1. 安装依赖
 
@@ -67,10 +66,10 @@ pnpm --dir apps/backend exec node ace generate:key --show
 APP_KEY=<generated-app-key>
 ```
 
-### 3. 启动 PostgreSQL（可选启动 Ollama）
+### 3. 启动本地服务
 
 ```bash
-docker compose up -d postgres
+pnpm docker:up
 ```
 
 AI 助手默认配置指向本机 Ollama 的 OpenAI 兼容地址。Ollama 不会随默认 Compose 启动，也不会自动拉取模型。需要本地模型时，按需启动并手动拉取：
