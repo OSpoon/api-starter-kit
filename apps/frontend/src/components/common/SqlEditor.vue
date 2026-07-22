@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { EditorView } from '@codemirror/view'
-import { Braces, CheckCircle2, Eraser } from '@lucide/vue'
+import { Braces, CheckCircle2, CircleAlert, Eraser } from '@lucide/vue'
 import { format, type FormatOptionsWithLanguage } from 'sql-formatter'
 
 import { Button } from '@/components/ui/button'
@@ -206,7 +206,7 @@ defineExpose({ formatSql, validateSql, insertVariable, focusVariable, validate: 
 <template>
   <div
     class="group flex h-full min-h-[380px] flex-col overflow-hidden rounded-md border border-border bg-card font-mono text-sm text-card-foreground shadow-inner transition-colors duration-200"
-    :class="[{ 'min-h-[150px]': hideToolbar, 'border-destructive/60': syntaxError }]"
+    :class="{ 'min-h-[150px]': hideToolbar }"
   >
     <div
       v-if="!hideToolbar"
@@ -307,21 +307,6 @@ defineExpose({ formatSql, validateSql, insertVariable, focusVariable, validate: 
         @update:model-value="emit('update:modelValue', $event)"
         @mount="onEditorMount"
       />
-      <Transition
-        enter-active-class="transition duration-200 ease-out"
-        enter-from-class="translate-y-2 opacity-0"
-        enter-to-class="translate-y-0 opacity-100"
-        leave-active-class="transition duration-150 ease-in"
-        leave-from-class="translate-y-0 opacity-100"
-        leave-to-class="translate-y-1 opacity-0"
-      >
-        <p
-          v-if="syntaxError"
-          class="absolute inset-x-2 bottom-2 z-50 rounded border border-destructive/20 bg-destructive/10 p-2 text-[11px] text-destructive shadow-xl"
-        >
-          {{ syntaxError }}
-        </p>
-      </Transition>
       <div
         v-if="!modelValue && !readonly"
         class="pointer-events-none absolute inset-0 flex items-center justify-center opacity-20"
@@ -334,9 +319,13 @@ defineExpose({ formatSql, validateSql, insertVariable, focusVariable, validate: 
     </div>
     <div
       v-if="!hideToolbar"
-      class="flex h-6 items-center justify-between border-t border-border bg-muted/50 px-2 text-[10px] text-muted-foreground"
+      class="flex min-h-6 items-center justify-between border-t border-border bg-muted/50 px-2 text-[10px] text-muted-foreground"
+      :class="{ 'border-destructive/30 bg-destructive/5': syntaxError }"
     >
-      <div class="flex items-center gap-3">
+      <div class="flex min-w-0 items-center gap-3">
+        <span v-if="syntaxError" class="flex min-w-0 items-center gap-1 text-destructive"
+          ><CircleAlert class="size-3 shrink-0" /><span class="truncate">{{ syntaxError }}</span></span
+        >
         <span v-if="schemaSynced && schema.length" class="flex items-center gap-1"
           ><CheckCircle2 class="size-3 text-chart-3" />{{ t('sql_editor.schema_sync') }}</span
         ><span v-if="variables.length" class="flex items-center gap-1"
