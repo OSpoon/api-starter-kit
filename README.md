@@ -19,7 +19,7 @@
 - **模板中心** — 概览、详情、设置、列表管理、任务流转、数据分析、分步引导与操作模式示例
 - **AI 助手** — OpenAI SDK 兼容、流式多轮对话、历史会话、可配置系统提示词与安全页面上下文
 - **国际化** — 中文和英文文案
-- **Docker 部署** — 多阶段构建，Nginx + PostgreSQL
+- **Docker 部署** — 多阶段构建，Nginx + 支持 pgvector 的 PostgreSQL 15
 - **Monorepo 工程** — pnpm workspace + Turborepo + ESLint + Prettier
 
 ## 目录
@@ -251,7 +251,7 @@ docker compose up -d
 
 生产 Compose 行为：
 
-- 启动 PostgreSQL
+- 启动支持 pgvector 的 PostgreSQL 15（向量表迁移需启用 `vector` 扩展）
 - 不强制启动 Ollama；启用 `ollama` profile 后由用户自行拉取模型
 - 后端启动前自动执行数据库迁移
 - 前端由 Nginx 提供静态资源

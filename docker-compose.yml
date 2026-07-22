@@ -13,7 +13,7 @@ services:
       retries: 20
 
   postgres:
-    image: postgres:15
+    image: pgvector/pgvector:pg15
     env_file:
       - apps/backend/.env
     command:
