@@ -10,6 +10,7 @@ import {
   LogOut,
   Monitor,
   Moon,
+  SquareCode,
   Sun,
 } from '@lucide/vue'
 import { toast } from 'vue-sonner'
@@ -168,6 +169,10 @@ function setTheme(mode: 'light' | 'dark' | 'auto') {
                 <DropdownMenuItem @click="navigateTo('/schema-builder')">
                   <FileJson />
                   {{ t('nav.schema_builder') }}
+                </DropdownMenuItem>
+                <DropdownMenuItem @click="navigateTo('/sql-editor')">
+                  <SquareCode />
+                  {{ t('nav.sql_editor') }}
                 </DropdownMenuItem>
               </DropdownMenuSubContent>
             </DropdownMenuSub>

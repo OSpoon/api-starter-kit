@@ -83,7 +83,8 @@
     "permissions": "权限目录",
     "audit_logs": "审计日志",
     "profile": "个人资料",
-    "schema_builder": "Schema 构建器"
+    "schema_builder": "Schema 构建器",
+    "sql_editor": "SQL 编辑器"
   },
   "nav": {
     "account": "账户",
@@ -92,6 +93,7 @@
     "language": "语言",
     "language_switched": "语言已切换",
     "schema_builder": "Schema 构建器",
+    "sql_editor": "SQL 编辑器",
     "theme": "主题",
     "theme_light": "浅色",
     "theme_dark": "深色",
@@ -591,6 +593,39 @@
     "typeValidationErrorPositive": "值必须为正数。",
     "schemaDemoTitle": "JSON Schema 构建器",
     "schemaDemoDescription": "可视化创建和编辑 JSON Schema 定义。可在可视化编辑器和原始 JSON 视图之间切换。"
+  },
+  "sql_editor": {
+    "title": "SQL 模板",
+    "description": "使用动态参数占位符编写 SQL 模板。",
+    "variables": "变量：",
+    "schema_sync": "Schema 已同步",
+    "schema_demo_title": "Schema 补全演示",
+    "schema_demo_description": "本页传入了 users、role_user 和 roles 的静态元数据。尝试输入表名或 users. 查看表与字段补全；接入产品时，将已同步的数据库元数据传入 schema 即可。",
+    "dialect_label": "方言",
+    "dialects": {
+      "standard": "标准 SQL",
+      "mysql": "MySQL",
+      "mariadb": "MariaDB",
+      "postgresql": "PostgreSQL",
+      "sqlite": "SQLite"
+    },
+    "var_count": "{count} 个变量",
+    "powered_by": "由 CodeMirror 6 驱动",
+    "empty": "输入 SQL 或使用模板变量",
+    "actions": {
+      "format": "格式化 SQL",
+      "clear": "清空"
+    },
+    "validation": {
+      "full_width": "在 SQL 字符串外检测到全角标点符号，请切换至英文输入法。",
+      "format_failed": "无法格式化当前 SQL 模板。",
+      "invalid_sql": "SQL 语法不完整，无法解析。",
+      "invalid-variable": "变量名只能包含字母、数字和下划线，且不能以数字开头。",
+      "unclosed-variable": "模板变量缺少闭合花括号。",
+      "unexpected-variable-close": "模板变量出现了没有对应左花括号的闭合花括号。",
+      "unclosed-parenthesis": "存在未闭合的圆括号。",
+      "unexpected-closing-parenthesis": "存在没有对应左括号的右圆括号。"
+    }
   },
   "analytics": {
     "title": "运营分析",

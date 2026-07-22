@@ -152,6 +152,12 @@ export const workbenchRoutes: RouteRecordRaw[] = [
         component: () => import('@/views/SchemaBuilderDemo.vue'),
         meta: { title: 'sidebar.schema_builder', pageKind: 'utility' },
       },
+      {
+        path: 'sql-editor',
+        name: 'sql-editor',
+        component: () => import('@/views/SqlEditorDemo.vue'),
+        meta: { title: 'sidebar.sql_editor', pageKind: 'utility' },
+      },
     ],
   },
 ]

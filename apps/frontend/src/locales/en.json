@@ -83,7 +83,8 @@
     "permissions": "Permission catalog",
     "audit_logs": "Audit logs",
     "profile": "Profile",
-    "schema_builder": "Schema Builder"
+    "schema_builder": "Schema Builder",
+    "sql_editor": "SQL Editor"
   },
   "nav": {
     "account": "Account",
@@ -92,6 +93,7 @@
     "language": "Language",
     "language_switched": "Language switched",
     "schema_builder": "Schema Builder",
+    "sql_editor": "SQL Editor",
     "theme": "Theme",
     "theme_light": "Light",
     "theme_dark": "Dark",
@@ -591,6 +593,39 @@
     "typeValidationErrorPositive": "Value must be positive.",
     "schemaDemoTitle": "JSON Schema Builder",
     "schemaDemoDescription": "Visual editor for creating and editing JSON Schema definitions. Switch between the visual editor and raw JSON views."
+  },
+  "sql_editor": {
+    "title": "SQL template",
+    "description": "Use dynamic parameter placeholders in your SQL template.",
+    "variables": "Variables:",
+    "schema_sync": "Schema Sync",
+    "schema_demo_title": "Schema completion demo",
+    "schema_demo_description": "This page provides static metadata for users, role_user, and roles. Type a table name or users. to see table and column completions; provide synchronized database metadata through schema in production.",
+    "dialect_label": "Dialect",
+    "dialects": {
+      "standard": "Standard SQL",
+      "mysql": "MySQL",
+      "mariadb": "MariaDB",
+      "postgresql": "PostgreSQL",
+      "sqlite": "SQLite"
+    },
+    "var_count": "{count} Vars",
+    "powered_by": "Powered by CodeMirror 6",
+    "empty": "Enter SQL or use a template variable",
+    "actions": {
+      "format": "Format SQL",
+      "clear": "Clear"
+    },
+    "validation": {
+      "full_width": "Full-width punctuation was detected outside a SQL string. Switch to an English input method.",
+      "format_failed": "The SQL template could not be formatted.",
+      "invalid_sql": "The SQL syntax is incomplete and could not be parsed.",
+      "invalid-variable": "Template variable names must use letters, numbers, and underscores, and cannot start with a number.",
+      "unclosed-variable": "A template variable is missing its closing braces.",
+      "unexpected-variable-close": "A template variable has closing braces without an opening pair.",
+      "unclosed-parenthesis": "An opening parenthesis is missing its closing parenthesis.",
+      "unexpected-closing-parenthesis": "A closing parenthesis has no matching opening parenthesis."
+    }
   },
   "analytics": {
     "title": "Operations analytics",
