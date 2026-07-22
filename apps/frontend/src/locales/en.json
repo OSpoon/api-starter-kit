@@ -112,6 +112,7 @@
     "minimize": "Minimize",
     "copy_message": "Copy message",
     "retry_message": "Regenerate",
+    "refresh_suggestions": "Show different suggestions",
     "activities": {
       "diagnose_my_access": {
         "running": "Checking your permissions…",
@@ -147,9 +148,28 @@
       "success": "API key revoked"
     },
     "approval": {
-      "pending": "Approval requested · Revoke API key “{target}”",
       "approve": "Approve",
-      "cancel": "Cancel"
+      "cancel": "Cancel",
+      "target": "Affected item: {target}",
+      "destructive_impact": "This may take effect immediately and cannot be undone. Permission and target state will be checked again before execution.",
+      "standard_impact": "Permission and target state will be checked again before execution.",
+      "expires_at": "This confirmation expires at {time}.",
+      "actions": {
+        "revoke_api_key": "Revoke API key",
+        "create_api_key": "Create API key",
+        "reset_user_password": "Reset user password",
+        "disable_user": "Disable user",
+        "enable_user": "Enable user",
+        "update_user": "Update user",
+        "delete_user": "Delete user",
+        "create_role": "Create role",
+        "update_role": "Update role",
+        "delete_role": "Delete role",
+        "create_permission": "Create permission",
+        "update_permission": "Update permission",
+        "delete_permission": "Delete permission",
+        "generic": "System change"
+      }
     },
     "stop_generating": "Stop generating",
     "copy_success": "Message copied",
@@ -159,6 +179,30 @@
       "api_keys": "How do I manage API keys?",
       "openapi": "How do I view OpenAPI docs?",
       "schema": "What can the Schema Builder do?"
+    },
+    "tasks": {
+      "access": {
+        "check": "Check my current permissions"
+      },
+      "api_keys": {
+        "list": "List active API keys",
+        "create": "Create a new API key"
+      },
+      "users": {
+        "list": "List users and their roles",
+        "reset_password": "Reset a user's password"
+      },
+      "roles": {
+        "list": "List roles and their permissions",
+        "create": "Create a new role"
+      },
+      "permissions": {
+        "list": "List the permission catalog",
+        "create": "Create a new permission"
+      },
+      "audit_logs": {
+        "recent": "Show recent audit records"
+      }
     }
   },
   "dashboard": {

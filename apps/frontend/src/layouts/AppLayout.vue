@@ -26,6 +26,7 @@ import {
   streamAiChatMessage,
 } from '@/lib/ai-chat-api'
 import { getAiChatContextItems } from '@/lib/ai-chat-context'
+import { getAiChatSuggestions, pickRandomAiChatSuggestions } from '@/lib/ai-chat-suggestions'
 import { copyText } from '@/lib/clipboard'
 import { useAuthStore } from '@/stores/auth'
 import { useSettingsStore } from '@/stores/settings'
@@ -57,6 +58,7 @@ const aiConfirmations = ref<AiChatConfirmation[]>([])
 const aiConfirming = ref(false)
 const aiApprovalDismissed = ref(false)
 const aiCredentialDisclosure = ref<AiChatCredentialDisclosure | null>(null)
+const aiSuggestions = ref<string[]>([])
 
 type LocalAiChatMessage = {
   id: string
@@ -91,6 +93,26 @@ const breadcrumbs = computed(() => {
       to: index < matchedRoutes.length - 1 ? matched.path : undefined,
     })) satisfies Crumb[]
 })
+
+const allAiSuggestions = computed(() => {
+  return getAiChatSuggestions({
+    permissions: auth.user?.permissions,
+    routeName: route.name,
+    translate: t,
+  })
+})
+
+function refreshAiSuggestions() {
+  aiSuggestions.value = pickRandomAiChatSuggestions(allAiSuggestions.value, aiSuggestions.value)
+}
+
+watch(
+  allAiSuggestions,
+  () => {
+    aiSuggestions.value = pickRandomAiChatSuggestions(allAiSuggestions.value)
+  },
+  { immediate: true }
+)
 
 const aiPageContext = computed(() => {
   const lastMatched = [...route.matched].reverse().find((matched) => matched.meta.title)
@@ -450,6 +472,8 @@ onMounted(() => {
         :current-conversation-id="aiConversation?.id"
         :streaming-message-id="aiStreamingMessageId"
         :loading="aiLoading"
+        :suggestions="aiSuggestions"
+        :can-refresh-suggestions="allAiSuggestions.length > 3"
         :actions="aiActions"
         :approval="aiApprovalDismissed ? null : pendingAiConfirmation"
         :approval-loading="aiConfirming"
@@ -459,6 +483,7 @@ onMounted(() => {
         @delete-conversation="handleAiDeleteConversation"
         @retry-message="handleAiRetryMessage"
         @run-action="handleAiRunAction"
+        @refresh-suggestions="refreshAiSuggestions"
         @approve-confirmation="confirmAiConfirmation"
         @dismiss-confirmation="dismissAiConfirmation"
         @dismiss-credential="aiCredentialDisclosure = null"

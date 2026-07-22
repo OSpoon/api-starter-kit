@@ -6,6 +6,7 @@ import {
   MessageCircle,
   MessageCirclePlus,
   Minus,
+  RefreshCw,
   RotateCcw,
   Send,
   ShieldCheck,
@@ -34,6 +35,7 @@ import type {
   AiChatConfirmation,
   AiChatCredentialDisclosure,
 } from '@/lib/ai-chat-api'
+import { formatDateTime } from '@/lib/format'
 
 type ChatRole = 'assistant' | 'user'
 type ChatMessageStatus = AiMessageContentStatus
@@ -58,6 +60,7 @@ const props = withDefaults(
     placeholder?: string
     welcomeMessage?: string
     suggestions?: string[]
+    canRefreshSuggestions?: boolean
     messages?: ChatMessage[]
     conversations?: ChatConversation[]
     currentConversationId?: string | number | null
@@ -76,6 +79,7 @@ const props = withDefaults(
     placeholder: undefined,
     welcomeMessage: undefined,
     suggestions: undefined,
+    canRefreshSuggestions: false,
     messages: undefined,
     conversations: () => [],
     currentConversationId: null,
@@ -100,6 +104,7 @@ const emit = defineEmits<{
   retryMessage: [message: ChatMessage]
   stop: []
   runAction: [action: AiChatClientAction]
+  refreshSuggestions: []
   approveConfirmation: []
   dismissConfirmation: []
   dismissCredential: []
@@ -353,12 +358,28 @@ function getActivityLabel(activity: AiChatAgentActivity) {
 }
 
 function getApprovalTarget(approval: AiChatConfirmation) {
-  const name = approval.targetSummary.name
-  return typeof name === 'string' ? name : approval.targetId
+  const summary = approval.targetSummary
+  const name = summary.name
+  if (typeof name === 'string') return name
+
+  const fullName = summary.fullName
+  if (typeof fullName === 'string') return fullName
+
+  const code = summary.code
+  return typeof code === 'string' ? code : approval.targetId
+}
+
+function getApprovalActionLabel(approval: AiChatConfirmation) {
+  const key = `ai_chat.approval.actions.${approval.action}`
+  return te(key) ? t(key) : t('ai_chat.approval.actions.generic')
+}
+
+function isDestructiveApproval(approval: AiChatConfirmation) {
+  return /^(revoke_|delete_|disable_|reset_)/.test(approval.action)
 }
 
 function canCopyMessage(message: ChatMessage) {
-  return props.showMessageActions && message.content.trim().length > 0
+  return props.showMessageActions && message.id !== 'welcome' && message.content.trim().length > 0
 }
 
 function canRetryMessage(message: ChatMessage) {
@@ -581,23 +602,35 @@ onUnmounted(() => {
                 </div>
               </div>
             </div>
+            <div v-if="displayMessages.length <= 1" class="ml-[2.375rem] flex flex-wrap gap-2 pt-1">
+              <Button
+                v-for="suggestion in promptSuggestions"
+                :key="suggestion"
+                type="button"
+                variant="secondary"
+                size="sm"
+                class="h-7 rounded-md px-3 text-xs"
+                :disabled="loading || disabled"
+                @click="sendMessage(suggestion)"
+              >
+                {{ suggestion }}
+              </Button>
+              <Button
+                v-if="canRefreshSuggestions"
+                type="button"
+                variant="ghost"
+                size="icon"
+                class="size-7 text-muted-foreground"
+                :title="t('ai_chat.refresh_suggestions')"
+                :aria-label="t('ai_chat.refresh_suggestions')"
+                :disabled="loading || disabled"
+                @click="emit('refreshSuggestions')"
+              >
+                <RefreshCw class="size-3.5" />
+              </Button>
+            </div>
           </div>
         </ScrollArea>
-      </div>
-
-      <div v-if="displayMessages.length <= 1" class="flex flex-wrap gap-2 px-3 pb-2">
-        <Button
-          v-for="suggestion in promptSuggestions"
-          :key="suggestion"
-          type="button"
-          variant="secondary"
-          size="sm"
-          class="h-7 rounded-md px-3 text-xs"
-          :disabled="loading || disabled"
-          @click="sendMessage(suggestion)"
-        >
-          {{ suggestion }}
-        </Button>
       </div>
 
       <div class="p-3 pt-0">
@@ -615,38 +648,54 @@ onUnmounted(() => {
             >{{ t('common.close') }}</Button
           >
         </div>
-        <div
-          v-if="approval"
-          class="mb-2 flex items-center gap-2 rounded-md border bg-muted/60 px-2.5 py-2 text-xs"
-        >
-          <ShieldCheck class="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-          <p class="min-w-0 flex-1 truncate text-muted-foreground">
-            {{
-              t('ai_chat.approval.pending', {
-                target: getApprovalTarget(approval),
-              })
-            }}
-          </p>
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            class="h-7 shrink-0 px-2 text-xs"
-            :disabled="approvalLoading || disabled"
-            @click="emit('dismissConfirmation')"
-          >
-            {{ t('ai_chat.approval.cancel') }}
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            class="h-7 shrink-0 px-2 text-xs"
-            :disabled="approvalLoading || disabled"
-            @click="emit('approveConfirmation')"
-          >
-            {{ approvalLoading ? t('common.loading') : t('ai_chat.approval.approve') }}
-          </Button>
+        <div v-if="approval" class="mb-2 rounded-md border bg-muted/60 px-2.5 py-2 text-xs">
+          <div class="flex items-start gap-2">
+            <ShieldCheck class="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+            <div class="min-w-0 flex-1 space-y-1">
+              <p class="font-medium text-foreground">
+                {{ getApprovalActionLabel(approval) }}
+              </p>
+              <p class="break-words text-muted-foreground">
+                {{ t('ai_chat.approval.target', { target: getApprovalTarget(approval) }) }}
+              </p>
+              <p class="text-muted-foreground">
+                {{
+                  isDestructiveApproval(approval)
+                    ? t('ai_chat.approval.destructive_impact')
+                    : t('ai_chat.approval.standard_impact')
+                }}
+              </p>
+              <p v-if="approval.expiresAt" class="text-muted-foreground">
+                {{
+                  t('ai_chat.approval.expires_at', {
+                    time: formatDateTime(approval.expiresAt),
+                  })
+                }}
+              </p>
+            </div>
+          </div>
+          <div class="mt-2 flex justify-end gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              class="h-7 px-2 text-xs"
+              :disabled="approvalLoading || disabled"
+              @click="emit('dismissConfirmation')"
+            >
+              {{ t('ai_chat.approval.cancel') }}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              class="h-7 px-2 text-xs"
+              :disabled="approvalLoading || disabled"
+              @click="emit('approveConfirmation')"
+            >
+              {{ approvalLoading ? t('common.loading') : t('ai_chat.approval.approve') }}
+            </Button>
+          </div>
         </div>
         <form class="flex items-end gap-2" @submit.prevent="handleSubmit">
           <div class="relative flex-1">

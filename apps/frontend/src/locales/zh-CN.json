@@ -112,6 +112,7 @@
     "minimize": "最小化",
     "copy_message": "复制消息",
     "retry_message": "重新生成",
+    "refresh_suggestions": "换一批建议",
     "activities": {
       "diagnose_my_access": {
         "running": "正在检查我的权限…",
@@ -147,9 +148,28 @@
       "success": "API Key 已吊销"
     },
     "approval": {
-      "pending": "请求批准 · 吊销 API Key「{target}」",
       "approve": "批准",
-      "cancel": "取消"
+      "cancel": "取消",
+      "target": "影响对象：{target}",
+      "destructive_impact": "此操作可能立即生效且无法撤销；执行前会再次验证权限和对象状态。",
+      "standard_impact": "执行前会再次验证权限和对象状态。",
+      "expires_at": "此确认将在 {time} 过期。",
+      "actions": {
+        "revoke_api_key": "吊销 API Key",
+        "create_api_key": "创建 API Key",
+        "reset_user_password": "重置用户密码",
+        "disable_user": "停用用户",
+        "enable_user": "启用用户",
+        "update_user": "更新用户",
+        "delete_user": "删除用户",
+        "create_role": "创建角色",
+        "update_role": "更新角色",
+        "delete_role": "删除角色",
+        "create_permission": "创建权限",
+        "update_permission": "更新权限",
+        "delete_permission": "删除权限",
+        "generic": "系统变更"
+      }
     },
     "stop_generating": "停止生成",
     "copy_success": "消息已复制",
@@ -159,6 +179,30 @@
       "api_keys": "如何管理 API 密钥？",
       "openapi": "如何查看 OpenAPI 文档？",
       "schema": "Schema 构建器可以做什么？"
+    },
+    "tasks": {
+      "access": {
+        "check": "检查我当前拥有的权限"
+      },
+      "api_keys": {
+        "list": "列出当前有效的 API Key",
+        "create": "创建一个新的 API Key"
+      },
+      "users": {
+        "list": "列出用户及其角色",
+        "reset_password": "为用户重置密码"
+      },
+      "roles": {
+        "list": "列出角色及其权限",
+        "create": "创建一个新角色"
+      },
+      "permissions": {
+        "list": "列出权限目录",
+        "create": "创建一项新权限"
+      },
+      "audit_logs": {
+        "recent": "查看最近的审计记录"
+      }
     }
   },
   "dashboard": {

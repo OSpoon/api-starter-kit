@@ -12,6 +12,9 @@ const jiti = createJiti(import.meta.url, {
 
 const { validatePasswordChange } = await jiti.import(`${root}/src/lib/change-password-form.ts`)
 const { streamAiChatMessage } = await jiti.import(`${root}/src/lib/ai-chat-api.ts`)
+const { getAiChatSuggestions, pickRandomAiChatSuggestions } = await jiti.import(
+  `${root}/src/lib/ai-chat-suggestions.ts`
+)
 
 test('password change validation covers required fields, mismatch, and strength', () => {
   assert.equal(
@@ -74,4 +77,38 @@ test('AI stream accepts a terminal done event', async () => {
   } finally {
     globalThis.fetch = originalFetch
   }
+})
+
+test('AI suggestions use effective permissions and prioritize the current page', () => {
+  const translate = (key) => key
+
+  const superAdminSuggestions = getAiChatSuggestions({
+    permissions: ['*'],
+    routeName: 'api-keys',
+    translate,
+  })
+
+  assert.deepEqual(
+    superAdminSuggestions.slice(0, 3),
+    [
+      'ai_chat.tasks.api_keys.list',
+      'ai_chat.tasks.api_keys.create',
+      'ai_chat.tasks.access.check',
+    ]
+  )
+  assert.ok(superAdminSuggestions.includes('ai_chat.tasks.audit_logs.recent'))
+
+  assert.deepEqual(
+    getAiChatSuggestions({
+      permissions: ['api-keys:read'],
+      routeName: 'schema-builder',
+      translate,
+    }),
+    ['ai_chat.tasks.access.check', 'ai_chat.tasks.api_keys.list']
+  )
+
+  assert.deepEqual(
+    pickRandomAiChatSuggestions(['a', 'b', 'c', 'd'], [], () => 0),
+    ['b', 'c', 'd']
+  )
 })
