@@ -8,6 +8,7 @@ import { middleware } from '#start/kernel'
 const ApiKeysController = () => import('#controllers/api_keys_controller')
 const AiChatController = () => import('#controllers/ai_chat_controller')
 const AuditLogsController = () => import('#controllers/audit_logs_controller')
+const KnowledgeDocumentsController = () => import('#controllers/knowledge_documents_controller')
 const PermissionsController = () => import('#controllers/permissions_controller')
 const RolesController = () => import('#controllers/roles_controller')
 const TwoFactorAuthController = () => import('#controllers/two_factor_auth_controller')
@@ -85,6 +86,17 @@ router
       .delete('api-keys/:id', [ApiKeysController, 'destroy'])
       .use(middleware.auth())
       .use(middleware.permission(['api-keys:delete']))
+
+    router
+      .group(() => {
+        router.get('knowledge-documents', [KnowledgeDocumentsController, 'index'])
+        router.post('knowledge-documents', [KnowledgeDocumentsController, 'store'])
+        router.put('knowledge-documents/:id', [KnowledgeDocumentsController, 'update'])
+        router.delete('knowledge-documents/:id', [KnowledgeDocumentsController, 'destroy'])
+      })
+      .prefix('system')
+      .use(middleware.auth())
+      .use(middleware.permission(['knowledge:manage']))
 
     router
       .group(() => {

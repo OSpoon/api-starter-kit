@@ -199,6 +199,54 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/api_keys_controller').default['destroy']>>>
     }
   }
+  'knowledge_documents.index': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/system/knowledge-documents'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/knowledge_documents_controller').default['index']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/knowledge_documents_controller').default['index']>>>
+    }
+  }
+  'knowledge_documents.store': {
+    methods: ["POST"]
+    pattern: '/api/v1/system/knowledge-documents'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/knowledge_documents_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/knowledge_documents_controller').default['store']>>>
+    }
+  }
+  'knowledge_documents.update': {
+    methods: ["PUT"]
+    pattern: '/api/v1/system/knowledge-documents/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/knowledge_documents_controller').default['update']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/knowledge_documents_controller').default['update']>>>
+    }
+  }
+  'knowledge_documents.destroy': {
+    methods: ["DELETE"]
+    pattern: '/api/v1/system/knowledge-documents/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/knowledge_documents_controller').default['destroy']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/knowledge_documents_controller').default['destroy']>>>
+    }
+  }
   'users.index': {
     methods: ["GET","HEAD"]
     pattern: '/api/v1/system/users'

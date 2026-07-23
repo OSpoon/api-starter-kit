@@ -102,6 +102,30 @@ const routes = {
     tokens: [{"old":"/api/v1/api-keys/:id","type":0,"val":"api","end":""},{"old":"/api/v1/api-keys/:id","type":0,"val":"v1","end":""},{"old":"/api/v1/api-keys/:id","type":0,"val":"api-keys","end":""},{"old":"/api/v1/api-keys/:id","type":1,"val":"id","end":""}],
     types: placeholder as Registry['api_keys.destroy']['types'],
   },
+  'knowledge_documents.index': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/v1/system/knowledge-documents',
+    tokens: [{"old":"/api/v1/system/knowledge-documents","type":0,"val":"api","end":""},{"old":"/api/v1/system/knowledge-documents","type":0,"val":"v1","end":""},{"old":"/api/v1/system/knowledge-documents","type":0,"val":"system","end":""},{"old":"/api/v1/system/knowledge-documents","type":0,"val":"knowledge-documents","end":""}],
+    types: placeholder as Registry['knowledge_documents.index']['types'],
+  },
+  'knowledge_documents.store': {
+    methods: ["POST"],
+    pattern: '/api/v1/system/knowledge-documents',
+    tokens: [{"old":"/api/v1/system/knowledge-documents","type":0,"val":"api","end":""},{"old":"/api/v1/system/knowledge-documents","type":0,"val":"v1","end":""},{"old":"/api/v1/system/knowledge-documents","type":0,"val":"system","end":""},{"old":"/api/v1/system/knowledge-documents","type":0,"val":"knowledge-documents","end":""}],
+    types: placeholder as Registry['knowledge_documents.store']['types'],
+  },
+  'knowledge_documents.update': {
+    methods: ["PUT"],
+    pattern: '/api/v1/system/knowledge-documents/:id',
+    tokens: [{"old":"/api/v1/system/knowledge-documents/:id","type":0,"val":"api","end":""},{"old":"/api/v1/system/knowledge-documents/:id","type":0,"val":"v1","end":""},{"old":"/api/v1/system/knowledge-documents/:id","type":0,"val":"system","end":""},{"old":"/api/v1/system/knowledge-documents/:id","type":0,"val":"knowledge-documents","end":""},{"old":"/api/v1/system/knowledge-documents/:id","type":1,"val":"id","end":""}],
+    types: placeholder as Registry['knowledge_documents.update']['types'],
+  },
+  'knowledge_documents.destroy': {
+    methods: ["DELETE"],
+    pattern: '/api/v1/system/knowledge-documents/:id',
+    tokens: [{"old":"/api/v1/system/knowledge-documents/:id","type":0,"val":"api","end":""},{"old":"/api/v1/system/knowledge-documents/:id","type":0,"val":"v1","end":""},{"old":"/api/v1/system/knowledge-documents/:id","type":0,"val":"system","end":""},{"old":"/api/v1/system/knowledge-documents/:id","type":0,"val":"knowledge-documents","end":""},{"old":"/api/v1/system/knowledge-documents/:id","type":1,"val":"id","end":""}],
+    types: placeholder as Registry['knowledge_documents.destroy']['types'],
+  },
   'users.index': {
     methods: ["GET","HEAD"],
     pattern: '/api/v1/system/users',

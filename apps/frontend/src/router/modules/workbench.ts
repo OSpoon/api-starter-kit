@@ -1,4 +1,5 @@
 import {
+  BookOpen,
   ChartNoAxesCombined,
   FileClock,
   Gauge,
@@ -98,6 +99,17 @@ export const workbenchRoutes: RouteRecordRaw[] = [
           pageKind: 'list',
           permission: 'audit-logs:read',
           nav: { group: 'sidebar.system', icon: FileClock, order: 50 },
+        },
+      },
+      {
+        path: 'system/knowledge-documents',
+        name: 'knowledge-documents',
+        component: () => import('@/features/knowledge/KnowledgeDocumentsPage.vue'),
+        meta: {
+          title: 'sidebar.knowledge_documents',
+          pageKind: 'list',
+          permission: 'knowledge:manage',
+          nav: { group: 'sidebar.system', icon: BookOpen, order: 60 },
         },
       },
       {

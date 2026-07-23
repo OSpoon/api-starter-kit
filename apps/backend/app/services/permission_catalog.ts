@@ -17,6 +17,8 @@ export const permissionCodes = [
   'permissions:update',
   'permissions:delete',
   'audit-logs:read',
+  'knowledge:read',
+  'knowledge:manage',
 ] as const
 
 export type PermissionCode = (typeof permissionCodes)[number]

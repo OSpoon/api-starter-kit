@@ -34,6 +34,12 @@ export interface ApiDefinition {
     update: typeof routes['api_keys.update']
     destroy: typeof routes['api_keys.destroy']
   }
+  knowledgeDocuments: {
+    index: typeof routes['knowledge_documents.index']
+    store: typeof routes['knowledge_documents.store']
+    update: typeof routes['knowledge_documents.update']
+    destroy: typeof routes['knowledge_documents.destroy']
+  }
   users: {
     index: typeof routes['users.index']
     store: typeof routes['users.store']

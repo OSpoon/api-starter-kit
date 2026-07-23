@@ -219,6 +219,12 @@ pnpm --dir apps/frontend build
 
 AI 助手使用 LangGraph.js 作为 Agent 运行层，并通过 OpenAI 兼容接口接入 OpenAI、DeepSeek、Qwen 和 Ollama 等服务。它提供流式输出、持久化 Agent checkpoint、多轮上下文和会话历史。原始消息始终保留在应用数据库中；LangGraph 在达到消息数或 token 阈值时压缩 Agent 工作上下文，同时 PostgreSQL checkpoint 为后续的工具执行中断、确认与恢复提供基础。
 
+### 知识库检索（RAG）
+
+迁移会启用 PostgreSQL 的 `vector` 扩展，并创建独立的知识文档、分块及文档角色关联表。知识库不会自动收集用户、审计日志、会话消息或任何凭据；只有经审查后通过系统管理菜单上传的 UTF-8 文本文档（TXT、Markdown、reStructuredText，最大 2MB）才会发送到 embedding 服务。文档上传后默认禁用，向量化完成后才能启用；每次助手提问都会先检索当前用户角色可访问的已启用文档，并将命中的片段作为只读参考上下文。`search_knowledge` 工具仍保留，供更具体的追问检索使用。系统管理菜单中的“知识文档”页面要求 `knowledge:manage`，检索要求 `knowledge:read`；检索结果被视为不可信参考资料，不能触发操作或绕过现有确认机制。
+
+向量列固定为 1024 维，因此部署前需选择兼容的 embedding 模型，例如 Qwen3-Embedding-0.6B-4bit-DWQ，并单独配置：
+
 后端配置位于 `apps/backend/.env`：
 
 | 变量                                      | 说明                                                                     |
@@ -226,6 +232,10 @@ AI 助手使用 LangGraph.js 作为 Agent 运行层，并通过 OpenAI 兼容接
 | `AI_OPENAI_API_KEY`                       | 服务商 API Key，Ollama 默认值为 `ollama`                                 |
 | `AI_OPENAI_BASE_URL`                      | OpenAI 兼容 API 地址，默认本地 Ollama                                    |
 | `AI_OPENAI_MODEL`                         | 模型名称，默认 `llama3.2:1b`                                             |
+| `AI_EMBEDDING_API_KEY`                    | 可选，embedding 服务 API Key；未设置时回退到 `AI_OPENAI_API_KEY`         |
+| `AI_EMBEDDING_BASE_URL`                   | 可选，embedding 服务地址；未设置时回退到 `AI_OPENAI_BASE_URL`            |
+| `AI_EMBEDDING_MODEL`                      | 必填，兼容 1024 维输出的 embedding 模型                                  |
+| `AI_EMBEDDING_DIMENSIONS`                 | embedding 输出维度，当前必须为 `1024`                                    |
 | `AI_SYSTEM_PROMPT`                        | 可选的项目系统提示词                                                     |
 | `AI_TEMPERATURE`                          | 生成温度，服务端限制为 `0-2`                                             |
 | `AI_MAX_HISTORY_MESSAGES`                 | LangGraph 摘要后保留最近消息数的上限，范围 `1-100`                       |

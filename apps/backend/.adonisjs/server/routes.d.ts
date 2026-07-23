@@ -20,6 +20,10 @@ export type ScannedRoutes = {
     'api_keys.store': { paramsTuple?: []; params?: {} }
     'api_keys.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'api_keys.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'knowledge_documents.index': { paramsTuple?: []; params?: {} }
+    'knowledge_documents.store': { paramsTuple?: []; params?: {} }
+    'knowledge_documents.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'knowledge_documents.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'users.index': { paramsTuple?: []; params?: {} }
     'users.store': { paramsTuple?: []; params?: {} }
     'users.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
@@ -49,6 +53,7 @@ export type ScannedRoutes = {
     'openapi.yaml': { paramsTuple?: []; params?: {} }
     'profile.profile.show': { paramsTuple?: []; params?: {} }
     'api_keys.index': { paramsTuple?: []; params?: {} }
+    'knowledge_documents.index': { paramsTuple?: []; params?: {} }
     'users.index': { paramsTuple?: []; params?: {} }
     'roles.catalog': { paramsTuple?: []; params?: {} }
     'roles.index': { paramsTuple?: []; params?: {} }
@@ -64,6 +69,7 @@ export type ScannedRoutes = {
     'openapi.yaml': { paramsTuple?: []; params?: {} }
     'profile.profile.show': { paramsTuple?: []; params?: {} }
     'api_keys.index': { paramsTuple?: []; params?: {} }
+    'knowledge_documents.index': { paramsTuple?: []; params?: {} }
     'users.index': { paramsTuple?: []; params?: {} }
     'roles.catalog': { paramsTuple?: []; params?: {} }
     'roles.index': { paramsTuple?: []; params?: {} }
@@ -82,6 +88,7 @@ export type ScannedRoutes = {
     'profile.profile.disable_two_factor': { paramsTuple?: []; params?: {} }
     'profile.access_tokens.destroy': { paramsTuple?: []; params?: {} }
     'api_keys.store': { paramsTuple?: []; params?: {} }
+    'knowledge_documents.store': { paramsTuple?: []; params?: {} }
     'users.store': { paramsTuple?: []; params?: {} }
     'users.reset_password': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'roles.store': { paramsTuple?: []; params?: {} }
@@ -93,12 +100,14 @@ export type ScannedRoutes = {
   PUT: {
     'profile.profile.change_password': { paramsTuple?: []; params?: {} }
     'api_keys.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'knowledge_documents.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'users.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'roles.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'permissions.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
   }
   DELETE: {
     'api_keys.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'knowledge_documents.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'users.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'roles.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'permissions.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }

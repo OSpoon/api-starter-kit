@@ -16,6 +16,8 @@ export class AiAgentConfirmationSchema extends BaseModel {
     'confirmedByUserId',
     'conversationId',
     'createdAt',
+    'executionStartedAt',
+    'executionToken',
     'expiresAt',
     'id',
     'payload',
@@ -41,6 +43,10 @@ export class AiAgentConfirmationSchema extends BaseModel {
   declare conversationId: number
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
+  @column.dateTime()
+  declare executionStartedAt: DateTime | null
+  @column()
+  declare executionToken: string | null
   @column.dateTime()
   declare expiresAt: DateTime
   @column({ isPrimary: true })
@@ -115,8 +121,6 @@ export class ApiKeySchema extends BaseModel {
     'name',
     'prefix',
     'revokedAt',
-    'scopes',
-    'systemCodes',
     'updatedAt',
   ] as const
   $columns = ApiKeySchema.$columns
@@ -136,10 +140,6 @@ export class ApiKeySchema extends BaseModel {
   declare prefix: string
   @column.dateTime()
   declare revokedAt: DateTime | null
-  @column()
-  declare scopes: any | null
-  @column()
-  declare systemCodes: any | null
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime
 }
@@ -216,232 +216,72 @@ export class AuthAccessTokenSchema extends BaseModel {
   declare updatedAt: DateTime | null
 }
 
-export class EmbeddingSnapshotItemSchema extends BaseModel {
+export class KnowledgeChunkSchema extends BaseModel {
   static $columns = [
-    'contentHash',
-    'embeddedContent',
+    'chunkIndex',
+    'content',
+    'createdAt',
+    'documentId',
     'embedding',
+    'embeddingModel',
     'id',
-    'menuItemId',
-    'snapshotId',
   ] as const
-  $columns = EmbeddingSnapshotItemSchema.$columns
+  $columns = KnowledgeChunkSchema.$columns
   @column()
-  declare contentHash: string
+  declare chunkIndex: number
   @column()
-  declare embeddedContent: string
+  declare content: string
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare documentId: bigint | number
   @column()
   declare embedding: any
+  @column()
+  declare embeddingModel: string
   @column({ isPrimary: true })
-  declare id: string
-  @column()
-  declare menuItemId: string
-  @column()
-  declare snapshotId: string
+  declare id: bigint | number
 }
 
-export class EmbeddingSnapshotSchema extends BaseModel {
+export class KnowledgeDocumentRoleSchema extends BaseModel {
+  static $columns = ['createdAt', 'documentId', 'roleId'] as const
+  $columns = KnowledgeDocumentRoleSchema.$columns
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column({ isPrimary: true })
+  declare documentId: bigint | number
+  @column()
+  declare roleId: number
+}
+
+export class KnowledgeDocumentSchema extends BaseModel {
   static $columns = [
+    'content',
+    'contentHash',
     'createdAt',
-    'description',
-    'errorMessage',
-    'finishedAt',
     'id',
-    'isCurrent',
-    'itemCount',
-    'itemsEmbedded',
-    'itemsTotal',
-    'label',
-    'startedAt',
+    'requiredPermission',
     'status',
-    'syncLogId',
-    'systemId',
-    'version',
-  ] as const
-  $columns = EmbeddingSnapshotSchema.$columns
-  @column.dateTime({ autoCreate: true })
-  declare createdAt: DateTime
-  @column()
-  declare description: string | null
-  @column()
-  declare errorMessage: string | null
-  @column.dateTime()
-  declare finishedAt: DateTime | null
-  @column({ isPrimary: true })
-  declare id: string
-  @column()
-  declare isCurrent: boolean
-  @column()
-  declare itemCount: number
-  @column()
-  declare itemsEmbedded: number
-  @column()
-  declare itemsTotal: number
-  @column()
-  declare label: string | null
-  @column.dateTime()
-  declare startedAt: DateTime | null
-  @column()
-  declare status: string
-  @column()
-  declare syncLogId: string | null
-  @column()
-  declare systemId: string
-  @column()
-  declare version: number
-}
-
-export class MenuEmbeddingSchema extends BaseModel {
-  static $columns = [
-    'createdAt',
-    'embeddedAt',
-    'embeddedContent',
-    'embedding',
-    'id',
-    'menuItemId',
-    'updatedAt',
-  ] as const
-  $columns = MenuEmbeddingSchema.$columns
-  @column.dateTime({ autoCreate: true })
-  declare createdAt: DateTime
-  @column.dateTime()
-  declare embeddedAt: DateTime
-  @column()
-  declare embeddedContent: string
-  @column()
-  declare embedding: any
-  @column({ isPrimary: true })
-  declare id: string
-  @column()
-  declare menuItemId: string
-  @column.dateTime({ autoCreate: true, autoUpdate: true })
-  declare updatedAt: DateTime | null
-}
-
-export class MenuItemSchema extends BaseModel {
-  static $columns = [
-    'contentHash',
-    'createdAt',
-    'description',
-    'externalUrl',
-    'icon',
-    'id',
-    'isActive',
-    'keywords',
-    'metadata',
-    'name',
-    'parentId',
-    'path',
-    'route',
-    'sortOrder',
-    'systemId',
-    'updatedAt',
-  ] as const
-  $columns = MenuItemSchema.$columns
-  @column()
-  declare contentHash: string
-  @column.dateTime({ autoCreate: true })
-  declare createdAt: DateTime
-  @column()
-  declare description: string | null
-  @column()
-  declare externalUrl: string | null
-  @column()
-  declare icon: string | null
-  @column({ isPrimary: true })
-  declare id: string
-  @column()
-  declare isActive: boolean
-  @column()
-  declare keywords: string | null
-  @column()
-  declare metadata: any | null
-  @column()
-  declare name: string
-  @column()
-  declare parentId: string | null
-  @column()
-  declare path: string
-  @column()
-  declare route: string | null
-  @column()
-  declare sortOrder: number
-  @column()
-  declare systemId: string
-  @column.dateTime({ autoCreate: true, autoUpdate: true })
-  declare updatedAt: DateTime | null
-}
-
-export class NavigationDebugConversationSchema extends BaseModel {
-  static $columns = [
-    'createdAt',
-    'id',
-    'systemCode',
-    'systemId',
     'title',
     'updatedAt',
-    'userId',
   ] as const
-  $columns = NavigationDebugConversationSchema.$columns
+  $columns = KnowledgeDocumentSchema.$columns
+  @column()
+  declare content: string
+  @column()
+  declare contentHash: string
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
   @column({ isPrimary: true })
-  declare id: string
+  declare id: bigint | number
   @column()
-  declare systemCode: string | null
+  declare requiredPermission: string | null
   @column()
-  declare systemId: string | null
+  declare status: string
   @column()
   declare title: string
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime
-  @column()
-  declare userId: number
-}
-
-export class NavigationDebugHistorySchema extends BaseModel {
-  static $columns = [
-    'conversationId',
-    'createdAt',
-    'durationMs',
-    'errorMessage',
-    'httpStatus',
-    'id',
-    'includeExplanation',
-    'query',
-    'response',
-    'systemCode',
-    'systemId',
-    'topK',
-    'userId',
-  ] as const
-  $columns = NavigationDebugHistorySchema.$columns
-  @column()
-  declare conversationId: string | null
-  @column.dateTime({ autoCreate: true })
-  declare createdAt: DateTime
-  @column()
-  declare durationMs: number | null
-  @column()
-  declare errorMessage: string | null
-  @column()
-  declare httpStatus: number
-  @column({ isPrimary: true })
-  declare id: string
-  @column()
-  declare includeExplanation: boolean | null
-  @column()
-  declare query: string
-  @column()
-  declare response: any | null
-  @column()
-  declare systemCode: string | null
-  @column()
-  declare systemId: string | null
-  @column()
-  declare topK: number | null
-  @column()
-  declare userId: number
 }
 
 export class PermissionSchema extends BaseModel {
@@ -512,39 +352,6 @@ export class RoleSchema extends BaseModel {
   declare updatedAt: DateTime | null
 }
 
-export class SystemSchema extends BaseModel {
-  static $columns = [
-    'baseUrl',
-    'code',
-    'createdAt',
-    'description',
-    'id',
-    'isActive',
-    'metadata',
-    'name',
-    'updatedAt',
-  ] as const
-  $columns = SystemSchema.$columns
-  @column()
-  declare baseUrl: string
-  @column()
-  declare code: string
-  @column.dateTime({ autoCreate: true })
-  declare createdAt: DateTime
-  @column()
-  declare description: string | null
-  @column({ isPrimary: true })
-  declare id: string
-  @column()
-  declare isActive: boolean
-  @column()
-  declare metadata: any | null
-  @column()
-  declare name: string
-  @column.dateTime({ autoCreate: true, autoUpdate: true })
-  declare updatedAt: DateTime | null
-}
-
 export class UserRoleSchema extends BaseModel {
   static $columns = ['createdAt', 'roleId', 'userId'] as const
   $columns = UserRoleSchema.$columns
@@ -559,6 +366,7 @@ export class UserRoleSchema extends BaseModel {
 export class UserSchema extends BaseModel {
   static $columns = [
     'createdAt',
+    'disabledAt',
     'email',
     'failedLoginAttempts',
     'fullName',
@@ -574,6 +382,8 @@ export class UserSchema extends BaseModel {
   $columns = UserSchema.$columns
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
+  @column.dateTime()
+  declare disabledAt: DateTime | null
   @column()
   declare email: string
   @column()
