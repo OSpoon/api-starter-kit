@@ -33,6 +33,7 @@ const loading = ref(false)
 const saving = ref(false)
 const selectedDocument = ref<KnowledgeDocument | null>(null)
 const pendingDelete = ref<KnowledgeDocument | null>(null)
+const deleteDialogOpen = ref(false)
 const deleting = ref(false)
 const roles = ref<SystemRoleOption[]>([])
 const {
@@ -112,7 +113,7 @@ const columns = computed<ColumnDef<KnowledgeDocument>[]>(() => [
             class: 'text-destructive',
             title: t('common.delete'),
             'aria-label': t('common.delete'),
-            onClick: () => (pendingDelete.value = row.original),
+            onClick: () => requestDelete(row.original),
           },
           () => h(Trash2, { class: 'size-4' })
         ),
@@ -144,6 +145,11 @@ function openEditDialog(document: KnowledgeDocument) {
   showDialog()
 }
 
+function requestDelete(document: KnowledgeDocument) {
+  pendingDelete.value = document
+  deleteDialogOpen.value = true
+}
+
 async function saveDocument(input: KnowledgeDocumentInput) {
   saving.value = true
   try {
@@ -167,6 +173,7 @@ async function confirmDelete() {
   deleting.value = true
   try {
     await deleteKnowledgeDocument(auth.token, pendingDelete.value.id)
+    deleteDialogOpen.value = false
     pendingDelete.value = null
     await fetchDocuments(
       documents.value.length <= 1 && page.value > 1 ? page.value - 1 : page.value
@@ -220,12 +227,11 @@ watch(page, (nextPage) => void fetchDocuments(nextPage))
         />
       </Dialog>
       <ConfirmDialog
-        :open="Boolean(pendingDelete)"
+        v-model:open="deleteDialogOpen"
         :title="t('knowledge.delete_title')"
         :description="t('knowledge.delete_desc', { title: pendingDelete?.title ?? '' })"
         :confirm-label="t('common.delete')"
         :loading="deleting"
-        @update:open="(open) => !open && (pendingDelete = null)"
         @confirm="confirmDelete"
       />
     </template>

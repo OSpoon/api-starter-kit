@@ -1,6 +1,7 @@
 import { test } from '@japa/runner'
 
 import {
+  buildSemanticKnowledgeChunks,
   canReadKnowledgeDocument,
   getKnowledgeAccess,
   splitKnowledgeContent,
@@ -14,6 +15,25 @@ test.group('knowledge service', () => {
     assert.isAbove(chunks.length, 1)
     assert.equal(chunks[0].startsWith('word1 word2'), true)
     assert.include(chunks[1], chunks[0].split(' ').at(-1)!)
+  })
+
+  test('uses a semantic discontinuity as a chunk boundary', ({ assert }) => {
+    const chunks = buildSemanticKnowledgeChunks({
+      units: [
+        { content: '第一段介绍账号登录和密码管理。', forceBoundaryBefore: true },
+        { content: '用户可以在个人资料中修改密码。', forceBoundaryBefore: false },
+        { content: '现在开始说明订单发货和物流追踪。', forceBoundaryBefore: false },
+        { content: '订单页面会显示承运商和物流状态。', forceBoundaryBefore: false },
+      ],
+      distances: [0.01, 0.85, 0.02],
+      maxLength: 90,
+      overlap: 0,
+      breakpointPercentile: 75,
+    })
+
+    assert.lengthOf(chunks, 2)
+    assert.include(chunks[0], '修改密码')
+    assert.include(chunks[1], '订单发货')
   })
 
   test('allows a document when the user has its required permission', ({ assert }) => {

@@ -221,27 +221,30 @@ AI 助手使用 LangGraph.js 作为 Agent 运行层，并通过 OpenAI 兼容接
 
 ### 知识库检索（RAG）
 
-迁移会启用 PostgreSQL 的 `vector` 扩展，并创建独立的知识文档、分块及文档角色关联表。知识库不会自动收集用户、审计日志、会话消息或任何凭据；只有经审查后通过系统管理菜单上传的 UTF-8 文本文档（TXT、Markdown、reStructuredText，最大 2MB）才会发送到 embedding 服务。文档上传后默认禁用，向量化完成后才能启用；每次助手提问都会先检索当前用户角色可访问的已启用文档，并将命中的片段作为只读参考上下文。`search_knowledge` 工具仍保留，供更具体的追问检索使用。系统管理菜单中的“知识文档”页面要求 `knowledge:manage`，检索要求 `knowledge:read`；检索结果被视为不可信参考资料，不能触发操作或绕过现有确认机制。
+迁移会启用 PostgreSQL 的 `vector` 扩展，并创建独立的知识文档、分块及文档角色关联表。知识库不会自动收集用户、审计日志、会话消息或任何凭据；只有经审查后通过系统管理菜单上传的 UTF-8 文本文档（TXT、Markdown、reStructuredText，最大 2MB）才会发送到 embedding 服务。系统按句子和段落生成语义向量，依据相邻内容的语义差异切分，再使用最大字符数与重叠作为保护；因此上传或替换文件会产生句子级和最终分块两轮 embedding 请求。文档上传后默认禁用，向量化完成后才能启用；每次助手提问都会先检索当前用户角色可访问的已启用文档，并将命中的片段作为只读参考上下文。`search_knowledge` 工具仍保留，供更具体的追问检索使用。系统管理菜单中的“知识文档”页面要求 `knowledge:manage`，检索要求 `knowledge:read`；检索结果被视为不可信参考资料，不能触发操作或绕过现有确认机制。
 
 向量列固定为 1024 维，因此部署前需选择兼容的 embedding 模型，例如 Qwen3-Embedding-0.6B-4bit-DWQ，并单独配置：
 
 后端配置位于 `apps/backend/.env`：
 
-| 变量                                      | 说明                                                                     |
-| ----------------------------------------- | ------------------------------------------------------------------------ |
-| `AI_OPENAI_API_KEY`                       | 服务商 API Key，Ollama 默认值为 `ollama`                                 |
-| `AI_OPENAI_BASE_URL`                      | OpenAI 兼容 API 地址，默认本地 Ollama                                    |
-| `AI_OPENAI_MODEL`                         | 模型名称，默认 `llama3.2:1b`                                             |
-| `AI_EMBEDDING_API_KEY`                    | 可选，embedding 服务 API Key；未设置时回退到 `AI_OPENAI_API_KEY`         |
-| `AI_EMBEDDING_BASE_URL`                   | 可选，embedding 服务地址；未设置时回退到 `AI_OPENAI_BASE_URL`            |
-| `AI_EMBEDDING_MODEL`                      | 必填，兼容 1024 维输出的 embedding 模型                                  |
-| `AI_EMBEDDING_DIMENSIONS`                 | embedding 输出维度，当前必须为 `1024`                                    |
-| `AI_SYSTEM_PROMPT`                        | 可选的项目系统提示词                                                     |
-| `AI_TEMPERATURE`                          | 生成温度，服务端限制为 `0-2`                                             |
-| `AI_MAX_HISTORY_MESSAGES`                 | LangGraph 摘要后保留最近消息数的上限，范围 `1-100`                       |
-| `AI_CONTEXT_COMPRESSION_ENABLED`          | 是否启用上下文自动压缩，默认 `true`                                      |
-| `AI_CONTEXT_COMPRESSION_THRESHOLD_TOKENS` | 触发 LangGraph 上下文摘要的 token 阈值，默认 `6000`，范围 `1024-1000000` |
-| `AI_CONTEXT_COMPRESSION_RECENT_MESSAGES`  | 摘要后仍保留的最近消息数，默认 `8`，范围 `1-AI_MAX_HISTORY_MESSAGES`     |
+| 变量                                       | 说明                                                                     |
+| ------------------------------------------ | ------------------------------------------------------------------------ |
+| `AI_OPENAI_API_KEY`                        | 服务商 API Key，Ollama 默认值为 `ollama`                                 |
+| `AI_OPENAI_BASE_URL`                       | OpenAI 兼容 API 地址，默认本地 Ollama                                    |
+| `AI_OPENAI_MODEL`                          | 模型名称，默认 `llama3.2:1b`                                             |
+| `AI_EMBEDDING_API_KEY`                     | 可选，embedding 服务 API Key；未设置时回退到 `AI_OPENAI_API_KEY`         |
+| `AI_EMBEDDING_BASE_URL`                    | 可选，embedding 服务地址；未设置时回退到 `AI_OPENAI_BASE_URL`            |
+| `AI_EMBEDDING_MODEL`                       | 必填，兼容 1024 维输出的 embedding 模型                                  |
+| `AI_EMBEDDING_DIMENSIONS`                  | embedding 输出维度，当前必须为 `1024`                                    |
+| `KNOWLEDGE_CHUNK_MAX_CHARACTERS`           | 语义分块的最大字符数，默认 `1800`                                        |
+| `KNOWLEDGE_CHUNK_OVERLAP_CHARACTERS`       | 相邻分块保留的字符数，默认 `200`                                         |
+| `KNOWLEDGE_SEMANTIC_BREAKPOINT_PERCENTILE` | 语义切点阈值百分位，默认 `90`，范围 `50-100`                             |
+| `AI_SYSTEM_PROMPT`                         | 可选的项目系统提示词                                                     |
+| `AI_TEMPERATURE`                           | 生成温度，服务端限制为 `0-2`                                             |
+| `AI_MAX_HISTORY_MESSAGES`                  | LangGraph 摘要后保留最近消息数的上限，范围 `1-100`                       |
+| `AI_CONTEXT_COMPRESSION_ENABLED`           | 是否启用上下文自动压缩，默认 `true`                                      |
+| `AI_CONTEXT_COMPRESSION_THRESHOLD_TOKENS`  | 触发 LangGraph 上下文摘要的 token 阈值，默认 `6000`，范围 `1024-1000000` |
+| `AI_CONTEXT_COMPRESSION_RECENT_MESSAGES`   | 摘要后仍保留的最近消息数，默认 `8`，范围 `1-AI_MAX_HISTORY_MESSAGES`     |
 
 首次使用前必须通过项目迁移创建 `langgraph` checkpoint schema；不要在应用启动时运行框架的 `setup()` DDL。业务能力必须先在后端 Agent capability registry 中注册，并通过既有 service、Vine validator、Bouncer 权限与审计机制执行。当前开放的只读能力包括 `diagnose_my_access` 和不含原始密钥的 API Key 列表；`propose_api_key_revocation` 创建 5 分钟有效的通用受控操作提议。提议记录动作、目标摘要、请求人、会话、状态和有效期；实际执行通过统一确认入口再次校验会话归属、`api-keys:delete`、目标状态与有效期，并写入 `agent.action_confirmed` 审计事件。前端在输入框上方使用非阻塞的助手内批准提示，不使用弹窗或 Markdown 按钮；取消仅收起提示并保留提议，之后的明确批准回复仍可确认该同一提议。模型文本与 Markdown 不能触发执行。
 

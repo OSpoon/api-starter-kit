@@ -13,6 +13,8 @@ import env from '#start/env'
 const EMBEDDING_DIMENSIONS = 1024
 const DEFAULT_CHUNK_LENGTH = 1800
 const DEFAULT_CHUNK_OVERLAP = 200
+const DEFAULT_SEMANTIC_BREAKPOINT_PERCENTILE = 90
+const EMBEDDING_BATCH_SIZE = 32
 
 export type KnowledgeAccess = {
   isSuperAdmin: boolean
@@ -73,6 +75,129 @@ export function splitKnowledgeContent(
   return chunks
 }
 
+type SemanticUnit = {
+  content: string
+  forceBoundaryBefore: boolean
+}
+
+function semanticChunkingOptions() {
+  const maxLength = env.get('KNOWLEDGE_CHUNK_MAX_CHARACTERS') ?? DEFAULT_CHUNK_LENGTH
+  const overlap = env.get('KNOWLEDGE_CHUNK_OVERLAP_CHARACTERS') ?? DEFAULT_CHUNK_OVERLAP
+  const breakpointPercentile =
+    env.get('KNOWLEDGE_SEMANTIC_BREAKPOINT_PERCENTILE') ?? DEFAULT_SEMANTIC_BREAKPOINT_PERCENTILE
+  if (
+    maxLength < 100 ||
+    overlap < 0 ||
+    overlap >= maxLength ||
+    breakpointPercentile < 50 ||
+    breakpointPercentile > 100
+  ) {
+    throw new Error('知识库语义分块参数无效')
+  }
+  return { maxLength, overlap, breakpointPercentile }
+}
+
+function splitSemanticUnits(content: string): SemanticUnit[] {
+  const lines = content.replace(/\r\n?/g, '\n').split('\n')
+  const units: SemanticUnit[] = []
+  let startsParagraph = true
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim()
+    if (!line) {
+      startsParagraph = true
+      continue
+    }
+
+    const isHeading = /^(#{1,6}\s+|[-*+]\s+)/.test(line)
+    const sentences = line.match(/[^。！？!?；;]+[。！？!?；;]?/g) ?? [line]
+    for (const [index, sentence] of sentences.entries()) {
+      const normalized = sentence.trim()
+      if (!normalized) continue
+      units.push({
+        content: normalized,
+        forceBoundaryBefore: startsParagraph || (isHeading && index === 0),
+      })
+      startsParagraph = false
+    }
+  }
+  return units
+}
+
+function cosineDistance(left: number[], right: number[]) {
+  let dot = 0
+  let leftMagnitude = 0
+  let rightMagnitude = 0
+  for (const [index, value] of left.entries()) {
+    dot += value * right[index]
+    leftMagnitude += value * value
+    rightMagnitude += right[index] * right[index]
+  }
+  if (!leftMagnitude || !rightMagnitude) return 0
+  return 1 - dot / Math.sqrt(leftMagnitude * rightMagnitude)
+}
+
+function percentile(values: number[], value: number) {
+  if (!values.length) return Number.POSITIVE_INFINITY
+  const sorted = [...values].sort((left, right) => left - right)
+  return sorted[Math.min(sorted.length - 1, Math.floor((value / 100) * sorted.length))]
+}
+
+function overlapUnits(units: string[], overlap: number) {
+  const trailing: string[] = []
+  let length = 0
+  for (const unit of [...units].reverse()) {
+    trailing.unshift(unit)
+    length += unit.length + (trailing.length > 1 ? 1 : 0)
+    if (length >= overlap) break
+  }
+  return trailing
+}
+
+export function buildSemanticKnowledgeChunks(input: {
+  units: SemanticUnit[]
+  distances: number[]
+  maxLength: number
+  overlap: number
+  breakpointPercentile: number
+}) {
+  const { units, distances, maxLength, overlap, breakpointPercentile } = input
+  if (!units.length) return []
+  const threshold = percentile(distances, breakpointPercentile)
+  const minLengthBeforeSemanticBreak = Math.floor(maxLength / 3)
+  const chunks: string[] = []
+  let current: string[] = []
+  let currentLength = 0
+
+  const flush = () => {
+    const chunk = current.join(' ').trim()
+    if (chunk) chunks.push(chunk)
+    current = overlapUnits(current, overlap)
+    currentLength = current.join(' ').length
+  }
+
+  for (const [index, unit] of units.entries()) {
+    if (unit.content.length > maxLength) {
+      if (current.length) flush()
+      chunks.push(...splitKnowledgeContent(unit.content, maxLength, overlap))
+      current = []
+      currentLength = 0
+      continue
+    }
+
+    const nextLength = currentLength + (current.length ? 1 : 0) + unit.content.length
+    const semanticBoundary =
+      index > 0 &&
+      (unit.forceBoundaryBefore || distances[index - 1] >= threshold) &&
+      currentLength >= minLengthBeforeSemanticBreak
+    if (current.length && (nextLength > maxLength || semanticBoundary)) flush()
+    current.push(unit.content)
+    currentLength += (current.length > 1 ? 1 : 0) + unit.content.length
+  }
+  if (current.length) chunks.push(current.join(' ').trim())
+  return chunks
+}
+
 export function getKnowledgeAccess(user: KnowledgeAccessUser): KnowledgeAccess {
   const isSuperAdmin = user.roles.some((role) => role.code === 'super-admin')
   return {
@@ -130,8 +255,19 @@ function vectorLiteral(vector: number[]) {
   return `[${vector.join(',')}]`
 }
 
+async function embedVectors(texts: string[]) {
+  const embeddings: number[][] = []
+  const client = createEmbeddings()
+  for (let start = 0; start < texts.length; start += EMBEDDING_BATCH_SIZE) {
+    const batch = await client.embedDocuments(texts.slice(start, start + EMBEDDING_BATCH_SIZE))
+    batch.forEach(vectorLiteral)
+    embeddings.push(...batch)
+  }
+  return embeddings
+}
+
 async function embedTexts(texts: string[]) {
-  const embeddings = await createEmbeddings().embedDocuments(texts)
+  const embeddings = await embedVectors(texts)
   return embeddings.map(vectorLiteral)
 }
 
@@ -139,10 +275,27 @@ async function embedQuery(query: string) {
   return vectorLiteral(await createEmbeddings().embedQuery(query))
 }
 
+async function splitKnowledgeContentSemantically(content: string) {
+  const units = splitSemanticUnits(content)
+  if (!units.length) return []
+  if (units.length === 1) {
+    const { maxLength, overlap } = semanticChunkingOptions()
+    return splitKnowledgeContent(units[0].content, maxLength, overlap)
+  }
+
+  const vectors = await embedVectors(units.map((unit) => unit.content))
+  const distances = vectors.slice(1).map((vector, index) => cosineDistance(vectors[index], vector))
+  return buildSemanticKnowledgeChunks({
+    units,
+    distances,
+    ...semanticChunkingOptions(),
+  })
+}
+
 export async function createKnowledgeDocument(input: CreateKnowledgeDocumentInput) {
   const title = input.title.trim()
   const content = input.content.trim()
-  const chunks = splitKnowledgeContent(content)
+  const chunks = await splitKnowledgeContentSemantically(content)
   if (!title || !chunks.length) throw new Error('知识文档标题和内容不能为空')
 
   const embeddings = await embedTexts(chunks)
@@ -177,7 +330,7 @@ export async function createKnowledgeDocument(input: CreateKnowledgeDocumentInpu
  * document content has passed the application's secret-handling review.
  */
 export async function indexKnowledgeDocument(document: KnowledgeDocument) {
-  const chunks = splitKnowledgeContent(document.content)
+  const chunks = await splitKnowledgeContentSemantically(document.content)
   if (!chunks.length) throw new Error('知识文档内容不能为空')
 
   const embeddings = await embedTexts(chunks)
