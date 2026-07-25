@@ -6,6 +6,7 @@ allowBuilds:
   esbuild: true
   maplibre-gl: true
   msgpackr-extract: true
+  protobufjs: set this to true or false
   simple-git-hooks: true
   vue-demi: true
 onlyBuiltDependencies:

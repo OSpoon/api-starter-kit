@@ -127,6 +127,11 @@
         "done": "已完成 API Key 查询",
         "error": "API Key 查询未完成"
       },
+      "search_knowledge": {
+        "running": "正在检索知识文档…",
+        "done": "已完成知识文档检索",
+        "error": "知识文档检索未完成"
+      },
       "propose_api_key_revocation": {
         "running": "正在准备吊销确认…",
         "done": "已生成吊销确认",
@@ -285,6 +290,9 @@
     "replace_file": "选择其他文件",
     "replace_file_hint": "不选择文件时保留当前文本内容。",
     "status": "状态",
+    "index_status": "索引",
+    "indexed": "已索引（{count} 个分块）",
+    "not_indexed": "未建立索引",
     "draft": "禁用",
     "published": "启用",
     "required_permission": "访问所需权限",
@@ -301,6 +309,11 @@
     "fetch_failed": "获取知识文档失败",
     "save_success": "知识文档已保存并完成索引",
     "save_failed": "保存知识文档失败",
+    "reindex": "重建索引",
+    "reindex_title": "重建知识文档索引",
+    "reindex_desc": "确定使用当前内容重建「{title}」的向量索引吗？重建期间该文档暂不可检索。",
+    "reindex_success": "知识文档索引已重建",
+    "reindex_failed": "重建知识文档索引失败",
     "delete_title": "删除知识文档",
     "delete_desc": "确定要删除「{title}」吗？其所有向量分块也会被永久删除。",
     "delete_success": "知识文档已删除",

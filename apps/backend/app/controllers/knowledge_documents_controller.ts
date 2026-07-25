@@ -48,6 +48,7 @@ export default class KnowledgeDocumentsController {
     const page = Math.max(Number(request.input('page', 1)) || 1, 1)
     const paginator = await KnowledgeDocument.query()
       .preload('roles')
+      .withCount('chunks')
       .orderBy('updated_at', 'desc')
       .paginate(page, clampLimit(request.input('limit'), 20, 100))
     return serialize({
@@ -108,6 +109,19 @@ export default class KnowledgeDocumentsController {
       }
       throw error
     }
+  }
+
+  @ApiOperation({ summary: '使用当前内容重建知识文档向量索引' })
+  @ApiResponse({ status: 200, description: '已重新索引的知识文档' })
+  async reindex({ params, serialize }: HttpContext) {
+    const document = await KnowledgeDocument.findOrFail(params.id)
+    await indexKnowledgeDocument(document)
+    const indexedDocument = await KnowledgeDocument.query()
+      .where('id', document.id)
+      .preload('roles')
+      .withCount('chunks')
+      .firstOrFail()
+    return serialize(serializeKnowledgeDocument(indexedDocument))
   }
 
   @ApiOperation({ summary: '删除知识文档' })

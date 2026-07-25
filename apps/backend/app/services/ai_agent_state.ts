@@ -30,14 +30,15 @@ export function selectAiAgentContext(input: {
     return { messages: contextWithSummary, messagesToSummarize: [] as AiAgentConversationMessage[] }
   }
 
-  const recentMessages = input.messages.slice(-input.recentMessageCount)
-  const messagesToSummarize =
-    input.summary && input.summaryUntilMessageId
-      ? messagesAfterSummary.slice(
-          0,
-          Math.max(messagesAfterSummary.length - recentMessages.length, 0)
-        )
-      : input.messages.slice(0, Math.max(input.messages.length - recentMessages.length, 0))
+  const hasActiveSummary = !!(input.summary && input.summaryUntilMessageId)
+  const recentSource = hasActiveSummary ? messagesAfterSummary : input.messages
+  const recentMessages = recentSource.slice(-input.recentMessageCount)
+  const olderMessages = hasActiveSummary
+    ? messagesAfterSummary.slice(
+        0,
+        Math.max(0, messagesAfterSummary.length - recentMessages.length)
+      )
+    : input.messages.slice(0, Math.max(0, input.messages.length - recentMessages.length))
 
-  return { messages: recentMessages, messagesToSummarize }
+  return { messages: recentMessages, messagesToSummarize: olderMessages }
 }

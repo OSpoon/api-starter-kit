@@ -38,6 +38,7 @@ export interface ApiDefinition {
     index: typeof routes['knowledge_documents.index']
     store: typeof routes['knowledge_documents.store']
     update: typeof routes['knowledge_documents.update']
+    reindex: typeof routes['knowledge_documents.reindex']
     destroy: typeof routes['knowledge_documents.destroy']
   }
   users: {

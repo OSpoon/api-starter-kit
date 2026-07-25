@@ -3,11 +3,23 @@ import { test } from '@japa/runner'
 import {
   buildSemanticKnowledgeChunks,
   canReadKnowledgeDocument,
+  extractKnowledgeSearchTerms,
   getKnowledgeAccess,
   splitKnowledgeContent,
 } from '#services/knowledge_service'
 
 test.group('knowledge service', () => {
+  test('extracts multilingual terms without a hard-coded stop-word policy', ({ assert }) => {
+    assert.deepEqual(extractKnowledgeSearchTerms('如何启动 API Starter Kit 项目？'), [
+      '如何',
+      '启动',
+      'api',
+      'starter',
+      'kit',
+      '项目',
+    ])
+  })
+
   test('splits normalized document text into overlapping chunks', ({ assert }) => {
     const content = Array.from({ length: 80 }, (_, index) => `word${index + 1}`).join(' ')
     const chunks = splitKnowledgeContent(content, 100, 20)

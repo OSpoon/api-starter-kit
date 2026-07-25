@@ -92,6 +92,7 @@ router
         router.get('knowledge-documents', [KnowledgeDocumentsController, 'index'])
         router.post('knowledge-documents', [KnowledgeDocumentsController, 'store'])
         router.put('knowledge-documents/:id', [KnowledgeDocumentsController, 'update'])
+        router.post('knowledge-documents/:id/reindex', [KnowledgeDocumentsController, 'reindex'])
         router.delete('knowledge-documents/:id', [KnowledgeDocumentsController, 'destroy'])
       })
       .prefix('system')

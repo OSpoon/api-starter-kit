@@ -62,4 +62,8 @@ export default await Env.create(new URL('../', import.meta.url), {
   AI_CONTEXT_COMPRESSION_RECENT_MESSAGES: Env.schema.number.optional(),
   AI_REQUEST_TIMEOUT_MS: Env.schema.number.optional(),
   AI_MAX_RETRIES: Env.schema.number.optional(),
+  LANGFUSE_ENABLED: Env.schema.boolean.optional(),
+  LANGFUSE_PUBLIC_KEY: Env.schema.string.optional(),
+  LANGFUSE_SECRET_KEY: Env.schema.secret.optional(),
+  LANGFUSE_BASE_URL: Env.schema.string.optional({ format: 'url', tld: false }),
 })

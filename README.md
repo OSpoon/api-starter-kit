@@ -219,9 +219,22 @@ pnpm --dir apps/frontend build
 
 AI 助手使用 LangGraph.js 作为 Agent 运行层，并通过 OpenAI 兼容接口接入 OpenAI、DeepSeek、Qwen 和 Ollama 等服务。它提供流式输出、持久化 Agent checkpoint、多轮上下文和会话历史。原始消息始终保留在应用数据库中；LangGraph 在达到消息数或 token 阈值时压缩 Agent 工作上下文，同时 PostgreSQL checkpoint 为后续的工具执行中断、确认与恢复提供基础。
 
+### Langfuse Cloud 调用追踪
+
+可选接入 Langfuse Cloud 追踪模型调用、Agent、检索和工具执行。创建 Langfuse 项目后，将项目密钥写入 `apps/backend/.env` 并重启后端：
+
+```env
+LANGFUSE_ENABLED=true
+LANGFUSE_PUBLIC_KEY=pk-lf-...
+LANGFUSE_SECRET_KEY=sk-lf-...
+LANGFUSE_BASE_URL=https://cloud.langfuse.com
+```
+
+每条 trace 都带有会话、用户和 `agentRunId` 元数据。未配置或设为 `false` 时不会初始化 Langfuse，也不会产生外部网络调用。敏感令牌会在导出前脱敏；本地仅保留既有会话、确认记录和审计日志，不重复存储完整模型调用内容。
+
 ### 知识库检索（RAG）
 
-迁移会启用 PostgreSQL 的 `vector` 扩展，并创建独立的知识文档、分块及文档角色关联表。知识库不会自动收集用户、审计日志、会话消息或任何凭据；只有经审查后通过系统管理菜单上传的 UTF-8 文本文档（TXT、Markdown、reStructuredText，最大 2MB）才会发送到 embedding 服务。系统按句子和段落生成语义向量，依据相邻内容的语义差异切分，再使用最大字符数与重叠作为保护；因此上传或替换文件会产生句子级和最终分块两轮 embedding 请求。文档上传后默认禁用，向量化完成后才能启用；每次助手提问都会先检索当前用户角色可访问的已启用文档，并将命中的片段作为只读参考上下文。`search_knowledge` 工具仍保留，供更具体的追问检索使用。系统管理菜单中的“知识文档”页面要求 `knowledge:manage`，检索要求 `knowledge:read`；检索结果被视为不可信参考资料，不能触发操作或绕过现有确认机制。
+迁移会启用 PostgreSQL 的 `vector` 扩展，并创建独立的知识文档、分块及文档角色关联表。知识库不会自动收集用户、审计日志、会话消息或任何凭据；只有经审查后通过系统管理菜单上传的 UTF-8 文本文档（TXT、Markdown、reStructuredText，最大 2MB）才会发送到 embedding 服务。系统按句子和段落生成语义向量，依据相邻内容的语义差异切分，再使用最大字符数与重叠作为保护；因此上传、替换或“重建索引”都会产生句子级和最终分块两轮 embedding 请求。文档上传后默认禁用，向量化完成后才能启用。单一 Agent 仅在选择 `search_knowledge` 工具后执行向量检索；普通问答、系统信息查询和受控操作在进入 Agent 前不会发送 embedding 请求。若已发布文档没有分块，可使用“重建索引”从其已保存内容恢复索引。系统管理菜单中的“知识文档”页面要求 `knowledge:manage`，检索要求 `knowledge:read`；检索结果被视为不可信参考资料，不能触发操作或绕过现有确认机制。
 
 向量列固定为 1024 维，因此部署前需选择兼容的 embedding 模型，例如 Qwen3-Embedding-0.6B-4bit-DWQ，并单独配置：
 
@@ -240,8 +253,11 @@ AI 助手使用 LangGraph.js 作为 Agent 运行层，并通过 OpenAI 兼容接
 | `KNOWLEDGE_CHUNK_OVERLAP_CHARACTERS`       | 相邻分块保留的字符数，默认 `200`                                         |
 | `KNOWLEDGE_SEMANTIC_BREAKPOINT_PERCENTILE` | 语义切点阈值百分位，默认 `90`，范围 `50-100`                             |
 | `AI_SYSTEM_PROMPT`                         | 可选的项目系统提示词                                                     |
-| `AI_TEMPERATURE`                           | 生成温度，服务端限制为 `0-2`                                             |
+| `AI_TEMPERATURE`                           | 生成温度，服务端限制为 `0-2`；Qwen 未配置时默认 `0.1`                    |
 | `AI_MAX_HISTORY_MESSAGES`                  | LangGraph 摘要后保留最近消息数的上限，范围 `1-100`                       |
+| `LANGFUSE_ENABLED`                          | 是否启用 Langfuse Cloud 追踪，默认 `false`                               |
+| `LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY` | Langfuse Cloud 项目公钥和私钥                                            |
+| `LANGFUSE_BASE_URL`                         | Langfuse Cloud 地址，默认 `https://cloud.langfuse.com`                   |
 | `AI_CONTEXT_COMPRESSION_ENABLED`           | 是否启用上下文自动压缩，默认 `true`                                      |
 | `AI_CONTEXT_COMPRESSION_THRESHOLD_TOKENS`  | 触发 LangGraph 上下文摘要的 token 阈值，默认 `6000`，范围 `1024-1000000` |
 | `AI_CONTEXT_COMPRESSION_RECENT_MESSAGES`   | 摘要后仍保留的最近消息数，默认 `8`，范围 `1-AI_MAX_HISTORY_MESSAGES`     |
@@ -249,6 +265,8 @@ AI 助手使用 LangGraph.js 作为 Agent 运行层，并通过 OpenAI 兼容接
 首次使用前必须通过项目迁移创建 `langgraph` checkpoint schema；不要在应用启动时运行框架的 `setup()` DDL。业务能力必须先在后端 Agent capability registry 中注册，并通过既有 service、Vine validator、Bouncer 权限与审计机制执行。当前开放的只读能力包括 `diagnose_my_access` 和不含原始密钥的 API Key 列表；`propose_api_key_revocation` 创建 5 分钟有效的通用受控操作提议。提议记录动作、目标摘要、请求人、会话、状态和有效期；实际执行通过统一确认入口再次校验会话归属、`api-keys:delete`、目标状态与有效期，并写入 `agent.action_confirmed` 审计事件。前端在输入框上方使用非阻塞的助手内批准提示，不使用弹窗或 Markdown 按钮；取消仅收起提示并保留提议，之后的明确批准回复仍可确认该同一提议。模型文本与 Markdown 不能触发执行。
 
 助手默认仅发送当前路由与页面标题。项目可以显式注册上下文 provider 或客户端动作；未注册时不会读取页面数据，也不会执行业务操作。相关扩展点位于：
+
+针对单机部署模型，可执行 `pnpm --dir apps/backend exec node ace ai:evaluate`。该命令使用当前 `AI_OPENAI_*` 配置，在同一模拟会话中连续验证普通问答、知识文档、实时系统事实和受控变更四类请求；不会连接业务数据库、创建提案或执行变更。Qwen3-4B-Instruct-2507-4bit 建议保持低温度（默认 `0.1`）并将该命令作为模型升级、量化变更和提示词调整后的验收门槛。
 
 - `apps/frontend/src/lib/ai-chat-context.ts`
 - `apps/frontend/src/lib/ai-chat-actions.ts`

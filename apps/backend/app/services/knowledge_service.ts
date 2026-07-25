@@ -15,7 +15,6 @@ const DEFAULT_CHUNK_LENGTH = 1800
 const DEFAULT_CHUNK_OVERLAP = 200
 const DEFAULT_SEMANTIC_BREAKPOINT_PERCENTILE = 90
 const EMBEDDING_BATCH_SIZE = 32
-
 export type KnowledgeAccess = {
   isSuperAdmin: boolean
   permissions: Set<string>
@@ -47,6 +46,18 @@ type KnowledgeSearchRow = {
   chunk_id: number
   content: string
   similarity: number | string
+}
+
+export function extractKnowledgeSearchTerms(query: string) {
+  const segmenter = new Intl.Segmenter(undefined, { granularity: 'word' })
+  return [
+    ...new Set(
+      [...segmenter.segment(query.toLowerCase())]
+        .filter((segment) => segment.isWordLike)
+        .map((segment) => segment.segment.trim())
+        .filter((term) => term.length >= 2)
+    ),
+  ].slice(0, 8)
 }
 
 export function splitKnowledgeContent(
@@ -364,6 +375,7 @@ export async function searchKnowledge(input: { user: User; query: string; limit?
   const accessState = getKnowledgeAccess(input.user)
   const roleIds = input.user.roles.map((role) => role.id)
   const embedding = await embedQuery(query)
+  const searchTerms = extractKnowledgeSearchTerms(query)
   const limit = Math.min(Math.max(input.limit ?? 5, 1), 10)
   const result = await db
     .rawQuery(
@@ -372,7 +384,12 @@ export async function searchKnowledge(input: { user: User; query: string; limit?
          d.title AS document_title,
          c.id AS chunk_id,
          c.content,
-         1 - (c.embedding <=> ?::vector) AS similarity
+         1 - (c.embedding <=> ?::vector) AS similarity,
+         (
+           SELECT COUNT(*)::int
+           FROM unnest(?::text[]) AS term
+           WHERE strpos(lower(c.content), term) > 0
+         ) AS lexical_matches
        FROM knowledge_chunks c
        INNER JOIN knowledge_documents d ON d.id = c.document_id
        WHERE d.status = 'published'
@@ -386,9 +403,24 @@ export async function searchKnowledge(input: { user: User; query: string; limit?
              WHERE permitted.document_id = d.id AND permitted.role_id = ANY(?::int[])
            )
          )
-       ORDER BY c.embedding <=> ?::vector
+       ORDER BY
+         (c.embedding <=> ?::vector) - LEAST((
+           SELECT COUNT(*)::int
+           FROM unnest(?::text[]) AS term
+           WHERE strpos(lower(c.content), term) > 0
+         ), 3) * 0.08,
+         c.embedding <=> ?::vector
        LIMIT ?`,
-      [embedding, accessState.isSuperAdmin, roleIds, embedding, limit]
+      [
+        embedding,
+        searchTerms,
+        accessState.isSuperAdmin,
+        roleIds,
+        embedding,
+        searchTerms,
+        embedding,
+        limit,
+      ]
     )
     .exec()
 

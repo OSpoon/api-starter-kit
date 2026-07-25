@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { FilePenLine, Plus, RefreshCw, Trash2 } from '@lucide/vue'
+import { FilePenLine, Plus, RefreshCw, RotateCw, Trash2 } from '@lucide/vue'
 import type { ColumnDef } from '@tanstack/vue-table'
 import { toast } from 'vue-sonner'
 
@@ -15,6 +15,7 @@ import {
   type KnowledgeDocument,
   type KnowledgeDocumentInput,
   listKnowledgeDocuments,
+  reindexKnowledgeDocument,
   updateKnowledgeDocument,
 } from '@/features/knowledge/api'
 import KnowledgeDocumentDialog from '@/features/knowledge/components/KnowledgeDocumentDialog.vue'
@@ -35,6 +36,9 @@ const selectedDocument = ref<KnowledgeDocument | null>(null)
 const pendingDelete = ref<KnowledgeDocument | null>(null)
 const deleteDialogOpen = ref(false)
 const deleting = ref(false)
+const pendingReindex = ref<KnowledgeDocument | null>(null)
+const reindexDialogOpen = ref(false)
+const reindexing = ref(false)
 const roles = ref<SystemRoleOption[]>([])
 const {
   open: dialogOpen,
@@ -71,6 +75,23 @@ const columns = computed<ColumnDef<KnowledgeDocument>[]>(() => [
       ),
   },
   {
+    id: 'index',
+    meta: { label: t('knowledge.index_status') },
+    header: () => t('knowledge.index_status'),
+    cell: ({ row }) =>
+      h(
+        Badge,
+        {
+          variant: 'outline',
+          class: badgeToneClass(row.original.chunkCount > 0 ? 'success' : 'warning'),
+        },
+        () =>
+          row.original.chunkCount > 0
+            ? t('knowledge.indexed', { count: row.original.chunkCount })
+            : t('knowledge.not_indexed')
+      ),
+  },
+  {
     id: 'roles',
     meta: { label: t('knowledge.roles') },
     header: () => t('knowledge.roles'),
@@ -94,6 +115,17 @@ const columns = computed<ColumnDef<KnowledgeDocument>[]>(() => [
     header: () => h('div', { class: 'text-right' }, t('common.actions')),
     cell: ({ row }) =>
       h('div', { class: 'flex justify-end gap-1' }, [
+        h(
+          Button,
+          {
+            variant: 'ghost',
+            size: 'icon',
+            title: t('knowledge.reindex'),
+            'aria-label': t('knowledge.reindex'),
+            onClick: () => requestReindex(row.original),
+          },
+          () => h(RotateCw, { class: 'size-4' })
+        ),
         h(
           Button,
           {
@@ -150,6 +182,11 @@ function requestDelete(document: KnowledgeDocument) {
   deleteDialogOpen.value = true
 }
 
+function requestReindex(document: KnowledgeDocument) {
+  pendingReindex.value = document
+  reindexDialogOpen.value = true
+}
+
 async function saveDocument(input: KnowledgeDocumentInput) {
   saving.value = true
   try {
@@ -183,6 +220,22 @@ async function confirmDelete() {
     toast.error(error instanceof Error ? error.message : t('knowledge.delete_failed'))
   } finally {
     deleting.value = false
+  }
+}
+
+async function confirmReindex() {
+  if (!pendingReindex.value) return
+  reindexing.value = true
+  try {
+    await reindexKnowledgeDocument(auth.token, pendingReindex.value.id)
+    reindexDialogOpen.value = false
+    pendingReindex.value = null
+    await fetchDocuments()
+    toast.success(t('knowledge.reindex_success'))
+  } catch (error) {
+    toast.error(error instanceof Error ? error.message : t('knowledge.reindex_failed'))
+  } finally {
+    reindexing.value = false
   }
 }
 
@@ -233,6 +286,14 @@ watch(page, (nextPage) => void fetchDocuments(nextPage))
         :confirm-label="t('common.delete')"
         :loading="deleting"
         @confirm="confirmDelete"
+      />
+      <ConfirmDialog
+        v-model:open="reindexDialogOpen"
+        :title="t('knowledge.reindex_title')"
+        :description="t('knowledge.reindex_desc', { title: pendingReindex?.title ?? '' })"
+        :confirm-label="t('knowledge.reindex')"
+        :loading="reindexing"
+        @confirm="confirmReindex"
       />
     </template>
   </ListPage>

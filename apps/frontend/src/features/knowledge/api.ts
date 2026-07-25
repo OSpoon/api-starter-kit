@@ -10,6 +10,7 @@ export interface KnowledgeDocument {
   requiredPermission: string | null
   status: KnowledgeDocumentStatus
   contentHash: string
+  chunkCount: number
   roles: Array<{ id: number; code: string; name: string }>
   createdAt: string
   updatedAt: string
@@ -68,6 +69,15 @@ export async function updateKnowledgeDocument(
       ...authOptions(token),
       method: 'PUT',
       body: asFormData(input, false),
+    })
+  )
+}
+
+export async function reindexKnowledgeDocument(token: string | null, id: number) {
+  return readItem(
+    await apiRequest<KnowledgeDocument>(`/api/v1/system/knowledge-documents/${id}/reindex`, {
+      ...authOptions(token),
+      method: 'POST',
     })
   )
 }

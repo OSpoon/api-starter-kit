@@ -23,6 +23,7 @@ export type ScannedRoutes = {
     'knowledge_documents.index': { paramsTuple?: []; params?: {} }
     'knowledge_documents.store': { paramsTuple?: []; params?: {} }
     'knowledge_documents.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'knowledge_documents.reindex': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'knowledge_documents.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'users.index': { paramsTuple?: []; params?: {} }
     'users.store': { paramsTuple?: []; params?: {} }
@@ -89,6 +90,7 @@ export type ScannedRoutes = {
     'profile.access_tokens.destroy': { paramsTuple?: []; params?: {} }
     'api_keys.store': { paramsTuple?: []; params?: {} }
     'knowledge_documents.store': { paramsTuple?: []; params?: {} }
+    'knowledge_documents.reindex': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'users.store': { paramsTuple?: []; params?: {} }
     'users.reset_password': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'roles.store': { paramsTuple?: []; params?: {} }

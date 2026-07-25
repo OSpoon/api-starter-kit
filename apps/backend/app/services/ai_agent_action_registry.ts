@@ -52,78 +52,29 @@ export type AiAgentActionDefinition = {
 
 export class AiAgentActionAuthorizationError extends Error {}
 
-const actionId = z.number().int().positive()
-export const aiAgentChangeSchema = z.discriminatedUnion('action', [
-  z.object({ action: z.literal('revoke_api_key'), input: z.object({ apiKeyId: actionId }) }),
-  z.object({
-    action: z.literal('create_api_key'),
-    input: z.object({
-      name: z.string().trim().min(1).max(120),
-      expiresIn: z.enum(['30d', '90d', '180d', 'long']).optional(),
-    }),
-  }),
-  z.object({ action: z.literal('reset_user_password'), input: z.object({ userId: actionId }) }),
-  z.object({ action: z.literal('disable_user'), input: z.object({ userId: actionId }) }),
-  z.object({ action: z.literal('enable_user'), input: z.object({ userId: actionId }) }),
-  z.object({
-    action: z.literal('update_user'),
-    input: z.object({
-      userId: actionId,
-      fullName: z.string().trim().min(1).max(120),
-      email: z.string().trim().email().max(254),
-      roleIds: z.array(actionId),
-    }),
-  }),
-  z.object({ action: z.literal('delete_user'), input: z.object({ userId: actionId }) }),
-  z.object({
-    action: z.literal('create_role'),
-    input: z.object({
-      code: z
-        .string()
-        .trim()
-        .min(2)
-        .max(100)
-        .regex(/^[a-z0-9-]+$/),
-      name: z.string().trim().min(1).max(120),
-      description: z.string().trim().max(1000).nullable().optional(),
-      permissionIds: z.array(actionId),
-    }),
-  }),
-  z.object({
-    action: z.literal('update_role'),
-    input: z.object({
-      roleId: actionId,
-      name: z.string().trim().min(1).max(120),
-      description: z.string().trim().max(1000).nullable().optional(),
-      permissionIds: z.array(actionId),
-    }),
-  }),
-  z.object({ action: z.literal('delete_role'), input: z.object({ roleId: actionId }) }),
-  z.object({
-    action: z.literal('create_permission'),
-    input: z.object({
-      code: z
-        .string()
-        .trim()
-        .min(2)
-        .max(100)
-        .regex(/^[a-z0-9-]+:[a-z0-9-]+$/),
-      name: z.string().trim().min(1).max(120),
-      groupName: z.string().trim().min(1).max(120),
-      description: z.string().trim().max(1000).nullable().optional(),
-    }),
-  }),
-  z.object({
-    action: z.literal('update_permission'),
-    input: z.object({
-      permissionId: actionId,
-      name: z.string().trim().min(1).max(120),
-      groupName: z.string().trim().min(1).max(120),
-      description: z.string().trim().max(1000).nullable().optional(),
-    }),
-  }),
-  z.object({ action: z.literal('delete_permission'), input: z.object({ permissionId: actionId }) }),
-])
+export const aiAgentActionNames = [
+  'revoke_api_key',
+  'create_api_key',
+  'reset_user_password',
+  'disable_user',
+  'enable_user',
+  'update_user',
+  'delete_user',
+  'create_role',
+  'update_role',
+  'delete_role',
+  'create_permission',
+  'update_permission',
+  'delete_permission',
+] as const
+
+// Keep the model-facing tool schema compact. The registered action's
+// preparation function remains the authoritative validator for every field,
+// target lookup, and conflict condition before a proposal is persisted.
+export const aiAgentChangeSchema = z.object({
+  action: z.enum(aiAgentActionNames),
+  input: z.record(z.unknown()),
+})
 
 async function ensurePermission(ctx: HttpContext, permission: PermissionCode) {
   const user = ctx.auth.getUserOrFail()
@@ -134,12 +85,20 @@ async function ensurePermission(ctx: HttpContext, permission: PermissionCode) {
   return user
 }
 
-function integer(input: Record<string, unknown>, name: string) {
-  const value = input[name]
-  if (typeof value !== 'number' || !Number.isInteger(value) || value <= 0) {
+function integer(input: Record<string, unknown>, name: string, aliases: string[] = []) {
+  const value = [input[name], ...aliases.map((alias) => input[alias])].find(
+    (candidate) => candidate !== undefined && candidate !== null
+  )
+  const parsed =
+    typeof value === 'number'
+      ? value
+      : typeof value === 'string' && value.trim() !== ''
+        ? Number(value.trim())
+        : Number.NaN
+  if (!Number.isInteger(parsed) || parsed <= 0) {
     throw new Error(`${name} 无效`)
   }
-  return value
+  return parsed
 }
 
 function string(input: Record<string, unknown>, name: string, maxLength: number) {
@@ -187,7 +146,9 @@ async function ensurePermissionIds(ids: number[]) {
 const revokeApiKeyAction: AiAgentActionDefinition = {
   permission: 'api-keys:delete',
   async prepare(input) {
-    const apiKey = await ApiKey.find(integer(input, 'apiKeyId'))
+    // Small models commonly use the visible table's generic `id` field. The
+    // canonical payload remains apiKeyId after validation and target lookup.
+    const apiKey = await ApiKey.find(integer(input, 'apiKeyId', ['id']))
     if (!apiKey) throw new Error('API Key 不存在')
     if (apiKey.revokedAt) throw new Error('该 API Key 已被吊销')
     return {

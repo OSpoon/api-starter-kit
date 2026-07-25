@@ -10,6 +10,7 @@ import {
   failUnattachedAgentRunConfirmations,
   listConversationConfirmations,
 } from '#services/ai_agent_confirmation'
+import { resolveGroundedAssistantResponse } from '#services/ai_agent_response_policy'
 import {
   createAiAgentStream,
   getAiRequestTimeout,
@@ -115,8 +116,10 @@ function parseAgentToolError(output: unknown) {
 async function streamAiAgentToolStatuses(
   run: Awaited<ReturnType<typeof createAiAgentStream>>,
   response: HttpContext['response'],
-  signal: AbortSignal
+  signal: AbortSignal,
+  onToolCompleted?: () => void | Promise<void>
 ) {
+  const completedToolNames = new Set<string>()
   for await (const toolCall of run.stream.toolCalls) {
     if (signal.aborted) throw new DOMException('AI request was cancelled', 'AbortError')
     writeSse(response, 'agent_status', { name: toolCall.name, state: 'running' })
@@ -129,12 +132,15 @@ async function streamAiAgentToolStatuses(
       ...(toolError ? { message: toolError } : {}),
     })
     if (state === 'finished') {
+      completedToolNames.add(toolCall.name)
+      await onToolCompleted?.()
       const confirmation = parseAgentConfirmation(output)
       if (confirmation) {
         writeSse(response, 'agent_confirmation', confirmation)
       }
     }
   }
+  return completedToolNames
 }
 
 @ApiSecurity('bearerAuth')
@@ -332,15 +338,26 @@ export default class AiChatController {
       })
       agentRunId = run.agentRunId
       let toolStatusError: unknown
-      const toolStatusTask = streamAiAgentToolStatuses(run, response, abortController.signal).catch(
-        (error: unknown) => {
-          // The tool-status iterator shares the Agent event stream with the
-          // message iterator. Handle its rejection immediately: waiting until
-          // after the message loop lets an unavailable LLM become an
-          // unhandled rejection and terminate the HTTP process.
-          toolStatusError = error
+      let hasCompletedTool = false
+      let bufferedContent = ''
+      const toolStatusTask = streamAiAgentToolStatuses(
+        run,
+        response,
+        abortController.signal,
+        () => {
+          hasCompletedTool = true
+          if (bufferedContent) {
+            writeSse(response, 'delta', { content: bufferedContent })
+            bufferedContent = ''
+          }
         }
-      )
+      ).catch((error: unknown) => {
+        // The tool-status iterator shares the Agent event stream with the
+        // message iterator. Handle its rejection immediately: waiting until
+        // after the message loop lets an unavailable LLM become an
+        // unhandled rejection and terminate the HTTP process.
+        toolStatusError = error
+      })
 
       for await (const message of run.stream.messages) {
         if (abortController.signal.aborted) {
@@ -352,14 +369,24 @@ export default class AiChatController {
           }
 
           assistantContent += delta
-          writeSse(response, 'delta', { content: delta })
+          if (hasCompletedTool) {
+            writeSse(response, 'delta', { content: delta })
+          } else {
+            bufferedContent += delta
+          }
         }
       }
-      await toolStatusTask
+      const completedToolNames = await toolStatusTask
       if (toolStatusError) {
         throw toolStatusError
       }
-
+      assistantContent = resolveGroundedAssistantResponse({
+        content: assistantContent,
+        completedToolNames: completedToolNames ?? new Set(),
+      })
+      if (!hasCompletedTool) {
+        writeSse(response, 'delta', { content: assistantContent })
+      }
       const assistantMessage = await AiChatMessage.create({
         conversationId: conversation.id,
         role: 'assistant',

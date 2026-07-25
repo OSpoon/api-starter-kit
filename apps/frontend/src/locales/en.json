@@ -127,6 +127,11 @@
         "done": "API key lookup completed",
         "error": "API key lookup did not complete"
       },
+      "search_knowledge": {
+        "running": "Searching knowledge documents…",
+        "done": "Knowledge-document search completed",
+        "error": "Knowledge-document search did not complete"
+      },
       "propose_api_key_revocation": {
         "running": "Preparing revocation confirmation…",
         "done": "Revocation confirmation created",
@@ -285,6 +290,9 @@
     "replace_file": "Choose another file",
     "replace_file_hint": "Leave empty to keep the current text content.",
     "status": "Status",
+    "index_status": "Index",
+    "indexed": "Indexed ({count} chunks)",
+    "not_indexed": "Not indexed",
     "draft": "Disabled",
     "published": "Enabled",
     "required_permission": "Required permission",
@@ -301,6 +309,11 @@
     "fetch_failed": "Failed to load knowledge documents",
     "save_success": "Knowledge document saved and indexed",
     "save_failed": "Failed to save knowledge document",
+    "reindex": "Rebuild index",
+    "reindex_title": "Rebuild knowledge-document index",
+    "reindex_desc": "Rebuild the vector index for “{title}” from its current content? The document cannot be retrieved while rebuilding.",
+    "reindex_success": "Knowledge-document index rebuilt",
+    "reindex_failed": "Failed to rebuild knowledge-document index",
     "delete_title": "Delete knowledge document",
     "delete_desc": "Delete “{title}”? Its vector chunks will also be permanently deleted.",
     "delete_success": "Knowledge document deleted",

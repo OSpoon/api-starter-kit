@@ -68,6 +68,7 @@ export default defineConfig({
   |
   */
   preloads: [
+    () => import('#start/langfuse'),
     () => import('#start/routes'),
     () => import('#start/kernel'),
     () => import('#start/validator'),

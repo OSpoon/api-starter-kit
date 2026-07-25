@@ -235,6 +235,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/knowledge_documents_controller').default['update']>>>
     }
   }
+  'knowledge_documents.reindex': {
+    methods: ["POST"]
+    pattern: '/api/v1/system/knowledge-documents/:id/reindex'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/knowledge_documents_controller').default['reindex']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/knowledge_documents_controller').default['reindex']>>>
+    }
+  }
   'knowledge_documents.destroy': {
     methods: ["DELETE"]
     pattern: '/api/v1/system/knowledge-documents/:id'

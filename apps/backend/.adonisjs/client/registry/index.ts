@@ -120,6 +120,12 @@ const routes = {
     tokens: [{"old":"/api/v1/system/knowledge-documents/:id","type":0,"val":"api","end":""},{"old":"/api/v1/system/knowledge-documents/:id","type":0,"val":"v1","end":""},{"old":"/api/v1/system/knowledge-documents/:id","type":0,"val":"system","end":""},{"old":"/api/v1/system/knowledge-documents/:id","type":0,"val":"knowledge-documents","end":""},{"old":"/api/v1/system/knowledge-documents/:id","type":1,"val":"id","end":""}],
     types: placeholder as Registry['knowledge_documents.update']['types'],
   },
+  'knowledge_documents.reindex': {
+    methods: ["POST"],
+    pattern: '/api/v1/system/knowledge-documents/:id/reindex',
+    tokens: [{"old":"/api/v1/system/knowledge-documents/:id/reindex","type":0,"val":"api","end":""},{"old":"/api/v1/system/knowledge-documents/:id/reindex","type":0,"val":"v1","end":""},{"old":"/api/v1/system/knowledge-documents/:id/reindex","type":0,"val":"system","end":""},{"old":"/api/v1/system/knowledge-documents/:id/reindex","type":0,"val":"knowledge-documents","end":""},{"old":"/api/v1/system/knowledge-documents/:id/reindex","type":1,"val":"id","end":""},{"old":"/api/v1/system/knowledge-documents/:id/reindex","type":0,"val":"reindex","end":""}],
+    types: placeholder as Registry['knowledge_documents.reindex']['types'],
+  },
   'knowledge_documents.destroy': {
     methods: ["DELETE"],
     pattern: '/api/v1/system/knowledge-documents/:id',
