@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {
   Bot,
+  ChevronDown,
   Copy,
   History,
   MessageCircle,
@@ -31,6 +32,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Textarea } from '@/components/ui/textarea'
 import type {
   AiChatAgentActivity,
+  AiChatCitation,
   AiChatClientAction,
   AiChatConfirmation,
   AiChatCredentialDisclosure,
@@ -46,6 +48,7 @@ interface ChatMessage {
   content: string
   status?: ChatMessageStatus
   activity?: AiChatAgentActivity
+  citations?: AiChatCitation[]
 }
 
 interface ChatConversation {
@@ -108,6 +111,7 @@ const emit = defineEmits<{
   approveConfirmation: []
   dismissConfirmation: []
   dismissCredential: []
+  copyCredential: [credential: AiChatCredentialDisclosure]
 }>()
 
 const { t, te } = useI18n()
@@ -357,6 +361,15 @@ function getActivityLabel(activity: AiChatAgentActivity) {
   return te(key) ? t(key) : t(`ai_chat.activities.generic.${activity.state}`)
 }
 
+function getMessageActivityLabel(message: ChatMessage) {
+  if (message.activity) return getActivityLabel(message.activity)
+  return message.citations?.length ? t('ai_chat.activities.search_knowledge.done') : null
+}
+
+function getCitationDocumentTitles(citations: AiChatCitation[]) {
+  return [...new Map(citations.map((citation) => [citation.documentId, citation.title])).values()]
+}
+
 function getApprovalTarget(approval: AiChatConfirmation) {
   const summary = approval.targetSummary
   const name = summary.name
@@ -372,6 +385,16 @@ function getApprovalTarget(approval: AiChatConfirmation) {
 function getApprovalActionLabel(approval: AiChatConfirmation) {
   const key = `ai_chat.approval.actions.${approval.action}`
   return te(key) ? t(key) : t('ai_chat.approval.actions.generic')
+}
+
+function getChangeFieldLabel(field: string) {
+  const key = `ai_chat.approval.change_fields.${field}`
+  return te(key) ? t(key) : field
+}
+
+function getChangeValue(value: string) {
+  const key = `ai_chat.approval.change_values.${value}`
+  return te(key) ? t(key) : value
 }
 
 function isDestructiveApproval(approval: AiChatConfirmation) {
@@ -559,12 +582,40 @@ onUnmounted(() => {
                     {{ message.content }}
                   </template>
                 </div>
-                <p
-                  v-if="message.role === 'assistant' && message.activity"
-                  class="text-xs text-muted-foreground"
+                <div
+                  v-if="message.role === 'assistant' && (message.activity || message.citations?.length)"
+                  class="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground"
                 >
-                  {{ getActivityLabel(message.activity) }}
-                </p>
+                  <span v-if="getMessageActivityLabel(message)">
+                    {{ getMessageActivityLabel(message) }}
+                  </span>
+                  <DropdownMenu v-if="message.citations?.length">
+                    <DropdownMenuTrigger as-child>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        class="h-auto gap-1 p-0 text-xs font-medium text-muted-foreground hover:bg-transparent hover:text-foreground"
+                      >
+                        {{
+                          t('ai_chat.citations.title', {
+                            count: getCitationDocumentTitles(message.citations).length,
+                          })
+                        }}
+                        <ChevronDown class="size-3" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" :side-offset="6" class="w-56 p-1">
+                      <DropdownMenuItem
+                        v-for="title in getCitationDocumentTitles(message.citations)"
+                        :key="title"
+                        class="cursor-default text-xs"
+                        @select.prevent
+                      >
+                        {{ title }}
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
                 <div
                   v-if="canCopyMessage(message) || canRetryMessage(message)"
                   class="flex h-6 items-center gap-1 opacity-0 transition-opacity group-hover/message:opacity-100 focus-within:opacity-100"
@@ -640,13 +691,20 @@ onUnmounted(() => {
         >
           <p class="font-medium">{{ credentialDisclosure.label }}</p>
           <code class="mt-1 block break-all">{{ credentialDisclosure.value }}</code>
-          <Button
-            size="sm"
-            variant="ghost"
-            class="mt-1 h-7 px-2"
-            @click="emit('dismissCredential')"
-            >{{ t('common.close') }}</Button
-          >
+          <div class="mt-1 flex gap-1">
+            <Button
+              size="sm"
+              variant="ghost"
+              class="h-7 px-2"
+              @click="emit('copyCredential', credentialDisclosure)"
+            >
+              <Copy class="size-3.5" />
+              {{ t('ai_chat.credential.copy') }}
+            </Button>
+            <Button size="sm" variant="ghost" class="h-7 px-2" @click="emit('dismissCredential')">
+              {{ t('common.close') }}
+            </Button>
+          </div>
         </div>
         <div v-if="approval" class="mb-2 rounded-md border bg-muted/60 px-2.5 py-2 text-xs">
           <div class="flex items-start gap-2">
@@ -658,6 +716,16 @@ onUnmounted(() => {
               <p class="break-words text-muted-foreground">
                 {{ t('ai_chat.approval.target', { target: getApprovalTarget(approval) }) }}
               </p>
+              <dl v-if="approval.changeSummary.length" class="space-y-1 text-muted-foreground">
+                <div
+                  v-for="change in approval.changeSummary"
+                  :key="change.field"
+                  class="flex gap-1"
+                >
+                  <dt class="shrink-0">{{ getChangeFieldLabel(change.field) }}:</dt>
+                  <dd class="break-all">{{ getChangeValue(change.value) }}</dd>
+                </div>
+              </dl>
               <p class="text-muted-foreground">
                 {{
                   isDestructiveApproval(approval)

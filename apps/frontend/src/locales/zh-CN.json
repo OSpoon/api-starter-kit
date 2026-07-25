@@ -2,6 +2,7 @@
   "common": {
     "confirm": "确认",
     "cancel": "取消",
+    "close": "关闭",
     "save": "保存",
     "add": "添加",
     "delete": "删除",
@@ -162,6 +163,27 @@
       "destructive_impact": "此操作可能立即生效且无法撤销；执行前会再次验证权限和对象状态。",
       "standard_impact": "执行前会再次验证权限和对象状态。",
       "expires_at": "此确认将在 {time} 过期。",
+      "change_fields": {
+        "result": "执行结果",
+        "name": "名称",
+        "expiry": "有效期",
+        "account_status": "账户状态",
+        "full_name": "姓名",
+        "email": "邮箱",
+        "role_ids": "角色 ID",
+        "code": "代码",
+        "permission_ids": "权限 ID",
+        "description": "描述",
+        "group": "分组"
+      },
+      "change_values": {
+        "not_set": "未设置",
+        "revoked": "吊销此 API Key",
+        "new_temporary_password": "生成新的临时密码",
+        "disabled": "停用",
+        "enabled": "启用",
+        "permanently_deleted": "永久删除"
+      },
       "actions": {
         "revoke_api_key": "吊销 API Key",
         "create_api_key": "创建 API Key",
@@ -179,8 +201,17 @@
         "generic": "系统变更"
       }
     },
+    "credential": {
+      "copy": "复制",
+      "copy_success": "凭据已复制到剪贴板",
+      "copy_failed": "复制凭据失败"
+    },
+    "citations": {
+      "title": "来源文档（{count}）"
+    },
     "stop_generating": "停止生成",
     "copy_success": "消息已复制",
+    "stream_incomplete": "AI 回复连接意外中断，请稍后重试。",
     "copy_failed": "复制失败",
     "demo_response": "已收到。当前组件已作为通用悬浮助手接入，后续可以通过 @send 事件连接真实 AI 服务。",
     "suggestions": {

@@ -3,6 +3,7 @@ import crypto from 'node:crypto'
 import { ChatOpenAI } from '@langchain/openai'
 import { createAgent } from 'langchain'
 
+import type { AiChatCitation } from '#models/ai_chat_message'
 import User from '#models/user'
 import { listConversationConfirmations } from '#services/ai_agent_confirmation'
 import { aiAgentCapabilities, createAiAgentTools } from '#services/ai_agent_registry'
@@ -127,6 +128,7 @@ function createAiAgent(input: {
   authorizationContext?: string
   liveSessionContext?: string
   signal?: AbortSignal
+  onKnowledgeSources?: (sources: AiChatCitation[]) => void
 }) {
   const model = createAiAgentModel()
 
@@ -179,6 +181,7 @@ export async function createAiAgentStream(input: {
   messages: AiAgentMessage[]
   context?: AiAgentPageContext
   signal?: AbortSignal
+  onKnowledgeSources?: (sources: AiChatCitation[]) => void
 }) {
   const agentRunId = crypto.randomUUID()
   const langfuseCallback = createLangfuseCallback({

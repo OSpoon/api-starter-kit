@@ -223,7 +223,7 @@ pnpm --dir apps/frontend build
 
 ## AI 助手
 
-AI 助手使用 LangGraph.js 作为 Agent 运行层，并通过 OpenAI 兼容接口接入 OpenAI、DeepSeek、Qwen 和 Ollama 等服务。它提供流式输出、持久化 Agent checkpoint、多轮上下文和会话历史。原始消息始终保留在应用数据库中；LangGraph 在达到消息数或 token 阈值时压缩 Agent 工作上下文，同时 PostgreSQL checkpoint 为后续的工具执行中断、确认与恢复提供基础。
+AI 助手使用 LangGraph.js 作为 Agent 运行层，并通过 OpenAI 兼容接口接入 OpenAI、DeepSeek、Qwen 和 Ollama 等服务。它提供流式输出、持久化 Agent checkpoint、多轮上下文和会话历史。原始消息始终保留在应用数据库中；LangGraph 在达到消息数或 token 阈值时压缩 Agent 工作上下文，同时 PostgreSQL checkpoint 为后续的工具执行中断、确认与恢复提供基础。知识库回答会随助手消息保存结构化来源，用户可展开核对文档摘录；受控操作确认卡会展示安全的变更摘要，而 API Key 或临时密码仅在确认成功后一次性展示，并提供复制操作。
 
 ### Langfuse Cloud 调用追踪
 

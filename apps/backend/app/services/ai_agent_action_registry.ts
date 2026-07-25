@@ -619,6 +619,70 @@ export function getAiAgentAction(action: string) {
   return aiAgentActions[action as AiAgentActionName] ?? null
 }
 
+function summaryValue(payload: Record<string, unknown>, key: string) {
+  const value = payload[key]
+  if (Array.isArray(value)) return value.join(', ')
+  if (value === null || value === undefined || value === '') return 'not_set'
+  return String(value)
+}
+
+/** Returns a non-sensitive, user-reviewable preview rather than the action payload. */
+export function getAiAgentActionChangeSummary(action: string, payload: Record<string, unknown>) {
+  switch (action as AiAgentActionName) {
+    case 'revoke_api_key':
+      return [{ field: 'result', value: 'revoked' }]
+    case 'create_api_key':
+      return [
+        { field: 'name', value: summaryValue(payload, 'name') },
+        { field: 'expiry', value: summaryValue(payload, 'expiresIn') },
+      ]
+    case 'reset_user_password':
+      return [{ field: 'result', value: 'new_temporary_password' }]
+    case 'disable_user':
+      return [{ field: 'account_status', value: 'disabled' }]
+    case 'enable_user':
+      return [{ field: 'account_status', value: 'enabled' }]
+    case 'update_user':
+      return [
+        { field: 'full_name', value: summaryValue(payload, 'fullName') },
+        { field: 'email', value: summaryValue(payload, 'email') },
+        { field: 'role_ids', value: summaryValue(payload, 'roleIds') },
+      ]
+    case 'delete_user':
+      return [{ field: 'result', value: 'permanently_deleted' }]
+    case 'create_role':
+      return [
+        { field: 'code', value: summaryValue(payload, 'code') },
+        { field: 'name', value: summaryValue(payload, 'name') },
+        { field: 'permission_ids', value: summaryValue(payload, 'permissionIds') },
+      ]
+    case 'update_role':
+      return [
+        { field: 'name', value: summaryValue(payload, 'name') },
+        { field: 'description', value: summaryValue(payload, 'description') },
+        { field: 'permission_ids', value: summaryValue(payload, 'permissionIds') },
+      ]
+    case 'delete_role':
+      return [{ field: 'result', value: 'permanently_deleted' }]
+    case 'create_permission':
+      return [
+        { field: 'code', value: summaryValue(payload, 'code') },
+        { field: 'name', value: summaryValue(payload, 'name') },
+        { field: 'group', value: summaryValue(payload, 'groupName') },
+      ]
+    case 'update_permission':
+      return [
+        { field: 'name', value: summaryValue(payload, 'name') },
+        { field: 'group', value: summaryValue(payload, 'groupName') },
+        { field: 'description', value: summaryValue(payload, 'description') },
+      ]
+    case 'delete_permission':
+      return [{ field: 'result', value: 'permanently_deleted' }]
+  }
+
+  return []
+}
+
 export function getAiAgentActionCapabilities() {
   return Object.entries(aiAgentActions).map(([name, action]) => ({
     name,

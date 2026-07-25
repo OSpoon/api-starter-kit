@@ -172,6 +172,31 @@ test.group('AI agent confirmations', (group) => {
     })
   })
 
+  test('returns a safe change summary without exposing the proposal payload', async ({
+    client,
+    assert,
+  }) => {
+    const superAdminRole = await Role.findByOrFail('code', 'super-admin')
+    const user = await User.create({
+      fullName: 'Summary admin',
+      email: `summary-admin-${Date.now()}@example.com`,
+      password: generateInitialPassword(),
+    })
+    await user.related('roles').sync([superAdminRole.id])
+    const token = await User.accessTokens.create(user)
+    const { confirmation, conversation } = await createConfirmation(user)
+
+    const response = await client
+      .get(`/api/v1/ai-chat/conversations/${conversation.id}`)
+      .bearerToken(token.value!.release())
+
+    response.assertStatus(200)
+    const confirmationSummary = response.body().data.confirmations[0]
+    assert.deepEqual(confirmationSummary.changeSummary, [{ field: 'result', value: 'revoked' }])
+    assert.notProperty(confirmationSummary, 'payload')
+    assert.equal(confirmationSummary.id, confirmation.id)
+  })
+
   test('returns a terminal business result instead of throwing when proposal permission is denied', async ({
     assert,
   }) => {

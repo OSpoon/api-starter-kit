@@ -86,6 +86,14 @@ export function createAiAgentTools(input: {
   conversationId: number
   agentRunId: string
   signal?: AbortSignal
+  onKnowledgeSources?: (
+    sources: Array<{
+      documentId: number
+      chunkId: number
+      title: string
+      excerpt: string
+    }>
+  ) => void
 }) {
   const throwIfAborted = () => {
     if (input.signal?.aborted) {
@@ -257,12 +265,17 @@ export function createAiAgentTools(input: {
         throwIfAborted()
         const user = await ensurePermission(input.userId, 'knowledge:read')
         const sources = await searchKnowledge({ user, query })
+        const serializedSources = sources.map((source) => ({
+          documentId: source.documentId,
+          title: source.title,
+          chunkId: source.chunkId,
+          excerpt: source.content,
+        }))
+        input.onKnowledgeSources?.(serializedSources)
         return JSON.stringify({
-          sources: sources.map((source) => ({
-            documentId: source.documentId,
-            title: source.title,
-            excerpt: source.content,
-            similarity: source.similarity,
+          sources: serializedSources.map((source, index) => ({
+            ...source,
+            similarity: sources[index].similarity,
           })),
         })
       },

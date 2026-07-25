@@ -68,8 +68,10 @@ export class AiChatConversationSchema extends BaseModel {
 }
 
 export class AiChatMessageSchema extends BaseModel {
-  static $columns = ['content', 'conversationId', 'createdAt', 'id', 'role', 'updatedAt'] as const
+  static $columns = ['citations', 'content', 'conversationId', 'createdAt', 'id', 'role', 'updatedAt'] as const
   $columns = AiChatMessageSchema.$columns
+  @column()
+  declare citations: any
   @column()
   declare content: string
   @column()

@@ -7,6 +7,7 @@ export function serializeAiChatMessage(message: AiChatMessage) {
     conversationId: message.conversationId,
     role: message.role,
     content: message.content,
+    citations: message.citations ?? [],
     createdAt: message.createdAt.toISO(),
     updatedAt: message.updatedAt.toISO(),
   }

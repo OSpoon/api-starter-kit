@@ -8,8 +8,16 @@ export interface AiChatMessage {
   conversationId: number
   role: AiChatRole
   content: string
+  citations: AiChatCitation[]
   createdAt: string
   updatedAt: string
+}
+
+export interface AiChatCitation {
+  documentId: number
+  chunkId: number
+  title: string
+  excerpt: string
 }
 
 export interface AiChatConversationSummary {
@@ -31,6 +39,7 @@ export interface AiChatConfirmation {
   targetType: string
   targetId: string
   targetSummary: Record<string, unknown>
+  changeSummary: Array<{ field: string; value: string }>
   expiresAt: string | null
 }
 export interface AiChatCredentialDisclosure {
@@ -84,6 +93,13 @@ export interface AiChatAgentActivity {
   message?: string
 }
 
+export class AiChatStreamIncompleteError extends Error {
+  constructor() {
+    super('AI stream ended before a terminal event')
+    this.name = 'AiChatStreamIncompleteError'
+  }
+}
+
 function authOptions(token: string | null) {
   return { token }
 }
@@ -133,6 +149,7 @@ type AiChatStreamEvent =
       state: AiChatAgentActivity['state']
       message?: string
     }
+  | { type: 'agent_citations'; citations: AiChatCitation[] }
   | ({ type: 'agent_confirmation' } & AiChatPendingConfirmation)
   | {
       type: 'done'
@@ -224,7 +241,7 @@ export async function streamAiChatMessage(
           consumeEvent(buffer)
         }
         if (!receivedTerminalEvent) {
-          throw new Error('AI response ended before completion')
+          throw new AiChatStreamIncompleteError()
         }
         break
       }

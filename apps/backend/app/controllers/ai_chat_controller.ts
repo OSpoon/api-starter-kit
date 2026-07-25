@@ -2,7 +2,7 @@ import type { HttpContext } from '@adonisjs/core/http'
 import { ApiOperation, ApiResponse, ApiSecurity } from '@foadonis/openapi/decorators'
 
 import AiChatConversation from '#models/ai_chat_conversation'
-import AiChatMessage from '#models/ai_chat_message'
+import AiChatMessage, { type AiChatCitation } from '#models/ai_chat_message'
 import {
   AiAgentConfirmationError,
   attachAgentRunConfirmations,
@@ -278,7 +278,34 @@ export default class AiChatController {
 
     let assistantContent = ''
     let agentRunId: string | null = null
+    let persistedAssistantMessage: AiChatMessage | null = null
+    let lastPersistedContentLength = 0
+    const knowledgeCitations = new Map<string, AiChatCitation>()
+    const completedToolNames = new Set<string>()
     const requestTimeout = setTimeout(() => abortController.abort(), getAiRequestTimeout())
+
+    const persistAssistantMessage = async () => {
+      if (!assistantContent.trim()) return null
+
+      const attributes = {
+        content: assistantContent,
+        citations: [...knowledgeCitations.values()],
+      }
+      if (persistedAssistantMessage) {
+        persistedAssistantMessage.merge(attributes)
+        await persistedAssistantMessage.save()
+        lastPersistedContentLength = assistantContent.length
+        return persistedAssistantMessage
+      }
+
+      persistedAssistantMessage = await AiChatMessage.create({
+        conversationId: conversation.id,
+        role: 'assistant',
+        ...attributes,
+      })
+      lastPersistedContentLength = assistantContent.length
+      return persistedAssistantMessage
+    }
 
     try {
       const persistedMessages = payload.regenerateAssistantMessageId
@@ -335,9 +362,20 @@ export default class AiChatController {
         messages,
         context: payload.context,
         signal: abortController.signal,
+        onKnowledgeSources: (sources) => {
+          for (const source of sources) {
+            knowledgeCitations.set(`${source.documentId}:${source.chunkId}`, source)
+          }
+          completedToolNames.add('search_knowledge')
+          // Deliver citations as soon as knowledge retrieval has completed.
+          // This keeps their display independent from the final model stream,
+          // which can be interrupted after a successful tool call.
+          writeSse(response, 'agent_citations', {
+            citations: [...knowledgeCitations.values()],
+          })
+        },
       })
       agentRunId = run.agentRunId
-      let toolStatusError: unknown
       let hasCompletedTool = false
       let bufferedContent = ''
       const toolStatusTask = streamAiAgentToolStatuses(
@@ -351,12 +389,11 @@ export default class AiChatController {
             bufferedContent = ''
           }
         }
-      ).catch((error: unknown) => {
+      ).catch(() => {
         // The tool-status iterator shares the Agent event stream with the
         // message iterator. Handle its rejection immediately: waiting until
         // after the message loop lets an unavailable LLM become an
         // unhandled rejection and terminate the HTTP process.
-        toolStatusError = error
       })
 
       for await (const message of run.stream.messages) {
@@ -369,29 +406,43 @@ export default class AiChatController {
           }
 
           assistantContent += delta
+          // Create the assistant record as soon as content starts arriving,
+          // then checkpoint substantial progress. This keeps history durable
+          // when an upstream streaming connection closes before completion.
+          if (
+            !persistedAssistantMessage ||
+            assistantContent.length - lastPersistedContentLength >= 500
+          ) {
+            await persistAssistantMessage()
+          }
           if (hasCompletedTool) {
             writeSse(response, 'delta', { content: delta })
           } else {
             bufferedContent += delta
           }
         }
+        // The text stream can finish before the parallel tool-status stream.
+        // Persist it now so a later status-stream failure cannot leave only
+        // the user's question in conversation history.
+        await persistAssistantMessage()
       }
-      const completedToolNames = await toolStatusTask
-      if (toolStatusError) {
-        throw toolStatusError
-      }
+      const toolResult = await toolStatusTask
+      // Tool status is an auxiliary UI stream. It must not discard a complete
+      // model response when that parallel iterator closes unexpectedly.
+      // Knowledge retrieval is recorded independently through
+      // `onKnowledgeSources`, so its citations are still persisted below.
+      for (const toolName of toolResult ?? []) completedToolNames.add(toolName)
       assistantContent = resolveGroundedAssistantResponse({
         content: assistantContent,
-        completedToolNames: completedToolNames ?? new Set(),
+        completedToolNames,
       })
       if (!hasCompletedTool) {
         writeSse(response, 'delta', { content: assistantContent })
       }
-      const assistantMessage = await AiChatMessage.create({
-        conversationId: conversation.id,
-        role: 'assistant',
-        content: assistantContent,
-      })
+      const assistantMessage = await persistAssistantMessage()
+      if (!assistantMessage) {
+        throw new Error('AI response did not contain assistant content')
+      }
       const confirmations = await attachAgentRunConfirmations({
         conversationId: conversation.id,
         userId: user.id,
@@ -406,19 +457,26 @@ export default class AiChatController {
         confirmations,
       })
     } catch (error) {
-      if (agentRunId) {
-        await failUnattachedAgentRunConfirmations({
-          conversationId: conversation.id,
-          userId: user.id,
-          agentRunId,
-        })
-      }
       const message = getSafeAiErrorMessage(error)
-      const failedAssistantMessage = await AiChatMessage.create({
-        conversationId: conversation.id,
-        role: 'assistant',
-        content: assistantContent.trim() ? `${assistantContent}\n\n${message}` : message,
-      })
+      assistantContent = assistantContent.trim() ? `${assistantContent}\n\n${message}` : message
+      const failedAssistantMessage = await persistAssistantMessage()
+      if (!failedAssistantMessage) {
+        throw error
+      }
+      if (agentRunId) {
+        // Confirmation cleanup must not prevent the streamed assistant text
+        // from being retained in the conversation history.
+        try {
+          await failUnattachedAgentRunConfirmations({
+            conversationId: conversation.id,
+            userId: user.id,
+            agentRunId,
+          })
+        } catch {
+          // The response was already persisted; cleanup can be retried by a
+          // subsequent maintenance path without losing the conversation.
+        }
+      }
       writeSse(response, 'error', {
         message,
         assistantMessage: serializeAiChatMessage(failedAssistantMessage),

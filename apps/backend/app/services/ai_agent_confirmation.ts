@@ -7,6 +7,7 @@ import AiAgentConfirmation from '#models/ai_agent_confirmation'
 import {
   AiAgentActionAuthorizationError,
   getAiAgentAction,
+  getAiAgentActionChangeSummary,
 } from '#services/ai_agent_action_registry'
 import { recordAuditEvent } from '#services/audit_log'
 
@@ -18,6 +19,7 @@ export type AiAgentConfirmationSummary = {
   targetType: string
   targetId: string
   targetSummary: Record<string, unknown>
+  changeSummary: Array<{ field: string; value: string }>
   expiresAt: string | null
 }
 
@@ -37,6 +39,7 @@ function serializeConfirmation(confirmation: AiAgentConfirmation): AiAgentConfir
     targetType: confirmation.targetType ?? 'unknown',
     targetId: confirmation.targetId ?? String(confirmation.id),
     targetSummary: confirmation.targetSummary ?? {},
+    changeSummary: getAiAgentActionChangeSummary(confirmation.action, confirmation.payload),
     expiresAt: confirmation.expiresAt.toISO(),
   }
 }

@@ -2,6 +2,7 @@
   "common": {
     "confirm": "Confirm",
     "cancel": "Cancel",
+    "close": "Close",
     "save": "Save",
     "add": "Add",
     "delete": "Delete",
@@ -162,6 +163,27 @@
       "destructive_impact": "This may take effect immediately and cannot be undone. Permission and target state will be checked again before execution.",
       "standard_impact": "Permission and target state will be checked again before execution.",
       "expires_at": "This confirmation expires at {time}.",
+      "change_fields": {
+        "result": "Result",
+        "name": "Name",
+        "expiry": "Expiry",
+        "account_status": "Account status",
+        "full_name": "Full name",
+        "email": "Email",
+        "role_ids": "Role IDs",
+        "code": "Code",
+        "permission_ids": "Permission IDs",
+        "description": "Description",
+        "group": "Group"
+      },
+      "change_values": {
+        "not_set": "Not set",
+        "revoked": "Revoke this API key",
+        "new_temporary_password": "Generate a new temporary password",
+        "disabled": "Disabled",
+        "enabled": "Enabled",
+        "permanently_deleted": "Permanently delete"
+      },
       "actions": {
         "revoke_api_key": "Revoke API key",
         "create_api_key": "Create API key",
@@ -179,8 +201,17 @@
         "generic": "System change"
       }
     },
+    "credential": {
+      "copy": "Copy",
+      "copy_success": "Credential copied to clipboard",
+      "copy_failed": "Could not copy credential"
+    },
+    "citations": {
+      "title": "Source documents ({count})"
+    },
     "stop_generating": "Stop generating",
     "copy_success": "Message copied",
+    "stream_incomplete": "The AI response connection was interrupted. Please try again.",
     "copy_failed": "Copy failed",
     "demo_response": "Received. This component is now available as a reusable floating assistant and can be connected to a real AI service through the @send event.",
     "suggestions": {

@@ -9,6 +9,7 @@ import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { getAiChatActions, runAiChatAction } from '@/lib/ai-chat-actions'
 import type {
   AiChatAgentActivity,
+  AiChatCitation,
   AiChatClientAction,
   AiChatConfirmation,
   AiChatCredentialDisclosure,
@@ -18,6 +19,7 @@ import {
   type AiChatConversation,
   type AiChatConversationSummary,
   type AiChatMessage,
+  AiChatStreamIncompleteError,
   confirmAiAgentAction,
   createAiChatConversation,
   deleteAiChatConversation,
@@ -47,6 +49,7 @@ const aiStreamingMessages = ref<
         content: string
         status?: AiMessageContentStatus
         activity?: AiChatAgentActivity
+        citations?: AiChatCitation[]
       }
   >
 >([])
@@ -66,6 +69,7 @@ type LocalAiChatMessage = {
   content: string
   status?: AiMessageContentStatus
   activity?: AiChatAgentActivity
+  citations?: AiChatCitation[]
 }
 
 type DisplayAiChatMessage = {
@@ -226,6 +230,15 @@ async function handleAiCopyMessage(message: DisplayAiChatMessage) {
   }
 }
 
+async function handleAiCopyCredential(credential: AiChatCredentialDisclosure) {
+  try {
+    await copyText(credential.value)
+    toast.success(t('ai_chat.credential.copy_success'))
+  } catch {
+    toast.error(t('ai_chat.credential.copy_failed'))
+  }
+}
+
 async function handleAiRunAction(action: AiChatClientAction) {
   try {
     await runAiChatAction(action.id)
@@ -362,6 +375,13 @@ async function handleAiSend(message: string, regenerateAssistantMessageId?: numb
           )
         }
 
+        if (event.type === 'agent_citations') {
+          assistantMessage.citations = event.citations
+          aiStreamingMessages.value = aiStreamingMessages.value.map((item) =>
+            item.id === assistantMessage.id ? { ...assistantMessage } : item
+          )
+        }
+
         if (event.type === 'agent_confirmation') {
           streamedConfirmation = {
             id: event.id,
@@ -369,6 +389,7 @@ async function handleAiSend(message: string, regenerateAssistantMessageId?: numb
             targetType: event.targetType,
             targetId: event.targetId,
             targetSummary: event.targetSummary,
+            changeSummary: event.changeSummary,
             expiresAt: event.expiresAt,
           }
         }
@@ -399,6 +420,7 @@ async function handleAiSend(message: string, regenerateAssistantMessageId?: numb
 
         if (event.type === 'error') {
           assistantMessage.content = event.assistantMessage?.content ?? event.message
+          assistantMessage.citations = event.assistantMessage?.citations ?? []
           assistantMessage.status = 'error'
           aiStreamingMessages.value = aiStreamingMessages.value.map((item) =>
             item.id === assistantMessage.id ? { ...assistantMessage } : item
@@ -433,11 +455,64 @@ async function handleAiSend(message: string, regenerateAssistantMessageId?: numb
         item.id === assistantMessage.id ? { ...assistantMessage } : item
       )
     } else {
+      // A proxy can close an SSE response after the backend has already saved
+      // the assistant message, but before its terminal `done` event reaches
+      // the browser. Recover the persisted result instead of presenting a
+      // complete visible reply as an error.
+      if (error instanceof AiChatStreamIncompleteError && aiConversation.value) {
+        try {
+          const persistedConversation = await getAiChatConversation(
+            auth.token,
+            aiConversation.value.id
+          )
+          let currentUserMessageIndex = -1
+          for (let index = persistedConversation.messages.length - 1; index >= 0; index -= 1) {
+            const candidate = persistedConversation.messages[index]
+            if (candidate?.role === 'user' && candidate.content === message) {
+              currentUserMessageIndex = index
+              break
+            }
+          }
+          const persistedAssistantMessage =
+            currentUserMessageIndex >= 0
+              ? persistedConversation.messages[currentUserMessageIndex + 1]
+              : undefined
+          if (
+            persistedAssistantMessage?.role === 'assistant' &&
+            persistedAssistantMessage.content.trim()
+          ) {
+            aiConversation.value = persistedConversation
+            aiConfirmations.value = persistedConversation.confirmations ?? []
+            aiStreamingMessageId.value = null
+            aiStreamingMessages.value = []
+            await refreshAiConversations()
+            return
+          }
+        } catch {
+          // Fall through to the rendered-content fallback below.
+        }
+      }
+      if (error instanceof AiChatStreamIncompleteError && assistantMessage.content.trim()) {
+        // The reply is already usable in the UI. A missing terminal frame must
+        // not turn a visible answer into a false failure notification.
+        assistantMessage.status = 'done'
+        aiStreamingMessageId.value = null
+        aiStreamingMessages.value = aiStreamingMessages.value.map((item) =>
+          item.id === assistantMessage.id ? { ...assistantMessage } : item
+        )
+        return
+      }
       assistantMessage.status = 'error'
       aiStreamingMessages.value = aiStreamingMessages.value.map((item) =>
         item.id === assistantMessage.id ? { ...assistantMessage } : item
       )
-      toast.error(error instanceof Error ? error.message : t('common.error'))
+      toast.error(
+        error instanceof AiChatStreamIncompleteError
+          ? t('ai_chat.stream_incomplete')
+          : error instanceof Error
+            ? error.message
+            : t('common.error')
+      )
     }
   } finally {
     if (aiAbortController.value === abortController) {
@@ -487,6 +562,7 @@ onMounted(() => {
         @approve-confirmation="confirmAiConfirmation"
         @dismiss-confirmation="dismissAiConfirmation"
         @dismiss-credential="aiCredentialDisclosure = null"
+        @copy-credential="handleAiCopyCredential"
         @send="handleAiSend"
         @select-conversation="handleAiSelectConversation"
         @stop="handleAiStop"
