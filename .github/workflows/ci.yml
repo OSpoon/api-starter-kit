@@ -10,6 +10,20 @@ jobs:
   backend:
     name: Backend (typecheck, lint, test)
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg15
+        env:
+          POSTGRES_USER: ci_user
+          POSTGRES_PASSWORD: ci_password
+          POSTGRES_DB: ci_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci_user -d ci_db"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
     defaults:
       run:
         working-directory: apps/backend
@@ -41,6 +55,18 @@ jobs:
         run: pnpm --filter @api-starter-kit/backend test
         env:
           NODE_ENV: test
+          TZ: Asia/Shanghai
+          PORT: 3333
+          HOST: 127.0.0.1
+          LOG_LEVEL: silent
+          APP_KEY: 0123456789abcdef0123456789abcdef
+          APP_URL: http://127.0.0.1:3333
+          SESSION_DRIVER: memory
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5432
+          DB_USER: ci_user
+          DB_PASSWORD: ci_password
+          DB_DATABASE: ci_db
 
   frontend:
     name: Frontend (type-check, lint, build)
