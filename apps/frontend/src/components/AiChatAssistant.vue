@@ -117,6 +117,9 @@ const input = ref('')
 const isComposingInput = ref(false)
 const compositionEndedAt = ref(0)
 const scrollAreaRef = ref<InstanceType<typeof ScrollArea> | null>(null)
+const autoScrollEnabled = ref(true)
+
+let scrollViewport: HTMLElement | null = null
 
 const chatHeight = ref(600)
 const isResizing = ref(false)
@@ -189,19 +192,54 @@ function stopResize() {
   document.body.style.userSelect = ''
 }
 
-function scrollToBottom() {
+function getScrollViewport() {
+  const root = scrollAreaRef.value?.$el as HTMLElement | undefined
+  return root?.querySelector<HTMLElement>('[data-slot="scroll-area-viewport"]') ?? null
+}
+
+function isNearScrollBottom(viewport: HTMLElement) {
+  return viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight <= 32
+}
+
+function handleConversationScroll() {
+  if (scrollViewport) {
+    autoScrollEnabled.value = isNearScrollBottom(scrollViewport)
+  }
+}
+
+function bindScrollViewport() {
+  const viewport = getScrollViewport()
+  if (viewport === scrollViewport) return viewport
+
+  scrollViewport?.removeEventListener('scroll', handleConversationScroll)
+  scrollViewport = viewport
+  scrollViewport?.addEventListener('scroll', handleConversationScroll, { passive: true })
+  if (scrollViewport) {
+    autoScrollEnabled.value = isNearScrollBottom(scrollViewport)
+  }
+  return scrollViewport
+}
+
+function scrollToBottom(force = false) {
+  if (!force && !autoScrollEnabled.value) return
+  if (force) autoScrollEnabled.value = true
+
   nextTick(() => {
-    const root = scrollAreaRef.value?.$el as HTMLElement | undefined
-    const viewport = root?.querySelector<HTMLElement>('[data-slot="scroll-area-viewport"]')
+    const viewport = bindScrollViewport()
     if (viewport) {
       viewport.scrollTop = viewport.scrollHeight
+      autoScrollEnabled.value = true
     }
   })
 }
 
+function resumeAutoScroll() {
+  scrollToBottom(true)
+}
+
 function openAssistant() {
   isOpen.value = true
-  scrollToBottom()
+  scrollToBottom(true)
 }
 
 function closeAssistant() {
@@ -220,7 +258,7 @@ function clearChat() {
   }
 
   emit('clear')
-  scrollToBottom()
+  scrollToBottom(true)
 }
 
 function appendLocalResponse(message: string) {
@@ -251,7 +289,7 @@ function sendMessage(message = input.value) {
   appendLocalResponse(content)
   emit('send', content)
   input.value = ''
-  scrollToBottom()
+  scrollToBottom(true)
 }
 
 function stopGeneration() {
@@ -432,12 +470,16 @@ watch(
 
 watch(isOpen, (value) => {
   if (value) {
-    scrollToBottom()
+    scrollToBottom(true)
+  } else {
+    scrollViewport?.removeEventListener('scroll', handleConversationScroll)
+    scrollViewport = null
   }
 })
 
 onUnmounted(() => {
   stopResize()
+  scrollViewport?.removeEventListener('scroll', handleConversationScroll)
 })
 </script>
 
@@ -539,7 +581,7 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <div class="min-h-0 flex-1 p-4">
+      <div class="relative min-h-0 flex-1 p-4">
         <ScrollArea ref="scrollAreaRef" class="h-full">
           <div class="space-y-3 pr-3">
             <div
@@ -678,6 +720,17 @@ onUnmounted(() => {
             </div>
           </div>
         </ScrollArea>
+        <Button
+          v-if="loading && !autoScrollEnabled"
+          type="button"
+          variant="secondary"
+          size="sm"
+          class="absolute bottom-6 left-1/2 h-8 -translate-x-1/2 gap-1.5 rounded-full px-3 text-xs shadow-sm"
+          @click="resumeAutoScroll"
+        >
+          <ChevronDown class="size-3.5" />
+          {{ t('ai_chat.scroll_to_latest') }}
+        </Button>
       </div>
 
       <div class="p-3 pt-0">
