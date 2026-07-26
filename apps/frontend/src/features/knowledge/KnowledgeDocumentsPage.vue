@@ -242,6 +242,7 @@ async function confirmReindex() {
 onMounted(() => void fetchDocuments())
 onMounted(() => void listSystemRoleCatalog(auth.token).then((items) => (roles.value = items)))
 watch(page, (nextPage) => void fetchDocuments(nextPage))
+
 </script>
 
 <template>

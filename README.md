@@ -17,7 +17,7 @@
 - **路由驱动导航** — 侧栏菜单与面包屑均来自路由 `meta` 定义
 - **Schema 构建器** — JSON Schema 的可视化编辑、校验与预览示例
 - **模板中心** — 概览、详情、设置、列表管理、任务流转、数据分析、分步引导与操作模式示例
-- **AI 助手** — OpenAI SDK 兼容、流式多轮对话、历史会话、可配置系统提示词与安全页面上下文
+- **AI 助手** — OpenAI SDK 兼容、流式多轮对话、历史会话与可配置系统提示词
 - **国际化** — 中文和英文文案
 - **Docker 部署** — 多阶段构建，Nginx + 支持 pgvector 的 PostgreSQL 15
 - **Monorepo 工程** — pnpm workspace + Turborepo + ESLint + Prettier
@@ -223,7 +223,7 @@ pnpm --dir apps/frontend build
 
 ## AI 助手
 
-AI 助手使用 LangGraph.js 作为 Agent 运行层，并通过 OpenAI 兼容接口接入 OpenAI、DeepSeek、Qwen 和 Ollama 等服务。它提供流式输出、持久化 Agent checkpoint、多轮上下文和会话历史。原始消息始终保留在应用数据库中；LangGraph 在达到消息数或 token 阈值时压缩 Agent 工作上下文，同时 PostgreSQL checkpoint 为后续的工具执行中断、确认与恢复提供基础。知识库回答会随助手消息保存结构化来源，用户可展开核对文档摘录；受控操作确认卡会展示安全的变更摘要，而 API Key 或临时密码仅在确认成功后一次性展示，并提供复制操作。
+AI 助手通过 OpenAI 兼容接口接入 OpenAI、DeepSeek、Qwen 和 Ollama 等服务，提供流式输出、多轮上下文和会话历史。原始消息始终保留在应用数据库中，并在达到消息数或 token 阈值时压缩模型工作上下文。知识库回答会随助手消息保存结构化来源；受控操作确认卡会展示安全的变更摘要，而 API Key 或临时密码仅在确认成功后一次性展示，并提供复制操作。
 
 ### Langfuse Cloud 调用追踪
 
@@ -270,14 +270,11 @@ LANGFUSE_BASE_URL=https://us.cloud.langfuse.com
 | `AI_REQUEST_TIMEOUT_MS`                       | 单次 AI 请求超时，默认 `60000` ms，范围 `5000-300000`                    |
 | `AI_MAX_RETRIES`                              | 瞬时失败重试次数，默认 `2`，范围 `0-5`                                   |
 
-首次使用前必须通过项目迁移创建 `langgraph` checkpoint schema；不要在应用启动时运行框架的 `setup()` DDL。业务能力必须先在后端 Agent capability registry 中注册，并通过既有 service、Vine validator、Bouncer 权限与审计机制执行。当前开放的只读能力包括 `diagnose_my_access` 和不含原始密钥的 API Key 列表；`propose_api_key_revocation` 创建 5 分钟有效的通用受控操作提议。提议记录动作、目标摘要、请求人、会话、状态和有效期；实际执行通过统一确认入口再次校验会话归属、`api-keys:delete`、目标状态与有效期，并写入 `agent.action_confirmed` 审计事件。前端在输入框上方使用非阻塞的助手内批准提示，不使用弹窗或 Markdown 按钮；取消仅收起提示并保留提议，之后的明确批准回复仍可确认该同一提议。模型文本与 Markdown 不能触发执行。
+业务能力必须先在后端 Agent capability registry 中注册，并通过既有 service、Vine validator、Bouncer 权限与审计机制执行。当前开放的只读能力包括 `diagnose_my_access` 和不含原始密钥的 API Key 列表；`propose_api_key_revocation` 创建 5 分钟有效的通用受控操作提议。提议记录动作、目标摘要、请求人、会话、状态和有效期；实际执行通过统一确认入口再次校验会话归属、`api-keys:delete`、目标状态与有效期，并写入 `agent.action_confirmed` 审计事件。前端在输入框上方使用非阻塞的助手内批准提示，不使用弹窗或 Markdown 按钮；取消仅收起提示并保留提议，之后的明确批准回复仍可确认该同一提议。模型文本与 Markdown 不能触发执行。
 
-助手默认仅发送当前路由与页面标题。项目可以显式注册上下文 provider 或客户端动作；未注册时不会读取页面数据，也不会执行业务操作。相关扩展点位于：
+助手请求仅发送当前路由与页面标题；权限、系统事实和知识内容始终由后端工具实时校验与读取。
 
 针对单机部署模型，可执行 `pnpm --dir apps/backend exec node ace ai:evaluate`。该命令使用当前 `AI_OPENAI_*` 配置，在同一模拟会话中连续验证普通问答、知识文档、实时系统事实和受控变更四类请求；不会连接业务数据库、创建提案或执行变更。Qwen3-4B-Instruct-2507-4bit 建议保持低温度（默认 `0.1`）并将该命令作为模型升级、量化变更和提示词调整后的验收门槛。
-
-- `apps/frontend/src/lib/ai-chat-context.ts`
-- `apps/frontend/src/lib/ai-chat-actions.ts`
 
 ## 部署
 

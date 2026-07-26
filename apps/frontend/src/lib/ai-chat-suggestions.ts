@@ -41,6 +41,11 @@ const suggestionDefinitions: readonly AiChatSuggestionDefinition[] = [
     permission: 'audit-logs:read',
     routes: ['audit-logs'],
   },
+  {
+    promptKey: 'ai_chat.tasks.knowledge.search',
+    permission: 'knowledge:read',
+    routes: ['knowledge-documents'],
+  },
 ]
 
 export function getAiChatSuggestions(input: {

@@ -14,8 +14,6 @@ import env from '#start/env'
 export interface AiAgentPageContext {
   route: string
   title: string
-  actions?: Array<{ id: string; label: string; description: string }>
-  items?: Array<{ label: string; value: string }>
 }
 
 export interface AiAgentMessage {

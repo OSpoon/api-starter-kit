@@ -6,11 +6,9 @@ import AiChatAssistant from '@/components/AiChatAssistant.vue'
 import AppSidebar from '@/components/AppSidebar.vue'
 import SiteHeader from '@/components/SiteHeader.vue'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
-import { getAiChatActions, runAiChatAction } from '@/lib/ai-chat-actions'
 import type {
   AiChatAgentActivity,
   AiChatCitation,
-  AiChatClientAction,
   AiChatConfirmation,
   AiChatCredentialDisclosure,
   AiChatPendingConfirmation,
@@ -27,7 +25,6 @@ import {
   listAiChatConversations,
   streamAiChatMessage,
 } from '@/lib/ai-chat-api'
-import { getAiChatContextItems } from '@/lib/ai-chat-context'
 import { getAiChatSuggestions, pickRandomAiChatSuggestions } from '@/lib/ai-chat-suggestions'
 import { copyText } from '@/lib/clipboard'
 import { useAuthStore } from '@/stores/auth'
@@ -55,13 +52,13 @@ const aiStreamingMessages = ref<
 >([])
 const aiStreamingMessageId = ref<string | number | null>(null)
 const aiAbortController = ref<AbortController | null>(null)
-const aiActions = getAiChatActions()
 const pendingAiConfirmation = ref<AiChatConfirmation | null>(null)
 const aiConfirmations = ref<AiChatConfirmation[]>([])
 const aiConfirming = ref(false)
 const aiApprovalDismissed = ref(false)
 const aiCredentialDisclosure = ref<AiChatCredentialDisclosure | null>(null)
 const aiSuggestions = ref<string[]>([])
+
 
 type LocalAiChatMessage = {
   id: string
@@ -125,8 +122,6 @@ const aiPageContext = computed(() => {
   return {
     route: route.path,
     title,
-    actions: aiActions,
-    items: getAiChatContextItems(route),
   }
 })
 
@@ -236,14 +231,6 @@ async function handleAiCopyCredential(credential: AiChatCredentialDisclosure) {
     toast.success(t('ai_chat.credential.copy_success'))
   } catch {
     toast.error(t('ai_chat.credential.copy_failed'))
-  }
-}
-
-async function handleAiRunAction(action: AiChatClientAction) {
-  try {
-    await runAiChatAction(action.id)
-  } catch (error) {
-    toast.error(error instanceof Error ? error.message : t('common.error'))
   }
 }
 
@@ -549,7 +536,6 @@ onMounted(() => {
         :loading="aiLoading"
         :suggestions="aiSuggestions"
         :can-refresh-suggestions="allAiSuggestions.length > 3"
-        :actions="aiActions"
         :approval="aiApprovalDismissed ? null : pendingAiConfirmation"
         :approval-loading="aiConfirming"
         :credential-disclosure="aiCredentialDisclosure"
@@ -557,7 +543,6 @@ onMounted(() => {
         @copy-message="handleAiCopyMessage"
         @delete-conversation="handleAiDeleteConversation"
         @retry-message="handleAiRetryMessage"
-        @run-action="handleAiRunAction"
         @refresh-suggestions="refreshAiSuggestions"
         @approve-confirmation="confirmAiConfirmation"
         @dismiss-confirmation="dismissAiConfirmation"

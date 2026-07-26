@@ -58,22 +58,6 @@ export interface AiChatDeleteResult {
 export interface AiChatPageContext {
   route: string
   title: string
-  actions?: Array<{
-    id: string
-    label: string
-    description: string
-  }>
-  items?: Array<{
-    label: string
-    value: string
-  }>
-}
-
-export interface AiChatClientAction {
-  id: string
-  label: string
-  description: string
-  requiresConfirmation?: boolean
 }
 
 export interface AiChatStreamOptions {

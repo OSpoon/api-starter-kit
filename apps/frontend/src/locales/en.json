@@ -241,6 +241,9 @@
       },
       "audit_logs": {
         "recent": "Show recent audit records"
+      },
+      "knowledge": {
+        "search": "How do I use and maintain the knowledge base?"
       }
     }
   },

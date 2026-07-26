@@ -1,4 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http'
+import logger from '@adonisjs/core/services/logger'
 import { ApiOperation, ApiResponse, ApiSecurity } from '@foadonis/openapi/decorators'
 
 import AiChatConversation from '#models/ai_chat_conversation'
@@ -19,6 +20,7 @@ import {
 } from '#services/ai_agent_service'
 import { selectAiAgentContext } from '#services/ai_agent_state'
 import { resolveAiChatRegeneration } from '#services/ai_chat_regeneration'
+import { AiChatTiming } from '#services/ai_chat_timing'
 import {
   serializeAiChatConversation,
   serializeAiChatConversationWithMessages,
@@ -117,11 +119,14 @@ async function streamAiAgentToolStatuses(
   run: Awaited<ReturnType<typeof createAiAgentStream>>,
   response: HttpContext['response'],
   signal: AbortSignal,
+  timing: AiChatTiming,
   onToolCompleted?: () => void | Promise<void>
 ) {
   const completedToolNames = new Set<string>()
   for await (const toolCall of run.stream.toolCalls) {
     if (signal.aborted) throw new DOMException('AI request was cancelled', 'AbortError')
+    timing.markFirstAgentEvent()
+    timing.startTool(toolCall.name)
     writeSse(response, 'agent_status', { name: toolCall.name, state: 'running' })
     const state = await toolCall.status
     const output = state === 'finished' ? await toolCall.output : null
@@ -131,6 +136,7 @@ async function streamAiAgentToolStatuses(
       state: state === 'finished' && !toolError ? 'done' : 'error',
       ...(toolError ? { message: toolError } : {}),
     })
+    timing.finishTool(toolCall.name)
     if (state === 'finished') {
       completedToolNames.add(toolCall.name)
       await onToolCompleted?.()
@@ -282,6 +288,8 @@ export default class AiChatController {
     let lastPersistedContentLength = 0
     const knowledgeCitations = new Map<string, AiChatCitation>()
     const completedToolNames = new Set<string>()
+    const timing = new AiChatTiming()
+    let timingOutcome: 'completed' | 'failed' | 'aborted' = 'failed'
     const requestTimeout = setTimeout(() => abortController.abort(), getAiRequestTimeout())
 
     const persistAssistantMessage = async () => {
@@ -382,6 +390,7 @@ export default class AiChatController {
         run,
         response,
         abortController.signal,
+        timing,
         () => {
           hasCompletedTool = true
           if (bufferedContent) {
@@ -397,6 +406,7 @@ export default class AiChatController {
       })
 
       for await (const message of run.stream.messages) {
+        timing.markFirstAgentEvent()
         if (abortController.signal.aborted) {
           throw new DOMException('AI request was cancelled', 'AbortError')
         }
@@ -405,6 +415,7 @@ export default class AiChatController {
             continue
           }
 
+          timing.markFirstResponseToken()
           assistantContent += delta
           // Create the assistant record as soon as content starts arriving,
           // then checkpoint substantial progress. This keeps history durable
@@ -456,7 +467,9 @@ export default class AiChatController {
         message: serializeAiChatMessage(assistantMessage),
         confirmations,
       })
+      timingOutcome = 'completed'
     } catch (error) {
+      timingOutcome = isAbortError(error) ? 'aborted' : 'failed'
       const message = getSafeAiErrorMessage(error)
       assistantContent = assistantContent.trim() ? `${assistantContent}\n\n${message}` : message
       const failedAssistantMessage = await persistAssistantMessage()
@@ -484,6 +497,14 @@ export default class AiChatController {
     } finally {
       clearTimeout(requestTimeout)
       response.response.off('close', abortOnDisconnect)
+      logger.info(
+        {
+          conversationId: conversation.id,
+          agentRunId,
+          ...timing.summary(timingOutcome),
+        },
+        'AI chat timing'
+      )
       response.response.end()
     }
   }

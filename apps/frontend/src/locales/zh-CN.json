@@ -241,6 +241,9 @@
       },
       "audit_logs": {
         "recent": "查看最近的审计记录"
+      },
+      "knowledge": {
+        "search": "如何使用和维护知识库？"
       }
     }
   },

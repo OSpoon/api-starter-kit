@@ -33,7 +33,6 @@ import { Textarea } from '@/components/ui/textarea'
 import type {
   AiChatAgentActivity,
   AiChatCitation,
-  AiChatClientAction,
   AiChatConfirmation,
   AiChatCredentialDisclosure,
 } from '@/lib/ai-chat-api'
@@ -71,7 +70,6 @@ const props = withDefaults(
     loading?: boolean
     disabled?: boolean
     showMessageActions?: boolean
-    actions?: AiChatClientAction[]
     approval?: AiChatConfirmation | null
     approvalLoading?: boolean
     credentialDisclosure?: AiChatCredentialDisclosure | null
@@ -90,7 +88,6 @@ const props = withDefaults(
     loading: false,
     disabled: false,
     showMessageActions: true,
-    actions: () => [],
     approval: null,
     approvalLoading: false,
     credentialDisclosure: null,
@@ -106,7 +103,6 @@ const emit = defineEmits<{
   copyMessage: [message: ChatMessage]
   retryMessage: [message: ChatMessage]
   stop: []
-  runAction: [action: AiChatClientAction]
   refreshSuggestions: []
   approveConfirmation: []
   dismissConfirmation: []
