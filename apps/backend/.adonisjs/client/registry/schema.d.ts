@@ -67,6 +67,42 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/access_tokens_controller').default['store']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
+  'auth.github.redirect': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/auth/github'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/github_oauth_controller').default['redirect']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/github_oauth_controller').default['redirect']>>>
+    }
+  }
+  'auth.github.callback': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/auth/github/callback'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/github_oauth_controller').default['callback']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/github_oauth_controller').default['callback']>>>
+    }
+  }
+  'auth.github.exchange': {
+    methods: ["POST"]
+    pattern: '/api/v1/auth/github/exchange'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/github_oauth_controller').default['exchange']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/github_oauth_controller').default['exchange']>>>
+    }
+  }
   'auth.2fa.verify': {
     methods: ["POST"]
     pattern: '/api/v1/auth/2fa/verify'

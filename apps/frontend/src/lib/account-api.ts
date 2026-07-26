@@ -31,6 +31,24 @@ export type LoginResult =
   | { kind: 'success'; user: ApiUser; token: string; requiresPasswordChange?: boolean }
   | { kind: 'two_factor'; tempToken: string; requiresPasswordChange?: boolean }
 
+function toLoginResult(data: AuthResponse | LoginChallengeResponse): LoginResult {
+  if ('requiresTwoFactor' in data && data.requiresTwoFactor) {
+    return {
+      kind: 'two_factor',
+      tempToken: data.tempToken,
+      requiresPasswordChange: data.requiresPasswordChange,
+    }
+  }
+
+  const authData = data as AuthResponse
+  return {
+    kind: 'success',
+    user: authData.user,
+    token: authData.token,
+    requiresPasswordChange: authData.requiresPasswordChange,
+  }
+}
+
 function authOptions(token: string | null) {
   return { token }
 }
@@ -44,21 +62,18 @@ export async function login(email: string, password: string): Promise<LoginResul
     }
   )
 
-  if ('requiresTwoFactor' in response.data && response.data.requiresTwoFactor) {
-    return {
-      kind: 'two_factor',
-      tempToken: response.data.tempToken,
-      requiresPasswordChange: response.data.requiresPasswordChange,
-    }
-  }
+  return toLoginResult(response.data)
+}
 
-  const authData = response.data as AuthResponse
-  return {
-    kind: 'success',
-    user: authData.user,
-    token: authData.token,
-    requiresPasswordChange: authData.requiresPasswordChange,
-  }
+export async function exchangeGithubLogin(code: string): Promise<LoginResult> {
+  const response = await apiRequest<ApiEnvelope<AuthResponse | LoginChallengeResponse>>(
+    '/api/v1/auth/github/exchange',
+    {
+      method: 'POST',
+      body: JSON.stringify({ code }),
+    }
+  )
+  return toLoginResult(response.data)
 }
 
 export async function verify2fa(tempToken: string, code: string) {

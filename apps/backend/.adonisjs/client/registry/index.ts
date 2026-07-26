@@ -36,6 +36,24 @@ const routes = {
     tokens: [{"old":"/api/v1/auth/login","type":0,"val":"api","end":""},{"old":"/api/v1/auth/login","type":0,"val":"v1","end":""},{"old":"/api/v1/auth/login","type":0,"val":"auth","end":""},{"old":"/api/v1/auth/login","type":0,"val":"login","end":""}],
     types: placeholder as Registry['auth.login']['types'],
   },
+  'auth.github.redirect': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/v1/auth/github',
+    tokens: [{"old":"/api/v1/auth/github","type":0,"val":"api","end":""},{"old":"/api/v1/auth/github","type":0,"val":"v1","end":""},{"old":"/api/v1/auth/github","type":0,"val":"auth","end":""},{"old":"/api/v1/auth/github","type":0,"val":"github","end":""}],
+    types: placeholder as Registry['auth.github.redirect']['types'],
+  },
+  'auth.github.callback': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/v1/auth/github/callback',
+    tokens: [{"old":"/api/v1/auth/github/callback","type":0,"val":"api","end":""},{"old":"/api/v1/auth/github/callback","type":0,"val":"v1","end":""},{"old":"/api/v1/auth/github/callback","type":0,"val":"auth","end":""},{"old":"/api/v1/auth/github/callback","type":0,"val":"github","end":""},{"old":"/api/v1/auth/github/callback","type":0,"val":"callback","end":""}],
+    types: placeholder as Registry['auth.github.callback']['types'],
+  },
+  'auth.github.exchange': {
+    methods: ["POST"],
+    pattern: '/api/v1/auth/github/exchange',
+    tokens: [{"old":"/api/v1/auth/github/exchange","type":0,"val":"api","end":""},{"old":"/api/v1/auth/github/exchange","type":0,"val":"v1","end":""},{"old":"/api/v1/auth/github/exchange","type":0,"val":"auth","end":""},{"old":"/api/v1/auth/github/exchange","type":0,"val":"github","end":""},{"old":"/api/v1/auth/github/exchange","type":0,"val":"exchange","end":""}],
+    types: placeholder as Registry['auth.github.exchange']['types'],
+  },
   'auth.2fa.verify': {
     methods: ["POST"],
     pattern: '/api/v1/auth/2fa/verify',

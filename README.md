@@ -221,6 +221,9 @@ pnpm --dir apps/frontend build
 | 方法   | 路径                    | 说明                         |
 | ------ | ----------------------- | ---------------------------- |
 | `POST` | `/auth/login`           | 登录                         |
+| `GET`  | `/auth/github`          | 发起 GitHub 授权登录         |
+| `GET`  | `/auth/github/callback` | GitHub OAuth 回调            |
+| `POST` | `/auth/github/exchange` | 兑换一次性 GitHub 登录凭据   |
 | `POST` | `/auth/2fa/verify`      | 登录时验证 2FA               |
 | `POST` | `/auth/signup`          | 已禁用，管理员由环境变量创建 |
 | `GET`  | `/account/profile`      | 当前管理员信息               |

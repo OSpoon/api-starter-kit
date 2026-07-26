@@ -48,6 +48,10 @@
     "enter_code": "请输入验证码",
     "verify": "验证",
     "back_to_login": "返回登录",
+    "or_continue_with": "或",
+    "continue_with_github": "使用 GitHub 继续",
+    "github_login_failed": "GitHub 登录失败，请重试",
+    "github_not_bound": "此 GitHub 尚未绑定账户。请先使用密码登录，再到个人资料中绑定 GitHub。",
     "password_expired": "密码已过期，请先修改密码"
   },
   "change_password": {

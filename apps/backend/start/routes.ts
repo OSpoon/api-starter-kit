@@ -8,6 +8,7 @@ import { middleware } from '#start/kernel'
 const ApiKeysController = () => import('#controllers/api_keys_controller')
 const AiChatController = () => import('#controllers/ai_chat_controller')
 const AuditLogsController = () => import('#controllers/audit_logs_controller')
+const GithubOauthController = () => import('#controllers/github_oauth_controller')
 const KnowledgeDocumentsController = () => import('#controllers/knowledge_documents_controller')
 const PermissionsController = () => import('#controllers/permissions_controller')
 const RolesController = () => import('#controllers/roles_controller')
@@ -50,6 +51,9 @@ router
       .group(() => {
         router.post('signup', [controllers.NewAccount, 'store']).as('signup')
         router.post('login', [controllers.AccessTokens, 'store']).as('login')
+        router.get('github', [GithubOauthController, 'redirect']).as('github.redirect')
+        router.get('github/callback', [GithubOauthController, 'callback']).as('github.callback')
+        router.post('github/exchange', [GithubOauthController, 'exchange']).as('github.exchange')
         router.post('2fa/verify', [TwoFactorAuthController, 'verify']).as('2fa.verify')
       })
       .prefix('auth')

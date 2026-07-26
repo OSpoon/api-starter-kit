@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 import {
   type ApiUser,
   changePassword as changePasswordRequest,
+  exchangeGithubLogin as exchangeGithubLoginRequest,
   fetchProfile as fetchProfileRequest,
   login as loginRequest,
   type LoginResult,
@@ -57,6 +58,19 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  async function exchangeGithubLogin(code: string) {
+    loading.value = true
+    try {
+      const result = await exchangeGithubLoginRequest(code)
+      if (result.kind === 'success') {
+        setSession(result)
+      }
+      return result
+    } finally {
+      loading.value = false
+    }
+  }
+
   async function changePassword(currentPassword: string, password: string) {
     const profile = await changePasswordRequest(token.value, currentPassword, password)
     user.value = profile
@@ -84,6 +98,7 @@ export const useAuthStore = defineStore('auth', () => {
     loading,
     isAuthenticated,
     login,
+    exchangeGithubLogin,
     verify2fa,
     changePassword,
     fetchProfile,

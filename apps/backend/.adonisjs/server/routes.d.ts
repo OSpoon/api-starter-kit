@@ -9,6 +9,9 @@ export type ScannedRoutes = {
     'openapi.yaml': { paramsTuple?: []; params?: {} }
     'auth.signup': { paramsTuple?: []; params?: {} }
     'auth.login': { paramsTuple?: []; params?: {} }
+    'auth.github.redirect': { paramsTuple?: []; params?: {} }
+    'auth.github.callback': { paramsTuple?: []; params?: {} }
+    'auth.github.exchange': { paramsTuple?: []; params?: {} }
     'auth.2fa.verify': { paramsTuple?: []; params?: {} }
     'profile.profile.show': { paramsTuple?: []; params?: {} }
     'profile.profile.change_password': { paramsTuple?: []; params?: {} }
@@ -52,6 +55,8 @@ export type ScannedRoutes = {
     'openapi.html': { paramsTuple?: []; params?: {} }
     'openapi.json': { paramsTuple?: []; params?: {} }
     'openapi.yaml': { paramsTuple?: []; params?: {} }
+    'auth.github.redirect': { paramsTuple?: []; params?: {} }
+    'auth.github.callback': { paramsTuple?: []; params?: {} }
     'profile.profile.show': { paramsTuple?: []; params?: {} }
     'api_keys.index': { paramsTuple?: []; params?: {} }
     'knowledge_documents.index': { paramsTuple?: []; params?: {} }
@@ -68,6 +73,8 @@ export type ScannedRoutes = {
     'openapi.html': { paramsTuple?: []; params?: {} }
     'openapi.json': { paramsTuple?: []; params?: {} }
     'openapi.yaml': { paramsTuple?: []; params?: {} }
+    'auth.github.redirect': { paramsTuple?: []; params?: {} }
+    'auth.github.callback': { paramsTuple?: []; params?: {} }
     'profile.profile.show': { paramsTuple?: []; params?: {} }
     'api_keys.index': { paramsTuple?: []; params?: {} }
     'knowledge_documents.index': { paramsTuple?: []; params?: {} }
@@ -83,6 +90,7 @@ export type ScannedRoutes = {
   POST: {
     'auth.signup': { paramsTuple?: []; params?: {} }
     'auth.login': { paramsTuple?: []; params?: {} }
+    'auth.github.exchange': { paramsTuple?: []; params?: {} }
     'auth.2fa.verify': { paramsTuple?: []; params?: {} }
     'profile.2fa.generate': { paramsTuple?: []; params?: {} }
     'profile.2fa.enable': { paramsTuple?: []; params?: {} }

@@ -22,6 +22,47 @@ const twoFactorCode = ref('')
 const tempToken = ref('')
 const pendingPasswordChange = ref(false)
 
+function githubLoginUrl() {
+  return `${import.meta.env.VITE_API_URL ?? ''}/api/v1/auth/github`
+}
+
+async function completeGithubLogin() {
+  const callbackCode = typeof route.query.github_code === 'string' ? route.query.github_code : null
+  const code = callbackCode?.split('?')[0] ?? null
+  const error = typeof route.query.github_error === 'string' ? route.query.github_error : null
+  const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/dashboard'
+  if (!code && !error) {
+    return
+  }
+
+  await router.replace({ name: 'login', query: redirect === '/dashboard' ? {} : { redirect } })
+  if (error) {
+    toast.error(
+      error === 'E_GITHUB_OAUTH_ACCOUNT_NOT_LINKED'
+        ? t('auth.github_not_bound')
+        : t('auth.github_login_failed')
+    )
+    return
+  }
+
+  try {
+    const result = await auth.exchangeGithubLogin(code!)
+    if (result.kind === 'two_factor') {
+      isTwoFactorStep.value = true
+      tempToken.value = result.tempToken
+      pendingPasswordChange.value = Boolean(result.requiresPasswordChange)
+      toast.info(t('auth.enter_code'))
+      return
+    }
+    toast.success(t('auth.login_success'))
+    await router.push(redirect)
+  } catch (cause) {
+    toast.error(cause instanceof Error ? cause.message : t('auth.github_login_failed'))
+  }
+}
+
+onMounted(() => void completeGithubLogin())
+
 async function handleSubmit() {
   if (isTwoFactorStep.value) {
     if (!twoFactorCode.value) {
@@ -131,10 +172,7 @@ function backToLogin() {
       </FieldGroup>
 
       <FieldGroup v-else>
-        <Field class="
-          flex flex-col items-center justify-center space-y-2 text-center
-          *:w-auto
-        ">
+        <Field class="flex flex-col items-center justify-center space-y-2 text-center *:w-auto">
           <SegmentedCodeInput id="code" v-model="twoFactorCode" />
         </Field>
       </FieldGroup>
@@ -150,6 +188,29 @@ function backToLogin() {
           }}
         </Button>
       </div>
+
+      <template v-if="!isTwoFactorStep">
+        <div class="my-4 flex items-center gap-3 text-xs text-muted-foreground">
+          <span class="h-px flex-1 bg-border" />
+          {{ t('auth.or_continue_with') }}
+          <span class="h-px flex-1 bg-border" />
+        </div>
+        <Button as-child type="button" variant="outline" class="w-full" :disabled="auth.loading">
+          <a :href="githubLoginUrl()">
+            <svg
+              aria-hidden="true"
+              class="size-4 fill-current"
+              viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.2c-3.3.7-4-1.4-4-1.4-.5-1.4-1.3-1.8-1.3-1.8-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.6-.3-5.3-1.3-5.3-5.8 0-1.3.5-2.3 1.2-3.1-.1-.3-.5-1.5.1-3.1 0 0 1-.3 3.2 1.2a11 11 0 0 1 5.8 0c2.2-1.5 3.2-1.2 3.2-1.2.6 1.6.2 2.8.1 3.1.8.8 1.2 1.8 1.2 3.1 0 4.5-2.7 5.5-5.3 5.8.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .3Z"
+              />
+            </svg>
+            {{ t('auth.continue_with_github') }}
+          </a>
+        </Button>
+      </template>
 
       <div v-if="isTwoFactorStep" class="mt-4 text-center">
         <Button type="button" variant="link" size="sm" @click="backToLogin">

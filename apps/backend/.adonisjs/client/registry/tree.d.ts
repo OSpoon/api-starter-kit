@@ -10,6 +10,11 @@ export interface ApiDefinition {
   auth: {
     signup: typeof routes['auth.signup']
     login: typeof routes['auth.login']
+    github: {
+      redirect: typeof routes['auth.github.redirect']
+      callback: typeof routes['auth.github.callback']
+      exchange: typeof routes['auth.github.exchange']
+    }
     2Fa: {
       verify: typeof routes['auth.2fa.verify']
     }
