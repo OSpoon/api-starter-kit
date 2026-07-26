@@ -88,6 +88,16 @@ planning or editing.
 - Implement long-running conversation reduction as a rolling, persisted summary with an explicit covered-message boundary. Preserve the system prompt and recent messages in every model request.
 - Context compression must be enabled by default, configurable through validated backend environment variables, and must fall back to a bounded recent-message window when summarization fails.
 
+## AI Controlled Data Queries
+
+- Agent Tools must never generate or execute free-form SQL. Database reads are available only through registered query templates.
+- A query template owns its stable code and version, parameter schema, named permission, server-derived ownership or tenant scope, bounded result shape, row limit, and field-level redaction policy. Do not expose raw table, column, SQL, or arbitrary filter inputs to the model.
+- The backend must validate every template parameter and re-check authorization immediately before each query execution. Model-supplied identifiers, scopes, and permission claims are untrusted; multi-tenant or business-data templates must derive and enforce scope on the server.
+- Apply redaction and result limits before any query result reaches the model, persisted chat history, logs, or external observability service. Never return credentials, secrets, tokens, hashes, or unredacted sensitive fields through a query template.
+- When required parameters are missing, persist a user- and conversation-owned pending query with its template version, collected safe parameters, missing fields, status, and expiry. On every continuation, re-check ownership, expiry, template validity, authorization, and current target state; cancel the pending query when the user selects a different template.
+- Audit every executed query with the requester, template code and version, non-sensitive parameter summary, authorization outcome, result count, and duration. Do not store raw query results or sensitive parameter values in audit metadata.
+- New query templates require focused tests for allowed and denied authorization, parameter validation, redaction, bounds, and multi-turn parameter completion; add tenant-scope tests whenever tenant-scoped data is introduced.
+
 ## AI Controlled Actions
 
 - Agent Tools must never directly execute destructive or security-sensitive business mutations. They may only create a persisted action proposal.

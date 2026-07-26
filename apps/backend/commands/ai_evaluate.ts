@@ -3,6 +3,10 @@ import { createAgent, tool } from 'langchain'
 import { z } from 'zod'
 
 import { aiAgentChangeSchema } from '#services/ai_agent_action_registry'
+import {
+  aiQueryTemplateCodes,
+  aiQueryTemplateInstructions,
+} from '#services/ai_agent_query_registry'
 import { resolveGroundedAssistantResponse } from '#services/ai_agent_response_policy'
 import { createAiAgentModel, createAiAgentSystemPrompt } from '#services/ai_agent_service'
 
@@ -112,11 +116,6 @@ export default class AiEvaluate extends BaseCommand {
           description: 'List current active API Key metadata.',
           schema: z.object({}),
         }),
-        tool(remember('list_users', []), {
-          name: 'list_users',
-          description: 'List current managed users and roles.',
-          schema: z.object({ limit: z.number().int().min(1).max(100).default(50) }),
-        }),
         tool(remember('list_roles', []), {
           name: 'list_roles',
           description: 'List current roles and assigned permissions.',
@@ -127,10 +126,13 @@ export default class AiEvaluate extends BaseCommand {
           description: 'List the current permission catalog.',
           schema: z.object({}),
         }),
-        tool(remember('list_audit_logs', []), {
-          name: 'list_audit_logs',
-          description: 'List recent audit events.',
-          schema: z.object({ limit: z.number().int().min(1).max(100).default(30) }),
+        tool(remember('run_registered_query', { kind: 'query_result', rows: [] }), {
+          name: 'run_registered_query',
+          description: `Run a registered, permission-checked and redacted database query. Available templates: ${aiQueryTemplateInstructions}`,
+          schema: z.object({
+            templateCode: z.enum(aiQueryTemplateCodes),
+            params: z.record(z.unknown()).default({}),
+          }),
         }),
         tool(
           remember('propose_system_management_change', {

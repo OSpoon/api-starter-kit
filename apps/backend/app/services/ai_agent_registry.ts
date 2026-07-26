@@ -14,6 +14,11 @@ import {
   getAiAgentActionCapabilities,
 } from '#services/ai_agent_action_registry'
 import { AiAgentConfirmationError, proposeAiAgentAction } from '#services/ai_agent_confirmation'
+import {
+  aiQueryTemplateCodes,
+  aiQueryTemplateInstructions,
+  runRegisteredAiQuery,
+} from '#services/ai_agent_query_registry'
 import { searchKnowledge } from '#services/knowledge_service'
 import { type PermissionCode, permissionCodes } from '#services/permission_catalog'
 import { loadUserAccess } from '#services/user_access'
@@ -38,12 +43,6 @@ const readAgentCapabilities: readonly AiAgentCapability[] = [
     requiresConfirmation: false,
   },
   {
-    name: 'list_users',
-    description: 'List managed users and their roles.',
-    permission: 'users:read',
-    requiresConfirmation: false,
-  },
-  {
     name: 'list_roles',
     description: 'List roles and assigned permissions.',
     permission: 'roles:read',
@@ -56,9 +55,8 @@ const readAgentCapabilities: readonly AiAgentCapability[] = [
     requiresConfirmation: false,
   },
   {
-    name: 'list_audit_logs',
-    description: 'List recent audit events.',
-    permission: 'audit-logs:read',
+    name: 'run_registered_query',
+    description: 'Run a pre-registered, permission-checked, redacted database query.',
     requiresConfirmation: false,
   },
   {
@@ -156,27 +154,6 @@ export function createAiAgentTools(input: {
       }
     ),
     tool(
-      async ({ limit }) => {
-        throwIfAborted()
-        await ensurePermission(input.userId, 'users:read')
-        const users = await User.query().preload('roles').orderBy('id').limit(limit)
-        return JSON.stringify(
-          users.map((user) => ({
-            id: user.id,
-            fullName: user.fullName,
-            email: user.email,
-            twoFactorEnabled: user.twoFactorEnabled,
-            roles: user.roles.map((role) => ({ id: role.id, code: role.code, name: role.name })),
-          }))
-        )
-      },
-      {
-        name: 'list_users',
-        description: 'List managed users; use this to identify a user before proposing a change.',
-        schema: z.object({ limit: z.number().int().min(1).max(100).default(50) }),
-      }
-    ),
-    tool(
       async () => {
         throwIfAborted()
         await ensurePermission(input.userId, 'roles:read')
@@ -236,28 +213,31 @@ export function createAiAgentTools(input: {
       }
     ),
     tool(
-      async ({ limit }) => {
-        throwIfAborted()
-        await ensurePermission(input.userId, 'audit-logs:read')
-        const logs = await AuditLog.query().preload('actor').orderBy('id', 'desc').limit(limit)
-        return JSON.stringify(
-          logs.map((log) => ({
-            id: log.id,
-            action: log.action,
-            targetType: log.targetType,
-            targetId: log.targetId,
-            metadata: log.metadata,
-            createdAt: log.createdAt.toISO(),
-            actor: log.actor
-              ? { id: log.actor.id, fullName: log.actor.fullName, email: log.actor.email }
-              : null,
-          }))
-        )
+      async ({ templateCode, params }) => {
+        try {
+          throwIfAborted()
+          const result = await runRegisteredAiQuery({
+            conversationId: input.conversationId,
+            userId: input.userId,
+            templateCode,
+            params,
+          })
+          throwIfAborted()
+          return JSON.stringify(result)
+        } catch (error) {
+          return JSON.stringify({
+            kind: 'query_error',
+            message: error instanceof Error ? error.message : '查询未完成',
+          })
+        }
       },
       {
-        name: 'list_audit_logs',
-        description: 'List recent audit events without IP addresses or user-agent strings.',
-        schema: z.object({ limit: z.number().int().min(1).max(100).default(30) }),
+        name: 'run_registered_query',
+        description: `Run only a registered query template. Available templates: ${aiQueryTemplateInstructions} Never invent SQL, table names, columns, or template codes. If the result says missing_parameters, ask the user only for those fields; on their reply call this tool again with the same template code and newly supplied params. Results are already redacted and row-limited.`,
+        schema: z.object({
+          templateCode: z.enum(aiQueryTemplateCodes),
+          params: z.record(z.unknown()).default({}),
+        }),
       }
     ),
     tool(
