@@ -9,65 +9,7 @@ import {
 } from '#services/ai_agent_query_registry'
 import { resolveGroundedAssistantResponse } from '#services/ai_agent_response_policy'
 import { createAiAgentModel, createAiAgentSystemPrompt } from '#services/ai_agent_service'
-
-type EvaluationCase = {
-  name: string
-  question: string
-  expectedTool: string | null
-  expectedResponse: 'grounded' | 'scope'
-  toolOutputs?: Record<string, unknown>
-}
-
-const evaluationCases: EvaluationCase[] = [
-  {
-    name: 'knowledge document',
-    question: '找一下 API Starter Kit 所用的技术栈。',
-    expectedTool: 'search_knowledge',
-    expectedResponse: 'grounded',
-  },
-  {
-    name: 'product guidance',
-    question: '如何启动 API Starter Kit 项目？',
-    expectedTool: 'search_knowledge',
-    expectedResponse: 'grounded',
-  },
-  {
-    name: 'workflow guidance',
-    question: '如何配置 API Key？',
-    expectedTool: 'search_knowledge',
-    expectedResponse: 'grounded',
-  },
-  {
-    name: 'current system fact',
-    question: '列出当前有效的 API Key。',
-    expectedTool: 'list_api_keys',
-    expectedResponse: 'grounded',
-  },
-  {
-    name: 'controlled operation',
-    question: '请吊销 ID 为 19 的测试密钥。',
-    expectedTool: 'propose_system_management_change',
-    expectedResponse: 'grounded',
-  },
-  {
-    name: 'out of scope',
-    question: '用三句话解释最小权限原则。',
-    expectedTool: null,
-    expectedResponse: 'scope',
-  },
-  {
-    name: 'permission denied change',
-    question: '请吊销 ID 为 19 的测试密钥。',
-    expectedTool: 'propose_system_management_change',
-    expectedResponse: 'grounded',
-    toolOutputs: {
-      propose_system_management_change: {
-        kind: 'action_error',
-        message: '当前账号没有执行此操作的权限',
-      },
-    },
-  },
-]
+import { aiAssistantEvaluationCases, evaluateAiAssistantTurn } from '#services/ai_evaluation'
 
 /** Uses mock tools only; cases share one history and never mutate business data. */
 export default class AiEvaluate extends BaseCommand {
@@ -152,7 +94,7 @@ export default class AiEvaluate extends BaseCommand {
       ],
     })
     let conversationMessages: Array<{ role: 'user' | 'assistant'; content: string }> = []
-    for (const evaluation of evaluationCases) {
+    for (const evaluation of aiAssistantEvaluationCases) {
       this.logger.info(`RUN ${evaluation.name}`)
       const calledBeforeTurn = calledTools.length
       const startedAt = performance.now()
@@ -173,31 +115,30 @@ export default class AiEvaluate extends BaseCommand {
         continue
       }
       const turnTools = calledTools.slice(calledBeforeTurn)
-      const toolPassed = evaluation.expectedTool
-        ? turnTools.includes(evaluation.expectedTool)
-        : turnTools.length === 0
       const lastMessage = result.messages.at(-1)
       const rawContent = typeof lastMessage?.content === 'string' ? lastMessage.content : ''
       const response = resolveGroundedAssistantResponse({
         content: rawContent,
         completedToolNames: new Set(turnTools),
       })
-      const responsePassed =
-        evaluation.expectedResponse === 'grounded'
-          ? response === rawContent
-          : response !== rawContent
+      const evaluationResult = evaluateAiAssistantTurn({
+        evaluation,
+        calledTools: turnTools,
+        rawContent,
+        response,
+      })
       conversationMessages = [
         ...conversationMessages,
         { role: 'user', content: evaluation.question },
         { role: 'assistant', content: response },
       ]
-      if (toolPassed && responsePassed) {
+      if (evaluationResult.passed) {
         this.logger.success(
-          `PASS ${evaluation.name}: ${evaluation.expectedTool ?? 'scope guard'} (${Math.round(performance.now() - startedAt)}ms)`
+          `PASS ${evaluation.name}: ${evaluation.expectedTools.join(', ') || 'scope guard'} (${Math.round(performance.now() - startedAt)}ms)`
         )
       } else {
         failures.push(
-          `${evaluation.name}: expected ${evaluation.expectedTool ?? 'no tool'} and ${evaluation.expectedResponse} response, got ${turnTools.join(', ') || 'no tool call'} and ${response === rawContent ? 'grounded' : 'scope'} response`
+          `${evaluation.name}: expected ${evaluation.expectedTools.join(', ') || 'no tool'} and ${evaluation.expectedResponse} response, got ${turnTools.join(', ') || 'no tool call'} and ${response === rawContent ? 'grounded' : 'scope'} response`
         )
       }
     }
