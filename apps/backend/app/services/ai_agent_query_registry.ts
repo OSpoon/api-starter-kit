@@ -5,6 +5,8 @@ import { z } from 'zod'
 import { access } from '#abilities/main'
 import AiAgentPendingQuery from '#models/ai_agent_pending_query'
 import AuditLog from '#models/audit_log'
+import Permission from '#models/permission'
+import Role from '#models/role'
 import User from '#models/user'
 import type { PermissionCode } from '#services/permission_catalog'
 
@@ -29,7 +31,13 @@ export type AiRegisteredQueryResult =
     }
 
 type AiQueryTemplate = {
-  code: 'managed_users' | 'managed_user_profile' | 'recent_audit_logs'
+  code:
+    | 'managed_users'
+    | 'managed_user_profile'
+    | 'recent_audit_logs'
+    | 'role_profile'
+    | 'permission_usage'
+    | 'recent_access_control_changes'
   version: number
   description: string
   permission: PermissionCode
@@ -136,6 +144,122 @@ const queryTemplates: readonly AiQueryTemplate[] = [
           targetType: log.targetType,
           targetId: log.targetId,
           // Metadata is deliberately excluded: it can contain business identifiers.
+          createdAt: log.createdAt.toISO(),
+          actor: log.actor
+            ? { id: log.actor.id, fullName: maskName(log.actor.fullName ?? '') }
+            : null,
+        })),
+      }
+    },
+  },
+  {
+    code: 'role_profile',
+    version: 1,
+    description: 'Look up one role by its stable code with assigned permissions and user count.',
+    permission: 'roles:read',
+    parameters: {
+      roleCode: {
+        description: 'Required stable role code, for example editor.',
+        required: true,
+        schema: z.string().trim().min(1).max(120),
+      },
+    },
+    async execute(params) {
+      const role = await Role.query()
+        .where('code', params.roleCode as string)
+        .preload('permissions', (query) => query.orderBy('code'))
+        .withCount('users')
+        .first()
+      if (!role) return { rows: [], message: 'No role matched that code.' }
+      return {
+        rows: [
+          {
+            id: role.id,
+            code: role.code,
+            name: role.name,
+            description: role.description,
+            isSystem: role.isSystem,
+            userCount: Number(role.$extras.users_count ?? 0),
+            permissions: role.permissions.map((permission) => ({
+              id: permission.id,
+              code: permission.code,
+              name: permission.name,
+              groupName: permission.groupName,
+            })),
+          },
+        ],
+      }
+    },
+  },
+  {
+    code: 'permission_usage',
+    version: 1,
+    description: 'Look up one permission by its stable code and the roles that currently use it.',
+    permission: 'permissions:read',
+    parameters: {
+      permissionCode: {
+        description: 'Required stable permission code, for example users:read.',
+        required: true,
+        schema: z.string().trim().min(3).max(120),
+      },
+    },
+    async execute(params) {
+      const permission = await Permission.query()
+        .where('code', params.permissionCode as string)
+        .preload('roles', (query) => query.orderBy('code'))
+        .first()
+      if (!permission) return { rows: [], message: 'No permission matched that code.' }
+      return {
+        rows: [
+          {
+            id: permission.id,
+            code: permission.code,
+            name: permission.name,
+            groupName: permission.groupName,
+            description: permission.description,
+            isSystem: permission.isSystem,
+            roles: permission.roles.map((role) => ({
+              id: role.id,
+              code: role.code,
+              name: role.name,
+              isSystem: role.isSystem,
+            })),
+          },
+        ],
+      }
+    },
+  },
+  {
+    code: 'recent_access_control_changes',
+    version: 1,
+    description:
+      'List recent role and permission create, update, and delete audit events without metadata or unredacted actor details.',
+    permission: 'audit-logs:read',
+    parameters: {
+      limit: {
+        description: 'Maximum number of events to return, from 1 to 50. Defaults to 30.',
+        schema: z.number().int().min(1).max(maxRows).default(30),
+      },
+    },
+    async execute(params) {
+      const logs = await AuditLog.query()
+        .whereIn('action', [
+          'role.created',
+          'role.updated',
+          'role.deleted',
+          'permission.created',
+          'permission.updated',
+          'permission.deleted',
+        ])
+        .preload('actor')
+        .orderBy('id', 'desc')
+        .limit(params.limit as number)
+      return {
+        rows: logs.map((log) => ({
+          id: log.id,
+          action: log.action,
+          targetType: log.targetType,
+          targetId: log.targetId,
           createdAt: log.createdAt.toISO(),
           actor: log.actor
             ? { id: log.actor.id, fullName: maskName(log.actor.fullName ?? '') }

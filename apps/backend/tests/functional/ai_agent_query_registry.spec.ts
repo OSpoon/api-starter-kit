@@ -4,6 +4,7 @@ import { test } from '@japa/runner'
 import AiAgentPendingQuery from '#models/ai_agent_pending_query'
 import AiChatConversation from '#models/ai_chat_conversation'
 import AuditLog from '#models/audit_log'
+import Permission from '#models/permission'
 import Role from '#models/role'
 import User from '#models/user'
 import { getPendingAiQueryContext, runRegisteredAiQuery } from '#services/ai_agent_query_registry'
@@ -140,5 +141,148 @@ test.group('AI agent registered queries', (group) => {
     assert.isNull(
       await AiAgentPendingQuery.query().where('conversation_id', conversation.id).first()
     )
+  })
+
+  test('returns current role and permission assignments through permission-scoped templates', async ({
+    assert,
+  }) => {
+    const { user, conversation } = await createAdminConversation()
+    const suffix = Date.now()
+    const permission = await Permission.create({
+      code: `reports:${suffix}`,
+      name: 'View reports',
+      groupName: 'Reports',
+      description: 'Allows viewing reports',
+      isSystem: false,
+    })
+    const role = await Role.create({
+      code: `reporter-${suffix}`,
+      name: 'Reporter',
+      description: 'Can view reports',
+      isSystem: false,
+    })
+    await role.related('permissions').sync([permission.id])
+
+    const roleResult = await runRegisteredAiQuery({
+      conversationId: conversation.id,
+      userId: user.id,
+      templateCode: 'role_profile',
+      params: { roleCode: role.code },
+    })
+    assert.deepEqual(roleResult, {
+      kind: 'query_result',
+      templateCode: 'role_profile',
+      rows: [
+        {
+          id: role.id,
+          code: role.code,
+          name: 'Reporter',
+          description: 'Can view reports',
+          isSystem: false,
+          userCount: 0,
+          permissions: [
+            {
+              id: permission.id,
+              code: permission.code,
+              name: 'View reports',
+              groupName: 'Reports',
+            },
+          ],
+        },
+      ],
+    })
+
+    const permissionResult = await runRegisteredAiQuery({
+      conversationId: conversation.id,
+      userId: user.id,
+      templateCode: 'permission_usage',
+      params: { permissionCode: permission.code },
+    })
+    assert.deepEqual(permissionResult, {
+      kind: 'query_result',
+      templateCode: 'permission_usage',
+      rows: [
+        {
+          id: permission.id,
+          code: permission.code,
+          name: 'View reports',
+          groupName: 'Reports',
+          description: 'Allows viewing reports',
+          isSystem: false,
+          roles: [{ id: role.id, code: role.code, name: 'Reporter', isSystem: false }],
+        },
+      ],
+    })
+  })
+
+  test('redacts recent access-control change actors and omits metadata', async ({ assert }) => {
+    const { user, conversation } = await createAdminConversation()
+    const audit = await AuditLog.create({
+      actorUserId: user.id,
+      action: 'role.updated',
+      targetType: 'role',
+      targetId: '123',
+      metadata: { email: user.email, secret: 'must-not-return' },
+    })
+
+    const result = await runRegisteredAiQuery({
+      conversationId: conversation.id,
+      userId: user.id,
+      templateCode: 'recent_access_control_changes',
+      params: { limit: 1 },
+    })
+
+    assert.equal(result.kind, 'query_result')
+    if (result.kind !== 'query_result') throw new Error('Expected a query result')
+    assert.deepEqual(result.rows, [
+      {
+        id: audit.id,
+        action: 'role.updated',
+        targetType: 'role',
+        targetId: '123',
+        createdAt: audit.createdAt.toISO(),
+        actor: { id: user.id, fullName: 'Q*' },
+      },
+    ])
+    assert.notProperty(result.rows[0] as object, 'metadata')
+  })
+
+  test('validates role-query parameters and denies every new access-control template', async ({
+    assert,
+  }) => {
+    const { user, conversation } = await createAdminConversation()
+    const invalid = await runRegisteredAiQuery({
+      conversationId: conversation.id,
+      userId: user.id,
+      templateCode: 'role_profile',
+      params: { roleCode: 'super-admin', unrestricted: true },
+    })
+    assert.deepEqual(invalid, { kind: 'query_error', message: '不支持的查询参数：unrestricted' })
+
+    const deniedUser = await User.create({
+      fullName: 'No Access',
+      email: `no-access-${Date.now()}@example.com`,
+      password: generateInitialPassword(),
+    })
+    const deniedConversation = await AiChatConversation.create({
+      userId: deniedUser.id,
+      title: 'Denied access-control query',
+    })
+    for (const [templateCode, params] of [
+      ['role_profile', { roleCode: 'super-admin' }],
+      ['permission_usage', { permissionCode: 'users:read' }],
+      ['recent_access_control_changes', {}],
+    ] as const) {
+      await assert.rejects(
+        () =>
+          runRegisteredAiQuery({
+            conversationId: deniedConversation.id,
+            userId: deniedUser.id,
+            templateCode,
+            params,
+          }),
+        '当前账号没有执行此查询的权限'
+      )
+    }
   })
 })

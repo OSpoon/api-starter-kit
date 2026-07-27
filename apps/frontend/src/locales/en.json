@@ -211,9 +211,6 @@
       "copy_success": "Credential copied to clipboard",
       "copy_failed": "Could not copy credential"
     },
-    "citations": {
-      "title": "Source documents ({count})"
-    },
     "stop_generating": "Stop generating",
     "copy_success": "Message copied",
     "stream_incomplete": "The AI response connection was interrupted. Please try again.",

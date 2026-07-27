@@ -396,12 +396,7 @@ function getActivityLabel(activity: AiChatAgentActivity) {
 }
 
 function getMessageActivityLabel(message: ChatMessage) {
-  if (message.activity) return getActivityLabel(message.activity)
-  return message.citations?.length ? t('ai_chat.activities.search_knowledge.done') : null
-}
-
-function getCitationDocumentTitles(citations: AiChatCitation[]) {
-  return [...new Map(citations.map((citation) => [citation.documentId, citation.title])).values()]
+  return message.activity ? getActivityLabel(message.activity) : null
 }
 
 function getApprovalTarget(approval: AiChatConfirmation) {
@@ -621,38 +616,12 @@ onUnmounted(() => {
                   </template>
                 </div>
                 <div
-                  v-if="message.role === 'assistant' && (message.activity || message.citations?.length)"
+                  v-if="message.role === 'assistant' && message.activity"
                   class="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground"
                 >
                   <span v-if="getMessageActivityLabel(message)">
                     {{ getMessageActivityLabel(message) }}
                   </span>
-                  <DropdownMenu v-if="message.citations?.length">
-                    <DropdownMenuTrigger as-child>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        class="h-auto gap-1 p-0 text-xs font-medium text-muted-foreground hover:bg-transparent hover:text-foreground"
-                      >
-                        {{
-                          t('ai_chat.citations.title', {
-                            count: getCitationDocumentTitles(message.citations).length,
-                          })
-                        }}
-                        <ChevronDown class="size-3" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" :side-offset="6" class="w-56 p-1">
-                      <DropdownMenuItem
-                        v-for="title in getCitationDocumentTitles(message.citations)"
-                        :key="title"
-                        class="cursor-default text-xs"
-                        @select.prevent
-                      >
-                        {{ title }}
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
                 </div>
                 <div
                   v-if="canCopyMessage(message) || canRetryMessage(message)"
