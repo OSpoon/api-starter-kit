@@ -370,6 +370,42 @@ async function ensurePermission(userId: number, permission: PermissionCode) {
   if (!(await bouncer.allows('access', permission))) throw new Error('当前账号没有执行此查询的权限')
 }
 
+async function recordQueryAudit(input: {
+  userId: number
+  templateCode: string
+  templateVersion?: number
+  action: 'agent.query_executed' | 'agent.query_rejected' | 'agent.query_failed'
+  authorization: 'allowed' | 'denied' | 'not_checked'
+  reason?:
+    | 'unknown_template'
+    | 'permission_denied'
+    | 'unsupported_parameters'
+    | 'invalid_parameters'
+    | 'execution_failed'
+  parameterNames: string[]
+  unknownParameterNames?: string[]
+  resultCount?: number
+  startedAt: number
+}) {
+  await AuditLog.create({
+    actorUserId: input.userId,
+    action: input.action,
+    targetType: 'ai_query_template',
+    targetId: input.templateCode,
+    metadata: {
+      ...(input.templateVersion === undefined ? {} : { templateVersion: input.templateVersion }),
+      parameterNames: input.parameterNames,
+      ...(input.unknownParameterNames?.length
+        ? { unknownParameterNames: input.unknownParameterNames }
+        : {}),
+      ...(input.resultCount === undefined ? {} : { resultCount: input.resultCount }),
+      authorization: input.authorization,
+      ...(input.reason ? { reason: input.reason } : {}),
+      durationMs: Math.round(performance.now() - input.startedAt),
+    },
+  })
+}
+
 function getMissingFields(template: AiQueryTemplate, params: Record<string, unknown>) {
   return Object.entries(template.parameters)
     .filter(([name, parameter]) => {
@@ -428,15 +464,51 @@ export async function runRegisteredAiQuery(input: {
   templateCode: string
   params: Record<string, unknown>
 }): Promise<AiRegisteredQueryResult> {
-  const template = getAiQueryTemplate(input.templateCode)
-  if (!template) return { kind: 'query_error', message: '未知的查询模板' }
   const startedAt = performance.now()
-  await ensurePermission(input.userId, template.permission)
+  const template = getAiQueryTemplate(input.templateCode)
+  if (!template) {
+    await recordQueryAudit({
+      userId: input.userId,
+      templateCode: input.templateCode,
+      action: 'agent.query_rejected',
+      authorization: 'not_checked',
+      reason: 'unknown_template',
+      parameterNames: Object.keys(input.params),
+      startedAt,
+    })
+    return { kind: 'query_error', message: '未知的查询模板' }
+  }
+  try {
+    await ensurePermission(input.userId, template.permission)
+  } catch (error) {
+    await recordQueryAudit({
+      userId: input.userId,
+      templateCode: template.code,
+      templateVersion: template.version,
+      action: 'agent.query_rejected',
+      authorization: 'denied',
+      reason: 'permission_denied',
+      parameterNames: Object.keys(input.params),
+      startedAt,
+    })
+    throw error
+  }
 
   const unknownParameters = Object.keys(input.params).filter(
     (name) => !(name in template.parameters)
   )
   if (unknownParameters.length) {
+    await recordQueryAudit({
+      userId: input.userId,
+      templateCode: template.code,
+      templateVersion: template.version,
+      action: 'agent.query_rejected',
+      authorization: 'allowed',
+      reason: 'unsupported_parameters',
+      parameterNames: Object.keys(input.params),
+      unknownParameterNames: unknownParameters,
+      startedAt,
+    })
     return { kind: 'query_error', message: `不支持的查询参数：${unknownParameters.join(', ')}` }
   }
 
@@ -482,35 +554,60 @@ export async function runRegisteredAiQuery(input: {
     }
   }
 
+  let parsedParams: Record<string, unknown>
   try {
-    const parsedParams = parseParams(template, mergedParams)
-    const result = await template.execute(parsedParams)
-    if (active?.templateCode === template.code) {
-      active.status = 'executed'
-      active.completedAt = DateTime.now()
-      active.missingFields = []
-      await active.save()
-    }
-    await AuditLog.create({
-      actorUserId: input.userId,
-      action: 'agent.query_executed',
-      targetType: 'ai_query_template',
-      targetId: template.code,
-      metadata: {
-        templateVersion: template.version,
-        parameterNames: Object.keys(parsedParams),
-        resultCount: Array.isArray(result.rows) ? result.rows.length : 0,
-        authorization: 'allowed',
-        durationMs: Math.round(performance.now() - startedAt),
-      },
-    })
-    return {
-      kind: 'query_result',
-      templateCode: template.code,
-      rows: Array.isArray(result.rows) ? result.rows : [],
-      ...(typeof result.message === 'string' ? { message: result.message } : {}),
-    }
+    parsedParams = parseParams(template, mergedParams)
   } catch (error) {
+    await recordQueryAudit({
+      userId: input.userId,
+      templateCode: template.code,
+      templateVersion: template.version,
+      action: 'agent.query_rejected',
+      authorization: 'allowed',
+      reason: 'invalid_parameters',
+      parameterNames: Object.keys(mergedParams),
+      startedAt,
+    })
     return { kind: 'query_error', message: error instanceof Error ? error.message : '查询未完成' }
+  }
+
+  let result: Record<string, unknown>
+  try {
+    result = await template.execute(parsedParams)
+  } catch (error) {
+    await recordQueryAudit({
+      userId: input.userId,
+      templateCode: template.code,
+      templateVersion: template.version,
+      action: 'agent.query_failed',
+      authorization: 'allowed',
+      reason: 'execution_failed',
+      parameterNames: Object.keys(parsedParams),
+      startedAt,
+    })
+    return { kind: 'query_error', message: error instanceof Error ? error.message : '查询未完成' }
+  }
+
+  if (active?.templateCode === template.code) {
+    active.status = 'executed'
+    active.completedAt = DateTime.now()
+    active.missingFields = []
+    await active.save()
+  }
+  await recordQueryAudit({
+    userId: input.userId,
+    templateCode: template.code,
+    templateVersion: template.version,
+    action: 'agent.query_executed',
+    authorization: 'allowed',
+    parameterNames: Object.keys(parsedParams),
+    resultCount: Array.isArray(result.rows) ? result.rows.length : 0,
+    startedAt,
+  })
+  return {
+    kind: 'query_result',
+    templateCode: template.code,
+    rows: Array.isArray(result.rows) ? result.rows : [],
+    ...(typeof result.message === 'string' ? { message: result.message } : {}),
   }
 }

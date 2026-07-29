@@ -133,6 +133,20 @@ test.group('AI agent registered queries', (group) => {
     assert.isNull(
       await AiAgentPendingQuery.query().where('conversation_id', conversation.id).first()
     )
+    const audit = await AuditLog.query()
+      .where('action', 'agent.query_rejected')
+      .where('target_id', 'managed_user_profile')
+      .firstOrFail()
+    assert.deepEqual(audit.metadata, {
+      templateVersion: 1,
+      parameterNames: ['userId', 'sql'],
+      unknownParameterNames: ['sql'],
+      authorization: 'allowed',
+      reason: 'unsupported_parameters',
+      durationMs: audit.metadata?.durationMs,
+    })
+    assert.isNumber(audit.metadata?.durationMs)
+    assert.notProperty(audit.metadata ?? {}, 'params')
   })
 
   test('denies an unprivileged user before creating pending query state', async ({ assert }) => {
@@ -156,6 +170,59 @@ test.group('AI agent registered queries', (group) => {
     assert.isNull(
       await AiAgentPendingQuery.query().where('conversation_id', conversation.id).first()
     )
+    const audit = await AuditLog.query()
+      .where('action', 'agent.query_rejected')
+      .where('target_id', 'managed_user_profile')
+      .where('actor_user_id', user.id)
+      .firstOrFail()
+    assert.deepEqual(
+      {
+        templateVersion: audit.metadata?.templateVersion,
+        parameterNames: audit.metadata?.parameterNames,
+        authorization: audit.metadata?.authorization,
+        reason: audit.metadata?.reason,
+      },
+      {
+        templateVersion: 1,
+        parameterNames: [],
+        authorization: 'denied',
+        reason: 'permission_denied',
+      }
+    )
+    assert.isNumber(audit.metadata?.durationMs)
+  })
+
+  test('audits invalid query parameters without retaining parameter values', async ({ assert }) => {
+    const { user, conversation } = await createAdminConversation()
+
+    const result = await runRegisteredAiQuery({
+      conversationId: conversation.id,
+      userId: user.id,
+      templateCode: 'managed_user_profile',
+      params: { userId: 'not-an-id' },
+    })
+
+    assert.equal(result.kind, 'query_error')
+    const audit = await AuditLog.query()
+      .where('action', 'agent.query_rejected')
+      .where('target_id', 'managed_user_profile')
+      .where('actor_user_id', user.id)
+      .firstOrFail()
+    assert.deepEqual(
+      {
+        templateVersion: audit.metadata?.templateVersion,
+        parameterNames: audit.metadata?.parameterNames,
+        authorization: audit.metadata?.authorization,
+        reason: audit.metadata?.reason,
+      },
+      {
+        templateVersion: 1,
+        parameterNames: ['userId'],
+        authorization: 'allowed',
+        reason: 'invalid_parameters',
+      }
+    )
+    assert.notInclude(JSON.stringify(audit.metadata), 'not-an-id')
   })
 
   test('returns current role and permission assignments through permission-scoped templates', async ({
