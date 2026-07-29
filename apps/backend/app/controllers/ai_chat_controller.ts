@@ -4,6 +4,7 @@ import { ApiOperation, ApiResponse, ApiSecurity } from '@foadonis/openapi/decora
 
 import AiChatConversation from '#models/ai_chat_conversation'
 import AiChatMessage, { type AiChatCitation } from '#models/ai_chat_message'
+import { clearAiAgentCheckpoint } from '#services/ai_agent_checkpoint'
 import {
   AiAgentConfirmationError,
   attachAgentRunConfirmations,
@@ -12,13 +13,7 @@ import {
   listConversationConfirmations,
 } from '#services/ai_agent_confirmation'
 import { resolveGroundedAssistantResponse } from '#services/ai_agent_response_policy'
-import {
-  createAiAgentStream,
-  getAiRequestTimeout,
-  getContextCompressionOptions,
-  summarizeAiConversation,
-} from '#services/ai_agent_service'
-import { selectAiAgentContext } from '#services/ai_agent_state'
+import { createAiAgentStream, getAiRequestTimeout } from '#services/ai_agent_service'
 import { resolveAiChatRegeneration } from '#services/ai_chat_regeneration'
 import { AiChatTiming } from '#services/ai_chat_timing'
 import {
@@ -218,9 +213,7 @@ export default class AiChatController {
         .where('id', regeneration.assistantMessage.id)
         .where('conversation_id', conversation.id)
         .delete()
-      conversation.contextSummary = null
-      conversation.summaryUntilMessageId = null
-      await conversation.save()
+      await clearAiAgentCheckpoint({ conversationId: conversation.id, userId: user.id })
     }
 
     const userMessage =
@@ -301,48 +294,12 @@ export default class AiChatController {
             })),
             { role: userMessage.role, content: userMessage.content },
           ]
-      const compression = getContextCompressionOptions()
-      const context = compression.enabled
-        ? selectAiAgentContext({
-            messages: history.map((message, index) => ({
-              ...message,
-              id: persistedMessages[index]?.id ?? userMessage.id,
-            })),
-            summary: conversation.contextSummary,
-            summaryUntilMessageId: conversation.summaryUntilMessageId,
-            thresholdTokens: compression.thresholdTokens,
-            recentMessageCount: compression.recentMessageCount,
-          })
-        : { messages: history, messagesToSummarize: [] }
-      let messages = context.messages
-      if (context.messagesToSummarize.length > 0) {
-        try {
-          const summary = await summarizeAiConversation({
-            existingSummary: conversation.contextSummary,
-            messages: context.messagesToSummarize,
-          })
-          const summaryUntilMessageId = context.messagesToSummarize.at(-1)?.id
-          if (!summaryUntilMessageId) throw new Error('AI context summary boundary is missing')
-          conversation.contextSummary = summary
-          conversation.summaryUntilMessageId = summaryUntilMessageId
-          await conversation.save()
-          messages = [
-            { role: 'system', content: `Persisted conversation summary:\n${summary}` },
-            ...history.slice(-compression.recentMessageCount),
-          ]
-        } catch {
-          // Never discard persisted history when summarization fails. The model
-          // receives a bounded recent window while the complete history remains
-          // available through the conversation API.
-          messages = history.slice(-compression.recentMessageCount)
-        }
-      }
       timing.finishNode('context_preparation')
       timing.startNode('agent_run')
       const run = await createAiAgentStream({
         conversationId: conversation.id,
         userId: user.id,
-        messages,
+        messages: history,
         context: payload.context,
         signal: abortController.signal,
         onKnowledgeSources: (sources) => {
@@ -537,6 +494,7 @@ export default class AiChatController {
       .where('user_id', user.id)
       .firstOrFail()
 
+    await clearAiAgentCheckpoint({ conversationId: conversation.id, userId: user.id })
     await conversation.delete()
     return serialize({ id: Number(params.id), deleted: true })
   }

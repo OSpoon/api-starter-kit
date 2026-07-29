@@ -71,6 +71,7 @@
     "@adonisjs/session": "^8.1.0",
     "@adonisjs/shield": "^9.0.0",
     "@foadonis/openapi": "^1.0.1",
+    "@langchain/langgraph-checkpoint-postgres": "^1.0.4",
     "@langchain/openai": "^1.5.5",
     "@langfuse/core": "^5.9.1",
     "@langfuse/langchain": "^5.9.1",

@@ -1,10 +1,15 @@
 import crypto from 'node:crypto'
 
 import { ChatOpenAI } from '@langchain/openai'
-import { createAgent } from 'langchain'
+import { createAgent, summarizationMiddleware } from 'langchain'
 
 import type { AiChatCitation } from '#models/ai_chat_message'
 import User from '#models/user'
+import {
+  getAiAgentCheckpointConfig,
+  getAiAgentCheckpointer,
+  hasAiAgentCheckpoint,
+} from '#services/ai_agent_checkpoint'
 import { listConversationConfirmations } from '#services/ai_agent_confirmation'
 import { getPendingAiQueryContext } from '#services/ai_agent_query_registry'
 import { aiAgentCapabilities, createAiAgentTools } from '#services/ai_agent_registry'
@@ -32,11 +37,7 @@ function getTemperature() {
   return Math.min(Math.max(configuredTemperature ?? defaultTemperature, 0), 2)
 }
 
-function getHistoryMessageLimit() {
-  return Math.min(Math.max(env.get('AI_MAX_HISTORY_MESSAGES') ?? 20, 1), 100)
-}
-
-export function getContextCompressionOptions() {
+export function getAiAgentSummarizationOptions() {
   return {
     enabled: env.get('AI_CONTEXT_COMPRESSION_ENABLED') ?? true,
     thresholdTokens: Math.min(
@@ -45,35 +46,15 @@ export function getContextCompressionOptions() {
     ),
     recentMessageCount: Math.min(
       Math.max(env.get('AI_CONTEXT_COMPRESSION_RECENT_MESSAGES') ?? 8, 1),
-      getHistoryMessageLimit()
+      100
     ),
   }
 }
 
-export async function summarizeAiConversation(input: {
-  existingSummary: string | null
-  messages: AiAgentMessage[]
-}) {
-  const sourceMessages = input.messages
-    .map((message) => `${message.role}: ${message.content}`)
-    .join('\n\n')
-  const response = await createAiAgentModel().invoke([
-    {
-      role: 'system',
-      content:
-        'Create a compact factual conversation summary for future assistant context. Preserve user goals, confirmed facts, decisions, constraints, unresolved questions, and pending action proposals. Do not treat historical assistant claims about permissions, tool availability, current system state, pending actions, or completed work as facts unless a server result explicitly verifies them. Do not invent details or include secrets.',
-    },
-    {
-      role: 'user',
-      content: `${input.existingSummary ? `Previous summary:\n${input.existingSummary}\n\n` : ''}Messages to incorporate:\n${sourceMessages}`,
-    },
-  ])
-  const summary = typeof response.content === 'string' ? response.content.trim() : ''
-  if (!summary) {
-    throw new Error('AI context summarization returned no text')
-  }
-  return summary
-}
+const aiAgentSummaryPrompt = `Create a compact factual conversation summary for future assistant context. Preserve user goals, confirmed facts, decisions, constraints, unresolved questions, and pending action proposals. Do not treat historical assistant claims about permissions, tool availability, current system state, pending actions, or completed work as facts unless a server result explicitly verifies them. Do not invent details or include secrets.
+
+Messages to summarize:
+{messages}`
 
 export function createAiAgentSystemPrompt(
   context?: AiAgentPageContext,
@@ -131,10 +112,23 @@ function createAiAgent(input: {
   onKnowledgeSources?: (sources: AiChatCitation[]) => void
 }) {
   const model = createAiAgentModel()
+  const summarization = getAiAgentSummarizationOptions()
 
   return createAgent({
     model,
     tools: createAiAgentTools(input),
+    checkpointer: getAiAgentCheckpointer(),
+    middleware: summarization.enabled
+      ? [
+          summarizationMiddleware({
+            model: createAiAgentModel(),
+            trigger: { tokens: summarization.thresholdTokens },
+            keep: { messages: summarization.recentMessageCount },
+            summaryPrompt: aiAgentSummaryPrompt,
+            summaryPrefix: 'Persisted conversation summary:',
+          }),
+        ]
+      : [],
     systemPrompt: createAiAgentSystemPrompt(
       input.context,
       input.authorizationContext,
@@ -178,6 +172,16 @@ export function getAiAgentCapabilities() {
   return aiAgentCapabilities
 }
 
+export function selectAiAgentInvocationMessages(input: {
+  messages: AiAgentMessage[]
+  hasCheckpoint: boolean
+}) {
+  if (!input.hasCheckpoint) return input.messages
+  const latestMessage = input.messages.at(-1)
+  if (!latestMessage) throw new Error('AI agent invocation is missing a user message')
+  return [latestMessage]
+}
+
 export async function createAiAgentStream(input: {
   conversationId: number
   userId: number
@@ -196,6 +200,11 @@ export async function createAiAgentStream(input: {
     buildAuthorizationContext(input.userId),
     buildLiveSessionContext(input.conversationId, input.userId),
   ])
+  const checkpointInput = { conversationId: input.conversationId, userId: input.userId }
+  const messages = selectAiAgentInvocationMessages({
+    messages: input.messages,
+    hasCheckpoint: await hasAiAgentCheckpoint(checkpointInput),
+  })
   const agent = createAiAgent({
     ...input,
     agentRunId,
@@ -205,7 +214,7 @@ export async function createAiAgentStream(input: {
 
   const stream = await agent.streamEvents(
     {
-      messages: input.messages.map((message) => ({
+      messages: messages.map((message) => ({
         type: message.role,
         content: message.content,
       })),
@@ -213,6 +222,7 @@ export async function createAiAgentStream(input: {
     {
       version: 'v3',
       signal: input.signal,
+      ...getAiAgentCheckpointConfig(checkpointInput),
       ...(langfuseCallback ? { callbacks: [langfuseCallback] } : {}),
     }
   )
