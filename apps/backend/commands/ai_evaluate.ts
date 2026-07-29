@@ -11,7 +11,7 @@ import { resolveGroundedAssistantResponse } from '#services/ai_agent_response_po
 import { createAiAgentModel, createAiAgentSystemPrompt } from '#services/ai_agent_service'
 import { aiAssistantEvaluationCases, evaluateAiAssistantTurn } from '#services/ai_evaluation'
 
-/** Uses mock tools only; cases share one history and never mutate business data. */
+/** Uses mock tools only; each scenario has isolated history and never mutates business data. */
 export default class AiEvaluate extends BaseCommand {
   static commandName = 'ai:evaluate'
   static description = 'Validate the configured AI model against core assistant tool-use scenarios'
@@ -78,53 +78,51 @@ export default class AiEvaluate extends BaseCommand {
         ),
       ],
     })
-    let conversationMessages: Array<{ role: 'user' | 'assistant'; content: string }> = []
     for (const evaluation of aiAssistantEvaluationCases) {
-      this.logger.info(`RUN ${evaluation.name}`)
-      const calledBeforeTurn = calledTools.length
-      const startedAt = performance.now()
-      let result: Awaited<ReturnType<typeof agent.invoke>> | null = null
-      toolOutputs = evaluation.toolOutputs ?? {}
+      let conversationMessages: Array<{ role: 'user' | 'assistant'; content: string }> = []
+      for (const [turnIndex, turn] of evaluation.turns.entries()) {
+        const label = `${evaluation.name} / turn ${turnIndex + 1}`
+        this.logger.info(`RUN ${label}`)
+        const calledBeforeTurn = calledTools.length
+        const startedAt = performance.now()
+        toolOutputs = turn.toolOutputs ?? {}
 
-      try {
-        result = await agent.invoke({
-          messages: [
+        try {
+          const result = await agent.invoke({
+            messages: [...conversationMessages, { role: 'user' as const, content: turn.question }],
+          })
+          const turnTools = calledTools.slice(calledBeforeTurn)
+          const lastMessage = result.messages.at(-1)
+          const rawContent = typeof lastMessage?.content === 'string' ? lastMessage.content : ''
+          const response = resolveGroundedAssistantResponse({
+            content: rawContent,
+            completedToolNames: new Set(turnTools),
+          })
+          const evaluationResult = evaluateAiAssistantTurn({
+            evaluation: turn,
+            calledTools: turnTools,
+            rawContent,
+            response,
+          })
+          conversationMessages = [
             ...conversationMessages,
-            { role: 'user' as const, content: evaluation.question },
-          ],
-        })
-      } catch (error) {
-        const failure = `${evaluation.name}: ${error instanceof Error ? error.message : 'model call failed'}`
-        failures.push(failure)
-        this.logger.error(`FAIL ${failure}`)
-        continue
-      }
-      const turnTools = calledTools.slice(calledBeforeTurn)
-      const lastMessage = result.messages.at(-1)
-      const rawContent = typeof lastMessage?.content === 'string' ? lastMessage.content : ''
-      const response = resolveGroundedAssistantResponse({
-        content: rawContent,
-        completedToolNames: new Set(turnTools),
-      })
-      const evaluationResult = evaluateAiAssistantTurn({
-        evaluation,
-        calledTools: turnTools,
-        rawContent,
-        response,
-      })
-      conversationMessages = [
-        ...conversationMessages,
-        { role: 'user', content: evaluation.question },
-        { role: 'assistant', content: response },
-      ]
-      if (evaluationResult.passed) {
-        this.logger.success(
-          `PASS ${evaluation.name}: ${evaluation.expectedTools.join(', ') || 'scope guard'} (${Math.round(performance.now() - startedAt)}ms)`
-        )
-      } else {
-        failures.push(
-          `${evaluation.name}: expected ${evaluation.expectedTools.join(', ') || 'no tool'} and ${evaluation.expectedResponse} response, got ${turnTools.join(', ') || 'no tool call'} and ${response === rawContent ? 'grounded' : 'scope'} response`
-        )
+            { role: 'user', content: turn.question },
+            { role: 'assistant', content: response },
+          ]
+          if (evaluationResult.passed) {
+            this.logger.success(
+              `PASS ${label}: ${turn.expectedTools.join(', ') || 'scope guard'} (${Math.round(performance.now() - startedAt)}ms)`
+            )
+          } else {
+            failures.push(
+              `${label}: expected ${turn.expectedTools.join(', ') || 'no tool'} and ${turn.expectedResponse} response, got ${turnTools.join(', ') || 'no tool call'} and ${response === rawContent ? 'grounded' : 'scope'} response`
+            )
+          }
+        } catch (error) {
+          const failure = `${label}: ${error instanceof Error ? error.message : 'model call failed'}`
+          failures.push(failure)
+          this.logger.error(`FAIL ${failure}`)
+        }
       }
     }
 

@@ -3,7 +3,6 @@ import { test } from '@japa/runner'
 import { evaluateAiAssistantTurn } from '#services/ai_evaluation'
 
 const evaluation = {
-  name: 'test',
   question: 'test',
   expectedTools: ['search_knowledge'],
   expectedResponse: 'grounded' as const,
