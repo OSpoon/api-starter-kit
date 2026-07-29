@@ -59,7 +59,6 @@ const aiApprovalDismissed = ref(false)
 const aiCredentialDisclosure = ref<AiChatCredentialDisclosure | null>(null)
 const aiSuggestions = ref<string[]>([])
 
-
 type LocalAiChatMessage = {
   id: string
   role: 'user' | 'assistant'
@@ -272,10 +271,6 @@ async function confirmAiConfirmation() {
   }
 }
 
-function isApprovalMessage(message: string) {
-  return /^(确认|批准|继续|同意|approve|confirm)$/i.test(message.trim())
-}
-
 async function handleAiRetryMessage(message: DisplayAiChatMessage) {
   const messages = getDisplayedAiMessages()
   const messageIndex = messages.findIndex((item) => item.id === message.id)
@@ -292,11 +287,6 @@ async function handleAiRetryMessage(message: DisplayAiChatMessage) {
 }
 
 async function handleAiSend(message: string, regenerateAssistantMessageId?: number) {
-  if (!regenerateAssistantMessageId && pendingAiConfirmation.value && isApprovalMessage(message)) {
-    await confirmAiConfirmation()
-    return
-  }
-
   aiAbortController.value?.abort()
   const abortController = new AbortController()
   aiAbortController.value = abortController

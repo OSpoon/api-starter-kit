@@ -6,7 +6,7 @@ type AiChatTimingStage =
   | 'firstToolCompleted'
   | 'firstResponseToken'
 
-type AiChatToolTiming = {
+type AiChatOperationTiming = {
   name: string
   startedAt: number
   durationMs?: number
@@ -15,7 +15,8 @@ type AiChatToolTiming = {
 export class AiChatTiming {
   private readonly startedAt: number
   private readonly stages: Partial<Record<AiChatTimingStage, number>> = {}
-  private readonly tools: AiChatToolTiming[] = []
+  private readonly tools: AiChatOperationTiming[] = []
+  private readonly nodes: AiChatOperationTiming[] = []
 
   constructor(private readonly now: () => number = () => performance.now()) {
     this.startedAt = now()
@@ -42,6 +43,23 @@ export class AiChatTiming {
     this.markOnce('firstResponseToken')
   }
 
+  startNode(name: string) {
+    this.nodes.push({ name, startedAt: this.now() })
+  }
+
+  finishNode(name: string) {
+    const node = [...this.nodes].reverse().find((candidate) => candidate.name === name)
+    if (node && node.durationMs === undefined) {
+      node.durationMs = this.elapsedSince(node.startedAt)
+    }
+  }
+
+  finishOpenNodes() {
+    for (const node of this.nodes) {
+      if (node.durationMs === undefined) node.durationMs = this.elapsedSince(node.startedAt)
+    }
+  }
+
   summary(outcome: AiChatTimingOutcome) {
     return {
       outcome,
@@ -50,7 +68,8 @@ export class AiChatTiming {
       firstToolStartedMs: this.stageElapsed('firstToolStarted'),
       firstToolCompletedMs: this.stageElapsed('firstToolCompleted'),
       firstResponseTokenMs: this.stageElapsed('firstResponseToken'),
-      tools: this.tools.map((tool) => ({ name: tool.name, durationMs: tool.durationMs ?? null })),
+      tools: this.serializeOperations(this.tools),
+      nodes: this.serializeOperations(this.nodes),
     }
   }
 
@@ -65,5 +84,12 @@ export class AiChatTiming {
 
   private elapsedSince(timestamp: number) {
     return Math.max(0, Math.round(this.now() - timestamp))
+  }
+
+  private serializeOperations(operations: AiChatOperationTiming[]) {
+    return operations.map((operation) => ({
+      name: operation.name,
+      durationMs: operation.durationMs ?? null,
+    }))
   }
 }

@@ -128,10 +128,10 @@
         "done": "已完成权限检查",
         "error": "权限检查未完成"
       },
-      "list_api_keys": {
-        "running": "正在查询 API Key…",
-        "done": "已完成 API Key 查询",
-        "error": "API Key 查询未完成"
+      "run_registered_query": {
+        "running": "正在执行注册查询…",
+        "done": "已完成注册查询",
+        "error": "注册查询未完成"
       },
       "search_knowledge": {
         "running": "正在检索知识文档…",

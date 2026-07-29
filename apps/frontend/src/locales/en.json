@@ -128,10 +128,10 @@
         "done": "Permission check completed",
         "error": "Permission check did not complete"
       },
-      "list_api_keys": {
-        "running": "Looking up API keys…",
-        "done": "API key lookup completed",
-        "error": "API key lookup did not complete"
+      "run_registered_query": {
+        "running": "Running registered query…",
+        "done": "Registered query completed",
+        "error": "Registered query did not complete"
       },
       "search_knowledge": {
         "running": "Searching knowledge documents…",

@@ -4,6 +4,7 @@ import { z } from 'zod'
 
 import { access } from '#abilities/main'
 import AiAgentPendingQuery from '#models/ai_agent_pending_query'
+import ApiKey from '#models/api_key'
 import AuditLog from '#models/audit_log'
 import Permission from '#models/permission'
 import Role from '#models/role'
@@ -32,10 +33,13 @@ export type AiRegisteredQueryResult =
 
 type AiQueryTemplate = {
   code:
+    | 'active_api_keys'
     | 'managed_users'
     | 'managed_user_profile'
     | 'recent_audit_logs'
+    | 'roles_with_permissions'
     | 'role_profile'
+    | 'permission_catalog'
     | 'permission_usage'
     | 'recent_access_control_changes'
   version: number
@@ -58,6 +62,28 @@ function maskName(name: string) {
 }
 
 const queryTemplates: readonly AiQueryTemplate[] = [
+  {
+    code: 'active_api_keys',
+    version: 1,
+    description: 'List up to 50 active API Key metadata without secret values.',
+    permission: 'api-keys:read',
+    parameters: {},
+    async execute() {
+      const keys = await ApiKey.query()
+        .whereNull('revoked_at')
+        .orderBy('created_at', 'desc')
+        .limit(50)
+      return {
+        rows: keys.map((key) => ({
+          id: key.id,
+          name: key.name,
+          prefix: key.prefix,
+          expiresAt: key.expiresAt?.toISO() ?? null,
+          lastUsedAt: key.lastUsedAt?.toISO() ?? null,
+        })),
+      }
+    },
+  },
   {
     code: 'managed_users',
     version: 1,
@@ -153,6 +179,36 @@ const queryTemplates: readonly AiQueryTemplate[] = [
     },
   },
   {
+    code: 'roles_with_permissions',
+    version: 1,
+    description: 'List up to 100 roles with their assigned permissions and user counts.',
+    permission: 'roles:read',
+    parameters: {},
+    async execute() {
+      const roles = await Role.query()
+        .preload('permissions', (query) => query.orderBy('code').limit(200))
+        .withCount('users')
+        .orderBy('is_system', 'desc')
+        .orderBy('name')
+        .limit(100)
+      return {
+        rows: roles.map((role) => ({
+          id: role.id,
+          code: role.code,
+          name: role.name,
+          description: role.description,
+          isSystem: role.isSystem,
+          userCount: Number(role.$extras.users_count ?? 0),
+          permissions: role.permissions.map((permission) => ({
+            id: permission.id,
+            code: permission.code,
+            name: permission.name,
+          })),
+        })),
+      }
+    },
+  },
+  {
     code: 'role_profile',
     version: 1,
     description: 'Look up one role by its stable code with assigned permissions and user count.',
@@ -188,6 +244,31 @@ const queryTemplates: readonly AiQueryTemplate[] = [
             })),
           },
         ],
+      }
+    },
+  },
+  {
+    code: 'permission_catalog',
+    version: 1,
+    description: 'List up to 200 permission catalog entries with role reference counts.',
+    permission: 'permissions:read',
+    parameters: {},
+    async execute() {
+      const permissions = await Permission.query()
+        .withCount('roles')
+        .orderBy('group_name')
+        .orderBy('code')
+        .limit(200)
+      return {
+        rows: permissions.map((permission) => ({
+          id: permission.id,
+          code: permission.code,
+          name: permission.name,
+          groupName: permission.groupName,
+          description: permission.description,
+          isSystem: permission.isSystem,
+          roleCount: Number(permission.$extras.roles_count ?? 0),
+        })),
       }
     },
   },

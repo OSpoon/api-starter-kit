@@ -22,13 +22,13 @@ export const aiAssistantEvaluationCases: readonly AiEvaluationCase[] = [
   {
     name: 'current system fact',
     question: '列出当前有效的 API Key。',
-    expectedTools: ['list_api_keys'],
+    expectedTools: ['run_registered_query'],
     expectedResponse: 'grounded',
   },
   {
     name: 'role assignment',
     question: '超级管理员角色当前有哪些权限？',
-    expectedTools: ['list_roles'],
+    expectedTools: ['run_registered_query'],
     expectedResponse: 'grounded',
   },
   {

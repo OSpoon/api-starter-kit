@@ -4,8 +4,6 @@ import { z } from 'zod'
 
 import { access } from '#abilities/main'
 import AuditLog from '#models/audit_log'
-import Permission from '#models/permission'
-import Role from '#models/role'
 import User from '#models/user'
 import { buildMyAccessDiagnosis } from '#services/ai_access_diagnostic'
 import {
@@ -34,24 +32,6 @@ const readAgentCapabilities: readonly AiAgentCapability[] = [
   {
     name: 'diagnose_my_access',
     description: 'Explain the current user’s effective access.',
-    requiresConfirmation: false,
-  },
-  {
-    name: 'list_api_keys',
-    description: 'List non-secret API Key metadata.',
-    permission: 'api-keys:read',
-    requiresConfirmation: false,
-  },
-  {
-    name: 'list_roles',
-    description: 'List roles and assigned permissions.',
-    permission: 'roles:read',
-    requiresConfirmation: false,
-  },
-  {
-    name: 'list_permissions',
-    description: 'List the permission catalog.',
-    permission: 'permissions:read',
     requiresConfirmation: false,
   },
   {
@@ -126,90 +106,6 @@ export function createAiAgentTools(input: {
         name: 'diagnose_my_access',
         description: 'Diagnose only the current authenticated user’s access.',
         schema: z.object({ permissionCode: z.enum(permissionCodes).optional() }),
-      }
-    ),
-    tool(
-      async () => {
-        throwIfAborted()
-        await ensurePermission(input.userId, 'api-keys:read')
-        const { default: ApiKey } = await import('#models/api_key')
-        const keys = await ApiKey.query()
-          .whereNull('revoked_at')
-          .orderBy('created_at', 'desc')
-          .limit(50)
-        return JSON.stringify(
-          keys.map((key) => ({
-            id: key.id,
-            name: key.name,
-            prefix: key.prefix,
-            expiresAt: key.expiresAt?.toISO() ?? null,
-            lastUsedAt: key.lastUsedAt?.toISO() ?? null,
-          }))
-        )
-      },
-      {
-        name: 'list_api_keys',
-        description: 'List up to 50 active API Keys without secret values.',
-        schema: z.object({}),
-      }
-    ),
-    tool(
-      async () => {
-        throwIfAborted()
-        await ensurePermission(input.userId, 'roles:read')
-        const roles = await Role.query()
-          .preload('permissions', (query) => query.orderBy('code').limit(200))
-          .withCount('users')
-          .orderBy('is_system', 'desc')
-          .orderBy('name')
-          .limit(100)
-        return JSON.stringify(
-          roles.map((role) => ({
-            id: role.id,
-            code: role.code,
-            name: role.name,
-            description: role.description,
-            isSystem: role.isSystem,
-            userCount: Number(role.$extras.users_count ?? 0),
-            permissions: role.permissions.map((permission) => ({
-              id: permission.id,
-              code: permission.code,
-              name: permission.name,
-            })),
-          }))
-        )
-      },
-      {
-        name: 'list_roles',
-        description: 'List all roles with permission assignments and user counts.',
-        schema: z.object({}),
-      }
-    ),
-    tool(
-      async () => {
-        throwIfAborted()
-        await ensurePermission(input.userId, 'permissions:read')
-        const permissions = await Permission.query()
-          .withCount('roles')
-          .orderBy('group_name')
-          .orderBy('code')
-          .limit(200)
-        return JSON.stringify(
-          permissions.map((permission) => ({
-            id: permission.id,
-            code: permission.code,
-            name: permission.name,
-            groupName: permission.groupName,
-            description: permission.description,
-            isSystem: permission.isSystem,
-            roleCount: Number(permission.$extras.roles_count ?? 0),
-          }))
-        )
-      },
-      {
-        name: 'list_permissions',
-        description: 'List the permission catalog and reference counts.',
-        schema: z.object({}),
       }
     ),
     tool(

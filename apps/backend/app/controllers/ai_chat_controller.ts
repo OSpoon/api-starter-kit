@@ -33,14 +33,6 @@ function createTitle(content: string) {
   return title.length > 60 ? `${title.slice(0, 57)}...` : title || 'New chat'
 }
 
-function isApprovalReply(content: string) {
-  const normalized = content.trim()
-  return (
-    /^(批准|同意|确认|approve|confirm|yes)$/i.test(normalized) ||
-    /^(?:是|好的|可以|我)?[，,。！!\s]*(?:我)?(?:确认|同意|批准|继续)/i.test(normalized)
-  )
-}
-
 function writeSse(response: HttpContext['response'], event: string, data: unknown) {
   if (response.response.writableEnded || response.response.destroyed) {
     return
@@ -262,26 +254,6 @@ export default class AiChatController {
       message: serializeAiChatMessage(userMessage),
     })
 
-    if (!payload.regenerateAssistantMessageId && isApprovalReply(payload.content)) {
-      const pendingConfirmations = await listConversationConfirmations(conversation.id, user.id)
-      const assistantContent = pendingConfirmations.length
-        ? '请使用对话中的结构化确认卡批准此操作；我不会根据聊天文字执行系统变更。'
-        : '当前没有可批准的系统变更，因此未执行任何操作。请先重新发起需要确认的操作。'
-      const assistantMessage = await AiChatMessage.create({
-        conversationId: conversation.id,
-        role: 'assistant',
-        content: assistantContent,
-      })
-      await conversation.load('messages', (query) => query.orderBy('created_at', 'asc'))
-      writeSse(response, 'done', {
-        conversation: serializeAiChatConversationWithMessages(conversation),
-        message: serializeAiChatMessage(assistantMessage),
-        confirmations: [],
-      })
-      response.response.end()
-      return
-    }
-
     let assistantContent = ''
     let agentRunId: string | null = null
     let persistedAssistantMessage: AiChatMessage | null = null
@@ -316,6 +288,7 @@ export default class AiChatController {
     }
 
     try {
+      timing.startNode('context_preparation')
       const persistedMessages = payload.regenerateAssistantMessageId
         ? regeneration!.messages
         : conversation.messages
@@ -364,6 +337,8 @@ export default class AiChatController {
           messages = history.slice(-compression.recentMessageCount)
         }
       }
+      timing.finishNode('context_preparation')
+      timing.startNode('agent_run')
       const run = await createAiAgentStream({
         conversationId: conversation.id,
         userId: user.id,
@@ -443,6 +418,8 @@ export default class AiChatController {
       // Knowledge retrieval is recorded independently through
       // `onKnowledgeSources`, so its citations are still persisted below.
       for (const toolName of toolResult ?? []) completedToolNames.add(toolName)
+      timing.finishNode('agent_run')
+      timing.startNode('finalize_reply')
       assistantContent = resolveGroundedAssistantResponse({
         content: assistantContent,
         completedToolNames,
@@ -467,6 +444,7 @@ export default class AiChatController {
         message: serializeAiChatMessage(assistantMessage),
         confirmations,
       })
+      timing.finishNode('finalize_reply')
       timingOutcome = 'completed'
     } catch (error) {
       timingOutcome = isAbortError(error) ? 'aborted' : 'failed'
@@ -497,6 +475,7 @@ export default class AiChatController {
     } finally {
       clearTimeout(requestTimeout)
       response.response.off('close', abortOnDisconnect)
+      timing.finishOpenNodes()
       logger.info(
         {
           conversationId: conversation.id,

@@ -3,11 +3,13 @@ import { test } from '@japa/runner'
 
 import AiAgentPendingQuery from '#models/ai_agent_pending_query'
 import AiChatConversation from '#models/ai_chat_conversation'
+import ApiKey from '#models/api_key'
 import AuditLog from '#models/audit_log'
 import Permission from '#models/permission'
 import Role from '#models/role'
 import User from '#models/user'
 import { getPendingAiQueryContext, runRegisteredAiQuery } from '#services/ai_agent_query_registry'
+import { createAiAgentTools } from '#services/ai_agent_registry'
 import { generateInitialPassword } from '#services/user_credentials'
 
 async function createAdminConversation() {
@@ -24,6 +26,19 @@ async function createAdminConversation() {
 
 test.group('AI agent registered queries', (group) => {
   group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
+
+  test('exposes one registered-query tool instead of dedicated system-list tools', ({ assert }) => {
+    const toolNames = createAiAgentTools({
+      userId: 1,
+      conversationId: 1,
+      agentRunId: 'test-run',
+    }).map((registeredTool) => registeredTool.name)
+
+    assert.include(toolNames, 'run_registered_query')
+    assert.notInclude(toolNames, 'list_api_keys')
+    assert.notInclude(toolNames, 'list_roles')
+    assert.notInclude(toolNames, 'list_permissions')
+  })
 
   test('persists only the missing required parameters until a later reply completes the query', async ({
     assert,
@@ -247,6 +262,99 @@ test.group('AI agent registered queries', (group) => {
     assert.notProperty(result.rows[0] as object, 'metadata')
   })
 
+  test('uses bounded, permission-scoped templates for API Key, role, and permission lists', async ({
+    assert,
+  }) => {
+    const { user, conversation } = await createAdminConversation()
+    const suffix = Date.now()
+    const apiKey = await ApiKey.create({
+      name: `Query key ${suffix}`,
+      prefix: `q${suffix}`,
+      keyHash: `hash-${suffix}`,
+    })
+    const permission = await Permission.create({
+      code: `reports:${suffix}`,
+      name: 'View reports',
+      groupName: 'Reports',
+      description: 'Allows viewing reports',
+      isSystem: false,
+    })
+    const role = await Role.create({
+      code: `reporter-${suffix}`,
+      name: 'Reporter',
+      description: 'Can view reports',
+      isSystem: false,
+    })
+    await role.related('permissions').sync([permission.id])
+
+    const apiKeyResult = await runRegisteredAiQuery({
+      conversationId: conversation.id,
+      userId: user.id,
+      templateCode: 'active_api_keys',
+      params: {},
+    })
+    assert.equal(apiKeyResult.kind, 'query_result')
+    if (apiKeyResult.kind !== 'query_result') throw new Error('Expected API Key query result')
+    const apiKeyRow = apiKeyResult.rows.find(
+      (row) => typeof row === 'object' && row !== null && 'id' in row && row.id === apiKey.id
+    ) as Record<string, unknown> | undefined
+    assert.deepEqual(apiKeyRow, {
+      id: apiKey.id,
+      name: apiKey.name,
+      prefix: apiKey.prefix,
+      expiresAt: null,
+      lastUsedAt: null,
+    })
+    assert.notProperty(apiKeyRow ?? {}, 'keyHash')
+
+    const roleResult = await runRegisteredAiQuery({
+      conversationId: conversation.id,
+      userId: user.id,
+      templateCode: 'roles_with_permissions',
+      params: {},
+    })
+    assert.equal(roleResult.kind, 'query_result')
+    if (roleResult.kind !== 'query_result') throw new Error('Expected role query result')
+    assert.deepInclude(roleResult.rows, {
+      id: role.id,
+      code: role.code,
+      name: role.name,
+      description: role.description,
+      isSystem: false,
+      userCount: 0,
+      permissions: [{ id: permission.id, code: permission.code, name: permission.name }],
+    })
+
+    const permissionResult = await runRegisteredAiQuery({
+      conversationId: conversation.id,
+      userId: user.id,
+      templateCode: 'permission_catalog',
+      params: {},
+    })
+    assert.equal(permissionResult.kind, 'query_result')
+    if (permissionResult.kind !== 'query_result')
+      throw new Error('Expected permission query result')
+    assert.deepInclude(permissionResult.rows, {
+      id: permission.id,
+      code: permission.code,
+      name: permission.name,
+      groupName: permission.groupName,
+      description: permission.description,
+      isSystem: false,
+      roleCount: 1,
+    })
+    const queryAudits = await AuditLog.query()
+      .where('action', 'agent.query_executed')
+      .where('actor_user_id', user.id)
+      .whereIn('target_id', ['active_api_keys', 'roles_with_permissions', 'permission_catalog'])
+    const auditTemplateCodes = queryAudits.map((audit) => audit.targetId)
+    assert.sameMembers(auditTemplateCodes, [
+      'active_api_keys',
+      'roles_with_permissions',
+      'permission_catalog',
+    ])
+  })
+
   test('validates role-query parameters and denies every new access-control template', async ({
     assert,
   }) => {
@@ -272,6 +380,9 @@ test.group('AI agent registered queries', (group) => {
       ['role_profile', { roleCode: 'super-admin' }],
       ['permission_usage', { permissionCode: 'users:read' }],
       ['recent_access_control_changes', {}],
+      ['active_api_keys', {}],
+      ['roles_with_permissions', {}],
+      ['permission_catalog', {}],
     ] as const) {
       await assert.rejects(
         () =>

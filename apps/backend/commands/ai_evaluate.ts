@@ -53,21 +53,6 @@ export default class AiEvaluate extends BaseCommand {
             schema: z.object({ query: z.string() }),
           }
         ),
-        tool(remember('list_api_keys', [{ id: 28, name: '测试密钥', prefix: 'id_test' }]), {
-          name: 'list_api_keys',
-          description: 'List current active API Key metadata.',
-          schema: z.object({}),
-        }),
-        tool(remember('list_roles', []), {
-          name: 'list_roles',
-          description: 'List current roles and assigned permissions.',
-          schema: z.object({}),
-        }),
-        tool(remember('list_permissions', []), {
-          name: 'list_permissions',
-          description: 'List the current permission catalog.',
-          schema: z.object({}),
-        }),
         tool(remember('run_registered_query', { kind: 'query_result', rows: [] }), {
           name: 'run_registered_query',
           description: `Run a registered, permission-checked and redacted database query. Available templates: ${aiQueryTemplateInstructions}`,

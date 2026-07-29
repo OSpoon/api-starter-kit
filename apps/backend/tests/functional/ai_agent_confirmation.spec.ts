@@ -227,34 +227,4 @@ test.group('AI agent confirmations', (group) => {
     })
     assert.isNull(await AiAgentConfirmation.query().where('requested_by_user_id', user.id).first())
   })
-
-  test('does not send an approval reply without a pending proposal to the model', async ({
-    client,
-    assert,
-  }) => {
-    const superAdminRole = await Role.findByOrFail('code', 'super-admin')
-    const user = await User.create({
-      fullName: 'No pending approval admin',
-      email: `no-pending-approval-${Date.now()}@example.com`,
-      password: generateInitialPassword(),
-    })
-    await user.related('roles').sync([superAdminRole.id])
-    const token = await User.accessTokens.create(user)
-    const conversation = await AiChatConversation.create({ userId: user.id, title: 'Approval' })
-
-    const response = await client
-      .post(`/api/v1/ai-chat/conversations/${conversation.id}/messages`)
-      .bearerToken(token.value!.release())
-      .json({ content: '是，我确认要吊销ID为25的API密钥' })
-
-    response.assertStatus(200)
-    const assistantMessage = await AiChatMessage.query()
-      .where('conversation_id', conversation.id)
-      .where('role', 'assistant')
-      .firstOrFail()
-    assert.equal(
-      assistantMessage.content,
-      '当前没有可批准的系统变更，因此未执行任何操作。请先重新发起需要确认的操作。'
-    )
-  })
 })
