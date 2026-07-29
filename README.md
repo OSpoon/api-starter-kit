@@ -265,33 +265,34 @@ pnpm --dir apps/frontend build
 
 ### AI 助手
 
-AI 助手通过 OpenAI 兼容接口接入 OpenAI、DeepSeek、Qwen 和 Ollama 等服务，提供流式输出、多轮上下文和会话历史。原始消息始终保留在应用数据库中，并在达到消息数或 token 阈值时压缩模型工作上下文。知识库回答会随助手消息保存结构化检索元数据，但不在聊天界面展示来源；受控操作确认卡会展示安全的变更摘要，而 API Key 或临时密码仅在确认成功后一次性展示，并提供复制操作。
+AI 助手通过 OpenAI 兼容接口接入 OpenAI、DeepSeek、Qwen 和 Ollama 等服务，提供流式输出、多轮上下文和会话历史。原始消息始终保留在应用数据库中；达到阈值时只压缩发送给模型的上下文，不会删除历史。
+
+助手只能通过后端注册工具获取产品知识、当前系统信息或创建受控操作提议。缺少注册查询参数时，会保存待处理状态并在后续自然语言消息中继续补齐；当前版本不提供结构化补参卡片或工作流恢复。知识检索来源随助手消息保存；API Key、临时密码等凭据仅在成功确认后一次性展示。
 
 #### 处理流程
 
 ```mermaid
-flowchart LR
-  A["管理员发送消息"] --> B["AI 会话 API"]
-  B --> C["保存消息并加载上下文"]
-  C --> D["Agent 调用模型"]
-  D --> E["按请求调用已注册能力"]
-  E --> F["产品知识：权限过滤 RAG"]
-  E --> G["系统事实：受控查询与审计"]
-  E --> H["管理变更：创建操作提案"]
-  F --> I["生成并持久化助手回复"]
-  G --> I
-  H --> I
-  I --> J["SSE 返回回复与确认卡"]
+flowchart TB
+  A["管理员消息"] --> B["保存消息与准备上下文"]
+  B --> C["Agent 流式调用"]
+  C --> D["直接生成回复"]
+  C --> E["知识 / 系统查询工具"]
+  E --> C
+  C --> F["创建待确认提议"]
+  F --> C
+  D --> G["持久化回复并附着提议"]
+  G --> H["SSE：消息、状态、来源、确认卡"]
 ```
 
 受控操作只有在管理员点击确认卡后才会执行：
 
 ```mermaid
-flowchart LR
-  A["管理员确认"] --> B["确认 API"]
-  B --> C["重新校验归属、权限、有效期和目标状态"]
-  C --> D["调用领域执行器"]
-  D --> E["写入审计并返回结果"]
+flowchart TB
+  A["管理员确认"] --> B["校验归属、状态与有效期"]
+  B --> C["原子领取请求"]
+  C --> D["复核权限与目标状态"]
+  D --> E["调用领域执行器"]
+  E --> F["更新状态、写审计、返回结果"]
 ```
 
 #### 当前可用能力与边界
@@ -300,7 +301,7 @@ flowchart LR
 | -------------- | -------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
 | 产品与流程问答 | 对部署、配置、功能和流程类问题先检索已建立索引知识文档，再基于检索结果回答；结构化检索元数据随消息保存但不在聊天界面展示               | 不把通用模型知识或历史会话中的旧说法当作系统事实；无角色访问权限的文档不会参与检索               |
 | 当前系统信息   | 查询当前账号权限，以及非敏感的 API Key、用户、角色、权限和审计日志信息                                                                 | 每次工具调用重新执行后端权限校验；不会返回密码、API Key 明文、2FA 密钥或其他凭据                 |
-| 受控数据查询   | 通过已注册模板查询管理用户、角色、权限与审计事件；支持缺参追问、跨轮补参、结果行数上限和字段脱敏                                       | 模型不能生成 SQL、表名、字段或任意参数；每次执行都会校验模板权限，原始敏感数据不进入模型上下文   |
+| 受控数据查询   | 通过已注册模板查询管理用户、角色、权限与审计事件；支持跨轮自然语言补参、结果行数上限和字段脱敏                                         | 模型不能生成 SQL、表名、字段或任意参数；每次执行都会校验模板权限，原始敏感数据不进入模型上下文   |
 | 受控管理操作   | 创建 API Key、吊销 API Key、重置密码、启用/停用/更新/删除用户，以及创建/更新/删除角色或权限                                            | 助手只能创建有时效的操作提议；必须通过结构化确认卡确认，执行前会再次校验会话归属、权限和目标状态 |
 | 会话与可观测性 | 完整保存用户和助手消息、来源文档与待确认操作；长会话使用持久化摘要缩减模型上下文；每轮记录首个 Agent 事件、工具与首个回复 token 的耗时 | 上下文缩减只影响发送给模型的内容，不会删除历史消息；模型或上游连接中断时仍保留已生成的助手内容   |
 
@@ -323,35 +324,9 @@ LANGFUSE_BASE_URL=https://us.cloud.langfuse.com
 
 迁移会启用 PostgreSQL 的 `vector` 扩展，并创建独立的知识文档、分块及文档角色关联表。知识库不会自动收集用户、审计日志、会话消息或任何凭据；只有经审查后通过系统管理菜单上传的 UTF-8 文本文档（TXT、Markdown、reStructuredText，最大 2MB）才会发送到 embedding 服务。系统按句子和段落生成语义向量，依据相邻内容的语义差异切分，再使用最大字符数与重叠作为保护；因此上传、替换或“重建索引”都会产生句子级和最终分块两轮 embedding 请求。向量化成功并写入分块后，文档即可按角色限制参与检索。单一 Agent 仅在选择 `search_knowledge` 工具后执行向量检索；普通问答、系统信息查询和受控操作在进入 Agent 前不会发送 embedding 请求。若文档没有分块，可使用“重建索引”从其已保存内容恢复索引。系统管理菜单中的“知识文档”页面要求 `knowledge:manage`，检索要求 `knowledge:read`；检索结果被视为不可信参考资料，不能触发操作或绕过现有确认机制。
 
-向量列固定为 1024 维，因此部署前需选择兼容的 embedding 模型，例如 Qwen3-Embedding-0.6B-4bit-DWQ，并单独配置：
+向量列固定为 1024 维，因此部署前需选择兼容的 embedding 模型，例如 Qwen3-Embedding-0.6B-4bit-DWQ。模型、embedding、分块、摘要、超时与 Langfuse 的完整可选配置均在 `apps/backend/.env.example` 中维护；通常只需配置模型连接和 embedding 模型。
 
-后端配置位于 `apps/backend/.env`：
-
-| 变量                                          | 说明                                                                 |
-| --------------------------------------------- | -------------------------------------------------------------------- |
-| `AI_OPENAI_API_KEY`                           | 服务商 API Key，Ollama 默认值为 `ollama`                             |
-| `AI_OPENAI_BASE_URL`                          | OpenAI 兼容 API 地址，默认本地 Ollama                                |
-| `AI_OPENAI_MODEL`                             | 模型名称，默认 `llama3.2:1b`                                         |
-| `AI_EMBEDDING_API_KEY`                        | 可选，embedding 服务 API Key；未设置时回退到 `AI_OPENAI_API_KEY`     |
-| `AI_EMBEDDING_BASE_URL`                       | 可选，embedding 服务地址；未设置时回退到 `AI_OPENAI_BASE_URL`        |
-| `AI_EMBEDDING_MODEL`                          | 必填，兼容 1024 维输出的 embedding 模型                              |
-| `AI_EMBEDDING_DIMENSIONS`                     | embedding 输出维度，当前必须为 `1024`                                |
-| `KNOWLEDGE_CHUNK_MAX_CHARACTERS`              | 语义分块的最大字符数，默认 `1800`                                    |
-| `KNOWLEDGE_CHUNK_OVERLAP_CHARACTERS`          | 相邻分块保留的字符数，默认 `200`                                     |
-| `KNOWLEDGE_SEMANTIC_BREAKPOINT_PERCENTILE`    | 语义切点阈值百分位，默认 `90`，范围 `50-100`                         |
-| `AI_SYSTEM_PROMPT`                            | 可选的项目系统提示词                                                 |
-| `AI_TEMPERATURE`                              | 生成温度，服务端限制为 `0-2`；Qwen 未配置时默认 `0.1`                |
-| `AI_MAX_HISTORY_MESSAGES`                     | 上下文摘要后保留最近消息数的上限，范围 `1-100`                       |
-| `LANGFUSE_ENABLED`                            | 是否启用 Langfuse Cloud 追踪，默认 `false`                           |
-| `LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY` | Langfuse Cloud 项目公钥和私钥                                        |
-| `LANGFUSE_BASE_URL`                           | Langfuse Cloud 地址，示例默认 `https://us.cloud.langfuse.com`        |
-| `AI_CONTEXT_COMPRESSION_ENABLED`              | 是否启用上下文自动压缩，默认 `true`                                  |
-| `AI_CONTEXT_COMPRESSION_THRESHOLD_TOKENS`     | 触发上下文摘要的 token 阈值，默认 `6000`，范围 `1024-1000000`        |
-| `AI_CONTEXT_COMPRESSION_RECENT_MESSAGES`      | 摘要后仍保留的最近消息数，默认 `8`，范围 `1-AI_MAX_HISTORY_MESSAGES` |
-| `AI_REQUEST_TIMEOUT_MS`                       | 单次 AI 请求超时，默认 `60000` ms，范围 `5000-300000`                |
-| `AI_MAX_RETRIES`                              | 瞬时失败重试次数，默认 `2`，范围 `0-5`                               |
-
-业务能力必须先在后端 Agent capability registry 中注册，并通过既有 service、Vine validator、Bouncer 权限与审计机制执行。当前只读工具包括 `diagnose_my_access`、`list_api_keys`、`list_roles`、`list_permissions`、`run_registered_query` 和 `search_knowledge`。其中 `run_registered_query` 只能调用服务端注册的模板；模板定义参数、权限、结果字段、行数上限和脱敏策略，并可在缺少必填参数时持久化待处理状态，等待下一轮补齐。受控操作包含 API Key 创建/吊销、用户密码重置及用户、角色、权限的创建、更新、启用/停用或删除。每个提议记录动作、目标摘要、请求人、会话、状态和有效期；实际执行通过统一确认入口再次校验会话归属、当前权限、目标状态与有效期，并写入 `agent.action_confirmed` 审计事件。前端在输入框上方使用非阻塞的助手内批准提示，不使用弹窗或 Markdown 按钮；取消仅收起提示并保留提议，之后的明确批准回复仍可确认该同一提议。模型文本与 Markdown 不能触发执行。
+业务能力必须先在后端 Agent capability registry 中注册，并通过既有 service、Vine validator、Bouncer 权限与审计机制执行。当前工具为权限诊断、统一注册查询、知识检索和受控操作提议。受控操作包含 API Key 创建/吊销、用户密码重置及用户、角色、权限的创建、更新、启用/停用或删除；提议必须经统一确认入口再次校验会话归属、当前权限、目标状态与有效期后才会执行。模型文本与 Markdown 不能触发执行。
 
 助手请求仅发送当前路由与页面标题；权限、系统事实和知识内容始终由后端工具实时校验与读取。
 
@@ -432,54 +407,25 @@ docker compose up -d
 
 #### 后端
 
-文件：`apps/backend/.env`
+文件：`apps/backend/.env`。完整清单和默认值以 `.env.example` 为准；下表仅保留部署常用项。
 
-| 变量                                          | 说明                                           |
-| --------------------------------------------- | ---------------------------------------------- |
-| `NODE_ENV`                                    | 运行环境：`development`、`production`、`test`  |
-| `HOST` / `PORT`                               | 后端监听地址                                   |
-| `LOG_LEVEL`                                   | 日志级别                                       |
-| `APP_KEY`                                     | AdonisJS 应用密钥                              |
-| `APP_URL`                                     | 后端对外地址                                   |
-| `ADMIN_EMAIL`                                 | 默认管理员邮箱                                 |
-| `ADMIN_PASSWORD`                              | 默认管理员密码                                 |
-| `ADMIN_FULL_NAME`                             | 默认管理员名称                                 |
-| `SESSION_DRIVER`                              | Session 驱动                                   |
-| `DB_HOST` / `DB_PORT`                         | PostgreSQL 地址                                |
-| `DB_USER` / `DB_PASSWORD` / `DB_DATABASE`     | PostgreSQL 凭据                                |
-| `CORS_ORIGIN`                                 | 允许访问 API 的前端源，逗号分隔                |
-| `OPENAPI_DOCS_ENABLED`                        | 是否注册 `/api-docs` 及 OpenAPI 规范入口       |
-| `TZ`                                          | 运行时区，建议 `Asia/Shanghai`                 |
-| `AI_OPENAI_API_KEY`                           | OpenAI 兼容服务的 API Key，默认 `ollama`       |
-| `AI_OPENAI_BASE_URL`                          | OpenAI 兼容服务地址，默认本地 Ollama           |
-| `AI_OPENAI_MODEL`                             | 模型名称，默认 `llama3.2:1b`                   |
-| `AI_EMBEDDING_API_KEY`                        | 可选；未设置时使用 `AI_OPENAI_API_KEY`         |
-| `AI_EMBEDDING_BASE_URL`                       | 可选；未设置时使用 `AI_OPENAI_BASE_URL`        |
-| `AI_EMBEDDING_MODEL`                          | 知识库 embedding 模型，需输出 1024 维向量      |
-| `AI_EMBEDDING_DIMENSIONS`                     | embedding 输出维度，当前必须为 `1024`          |
-| `KNOWLEDGE_CHUNK_*`                           | 知识库分块长度、重叠与语义切点参数             |
-| `AI_SYSTEM_PROMPT`                            | 可选的 AI 系统提示词                           |
-| `AI_TEMPERATURE`                              | AI 生成温度，范围 `0-2`                        |
-| `AI_MAX_HISTORY_MESSAGES`                     | 上下文摘要后保留最近消息数的上限，范围 `1-100` |
-| `AI_CONTEXT_COMPRESSION_ENABLED`              | 是否启用 AI 上下文自动压缩，默认 `true`        |
-| `AI_CONTEXT_COMPRESSION_THRESHOLD_TOKENS`     | 触发上下文摘要的 token 阈值，默认 `6000`       |
-| `AI_CONTEXT_COMPRESSION_RECENT_MESSAGES`      | 摘要后保留的最近消息数，默认 `8`               |
-| `AI_REQUEST_TIMEOUT_MS`                       | 单次 AI 请求超时，范围 `5000-300000` ms        |
-| `AI_MAX_RETRIES`                              | 瞬时失败重试次数，范围 `0-5`                   |
-| `LANGFUSE_ENABLED`                            | 是否启用 Langfuse；必须同时配置公钥和私钥      |
-| `LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY` | Langfuse 项目密钥                              |
-| `LANGFUSE_BASE_URL`                           | Langfuse 服务地址，示例为美国区 Cloud 地址     |
+| 变量                                      | 说明                                      |
+| ----------------------------------------- | ----------------------------------------- |
+| `APP_KEY`                                 | AdonisJS 应用密钥                         |
+| `ADMIN_EMAIL`                             | 默认管理员邮箱                            |
+| `ADMIN_PASSWORD`                          | 默认管理员密码                            |
+| `DB_HOST` / `DB_PORT`                     | PostgreSQL 地址                           |
+| `DB_USER` / `DB_PASSWORD` / `DB_DATABASE` | PostgreSQL 凭据                           |
+| `CORS_ORIGIN`                             | 允许访问 API 的前端源，逗号分隔           |
+| `AI_OPENAI_API_KEY`                       | OpenAI 兼容服务的 API Key，默认 `ollama`  |
+| `AI_OPENAI_BASE_URL`                      | OpenAI 兼容服务地址，默认本地 Ollama      |
+| `AI_OPENAI_MODEL`                         | 模型名称，默认 `llama3.2:1b`              |
+| `AI_EMBEDDING_MODEL`                      | 知识库 embedding 模型，需输出 1024 维向量 |
+| `AI_CONTEXT_COMPRESSION_RECENT_MESSAGES`  | 摘要后保留的最近消息数，默认 `8`          |
 
 #### 前端
 
-文件：`apps/frontend/.env`
-
-| 变量                        | 说明                                                   |
-| --------------------------- | ------------------------------------------------------ |
-| `VITE_API_URL`              | 开发环境后端 API 地址                                  |
-| `VITE_API_DOCS_URL`         | OpenAPI 文档链接；留空则隐藏导航入口                   |
-| `VITE_DEV_API_PROXY_TARGET` | Vite 开发代理的后端地址，默认 `http://localhost:13333` |
-| `TZ`                        | 运行时区                                               |
+文件：`apps/frontend/.env`。通常使用默认开发代理；仅在前后端分离部署或需要显示 OpenAPI 入口时配置 `VITE_API_URL`、`VITE_DEV_API_PROXY_TARGET` 和 `VITE_API_DOCS_URL`。
 
 ### 技术栈
 
