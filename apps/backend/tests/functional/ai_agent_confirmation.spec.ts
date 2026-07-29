@@ -12,6 +12,8 @@ import AuditLog from '#models/audit_log'
 import Permission from '#models/permission'
 import Role from '#models/role'
 import User from '#models/user'
+import { getAiAgentAction } from '#services/ai_agent_action_registry'
+import { proposeAiAgentAction } from '#services/ai_agent_confirmation'
 import { createAiAgentTools } from '#services/ai_agent_registry'
 import { generateInitialPassword } from '#services/user_credentials'
 
@@ -46,6 +48,46 @@ async function createConfirmation(user: User) {
 
 test.group('AI agent confirmations', (group) => {
   group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
+
+  test('classifies registered action impact on the server', ({ assert }) => {
+    assert.equal(getAiAgentAction('revoke_api_key')?.impact, 'destructive')
+    assert.equal(getAiAgentAction('create_api_key')?.impact, 'standard')
+  })
+
+  test('reuses a pending proposal when the same agent run retries an action', async ({
+    assert,
+  }) => {
+    const superAdminRole = await Role.findByOrFail('code', 'super-admin')
+    const user = await User.create({
+      fullName: 'Idempotent proposal admin',
+      email: `idempotent-proposal-${Date.now()}@example.com`,
+      password: generateInitialPassword(),
+    })
+    await user.related('roles').sync([superAdminRole.id])
+    const conversation = await AiChatConversation.create({
+      userId: user.id,
+      title: 'Idempotent action',
+    })
+    const apiKey = await ApiKey.create({
+      name: `Idempotent key ${Date.now()}`,
+      prefix: `i${Date.now()}`,
+      keyHash: `hash-${Date.now()}`,
+    })
+    const input = {
+      action: 'revoke_api_key',
+      actionInput: { apiKeyId: apiKey.id },
+      conversationId: conversation.id,
+      userId: user.id,
+      agentRunId: crypto.randomUUID(),
+    }
+
+    const first = await proposeAiAgentAction(input)
+    const retry = await proposeAiAgentAction(input)
+
+    assert.equal(retry.id, first.id)
+    assert.equal(retry.impact, 'destructive')
+    assert.lengthOf(await AiAgentConfirmation.query().where('agent_run_id', input.agentRunId), 1)
+  })
 
   test('confirms a proposed API Key revocation only for an authorized owner', async ({
     client,
@@ -192,6 +234,7 @@ test.group('AI agent confirmations', (group) => {
 
     response.assertStatus(200)
     const confirmationSummary = response.body().data.confirmations[0]
+    assert.equal(confirmationSummary.impact, 'destructive')
     assert.deepEqual(confirmationSummary.changeSummary, [{ field: 'result', value: 'revoked' }])
     assert.notProperty(confirmationSummary, 'payload')
     assert.equal(confirmationSummary.id, confirmation.id)

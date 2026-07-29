@@ -5,7 +5,7 @@ import db from '@adonisjs/lucid/services/db'
 import { OpenAIEmbeddings } from '@langchain/openai'
 
 import { access } from '#abilities/main'
-import KnowledgeDocument, { type KnowledgeDocumentStatus } from '#models/knowledge_document'
+import KnowledgeDocument from '#models/knowledge_document'
 import type User from '#models/user'
 import { loadUserAccess } from '#services/user_access'
 import env from '#start/env'
@@ -36,7 +36,6 @@ export type CreateKnowledgeDocumentInput = {
   title: string
   content: string
   requiredPermission?: string | null
-  status?: KnowledgeDocumentStatus
   roleIds?: number[]
 }
 
@@ -321,7 +320,6 @@ export async function createKnowledgeDocument(input: CreateKnowledgeDocumentInpu
       content,
       contentHash,
       requiredPermission: input.requiredPermission ?? null,
-      status: input.status ?? 'draft',
     })
     await document.save()
     if (input.roleIds) await document.related('roles').sync(input.roleIds)
@@ -392,8 +390,7 @@ export async function searchKnowledge(input: { user: User; query: string; limit?
          ) AS lexical_matches
        FROM knowledge_chunks c
        INNER JOIN knowledge_documents d ON d.id = c.document_id
-       WHERE d.status = 'published'
-         AND (
+       WHERE (
            ?::boolean
            OR NOT EXISTS (
              SELECT 1 FROM knowledge_document_roles restricted WHERE restricted.document_id = d.id

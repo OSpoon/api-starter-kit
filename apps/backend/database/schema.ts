@@ -67,6 +67,48 @@ export class AiAgentConfirmationSchema extends BaseModel {
   declare updatedAt: DateTime
 }
 
+export class AiAgentPendingQuerySchema extends BaseModel {
+  static $columns = [
+    'completedAt',
+    'conversationId',
+    'createdAt',
+    'expiresAt',
+    'id',
+    'missingFields',
+    'params',
+    'requestedByUserId',
+    'status',
+    'templateCode',
+    'templateVersion',
+    'updatedAt',
+  ] as const
+  $columns = AiAgentPendingQuerySchema.$columns
+  @column.dateTime()
+  declare completedAt: DateTime | null
+  @column()
+  declare conversationId: number
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column.dateTime()
+  declare expiresAt: DateTime
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare missingFields: any
+  @column()
+  declare params: any
+  @column()
+  declare requestedByUserId: number
+  @column()
+  declare status: string
+  @column()
+  declare templateCode: string
+  @column()
+  declare templateVersion: number
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
 export class AiChatConversationSchema extends BaseModel {
   static $columns = [
     'contextSummary',
@@ -226,6 +268,40 @@ export class AuthAccessTokenSchema extends BaseModel {
   declare updatedAt: DateTime | null
 }
 
+export class GithubIdentitySchema extends BaseModel {
+  static $columns = ['createdAt', 'githubId', 'githubLogin', 'id', 'updatedAt', 'userId'] as const
+  $columns = GithubIdentitySchema.$columns
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare githubId: bigint | number
+  @column()
+  declare githubLogin: string
+  @column({ isPrimary: true })
+  declare id: number
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+  @column()
+  declare userId: number
+}
+
+export class GithubLoginExchangeSchema extends BaseModel {
+  static $columns = ['codeHash', 'createdAt', 'expiresAt', 'id', 'usedAt', 'userId'] as const
+  $columns = GithubLoginExchangeSchema.$columns
+  @column()
+  declare codeHash: string
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column.dateTime()
+  declare expiresAt: DateTime
+  @column({ isPrimary: true })
+  declare id: number
+  @column.dateTime()
+  declare usedAt: DateTime | null
+  @column()
+  declare userId: number
+}
+
 export class KnowledgeChunkSchema extends BaseModel {
   static $columns = [
     'chunkIndex',
@@ -271,7 +347,6 @@ export class KnowledgeDocumentSchema extends BaseModel {
     'createdAt',
     'id',
     'requiredPermission',
-    'status',
     'title',
     'updatedAt',
   ] as const
@@ -286,8 +361,6 @@ export class KnowledgeDocumentSchema extends BaseModel {
   declare id: bigint | number
   @column()
   declare requiredPermission: string | null
-  @column()
-  declare status: string
   @column()
   declare title: string
   @column.dateTime({ autoCreate: true, autoUpdate: true })

@@ -4,7 +4,6 @@ import path from 'node:path'
 import type { HttpContext } from '@adonisjs/core/http'
 import { ApiOperation, ApiResponse, ApiSecurity } from '@foadonis/openapi/decorators'
 
-import KnowledgeChunk from '#models/knowledge_chunk'
 import KnowledgeDocument from '#models/knowledge_document'
 import Role from '#models/role'
 import { createKnowledgeDocument, indexKnowledgeDocument } from '#services/knowledge_service'
@@ -66,7 +65,6 @@ export default class KnowledgeDocumentsController {
       const document = await createKnowledgeDocument({
         title: textFile!.title,
         content: textFile!.content,
-        status: 'draft',
         roleIds: await validateRoleIds(parseRoleIds(request.input('roleIds', '[]'))),
       })
       return serialize(serializeKnowledgeDocument(document))
@@ -85,14 +83,7 @@ export default class KnowledgeDocumentsController {
     const document = await KnowledgeDocument.findOrFail(params.id)
     const textFile = await readTextFile(ctx, false)
     try {
-      document.status = request.input('status') === 'published' ? 'published' : 'draft'
       const roleIds = await validateRoleIds(parseRoleIds(request.input('roleIds', '[]')))
-      if (document.status === 'published' && !textFile) {
-        const indexedChunk = await KnowledgeChunk.query().where('document_id', document.id).first()
-        if (!indexedChunk) {
-          return response.unprocessableEntity({ message: '文档尚未完成向量化，无法启用' })
-        }
-      }
       if (textFile) {
         document.title = textFile.title
         document.content = textFile.content

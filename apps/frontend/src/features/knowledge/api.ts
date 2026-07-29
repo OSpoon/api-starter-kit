@@ -1,14 +1,11 @@
 import { apiRequest } from '@/lib/api'
 import { readItem } from '@/lib/api-types'
 
-export type KnowledgeDocumentStatus = 'draft' | 'published'
-
 export interface KnowledgeDocument {
   id: number
   title: string
   content: string
   requiredPermission: string | null
-  status: KnowledgeDocumentStatus
   contentHash: string
   chunkCount: number
   roles: Array<{ id: number; code: string; name: string }>
@@ -24,7 +21,6 @@ export interface KnowledgeDocumentPage {
 export type KnowledgeDocumentInput = {
   file?: File | null
   roleIds: number[]
-  status: KnowledgeDocumentStatus
 }
 
 function authOptions(token: string | null) {
@@ -44,7 +40,6 @@ function asFormData(input: KnowledgeDocumentInput, requireFile: boolean) {
   if (requireFile && !input.file) throw new Error('请选择纯文本文件')
   const form = new FormData()
   if (input.file) form.append('file', input.file)
-  form.append('status', input.status)
   form.append('roleIds', JSON.stringify(input.roleIds))
   return form
 }

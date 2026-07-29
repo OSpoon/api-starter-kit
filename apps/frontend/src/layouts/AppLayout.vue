@@ -363,6 +363,7 @@ async function handleAiSend(message: string, regenerateAssistantMessageId?: numb
           streamedConfirmation = {
             id: event.id,
             action: event.action,
+            impact: event.impact,
             targetType: event.targetType,
             targetId: event.targetId,
             targetSummary: event.targetSummary,

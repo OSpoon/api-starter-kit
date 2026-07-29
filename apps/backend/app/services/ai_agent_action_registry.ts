@@ -41,14 +41,19 @@ export type AiAgentActionPreparation = {
   payload: Record<string, unknown>
 }
 
+export type AiAgentActionImpact = 'standard' | 'destructive'
+
 export type AiAgentActionDefinition = {
   permission: PermissionCode
+  impact: AiAgentActionImpact
   prepare: (input: Record<string, unknown>) => Promise<AiAgentActionPreparation>
   execute: (input: {
     confirmation: AiAgentConfirmation
     ctx: HttpContext
   }) => Promise<Record<string, unknown> | void>
 }
+
+type AiAgentActionImplementation = Omit<AiAgentActionDefinition, 'impact'>
 
 export class AiAgentActionAuthorizationError extends Error {}
 
@@ -67,6 +72,15 @@ export const aiAgentActionNames = [
   'update_permission',
   'delete_permission',
 ] as const
+
+const destructiveActionNames = new Set<AiAgentActionName>([
+  'revoke_api_key',
+  'reset_user_password',
+  'disable_user',
+  'delete_user',
+  'delete_role',
+  'delete_permission',
+])
 
 // Keep the model-facing tool schema compact. The registered action's
 // preparation function remains the authoritative validator for every field,
@@ -143,7 +157,7 @@ async function ensurePermissionIds(ids: number[]) {
   return permissions.length === ids.length
 }
 
-const revokeApiKeyAction: AiAgentActionDefinition = {
+const revokeApiKeyAction: AiAgentActionImplementation = {
   permission: 'api-keys:delete',
   async prepare(input) {
     // Small models commonly use the visible table's generic `id` field. The
@@ -174,7 +188,7 @@ const revokeApiKeyAction: AiAgentActionDefinition = {
   },
 }
 
-const createApiKeyAction: AiAgentActionDefinition = {
+const createApiKeyAction: AiAgentActionImplementation = {
   permission: 'api-keys:create',
   async prepare(input) {
     const name = string(input, 'name', 120)
@@ -209,7 +223,7 @@ function userTargetSummary(user: User) {
   return { fullName: user.fullName, email: user.email }
 }
 
-const resetUserPasswordAction: AiAgentActionDefinition = {
+const resetUserPasswordAction: AiAgentActionImplementation = {
   permission: 'users:update',
   async prepare(input) {
     const user = await User.find(integer(input, 'userId'))
@@ -242,7 +256,7 @@ const resetUserPasswordAction: AiAgentActionDefinition = {
   },
 }
 
-function userEnabledAction(disabled: boolean): AiAgentActionDefinition {
+function userEnabledAction(disabled: boolean): AiAgentActionImplementation {
   return {
     permission: 'users:update',
     async prepare(input) {
@@ -279,7 +293,7 @@ function userEnabledAction(disabled: boolean): AiAgentActionDefinition {
   }
 }
 
-const updateUserAction: AiAgentActionDefinition = {
+const updateUserAction: AiAgentActionImplementation = {
   permission: 'users:update',
   async prepare(input) {
     const user = await User.find(integer(input, 'userId'))
@@ -325,7 +339,7 @@ const updateUserAction: AiAgentActionDefinition = {
   },
 }
 
-const deleteUserAction: AiAgentActionDefinition = {
+const deleteUserAction: AiAgentActionImplementation = {
   permission: 'users:delete',
   async prepare(input) {
     const user = await User.find(integer(input, 'userId'))
@@ -357,7 +371,7 @@ const deleteUserAction: AiAgentActionDefinition = {
   },
 }
 
-const createRoleAction: AiAgentActionDefinition = {
+const createRoleAction: AiAgentActionImplementation = {
   permission: 'roles:create',
   async prepare(input) {
     const code = string(input, 'code', 100)
@@ -400,7 +414,7 @@ const createRoleAction: AiAgentActionDefinition = {
   },
 }
 
-const updateRoleAction: AiAgentActionDefinition = {
+const updateRoleAction: AiAgentActionImplementation = {
   permission: 'roles:update',
   async prepare(input) {
     const role = await Role.find(integer(input, 'roleId'))
@@ -441,7 +455,7 @@ const updateRoleAction: AiAgentActionDefinition = {
   },
 }
 
-const deleteRoleAction: AiAgentActionDefinition = {
+const deleteRoleAction: AiAgentActionImplementation = {
   permission: 'roles:delete',
   async prepare(input) {
     const role = await Role.query()
@@ -488,7 +502,7 @@ const deleteRoleAction: AiAgentActionDefinition = {
   },
 }
 
-const createPermissionAction: AiAgentActionDefinition = {
+const createPermissionAction: AiAgentActionImplementation = {
   permission: 'permissions:create',
   async prepare(input) {
     const code = string(input, 'code', 100)
@@ -527,7 +541,7 @@ const createPermissionAction: AiAgentActionDefinition = {
   },
 }
 
-const updatePermissionAction: AiAgentActionDefinition = {
+const updatePermissionAction: AiAgentActionImplementation = {
   permission: 'permissions:update',
   async prepare(input) {
     const permission = await Permission.find(integer(input, 'permissionId'))
@@ -563,7 +577,7 @@ const updatePermissionAction: AiAgentActionDefinition = {
   },
 }
 
-const deletePermissionAction: AiAgentActionDefinition = {
+const deletePermissionAction: AiAgentActionImplementation = {
   permission: 'permissions:delete',
   async prepare(input) {
     const permission = await Permission.query()
@@ -599,20 +613,30 @@ const deletePermissionAction: AiAgentActionDefinition = {
   },
 }
 
+function defineAction(
+  name: AiAgentActionName,
+  definition: AiAgentActionImplementation
+): AiAgentActionDefinition {
+  return {
+    ...definition,
+    impact: destructiveActionNames.has(name) ? 'destructive' : 'standard',
+  }
+}
+
 const aiAgentActions: Record<AiAgentActionName, AiAgentActionDefinition> = {
-  revoke_api_key: revokeApiKeyAction,
-  create_api_key: createApiKeyAction,
-  reset_user_password: resetUserPasswordAction,
-  disable_user: userEnabledAction(true),
-  enable_user: userEnabledAction(false),
-  update_user: updateUserAction,
-  delete_user: deleteUserAction,
-  create_role: createRoleAction,
-  update_role: updateRoleAction,
-  delete_role: deleteRoleAction,
-  create_permission: createPermissionAction,
-  update_permission: updatePermissionAction,
-  delete_permission: deletePermissionAction,
+  revoke_api_key: defineAction('revoke_api_key', revokeApiKeyAction),
+  create_api_key: defineAction('create_api_key', createApiKeyAction),
+  reset_user_password: defineAction('reset_user_password', resetUserPasswordAction),
+  disable_user: defineAction('disable_user', userEnabledAction(true)),
+  enable_user: defineAction('enable_user', userEnabledAction(false)),
+  update_user: defineAction('update_user', updateUserAction),
+  delete_user: defineAction('delete_user', deleteUserAction),
+  create_role: defineAction('create_role', createRoleAction),
+  update_role: defineAction('update_role', updateRoleAction),
+  delete_role: defineAction('delete_role', deleteRoleAction),
+  create_permission: defineAction('create_permission', createPermissionAction),
+  update_permission: defineAction('update_permission', updatePermissionAction),
+  delete_permission: defineAction('delete_permission', deletePermissionAction),
 }
 
 export function getAiAgentAction(action: string) {

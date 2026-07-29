@@ -36,6 +36,7 @@ export interface AiChatConfirmation {
   id: number
   messageId: number
   action: string
+  impact: 'standard' | 'destructive'
   targetType: string
   targetId: string
   targetSummary: Record<string, unknown>

@@ -10,7 +10,7 @@ test.group('AI agent response policy', () => {
     })
 
     assert.notEqual(response, '最小权限原则是……')
-    assert.include(response, '已发布知识文档')
+    assert.include(response, '已建立索引知识文档')
   })
 
   test('keeps a response that follows a completed tool call', ({ assert }) => {

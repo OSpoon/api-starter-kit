@@ -6,13 +6,6 @@ import FormDialogFooter from '@/components/common/FormDialogFooter.vue'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import type { KnowledgeDocument, KnowledgeDocumentInput } from '@/features/knowledge/api'
 import type { SystemRoleOption } from '@/lib/rbac-api'
 
@@ -27,7 +20,6 @@ const { t } = useI18n()
 const form = ref<KnowledgeDocumentInput>({
   file: null,
   roleIds: [],
-  status: 'draft',
 })
 
 watch(
@@ -37,7 +29,6 @@ watch(
     form.value = {
       file: null,
       roleIds: document?.roles.map((role) => role.id) ?? [],
-      status: document?.status ?? 'draft',
     }
   },
   { immediate: true }
@@ -103,18 +94,6 @@ function selectFile(event: Event) {
           <p v-if="document" class="text-sm text-muted-foreground">
             {{ t('knowledge.replace_file_hint') }}
           </p>
-        </div>
-        <div v-if="document" class="grid gap-2">
-          <div class="grid gap-2">
-            <Label for="knowledge-status">{{ t('knowledge.status') }}</Label>
-            <Select v-model="form.status">
-              <SelectTrigger id="knowledge-status" class="w-full"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="draft">{{ t('knowledge.draft') }}</SelectItem>
-                <SelectItem value="published">{{ t('knowledge.published') }}</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
         </div>
         <div class="grid gap-2">
           <Label>{{ t('knowledge.roles') }}</Label>

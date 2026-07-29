@@ -426,10 +426,6 @@ function getChangeValue(value: string) {
   return te(key) ? t(key) : value
 }
 
-function isDestructiveApproval(approval: AiChatConfirmation) {
-  return /^(revoke_|delete_|disable_|reset_)/.test(approval.action)
-}
-
 function canCopyMessage(message: ChatMessage) {
   return props.showMessageActions && message.id !== 'welcome' && message.content.trim().length > 0
 }
@@ -746,7 +742,7 @@ onUnmounted(() => {
               </dl>
               <p class="text-muted-foreground">
                 {{
-                  isDestructiveApproval(approval)
+                  approval.impact === 'destructive'
                     ? t('ai_chat.approval.destructive_impact')
                     : t('ai_chat.approval.standard_impact')
                 }}

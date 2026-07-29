@@ -61,20 +61,6 @@ const columns = computed<ColumnDef<KnowledgeDocument>[]>(() => [
       ),
   },
   {
-    accessorKey: 'status',
-    meta: { label: t('knowledge.status') },
-    header: () => t('knowledge.status'),
-    cell: ({ row }) =>
-      h(
-        Badge,
-        {
-          variant: 'outline',
-          class: badgeToneClass(row.original.status === 'published' ? 'success' : 'muted'),
-        },
-        () => t(`knowledge.${row.original.status}`)
-      ),
-  },
-  {
     id: 'index',
     meta: { label: t('knowledge.index_status') },
     header: () => t('knowledge.index_status'),
@@ -242,7 +228,6 @@ async function confirmReindex() {
 onMounted(() => void fetchDocuments())
 onMounted(() => void listSystemRoleCatalog(auth.token).then((items) => (roles.value = items)))
 watch(page, (nextPage) => void fetchDocuments(nextPage))
-
 </script>
 
 <template>

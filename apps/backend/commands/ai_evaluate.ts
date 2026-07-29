@@ -49,7 +49,7 @@ export default class AiEvaluate extends BaseCommand {
           }),
           {
             name: 'search_knowledge',
-            description: 'Search published product setup and workflow documentation.',
+            description: 'Search indexed product setup and workflow documentation.',
             schema: z.object({ query: z.string() }),
           }
         ),

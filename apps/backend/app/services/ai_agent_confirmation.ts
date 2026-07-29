@@ -6,6 +6,7 @@ import { DateTime } from 'luxon'
 import AiAgentConfirmation from '#models/ai_agent_confirmation'
 import {
   AiAgentActionAuthorizationError,
+  type AiAgentActionImpact,
   getAiAgentAction,
   getAiAgentActionChangeSummary,
 } from '#services/ai_agent_action_registry'
@@ -16,6 +17,7 @@ const confirmationLifetimeMinutes = 5
 export type AiAgentConfirmationSummary = {
   id: number
   action: string
+  impact: AiAgentActionImpact
   targetType: string
   targetId: string
   targetSummary: Record<string, unknown>
@@ -33,9 +35,11 @@ export class AiAgentConfirmationError extends Error {
 }
 
 function serializeConfirmation(confirmation: AiAgentConfirmation): AiAgentConfirmationSummary {
+  const action = getAiAgentAction(confirmation.action)
   return {
     id: confirmation.id,
     action: confirmation.action,
+    impact: action?.impact ?? 'destructive',
     targetType: confirmation.targetType ?? 'unknown',
     targetId: confirmation.targetId ?? String(confirmation.id),
     targetSummary: confirmation.targetSummary ?? {},
@@ -66,18 +70,47 @@ export async function proposeAiAgentAction(input: {
     )
   }
 
-  const confirmation = await AiAgentConfirmation.create({
-    conversationId: input.conversationId,
-    requestedByUserId: input.userId,
-    agentRunId: input.agentRunId,
-    action: input.action,
-    targetType: preparation.targetType,
-    targetId: preparation.targetId,
-    targetSummary: preparation.targetSummary,
-    payload: preparation.payload,
-    status: 'pending',
-    expiresAt: DateTime.now().plus({ minutes: confirmationLifetimeMinutes }),
-  })
+  const existing = await AiAgentConfirmation.query()
+    .where('conversation_id', input.conversationId)
+    .where('requested_by_user_id', input.userId)
+    .where('agent_run_id', input.agentRunId)
+    .where('action', input.action)
+    .where('target_type', preparation.targetType)
+    .where('target_id', preparation.targetId)
+    .where('status', 'pending')
+    .first()
+  if (existing && existing.expiresAt > DateTime.now()) return serializeConfirmation(existing)
+  if (existing) {
+    existing.status = 'expired'
+    await existing.save()
+  }
+
+  let confirmation: AiAgentConfirmation
+  try {
+    confirmation = await AiAgentConfirmation.create({
+      conversationId: input.conversationId,
+      requestedByUserId: input.userId,
+      agentRunId: input.agentRunId,
+      action: input.action,
+      targetType: preparation.targetType,
+      targetId: preparation.targetId,
+      targetSummary: preparation.targetSummary,
+      payload: preparation.payload,
+      status: 'pending',
+      expiresAt: DateTime.now().plus({ minutes: confirmationLifetimeMinutes }),
+    })
+  } catch (error) {
+    if (!(error instanceof Error) || !('code' in error) || error.code !== '23505') throw error
+    confirmation = await AiAgentConfirmation.query()
+      .where('conversation_id', input.conversationId)
+      .where('requested_by_user_id', input.userId)
+      .where('agent_run_id', input.agentRunId)
+      .where('action', input.action)
+      .where('target_type', preparation.targetType)
+      .where('target_id', preparation.targetId)
+      .where('status', 'pending')
+      .firstOrFail()
+  }
 
   return serializeConfirmation(confirmation)
 }

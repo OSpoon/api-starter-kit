@@ -5,8 +5,6 @@ import { DateTime } from 'luxon'
 import KnowledgeChunk from '#models/knowledge_chunk'
 import Role from '#models/role'
 
-export type KnowledgeDocumentStatus = 'draft' | 'published'
-
 export default class KnowledgeDocument extends BaseModel {
   static table = 'knowledge_documents'
 
@@ -21,9 +19,6 @@ export default class KnowledgeDocument extends BaseModel {
 
   @column()
   declare requiredPermission: string | null
-
-  @column()
-  declare status: KnowledgeDocumentStatus
 
   @column()
   declare contentHash: string
