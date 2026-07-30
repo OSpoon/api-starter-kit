@@ -696,7 +696,7 @@ onUnmounted(() => {
                 </div>
               </div>
             </div>
-            <div v-if="displayMessages.length <= 1" class="ml-[2.375rem] flex flex-wrap gap-2 pt-1">
+            <div v-if="displayMessages.length <= 1" class="ml-9.5 flex flex-wrap gap-2 pt-1">
               <Button
                 v-for="suggestion in promptSuggestions"
                 :key="suggestion"
@@ -767,7 +767,7 @@ onUnmounted(() => {
               <p class="font-medium text-foreground">
                 {{ getApprovalActionLabel(approval) }}
               </p>
-              <p class="break-words text-muted-foreground">
+              <p class="wrap-break-word text-muted-foreground">
                 {{ t('ai_chat.approval.target', { target: getApprovalTarget(approval) }) }}
               </p>
               <dl v-if="approval.changeSummary.length" class="space-y-1 text-muted-foreground">
