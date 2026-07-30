@@ -16,7 +16,6 @@ import {
   getAiAgentCheckpointer,
   hasAiAgentCheckpoint,
 } from '#services/ai_agent_checkpoint'
-import { listConversationConfirmations } from '#services/ai_agent_confirmation'
 import { getPendingAiQueryContext } from '#services/ai_agent_query_registry'
 import { createAiAgentTools } from '#services/ai_agent_registry'
 import { createLangfuseCallback } from '#services/langfuse'
@@ -161,11 +160,8 @@ async function buildAuthorizationContext(userId: number) {
 
 async function buildLiveSessionContext(conversationId: number, userId: number) {
   try {
-    const [pendingConfirmations, pendingQueryContext] = await Promise.all([
-      listConversationConfirmations(conversationId, userId),
-      getPendingAiQueryContext({ conversationId, userId }),
-    ])
-    return ` <live-session-state>${JSON.stringify({ pendingConfirmations })}</live-session-state>${pendingQueryContext}`
+    const pendingQueryContext = await getPendingAiQueryContext({ conversationId, userId })
+    return `${pendingQueryContext}`
   } catch {
     return ''
   }
