@@ -122,8 +122,12 @@ const autoScrollEnabled = ref(true)
 let scrollViewport: HTMLElement | null = null
 
 const chatHeight = ref(600)
+const chatWidth = ref(520)
 const isResizing = ref(false)
+const resizeDirection = ref<'height' | 'width' | 'both' | null>(null)
+const resizeStartX = ref(0)
 const resizeStartY = ref(0)
+const resizeStartWidth = ref(0)
 const resizeStartHeight = ref(0)
 
 const internalMessages = ref<ChatMessage[]>([
@@ -166,9 +170,12 @@ const promptSuggestions = computed(
     ]
 )
 
-function startResize(event: MouseEvent) {
+function startResize(event: MouseEvent, direction: 'height' | 'width' | 'both') {
   isResizing.value = true
+  resizeDirection.value = direction
+  resizeStartX.value = event.clientX
   resizeStartY.value = event.clientY
+  resizeStartWidth.value = chatWidth.value
   resizeStartHeight.value = chatHeight.value
   window.addEventListener('mousemove', onResize)
   window.addEventListener('mouseup', stopResize)
@@ -180,13 +187,22 @@ function onResize(event: MouseEvent) {
     return
   }
 
-  const delta = resizeStartY.value - event.clientY
-  const nextHeight = resizeStartHeight.value + delta
-  chatHeight.value = Math.min(Math.max(nextHeight, 420), window.innerHeight - 32)
+  if (resizeDirection.value === 'height' || resizeDirection.value === 'both') {
+    const delta = resizeStartY.value - event.clientY
+    const nextHeight = resizeStartHeight.value + delta
+    chatHeight.value = Math.min(Math.max(nextHeight, 420), window.innerHeight - 32)
+  }
+
+  if (resizeDirection.value === 'width' || resizeDirection.value === 'both') {
+    const delta = resizeStartX.value - event.clientX
+    const nextWidth = resizeStartWidth.value + delta
+    chatWidth.value = Math.min(Math.max(nextWidth, 360), window.innerWidth - 32)
+  }
 }
 
 function stopResize() {
   isResizing.value = false
+  resizeDirection.value = null
   window.removeEventListener('mousemove', onResize)
   window.removeEventListener('mouseup', stopResize)
   document.body.style.userSelect = ''
@@ -478,15 +494,39 @@ onUnmounted(() => {
   <div class="fixed right-4 bottom-4 z-50 flex flex-col items-end gap-2">
     <div
       v-if="isOpen"
-      class="relative flex w-130 max-w-[calc(100vw-32px)] animate-in flex-col overflow-hidden rounded-lg border bg-card text-card-foreground shadow-lg slide-in-from-bottom-5 fade-in"
-      :style="{ height: `${chatHeight}px` }"
+      class="relative flex max-w-[calc(100vw-32px)] animate-in flex-col overflow-hidden rounded-lg border bg-card text-card-foreground shadow-lg slide-in-from-bottom-5 fade-in"
+      :style="{ height: `${chatHeight}px`, width: `${chatWidth}px` }"
     >
       <div
         class="group absolute inset-x-0 top-0 z-50 flex h-1.5 w-full cursor-ns-resize items-center justify-center transition-colors hover:bg-muted"
-        @mousedown.prevent="startResize"
+        role="separator"
+        aria-orientation="horizontal"
+        :aria-label="t('ai_chat.resize_height')"
+        @mousedown.prevent="startResize($event, 'height')"
       >
         <div
           class="h-1 w-12 rounded-full bg-border transition-colors group-hover:bg-muted-foreground/30"
+        />
+      </div>
+      <div
+        class="group absolute inset-y-0 left-0 z-50 hidden w-1.5 cursor-ew-resize items-center justify-center transition-colors hover:bg-muted sm:flex"
+        role="separator"
+        aria-orientation="vertical"
+        :aria-label="t('ai_chat.resize_width')"
+        @mousedown.prevent="startResize($event, 'width')"
+      >
+        <div
+          class="h-12 w-1 rounded-full bg-border transition-colors group-hover:bg-muted-foreground/30"
+        />
+      </div>
+      <div
+        class="group absolute top-0 left-0 z-60 hidden size-4 cursor-nwse-resize items-center justify-center sm:flex"
+        role="separator"
+        aria-label="t('ai_chat.resize_both')"
+        @mousedown.prevent="startResize($event, 'both')"
+      >
+        <div
+          class="size-2 rounded-br-sm border-r border-b border-border transition-colors group-hover:border-muted-foreground/50"
         />
       </div>
 

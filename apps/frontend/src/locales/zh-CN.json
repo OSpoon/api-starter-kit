@@ -109,6 +109,9 @@
     "built_by": "由 {platform} 团队构建"
   },
   "ai_chat": {
+    "resize_height": "调整助手高度",
+    "resize_width": "调整助手宽度",
+    "resize_both": "调整助手宽度和高度",
     "title": "AI 助手",
     "welcome": "你好，我是 AI 助手。你可以询问当前系统的功能、API 接入或配置方式。",
     "input_placeholder": "输入问题，Enter 发送，Shift + Enter 换行",
