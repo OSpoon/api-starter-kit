@@ -65,18 +65,8 @@ export function createAiAgentTools(input: {
   agentRunId: string
   signal?: AbortSignal
   onKnowledgeSources?: (
-    sources: Array<{
-      documentId: number
-      chunkId: number
-      title: string
-      excerpt: string
-    }>
+    sources: Array<{ documentId: number; chunkId: number; title: string; excerpt: string }>
   ) => void
-  onActionAttempt?: (event: {
-    action: string
-    outcome: 'proposed' | 'denied'
-    message?: string
-  }) => Promise<void>
 }) {
   const throwIfAborted = () => {
     if (input.signal?.aborted) {
@@ -180,12 +170,10 @@ export function createAiAgentTools(input: {
             userId: input.userId,
             agentRunId: input.agentRunId,
           })
-          await input.onActionAttempt?.({ action, outcome: 'proposed' })
           throwIfAborted()
           return JSON.stringify({ kind: 'confirmation', confirmation })
         } catch (error) {
           const message = error instanceof Error ? error.message : '无法准备受控操作'
-          await input.onActionAttempt?.({ action, outcome: 'denied', message })
           if (error instanceof AiAgentConfirmationError) {
             return JSON.stringify({ kind: 'action_error', message: error.message })
           }

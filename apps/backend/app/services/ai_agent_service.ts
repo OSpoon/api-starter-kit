@@ -113,11 +113,6 @@ function createAiAgent(input: {
   liveSessionContext?: string
   signal?: AbortSignal
   onKnowledgeSources?: (sources: AiChatCitation[]) => void
-  onActionAttempt?: (event: {
-    action: string
-    outcome: 'proposed' | 'denied'
-    message?: string
-  }) => Promise<void>
 }) {
   const model = createAiAgentModel()
   const summarization = getAiAgentSummarizationOptions()
@@ -197,11 +192,6 @@ export async function createAiAgentStream(input: {
   context?: AiAgentPageContext
   signal?: AbortSignal
   onKnowledgeSources?: (sources: AiChatCitation[]) => void
-  onActionAttempt?: (event: {
-    action: string
-    outcome: 'proposed' | 'denied'
-    message?: string
-  }) => Promise<void>
 }) {
   const agentRunId = crypto.randomUUID()
   const langfuseCallback = createLangfuseCallback({

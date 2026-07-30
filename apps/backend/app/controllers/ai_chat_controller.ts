@@ -16,7 +16,6 @@ import { createAiAgentStream, getAiRequestTimeout } from '#services/ai_agent_ser
 import { resolveAiChatRegeneration } from '#services/ai_chat_regeneration'
 import { AiChatTiming } from '#services/ai_chat_timing'
 import { resetAiConversationState } from '#services/ai_conversation_state'
-import { recordAuditEvent } from '#services/audit_log'
 import {
   serializeAiChatConversation,
   serializeAiChatConversationWithMessages,
@@ -312,23 +311,8 @@ export default class AiChatController {
             knowledgeCitations.set(`${source.documentId}:${source.chunkId}`, source)
           }
           completedToolNames.add('search_knowledge')
-          // Deliver citations as soon as knowledge retrieval has completed.
-          // This keeps their display independent from the final model stream,
-          // which can be interrupted after a successful tool call.
           writeSse(response, 'agent_citations', {
             citations: [...knowledgeCitations.values()],
-          })
-        },
-        onActionAttempt: async (event) => {
-          await recordAuditEvent(ctx, {
-            actorUserId: user.id,
-            action: event.outcome === 'proposed' ? 'agent.action_proposed' : 'agent.action_denied',
-            targetType: 'agent_action',
-            metadata: {
-              action: event.action,
-              outcome: event.outcome,
-              ...(event.message ? { reason: event.message } : {}),
-            },
           })
         },
       })
