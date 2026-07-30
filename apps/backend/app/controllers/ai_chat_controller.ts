@@ -4,7 +4,6 @@ import { ApiOperation, ApiResponse, ApiSecurity } from '@foadonis/openapi/decora
 
 import AiChatConversation from '#models/ai_chat_conversation'
 import AiChatMessage, { type AiChatCitation } from '#models/ai_chat_message'
-import { clearAiAgentCheckpoint } from '#services/ai_agent_checkpoint'
 import {
   AiAgentConfirmationError,
   attachAgentRunConfirmations,
@@ -16,6 +15,7 @@ import { resolveGroundedAssistantResponse } from '#services/ai_agent_response_po
 import { createAiAgentStream, getAiRequestTimeout } from '#services/ai_agent_service'
 import { resolveAiChatRegeneration } from '#services/ai_chat_regeneration'
 import { AiChatTiming } from '#services/ai_chat_timing'
+import { resetAiConversationState } from '#services/ai_conversation_state'
 import {
   serializeAiChatConversation,
   serializeAiChatConversationWithMessages,
@@ -213,7 +213,7 @@ export default class AiChatController {
         .where('id', regeneration.assistantMessage.id)
         .where('conversation_id', conversation.id)
         .delete()
-      await clearAiAgentCheckpoint({ conversationId: conversation.id, userId: user.id })
+      await resetAiConversationState({ conversationId: conversation.id, userId: user.id })
     }
 
     const userMessage =
@@ -494,7 +494,7 @@ export default class AiChatController {
       .where('user_id', user.id)
       .firstOrFail()
 
-    await clearAiAgentCheckpoint({ conversationId: conversation.id, userId: user.id })
+    await resetAiConversationState({ conversationId: conversation.id, userId: user.id })
     await conversation.delete()
     return serialize({ id: Number(params.id), deleted: true })
   }
