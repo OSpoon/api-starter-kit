@@ -300,10 +300,19 @@ export default class AiChatController {
               role: message.role,
               content: message.content,
             })),
-            ...regeneration!.assistantMessage.agentContext.map((item) => ({
-              role: 'system' as const,
-              content: serializePriorToolContext(item),
-            })),
+            ...(regeneration!.assistantMessage.agentContext.length
+              ? [
+                  {
+                    role: 'system' as const,
+                    content:
+                      'The following prior tool results are stale context from a previous turn. They are not current answers. Call the relevant tool again to answer the user.',
+                  },
+                  ...regeneration!.assistantMessage.agentContext.map((item) => ({
+                    role: 'system' as const,
+                    content: serializePriorToolContext(item),
+                  })),
+                ]
+              : []),
           ]
         : [
             ...persistedMessages.map((message) => ({
