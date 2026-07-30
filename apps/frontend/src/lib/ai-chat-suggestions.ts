@@ -65,27 +65,10 @@ export function getAiChatSuggestions(input: {
     .map((suggestion) => input.translate(suggestion.promptKey))
 }
 
-function hasSameSuggestions(left: string[], right: string[]) {
-  return left.length === right.length && left.every((suggestion) => right.includes(suggestion))
-}
-
 export function pickRandomAiChatSuggestions(
   suggestions: string[],
-  current: string[] = [],
   random: () => number = Math.random
 ) {
   const count = Math.min(suggestions.length, 3)
-  if (count === suggestions.length) return [...suggestions]
-
-  let picked: string[] = []
-  for (let attempt = 0; attempt < 4; attempt += 1) {
-    const shuffled = [...suggestions]
-    for (let index = shuffled.length - 1; index > 0; index -= 1) {
-      const swapIndex = Math.floor(random() * (index + 1))
-      ;[shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex]!, shuffled[index]!]
-    }
-    picked = shuffled.slice(0, count)
-    if (!hasSameSuggestions(picked, current)) break
-  }
-  return picked
+  return [...suggestions].sort(() => random() - 0.5).slice(0, count)
 }

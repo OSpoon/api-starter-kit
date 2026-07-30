@@ -103,7 +103,7 @@ const allAiSuggestions = computed(() => {
 })
 
 function refreshAiSuggestions() {
-  aiSuggestions.value = pickRandomAiChatSuggestions(allAiSuggestions.value, aiSuggestions.value)
+  aiSuggestions.value = pickRandomAiChatSuggestions(allAiSuggestions.value)
 }
 
 watch(
