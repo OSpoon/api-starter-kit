@@ -1,8 +1,10 @@
 import crypto from 'node:crypto'
 
+import logger from '@adonisjs/core/services/logger'
 import { ChatOpenAI } from '@langchain/openai'
 import {
   AIMessage,
+  type AnyAgentMiddleware,
   createAgent,
   HumanMessage,
   summarizationMiddleware,
@@ -103,6 +105,28 @@ export function createAiAgentModel() {
   })
 }
 
+function safeSummarizationMiddleware(
+  options: Parameters<typeof summarizationMiddleware>[0]
+): AnyAgentMiddleware {
+  const middleware = summarizationMiddleware(options)
+
+  return {
+    ...middleware,
+    beforeModel: async (state, runtime) => {
+      try {
+        const hook = middleware.beforeModel
+        if (!hook) return undefined
+        const handler = typeof hook === 'function' ? hook : hook.hook
+        type HandlerRuntime = Parameters<typeof handler>[1]
+        return await handler(state, runtime as HandlerRuntime)
+      } catch (error) {
+        logger.error({ err: error }, 'Context summarization failed; skipping compression')
+        return undefined
+      }
+    },
+  }
+}
+
 function createAiAgent(input: {
   userId: number
   conversationId: number
@@ -122,7 +146,7 @@ function createAiAgent(input: {
     checkpointer: getAiAgentCheckpointer(),
     middleware: summarization.enabled
       ? [
-          summarizationMiddleware({
+          safeSummarizationMiddleware({
             model: createAiAgentModel(),
             trigger: { tokens: summarization.thresholdTokens },
             keep: { messages: summarization.recentMessageCount },

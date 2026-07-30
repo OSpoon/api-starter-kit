@@ -36,6 +36,19 @@ function writeSse(response: HttpContext['response'], event: string, data: unknow
   response.response.write(`data: ${JSON.stringify(data)}\n\n`)
 }
 
+const SSE_KEEPALIVE_INTERVAL_MS = 15_000
+
+function startSseKeepalive(response: HttpContext['response']) {
+  const handle = setInterval(() => {
+    if (response.response.writableEnded || response.response.destroyed) {
+      clearInterval(handle)
+      return
+    }
+    response.response.write(': keepalive\n\n')
+  }, SSE_KEEPALIVE_INTERVAL_MS)
+  return () => clearInterval(handle)
+}
+
 function isAbortError(error: unknown) {
   return error instanceof DOMException && error.name === 'AbortError'
 }
@@ -281,7 +294,10 @@ export default class AiChatController {
       return persistedAssistantMessage
     }
 
+    let stopKeepalive: (() => void) | undefined
+
     try {
+      stopKeepalive = startSseKeepalive(response)
       timing.startNode('context_preparation')
       const persistedMessages = payload.regenerateAssistantMessageId
         ? regeneration!.messages
@@ -331,11 +347,12 @@ export default class AiChatController {
             bufferedContent = ''
           }
         }
-      ).catch(() => {
+      ).catch((error) => {
         // The tool-status iterator shares the Agent event stream with the
         // message iterator. Handle its rejection immediately: waiting until
         // after the message loop lets an unavailable LLM become an
         // unhandled rejection and terminate the HTTP process.
+        logger.error({ err: error }, 'Tool status stream failed')
       })
 
       for await (const message of run.stream.messages) {
@@ -434,6 +451,7 @@ export default class AiChatController {
       })
     } finally {
       clearTimeout(requestTimeout)
+      stopKeepalive?.()
       response.response.off('close', abortOnDisconnect)
       timing.finishOpenNodes()
       logger.info(
