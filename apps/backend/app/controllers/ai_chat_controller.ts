@@ -46,11 +46,6 @@ function getSafeAiErrorMessage(error: unknown) {
   return '本次 AI 请求未完成，请稍后重试。'
 }
 
-function serializePriorToolContext(item: { name: string; output: string }) {
-  const output = item.output.replaceAll('<', '\\u003c').replaceAll('>', '\\u003e')
-  return `<untrusted-prior-tool-result name="${item.name}">${output}</untrusted-prior-tool-result>`
-}
-
 function parseAgentConfirmation(output: unknown) {
   const content =
     typeof output === 'string'
@@ -295,25 +290,10 @@ export default class AiChatController {
         ? regeneration!.messages
         : conversation.messages
       const history = payload.regenerateAssistantMessageId
-        ? [
-            ...persistedMessages.map((message) => ({
-              role: message.role,
-              content: message.content,
-            })),
-            ...(regeneration!.assistantMessage.agentContext.length
-              ? [
-                  {
-                    role: 'system' as const,
-                    content:
-                      'The following prior tool results are stale context from a previous turn. They are not current answers. Call the relevant tool again to answer the user.',
-                  },
-                  ...regeneration!.assistantMessage.agentContext.map((item) => ({
-                    role: 'system' as const,
-                    content: serializePriorToolContext(item),
-                  })),
-                ]
-              : []),
-          ]
+        ? persistedMessages.map((message) => ({
+            role: message.role,
+            content: message.content,
+          }))
         : [
             ...persistedMessages.map((message) => ({
               role: message.role,
