@@ -49,13 +49,14 @@ export default class AiEvaluate extends BaseCommand {
           }),
           {
             name: 'search_knowledge',
-            description: 'Search indexed product setup and workflow documentation.',
+            description:
+              'Search indexed product documentation for setup, configuration, features, or workflows.',
             schema: z.object({ query: z.string() }),
           }
         ),
         tool(remember('run_registered_query', { kind: 'query_result', rows: [] }), {
           name: 'run_registered_query',
-          description: `Run a registered, permission-checked and redacted database query. Available templates: ${aiQueryTemplateInstructions}`,
+          description: `Run one registered, permission-checked, redacted query. Templates: ${aiQueryTemplateInstructions}.`,
           schema: z.object({
             templateCode: z.enum(aiQueryTemplateCodes),
             params: z.record(z.unknown()).default({}),

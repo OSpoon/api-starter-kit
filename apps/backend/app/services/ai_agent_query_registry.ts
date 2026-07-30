@@ -357,8 +357,8 @@ export const aiQueryTemplateCodes = queryTemplates.map((template) => template.co
 ]
 
 export const aiQueryTemplateInstructions = queryTemplates
-  .map((template) => `${template.code}: ${template.description}`)
-  .join(' ')
+  .map((template) => `${template.code} (${template.description})`)
+  .join('; ')
 
 export function getAiQueryTemplate(code: string) {
   return queryTemplates.find((template) => template.code === code)
