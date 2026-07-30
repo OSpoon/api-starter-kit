@@ -22,15 +22,6 @@ function consumeCitations(value: unknown): AiChatCitation[] {
   }
 }
 
-function consumeAgentContext(value: unknown): Array<{ name: string; output: string }> {
-  if (Array.isArray(value)) return value as Array<{ name: string; output: string }>
-  try {
-    return typeof value === 'string' ? JSON.parse(value) : []
-  } catch {
-    return []
-  }
-}
-
 export default class AiChatMessage extends BaseModel {
   static table = 'ai_chat_messages'
 
@@ -51,9 +42,6 @@ export default class AiChatMessage extends BaseModel {
     consume: consumeCitations,
   })
   declare citations: AiChatCitation[]
-
-  @column({ prepare: (value) => JSON.stringify(value ?? []), consume: consumeAgentContext })
-  declare agentContext: Array<{ name: string; output: string }>
 
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime

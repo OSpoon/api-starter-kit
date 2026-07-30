@@ -254,7 +254,6 @@ export default class AiChatController {
     let persistedAssistantMessage: AiChatMessage | null = null
     let lastPersistedContentLength = 0
     const knowledgeCitations = new Map<string, AiChatCitation>()
-    const agentContext: Array<{ name: string; output: string }> = []
     const completedToolNames = new Set<string>()
     const timing = new AiChatTiming()
     let timingOutcome: 'completed' | 'failed' | 'aborted' = 'failed'
@@ -266,7 +265,6 @@ export default class AiChatController {
       const attributes = {
         content: assistantContent,
         citations: [...knowledgeCitations.values()],
-        agentContext,
       }
       if (persistedAssistantMessage) {
         persistedAssistantMessage.merge(attributes)
@@ -342,8 +340,7 @@ export default class AiChatController {
         response,
         abortController.signal,
         timing,
-        (toolName, output) => {
-          agentContext.push({ name: toolName, output: JSON.stringify(output).slice(0, 8000) })
+        (_toolName, _output) => {
           hasCompletedTool = true
           if (bufferedContent) {
             writeSse(response, 'delta', { content: bufferedContent })
