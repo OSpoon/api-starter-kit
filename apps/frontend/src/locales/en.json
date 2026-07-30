@@ -109,9 +109,7 @@
     "built_by": "Built with care by the {platform} team"
   },
   "ai_chat": {
-    "resize_height": "Resize assistant height",
-    "resize_width": "Resize assistant width",
-    "resize_both": "Resize assistant width and height",
+    "resize_both": "Resize assistant",
     "title": "AI Assistant",
     "welcome": "Hi, I am the AI assistant. Ask about system features, API integration, or configuration.",
     "input_placeholder": "Type a question. Enter to send, Shift + Enter for a new line",
