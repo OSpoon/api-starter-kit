@@ -18,7 +18,7 @@ import {
 } from '#services/ai_agent_checkpoint'
 import { listConversationConfirmations } from '#services/ai_agent_confirmation'
 import { getPendingAiQueryContext } from '#services/ai_agent_query_registry'
-import { aiAgentCapabilities, createAiAgentTools } from '#services/ai_agent_registry'
+import { createAiAgentTools } from '#services/ai_agent_registry'
 import { createLangfuseCallback } from '#services/langfuse'
 import { loadUserAccess } from '#services/user_access'
 import env from '#start/env'
@@ -169,10 +169,6 @@ async function buildLiveSessionContext(conversationId: number, userId: number) {
   } catch {
     return ''
   }
-}
-
-export function getAiAgentCapabilities() {
-  return aiAgentCapabilities
 }
 
 export function selectAiAgentInvocationMessages(input: {
