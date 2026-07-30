@@ -270,4 +270,96 @@ test.group('AI agent confirmations', (group) => {
     })
     assert.isNull(await AiAgentConfirmation.query().where('requested_by_user_id', user.id).first())
   })
+
+  test('audits when a user tries to confirm an already-expired proposal', async ({
+    client,
+    assert,
+  }) => {
+    const superAdminRole = await Role.findByOrFail('code', 'super-admin')
+    const user = await User.create({
+      fullName: 'Expired confirmation admin',
+      email: `expired-confirmation-${Date.now()}@example.com`,
+      password: generateInitialPassword(),
+    })
+    await user.related('roles').sync([superAdminRole.id])
+    const token = await User.accessTokens.create(user)
+    const { apiKey, confirmation, conversation } = await createConfirmation(user)
+    await AiAgentConfirmation.query()
+      .where('id', confirmation.id)
+      .update({
+        expiresAt: DateTime.now().minus({ minutes: 1 }),
+      })
+
+    const response = await client
+      .post(
+        `/api/v1/ai-chat/conversations/${conversation.id}/confirmations/${confirmation.id}/confirm`
+      )
+      .bearerToken(token.value!.release())
+
+    response.assertStatus(422)
+    const expiredConfirmation = await AiAgentConfirmation.findOrFail(confirmation.id)
+    assert.equal(expiredConfirmation.status, 'expired')
+    assert.exists(
+      await AuditLog.query()
+        .where('action', 'agent.proposal_expired')
+        .where('target_id', String(apiKey.id))
+        .first()
+    )
+  })
+
+  test('audits orphaned confirmations when an agent run ends without attaching them', async ({
+    assert,
+  }) => {
+    const superAdminRole = await Role.findByOrFail('code', 'super-admin')
+    const user = await User.create({
+      fullName: 'Orphan confirmations admin',
+      email: `orphan-confirmation-${Date.now()}@example.com`,
+      password: generateInitialPassword(),
+    })
+    await user.related('roles').sync([superAdminRole.id])
+    const conversation = await AiChatConversation.create({
+      userId: user.id,
+      title: 'Orphan run',
+    })
+    const apiKey = await ApiKey.create({
+      name: `Orphan key ${Date.now()}`,
+      prefix: `o${Date.now()}`,
+      keyHash: `hash-${Date.now()}`,
+    })
+    const agentRunId = crypto.randomUUID()
+    await AiAgentConfirmation.create({
+      conversationId: conversation.id,
+      requestedByUserId: user.id,
+      agentRunId,
+      action: 'revoke_api_key',
+      targetType: 'api_key',
+      targetId: String(apiKey.id),
+      targetSummary: { name: apiKey.name },
+      payload: { apiKeyId: apiKey.id },
+      status: 'pending',
+      expiresAt: DateTime.now().plus({ minutes: 5 }),
+    })
+
+    const fakeContext = {
+      request: { ip: () => '127.0.0.1', header: () => null },
+    } as unknown as import('@adonisjs/core/http').HttpContext
+    const { failUnattachedAgentRunConfirmations } = await import('#services/ai_agent_confirmation')
+    await failUnattachedAgentRunConfirmations({
+      conversationId: conversation.id,
+      userId: user.id,
+      agentRunId,
+      ctx: fakeContext,
+    })
+
+    const failedConfirmation = await AiAgentConfirmation.query()
+      .where('conversation_id', conversation.id)
+      .firstOrFail()
+    assert.equal(failedConfirmation.status, 'failed')
+    assert.exists(
+      await AuditLog.query()
+        .where('action', 'agent.proposal_failed')
+        .where('target_id', String(apiKey.id))
+        .first()
+    )
+  })
 })

@@ -16,6 +16,7 @@ import { createAiAgentStream, getAiRequestTimeout } from '#services/ai_agent_ser
 import { resolveAiChatRegeneration } from '#services/ai_chat_regeneration'
 import { AiChatTiming } from '#services/ai_chat_timing'
 import { resetAiConversationState } from '#services/ai_conversation_state'
+import { recordAuditEvent } from '#services/audit_log'
 import {
   serializeAiChatConversation,
   serializeAiChatConversationWithMessages,
@@ -43,6 +44,11 @@ function isAbortError(error: unknown) {
 function getSafeAiErrorMessage(error: unknown) {
   if (isAbortError(error)) return '已停止生成本次回复。'
   return '本次 AI 请求未完成，请稍后重试。'
+}
+
+function serializePriorToolContext(item: { name: string; output: string }) {
+  const output = item.output.replaceAll('<', '\\u003c').replaceAll('>', '\\u003e')
+  return `<untrusted-prior-tool-result name="${item.name}">${output}</untrusted-prior-tool-result>`
 }
 
 function parseAgentConfirmation(output: unknown) {
@@ -107,7 +113,7 @@ async function streamAiAgentToolStatuses(
   response: HttpContext['response'],
   signal: AbortSignal,
   timing: AiChatTiming,
-  onToolCompleted?: () => void | Promise<void>
+  onToolCompleted?: (name: string, output: unknown) => void | Promise<void>
 ) {
   const completedToolNames = new Set<string>()
   for await (const toolCall of run.stream.toolCalls) {
@@ -126,7 +132,7 @@ async function streamAiAgentToolStatuses(
     timing.finishTool(toolCall.name)
     if (state === 'finished') {
       completedToolNames.add(toolCall.name)
-      await onToolCompleted?.()
+      await onToolCompleted?.(toolCall.name, output)
       const confirmation = parseAgentConfirmation(output)
       if (confirmation) {
         writeSse(response, 'agent_confirmation', confirmation)
@@ -191,7 +197,8 @@ export default class AiChatController {
     description: '保存用户消息，调用 OpenAI 兼容接口，并保存助手回复。',
   })
   @ApiResponse({ status: 200, description: '流式 AI 会话响应' })
-  async sendMessage({ auth, params, request, response }: HttpContext) {
+  async sendMessage(ctx: HttpContext) {
+    const { auth, params, request, response } = ctx
     const user = auth.getUserOrFail()
     const payload = await request.validateUsing(sendAiChatMessageValidator)
     const conversation = await AiChatConversation.query()
@@ -252,6 +259,7 @@ export default class AiChatController {
     let persistedAssistantMessage: AiChatMessage | null = null
     let lastPersistedContentLength = 0
     const knowledgeCitations = new Map<string, AiChatCitation>()
+    const agentContext: Array<{ name: string; output: string }> = []
     const completedToolNames = new Set<string>()
     const timing = new AiChatTiming()
     let timingOutcome: 'completed' | 'failed' | 'aborted' = 'failed'
@@ -263,6 +271,7 @@ export default class AiChatController {
       const attributes = {
         content: assistantContent,
         citations: [...knowledgeCitations.values()],
+        agentContext,
       }
       if (persistedAssistantMessage) {
         persistedAssistantMessage.merge(attributes)
@@ -286,7 +295,16 @@ export default class AiChatController {
         ? regeneration!.messages
         : conversation.messages
       const history = payload.regenerateAssistantMessageId
-        ? persistedMessages.map((message) => ({ role: message.role, content: message.content }))
+        ? [
+            ...persistedMessages.map((message) => ({
+              role: message.role,
+              content: message.content,
+            })),
+            ...regeneration!.assistantMessage.agentContext.map((item) => ({
+              role: 'system' as const,
+              content: serializePriorToolContext(item),
+            })),
+          ]
         : [
             ...persistedMessages.map((message) => ({
               role: message.role,
@@ -314,6 +332,18 @@ export default class AiChatController {
             citations: [...knowledgeCitations.values()],
           })
         },
+        onActionAttempt: async (event) => {
+          await recordAuditEvent(ctx, {
+            actorUserId: user.id,
+            action: event.outcome === 'proposed' ? 'agent.action_proposed' : 'agent.action_denied',
+            targetType: 'agent_action',
+            metadata: {
+              action: event.action,
+              outcome: event.outcome,
+              ...(event.message ? { reason: event.message } : {}),
+            },
+          })
+        },
       })
       agentRunId = run.agentRunId
       let hasCompletedTool = false
@@ -323,7 +353,8 @@ export default class AiChatController {
         response,
         abortController.signal,
         timing,
-        () => {
+        (toolName, output) => {
+          agentContext.push({ name: toolName, output: JSON.stringify(output).slice(0, 8000) })
           hasCompletedTool = true
           if (bufferedContent) {
             writeSse(response, 'delta', { content: bufferedContent })
@@ -419,12 +450,14 @@ export default class AiChatController {
             conversationId: conversation.id,
             userId: user.id,
             agentRunId,
+            ctx,
           })
         } catch {
           // The response was already persisted; cleanup can be retried by a
           // subsequent maintenance path without losing the conversation.
         }
       }
+      await resetAiConversationState({ conversationId: conversation.id, userId: user.id })
       writeSse(response, 'error', {
         message,
         assistantMessage: serializeAiChatMessage(failedAssistantMessage),

@@ -72,6 +72,11 @@ export function createAiAgentTools(input: {
       excerpt: string
     }>
   ) => void
+  onActionAttempt?: (event: {
+    action: string
+    outcome: 'proposed' | 'denied'
+    message?: string
+  }) => Promise<void>
 }) {
   const throwIfAborted = () => {
     if (input.signal?.aborted) {
@@ -175,15 +180,18 @@ export function createAiAgentTools(input: {
             userId: input.userId,
             agentRunId: input.agentRunId,
           })
+          await input.onActionAttempt?.({ action, outcome: 'proposed' })
           throwIfAborted()
           return JSON.stringify({ kind: 'confirmation', confirmation })
         } catch (error) {
+          const message = error instanceof Error ? error.message : '无法准备受控操作'
+          await input.onActionAttempt?.({ action, outcome: 'denied', message })
           if (error instanceof AiAgentConfirmationError) {
             return JSON.stringify({ kind: 'action_error', message: error.message })
           }
           return JSON.stringify({
             kind: 'action_error',
-            message: error instanceof Error ? error.message : '无法准备受控操作',
+            message,
           })
         }
       },

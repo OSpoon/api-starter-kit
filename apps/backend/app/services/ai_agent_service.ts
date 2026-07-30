@@ -81,7 +81,7 @@ Rules:
 }
 
 export function getAiRequestTimeout() {
-  return Math.min(Math.max(env.get('AI_REQUEST_TIMEOUT_MS') ?? 60_000, 5_000), 300_000)
+  return Math.min(Math.max(env.get('AI_REQUEST_TIMEOUT_MS') ?? 180_000, 5_000), 300_000)
 }
 
 function getMaxRetries() {
@@ -110,6 +110,11 @@ function createAiAgent(input: {
   liveSessionContext?: string
   signal?: AbortSignal
   onKnowledgeSources?: (sources: AiChatCitation[]) => void
+  onActionAttempt?: (event: {
+    action: string
+    outcome: 'proposed' | 'denied'
+    message?: string
+  }) => Promise<void>
 }) {
   const model = createAiAgentModel()
   const summarization = getAiAgentSummarizationOptions()
@@ -189,6 +194,11 @@ export async function createAiAgentStream(input: {
   context?: AiAgentPageContext
   signal?: AbortSignal
   onKnowledgeSources?: (sources: AiChatCitation[]) => void
+  onActionAttempt?: (event: {
+    action: string
+    outcome: 'proposed' | 'denied'
+    message?: string
+  }) => Promise<void>
 }) {
   const agentRunId = crypto.randomUUID()
   const langfuseCallback = createLangfuseCallback({

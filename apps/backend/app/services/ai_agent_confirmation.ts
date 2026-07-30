@@ -160,14 +160,37 @@ export async function failUnattachedAgentRunConfirmations(input: {
   conversationId: number
   userId: number
   agentRunId: string
+  ctx: HttpContext
 }) {
-  await AiAgentConfirmation.query()
+  const orphans = await AiAgentConfirmation.query()
     .where('conversation_id', input.conversationId)
     .where('requested_by_user_id', input.userId)
     .where('agent_run_id', input.agentRunId)
     .where('status', 'pending')
     .whereNull('assistant_message_id')
+  if (!orphans.length) return
+
+  await AiAgentConfirmation.query()
+    .whereIn(
+      'id',
+      orphans.map((row) => row.id)
+    )
     .update({ status: 'failed' })
+
+  for (const confirmation of orphans) {
+    await recordAuditEvent(input.ctx, {
+      actorUserId: input.userId,
+      action: 'agent.proposal_failed',
+      targetType: confirmation.targetType ?? 'agent_action',
+      targetId: confirmation.targetId,
+      metadata: {
+        action: confirmation.action,
+        confirmationId: confirmation.id,
+        reason: 'agent_run_unattached',
+        source: 'ai_agent',
+      },
+    })
+  }
 }
 
 export async function confirmAiAgentAction(
@@ -190,6 +213,17 @@ export async function confirmAiAgentAction(
   if (confirmation.expiresAt <= now) {
     confirmation.status = 'expired'
     await confirmation.save()
+    await recordAuditEvent(ctx, {
+      actorUserId: input.userId,
+      action: 'agent.proposal_expired',
+      targetType: confirmation.targetType ?? 'agent_action',
+      targetId: confirmation.targetId,
+      metadata: {
+        action: confirmation.action,
+        confirmationId: confirmation.id,
+        source: 'ai_agent',
+      },
+    })
     throw new AiAgentConfirmationError('确认请求已过期，请重新发起', 422)
   }
 
