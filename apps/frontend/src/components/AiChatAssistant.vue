@@ -2,25 +2,21 @@
 import {
   Bot,
   ChevronDown,
-  Copy,
   History,
   MessageCircle,
   MessageCirclePlus,
   Minus,
   RefreshCw,
-  RotateCcw,
   Send,
-  ShieldCheck,
   Sparkles,
   Square,
   Trash2,
-  User,
   X,
 } from '@lucide/vue'
 
-import AiMessageContent, {
-  type AiMessageContentStatus,
-} from '@/components/ai-chat/AiMessageContent.vue'
+import AiChatApprovalCard from '@/components/ai-chat/AiChatApprovalCard.vue'
+import AiChatCredentialCard from '@/components/ai-chat/AiChatCredentialCard.vue'
+import AiChatMessageItem from '@/components/ai-chat/AiChatMessageItem.vue'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -30,25 +26,8 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Textarea } from '@/components/ui/textarea'
-import type {
-  AiChatAgentActivity,
-  AiChatCitation,
-  AiChatConfirmation,
-  AiChatCredentialDisclosure,
-} from '@/lib/ai-chat-api'
-import { formatDateTime } from '@/lib/format'
-
-type ChatRole = 'assistant' | 'user'
-type ChatMessageStatus = AiMessageContentStatus
-
-interface ChatMessage {
-  id?: string | number
-  role: ChatRole
-  content: string
-  status?: ChatMessageStatus
-  activity?: AiChatAgentActivity
-  citations?: AiChatCitation[]
-}
+import type { DisplayAiChatMessage } from '@/composables/useAiChat'
+import type { AiChatConfirmation, AiChatCredentialDisclosure } from '@/lib/ai-chat-api'
 
 interface ChatConversation {
   id: string | number
@@ -63,7 +42,7 @@ const props = withDefaults(
     welcomeMessage?: string
     suggestions?: string[]
     canRefreshSuggestions?: boolean
-    messages?: ChatMessage[]
+    messages?: DisplayAiChatMessage[]
     conversations?: ChatConversation[]
     currentConversationId?: string | number | null
     streamingMessageId?: string | number | null
@@ -100,8 +79,8 @@ const emit = defineEmits<{
   clear: []
   selectConversation: [id: string | number]
   deleteConversation: [id: string | number]
-  copyMessage: [message: ChatMessage]
-  retryMessage: [message: ChatMessage]
+  copyMessage: [message: DisplayAiChatMessage]
+  retryMessage: [message: DisplayAiChatMessage]
   stop: []
   refreshSuggestions: []
   approveConfirmation: []
@@ -110,7 +89,7 @@ const emit = defineEmits<{
   copyCredential: [credential: AiChatCredentialDisclosure]
 }>()
 
-const { t, te } = useI18n()
+const { t } = useI18n()
 
 const internalOpen = ref(false)
 const input = ref('')
@@ -128,14 +107,6 @@ const resizeStartX = ref(0)
 const resizeStartY = ref(0)
 const resizeStartWidth = ref(0)
 const resizeStartHeight = ref(0)
-
-const internalMessages = ref<ChatMessage[]>([
-  {
-    id: 'welcome',
-    role: 'assistant',
-    content: props.welcomeMessage || t('ai_chat.welcome'),
-  },
-])
 
 const isControlled = computed(() => props.modelValue !== undefined)
 const isOpen = computed({
@@ -156,8 +127,9 @@ const displayMessages = computed(() => {
       : [{ id: 'welcome', role: 'assistant' as const, content: welcomeMessage.value }]
   }
 
-  return internalMessages.value
+  return []
 })
+
 const assistantTitle = computed(() => props.title || t('ai_chat.title'))
 const inputPlaceholder = computed(() => props.placeholder || t('ai_chat.input_placeholder'))
 const promptSuggestions = computed(
@@ -255,37 +227,8 @@ function closeAssistant() {
 }
 
 function clearChat() {
-  if (!props.messages) {
-    internalMessages.value = [
-      {
-        id: 'welcome',
-        role: 'assistant',
-        content: welcomeMessage.value,
-      },
-    ]
-  }
-
   emit('clear')
   scrollToBottom(true)
-}
-
-function appendLocalResponse(message: string) {
-  if (props.messages) {
-    return
-  }
-
-  internalMessages.value.push(
-    {
-      id: `user-${Date.now()}`,
-      role: 'user',
-      content: message,
-    },
-    {
-      id: `assistant-${Date.now()}`,
-      role: 'assistant',
-      content: t('ai_chat.demo_response'),
-    }
-  )
 }
 
 function sendMessage(message = input.value) {
@@ -294,7 +237,6 @@ function sendMessage(message = input.value) {
     return
   }
 
-  appendLocalResponse(content)
   emit('send', content)
   input.value = ''
   scrollToBottom(true)
@@ -368,97 +310,6 @@ function handlePaste(event: ClipboardEvent) {
   })
 }
 
-function isStreamingAssistantMessage(message: ChatMessage) {
-  return (
-    message.role === 'assistant' &&
-    (message.status === 'streaming' || message.id === props.streamingMessageId)
-  )
-}
-
-function getAssistantMessageStatus(message: ChatMessage): ChatMessageStatus {
-  if (message.status) {
-    return message.status
-  }
-
-  if (
-    message.role === 'assistant' &&
-    message.content.trim().length === 0 &&
-    (message.id === props.streamingMessageId || props.loading)
-  ) {
-    return 'pending'
-  }
-
-  if (isStreamingAssistantMessage(message)) {
-    return 'streaming'
-  }
-
-  return 'done'
-}
-
-function getActivityLabel(activity: AiChatAgentActivity) {
-  if (activity.state === 'error' && activity.message) {
-    return activity.message
-  }
-  const key = `ai_chat.activities.${activity.name}.${activity.state}`
-  return te(key) ? t(key) : t(`ai_chat.activities.generic.${activity.state}`)
-}
-
-function getMessageActivityLabel(message: ChatMessage) {
-  return message.activity ? getActivityLabel(message.activity) : null
-}
-
-function getApprovalTarget(approval: AiChatConfirmation) {
-  const summary = approval.targetSummary
-  const name = summary.name
-  if (typeof name === 'string') return name
-
-  const fullName = summary.fullName
-  if (typeof fullName === 'string') return fullName
-
-  const code = summary.code
-  return typeof code === 'string' ? code : approval.targetId
-}
-
-function getApprovalActionLabel(approval: AiChatConfirmation) {
-  const key = `ai_chat.approval.actions.${approval.action}`
-  return te(key) ? t(key) : t('ai_chat.approval.actions.generic')
-}
-
-function getChangeFieldLabel(field: string) {
-  const key = `ai_chat.approval.change_fields.${field}`
-  return te(key) ? t(key) : field
-}
-
-function getChangeValue(value: string) {
-  const key = `ai_chat.approval.change_values.${value}`
-  return te(key) ? t(key) : value
-}
-
-function canCopyMessage(message: ChatMessage) {
-  return props.showMessageActions && message.id !== 'welcome' && message.content.trim().length > 0
-}
-
-function canRetryMessage(message: ChatMessage) {
-  const latestAssistantMessage = [...displayMessages.value]
-    .reverse()
-    .find((item) => item.role === 'assistant')
-
-  return (
-    props.showMessageActions &&
-    message.role === 'assistant' &&
-    message.id === latestAssistantMessage?.id &&
-    Number.isInteger(Number(message.id)) &&
-    !isStreamingAssistantMessage(message) &&
-    message.id !== 'welcome'
-  )
-}
-
-const actionMarker = /\[\[action:([A-Za-z0-9_-]+)\]\]/g
-
-function getMessageContent(content: string) {
-  return content.replace(actionMarker, '').trim()
-}
-
 watch(
   () => displayMessages.value,
   () => {
@@ -492,7 +343,7 @@ onUnmounted(() => {
       <div
         class="group absolute top-0 left-0 z-60 hidden size-4 cursor-nwse-resize items-center justify-center sm:flex"
         role="separator"
-        aria-label="t('ai_chat.resize_both')"
+        :aria-label="t('ai_chat.resize_both')"
         @mousedown.prevent="startResize($event)"
       >
         <div
@@ -585,114 +436,46 @@ onUnmounted(() => {
       <div class="relative min-h-0 flex-1 p-4">
         <ScrollArea ref="scrollAreaRef" class="h-full">
           <div class="space-y-3 pr-3">
-            <div
+            <AiChatMessageItem
               v-for="(message, index) in displayMessages"
               :key="message.id ?? index"
-              class="flex gap-2.5 text-[13px]/5"
-              :class="message.role === 'user' ? 'flex-row-reverse' : ''"
-            >
-              <div
-                class="flex size-7 shrink-0 items-center justify-center rounded-full"
-                :class="
-                  message.role === 'user'
-                    ? 'bg-accent text-accent-foreground'
-                    : 'border bg-background text-muted-foreground'
-                "
-              >
-                <User v-if="message.role === 'user'" class="size-3.5" />
-                <Bot v-else class="size-3.5" />
+              :message="message"
+              :all-messages="displayMessages"
+              :streaming-message-id="streamingMessageId"
+              :loading="loading"
+              :show-message-actions="showMessageActions"
+              @copy="emit('copyMessage', $event)"
+              @retry="emit('retryMessage', $event)"
+            />
+            <template v-if="displayMessages.length <= 1">
+              <div class="ml-9.5 flex flex-wrap gap-2 pt-1">
+                <Button
+                  v-for="suggestion in promptSuggestions"
+                  :key="suggestion"
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  class="h-7 rounded-md px-3 text-xs"
+                  :disabled="loading || disabled"
+                  @click="sendMessage(suggestion)"
+                >
+                  {{ suggestion }}
+                </Button>
+                <Button
+                  v-if="canRefreshSuggestions"
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  class="size-7 text-muted-foreground"
+                  :title="t('ai_chat.refresh_suggestions')"
+                  :aria-label="t('ai_chat.refresh_suggestions')"
+                  :disabled="loading || disabled"
+                  @click="emit('refreshSuggestions')"
+                >
+                  <RefreshCw class="size-3.5" />
+                </Button>
               </div>
-              <div class="group/message flex max-w-[85%] flex-col gap-1">
-                <div
-                  class="rounded-lg px-3 py-2 text-[13px]/5 whitespace-pre-wrap"
-                  :class="
-                    message.role === 'user'
-                      ? 'bg-accent text-accent-foreground'
-                      : 'border bg-background text-foreground'
-                  "
-                >
-                  <AiMessageContent
-                    v-if="message.role === 'assistant'"
-                    :content="getMessageContent(message.content)"
-                    :status="getAssistantMessageStatus(message)"
-                    :streaming="isStreamingAssistantMessage(message)"
-                  />
-                  <template v-else>
-                    {{ message.content }}
-                  </template>
-                </div>
-                <div
-                  v-if="message.role === 'assistant' && message.activity"
-                  class="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground"
-                >
-                  <span v-if="getMessageActivityLabel(message)">
-                    {{ getMessageActivityLabel(message) }}
-                  </span>
-                </div>
-                <div
-                  v-if="canCopyMessage(message) || canRetryMessage(message)"
-                  class="flex h-6 items-center gap-1 opacity-0 transition-opacity group-hover/message:opacity-100 focus-within:opacity-100"
-                  :class="
-                    message.role === 'user'
-                      ? 'justify-end'
-                      : `
-                    justify-start
-                  `
-                  "
-                >
-                  <Button
-                    v-if="canCopyMessage(message)"
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    class="size-6 text-muted-foreground"
-                    :title="t('ai_chat.copy_message')"
-                    @click="emit('copyMessage', message)"
-                  >
-                    <Copy class="size-3.5" />
-                  </Button>
-                  <Button
-                    v-if="canRetryMessage(message)"
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    class="size-6 text-muted-foreground"
-                    :title="t('ai_chat.retry_message')"
-                    :disabled="loading || disabled"
-                    @click="emit('retryMessage', message)"
-                  >
-                    <RotateCcw class="size-3.5" />
-                  </Button>
-                </div>
-              </div>
-            </div>
-            <div v-if="displayMessages.length <= 1" class="ml-9.5 flex flex-wrap gap-2 pt-1">
-              <Button
-                v-for="suggestion in promptSuggestions"
-                :key="suggestion"
-                type="button"
-                variant="secondary"
-                size="sm"
-                class="h-7 rounded-md px-3 text-xs"
-                :disabled="loading || disabled"
-                @click="sendMessage(suggestion)"
-              >
-                {{ suggestion }}
-              </Button>
-              <Button
-                v-if="canRefreshSuggestions"
-                type="button"
-                variant="ghost"
-                size="icon"
-                class="size-7 text-muted-foreground"
-                :title="t('ai_chat.refresh_suggestions')"
-                :aria-label="t('ai_chat.refresh_suggestions')"
-                :disabled="loading || disabled"
-                @click="emit('refreshSuggestions')"
-              >
-                <RefreshCw class="size-3.5" />
-              </Button>
-            </div>
+            </template>
           </div>
         </ScrollArea>
         <Button
@@ -709,86 +492,20 @@ onUnmounted(() => {
       </div>
 
       <div class="p-3 pt-0">
-        <div
+        <AiChatCredentialCard
           v-if="credentialDisclosure"
-          class="mb-2 rounded-md border bg-muted/60 px-2.5 py-2 text-xs"
-        >
-          <p class="font-medium">{{ credentialDisclosure.label }}</p>
-          <code class="mt-1 block break-all">{{ credentialDisclosure.value }}</code>
-          <div class="mt-1 flex gap-1">
-            <Button
-              size="sm"
-              variant="ghost"
-              class="h-7 px-2"
-              @click="emit('copyCredential', credentialDisclosure)"
-            >
-              <Copy class="size-3.5" />
-              {{ t('ai_chat.credential.copy') }}
-            </Button>
-            <Button size="sm" variant="ghost" class="h-7 px-2" @click="emit('dismissCredential')">
-              {{ t('common.close') }}
-            </Button>
-          </div>
-        </div>
-        <div v-if="approval" class="mb-2 rounded-md border bg-muted/60 px-2.5 py-2 text-xs">
-          <div class="flex items-start gap-2">
-            <ShieldCheck class="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-            <div class="min-w-0 flex-1 space-y-1">
-              <p class="font-medium text-foreground">
-                {{ getApprovalActionLabel(approval) }}
-              </p>
-              <p class="wrap-break-word text-muted-foreground">
-                {{ t('ai_chat.approval.target', { target: getApprovalTarget(approval) }) }}
-              </p>
-              <dl v-if="approval.changeSummary.length" class="space-y-1 text-muted-foreground">
-                <div
-                  v-for="change in approval.changeSummary"
-                  :key="change.field"
-                  class="flex gap-1"
-                >
-                  <dt class="shrink-0">{{ getChangeFieldLabel(change.field) }}:</dt>
-                  <dd class="break-all">{{ getChangeValue(change.value) }}</dd>
-                </div>
-              </dl>
-              <p class="text-muted-foreground">
-                {{
-                  approval.impact === 'destructive'
-                    ? t('ai_chat.approval.destructive_impact')
-                    : t('ai_chat.approval.standard_impact')
-                }}
-              </p>
-              <p v-if="approval.expiresAt" class="text-muted-foreground">
-                {{
-                  t('ai_chat.approval.expires_at', {
-                    time: formatDateTime(approval.expiresAt),
-                  })
-                }}
-              </p>
-            </div>
-          </div>
-          <div class="mt-2 flex justify-end gap-2">
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              class="h-7 px-2 text-xs"
-              :disabled="approvalLoading || disabled"
-              @click="emit('dismissConfirmation')"
-            >
-              {{ t('ai_chat.approval.cancel') }}
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              class="h-7 px-2 text-xs"
-              :disabled="approvalLoading || disabled"
-              @click="emit('approveConfirmation')"
-            >
-              {{ approvalLoading ? t('common.loading') : t('ai_chat.approval.approve') }}
-            </Button>
-          </div>
-        </div>
+          :credential="credentialDisclosure"
+          @copy="emit('copyCredential', $event)"
+          @dismiss="emit('dismissCredential')"
+        />
+        <AiChatApprovalCard
+          v-if="approval"
+          :approval="approval"
+          :loading="approvalLoading"
+          :disabled="disabled"
+          @approve="emit('approveConfirmation')"
+          @dismiss="emit('dismissConfirmation')"
+        />
         <form class="flex items-end gap-2" @submit.prevent="handleSubmit">
           <div class="relative flex-1">
             <Textarea
