@@ -1,7 +1,13 @@
 import crypto from 'node:crypto'
 
 import { ChatOpenAI } from '@langchain/openai'
-import { createAgent, summarizationMiddleware } from 'langchain'
+import {
+  AIMessage,
+  createAgent,
+  HumanMessage,
+  summarizationMiddleware,
+  SystemMessage,
+} from 'langchain'
 
 import type { AiChatCitation } from '#models/ai_chat_message'
 import User from '#models/user'
@@ -221,10 +227,16 @@ export async function createAiAgentStream(input: {
 
   const stream = await agent.streamEvents(
     {
-      messages: messages.map((message) => ({
-        type: message.role,
-        content: message.content,
-      })),
+      messages: messages.map((message) => {
+        switch (message.role) {
+          case 'user':
+            return new HumanMessage({ content: message.content })
+          case 'assistant':
+            return new AIMessage({ content: message.content })
+          case 'system':
+            return new SystemMessage({ content: message.content })
+        }
+      }),
     },
     {
       version: 'v3',
