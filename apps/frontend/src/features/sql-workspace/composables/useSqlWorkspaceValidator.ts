@@ -6,10 +6,7 @@ import type { SqlDialect, ValidationError, WorkspaceFile } from '@/features/sql-
 
 type WorkerConstructor = new () => Worker
 
-const validatorWorkerLoaders: Record<
-  SqlDialect,
-  () => Promise<{ default: WorkerConstructor }>
-> = {
+const validatorWorkerLoaders: Record<SqlDialect, () => Promise<{ default: WorkerConstructor }>> = {
   GenericSQL: () => import('@/workers/sql-workspace-validator-generic?worker'),
   MySQL: () => import('@/workers/sql-workspace-validator-mysql?worker'),
   PostgreSQL: () => import('@/workers/sql-workspace-validator-postgresql?worker'),
@@ -59,13 +56,15 @@ export function useSqlWorkspaceValidator(
     validatorWorker = undefined
     validatorDialect = undefined
     pendingWorkerDialect = requestedDialect
-    pendingWorker = validatorWorkerLoaders[requestedDialect]().then(({ default: ValidatorWorker }) => {
-      const worker = new ValidatorWorker()
-      worker.onmessage = handleWorkerMessage
-      validatorWorker = worker
-      validatorDialect = requestedDialect
-      return worker
-    })
+    pendingWorker = validatorWorkerLoaders[requestedDialect]().then(
+      ({ default: ValidatorWorker }) => {
+        const worker = new ValidatorWorker()
+        worker.onmessage = handleWorkerMessage
+        validatorWorker = worker
+        validatorDialect = requestedDialect
+        return worker
+      }
+    )
     try {
       return await pendingWorker
     } finally {
@@ -117,5 +116,5 @@ export function useSqlWorkspaceValidator(
     validatorWorker?.terminate()
   })
 
-  return { onEditorChange, onEditorMount, validateSql }
+  return { diagnostics, onEditorChange, onEditorMount, validateSql }
 }

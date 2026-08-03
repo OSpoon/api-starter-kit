@@ -727,6 +727,7 @@
     "open_url_description": "输入可跨域访问的 SQL 脚本或 ZIP 压缩包地址。",
     "url_label": "文件 URL",
     "save_file": "暂存当前 SQL（⌘/Ctrl + S）",
+    "format": "格式化 SQL（Shift + Alt + F）",
     "save_workspace": "导出工作区",
     "unsaved_changes": "未保存修改",
     "save_workspace_title": "导出整个工作区？",
@@ -737,6 +738,10 @@
     "replace_confirm": "确认替换",
     "upload_title": "打开 SQL 脚本或 ZIP 压缩包",
     "explorer": "资源管理器",
+    "filter_files": "筛选文件…",
+    "problems": "个问题",
+    "line_column": "第 {line} 行，第 {column} 列",
+    "no_matching_files": "未找到匹配文件",
     "files": "文件",
     "empty": "选择要打开的 SQL 脚本、ZIP 压缩包或目录。",
     "no_file": "未选择文件",
@@ -752,7 +757,9 @@
       "invalid_sql": "SQL 语法无效。",
       "storage_unavailable": "浏览器本地暂存不可用，请导出工作区 ZIP 备份。",
       "remote_unavailable": "无法从该 URL 获取文件，请检查地址和 COS 跨域（CORS）配置。",
-      "remote_unsupported": "该 URL 必须指向 SQL 脚本或 ZIP 压缩包。"
+      "remote_unsupported": "该 URL 必须指向 SQL 脚本或 ZIP 压缩包。",
+      "format_too_large": "当前脚本超过 10MB，无法在浏览器中安全格式化。",
+      "format_failed": "SQL 格式化失败。"
     }
   },
   "analytics": {

@@ -5,6 +5,7 @@ import SqlWorkspaceDialogs from '@/features/sql-workspace/components/SqlWorkspac
 import SqlWorkspaceEditor from '@/features/sql-workspace/components/SqlWorkspaceEditor.vue'
 import SqlWorkspaceExplorer from '@/features/sql-workspace/components/SqlWorkspaceExplorer.vue'
 import { useSqlWorkspace } from '@/features/sql-workspace/composables/useSqlWorkspace'
+import { useSqlWorkspaceFormatter } from '@/features/sql-workspace/composables/useSqlWorkspaceFormatter'
 import { useSqlWorkspaceTheme } from '@/features/sql-workspace/composables/useSqlWorkspaceTheme'
 import { useSqlWorkspaceValidator } from '@/features/sql-workspace/composables/useSqlWorkspaceValidator'
 
@@ -34,12 +35,19 @@ const {
   updateSelectedFile,
   uploadError,
 } = useSqlWorkspace()
-const { onEditorChange, onEditorMount } = useSqlWorkspaceValidator(
+const { diagnostics, onEditorChange, onEditorMount } = useSqlWorkspaceValidator(
   selectedFile,
   activeDialect,
   updateSelectedFile
 )
 const { monacoTheme } = useSqlWorkspaceTheme()
+const cursorLine = ref(1)
+const cursorColumn = ref(1)
+const { formatError, formatSelectedFile } = useSqlWorkspaceFormatter(
+  selectedFile,
+  activeDialect,
+  updateSelectedFile
+)
 const explorerResizing = ref(false)
 const replaceDialogOpen = ref(false)
 const pendingPickerId = ref<string>()
@@ -116,6 +124,11 @@ async function confirmSave() {
 }
 
 function saveShortcut(event: KeyboardEvent) {
+  if (event.shiftKey && event.altKey && event.key.toLowerCase() === 'f') {
+    event.preventDefault()
+    void formatSelectedFile()
+    return
+  }
   if (
     loading.value ||
     !selectedFile.value ||
@@ -179,6 +192,13 @@ onBeforeUnmount(() => {
     >
       {{ uploadError }}
     </p>
+    <p
+      v-if="formatError"
+      class="sql-workspace-error shrink-0 border-x px-3 py-2 text-sm"
+      role="alert"
+    >
+      {{ t(formatError) }}
+    </p>
     <div class="min-h-0 flex-1 overflow-auto">
       <ResizablePanelGroup
         direction="horizontal"
@@ -219,11 +239,21 @@ onBeforeUnmount(() => {
             :options="editorOptions"
             :selected-file="selectedFile"
             :selected-file-dirty="selectedFileDirty"
+            :diagnostics="diagnostics"
+            :cursor-line="cursorLine"
+            :cursor-column="cursorColumn"
             @change="onEditorChange"
             @mount="onEditorMount"
+            @cursor="
+              (line, column) => {
+                cursorLine = line
+                cursorColumn = column
+              }
+            "
             @open-picker="requestOpenPicker"
             @open-url="requestOpenUrl"
             @save="saveSelectedFile"
+            @format="formatSelectedFile"
             @toggle-explorer="toggleExplorer"
             @update:dialect="dialect = $event"
           />

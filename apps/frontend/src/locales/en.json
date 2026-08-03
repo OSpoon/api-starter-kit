@@ -727,6 +727,7 @@
     "open_url_description": "Enter a cross-origin accessible SQL script or ZIP archive URL.",
     "url_label": "File URL",
     "save_file": "Save current SQL locally (⌘/Ctrl + S)",
+    "format": "Format SQL (Shift + Alt + F)",
     "save_workspace": "Export workspace",
     "unsaved_changes": "Unsaved changes",
     "save_workspace_title": "Export the entire workspace?",
@@ -737,6 +738,10 @@
     "replace_confirm": "Replace workspace",
     "upload_title": "Open SQL script or ZIP archive",
     "explorer": "Explorer",
+    "filter_files": "Filter files…",
+    "problems": "problems",
+    "line_column": "Ln {line}, Col {column}",
+    "no_matching_files": "No matching files",
     "files": "Files",
     "empty": "Choose a SQL script, ZIP archive, or folder to open.",
     "no_file": "No file selected",
@@ -752,7 +757,9 @@
       "invalid_sql": "The SQL syntax is invalid.",
       "storage_unavailable": "Browser storage is unavailable. Export the workspace ZIP as a backup.",
       "remote_unavailable": "The file could not be fetched. Check the URL and COS CORS configuration.",
-      "remote_unsupported": "The URL must point to a SQL script or ZIP archive."
+      "remote_unsupported": "The URL must point to a SQL script or ZIP archive.",
+      "format_too_large": "The current script exceeds 10MB and cannot be safely formatted in the browser.",
+      "format_failed": "SQL formatting failed."
     }
   },
   "analytics": {
