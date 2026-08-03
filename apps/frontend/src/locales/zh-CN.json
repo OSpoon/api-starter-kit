@@ -743,7 +743,7 @@
     "line_column": "第 {line} 行，第 {column} 列",
     "no_matching_files": "未找到匹配文件",
     "files": "文件",
-    "empty": "选择要打开的 SQL 脚本、ZIP 压缩包或目录。",
+    "empty": "选择要打开的 SQL 脚本、ZIP 压缩包或目录",
     "no_file": "未选择文件",
     "dialect": "SQL 方言",
     "dialect_auto": "自动检测",
