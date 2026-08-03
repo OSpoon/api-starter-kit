@@ -5,6 +5,7 @@ import {
   Check,
   ChevronsUpDown,
   CircleHelp,
+  FileCode2,
   FileJson,
   Languages,
   LogOut,
@@ -173,6 +174,10 @@ function setTheme(mode: 'light' | 'dark' | 'auto') {
                 <DropdownMenuItem @click="navigateTo('/sql-editor')">
                   <SquareCode />
                   {{ t('nav.sql_editor') }}
+                </DropdownMenuItem>
+                <DropdownMenuItem @click="navigateTo('/sql-workspace')">
+                  <FileCode2 />
+                  {{ t('nav.sql_workspace') }}
                 </DropdownMenuItem>
               </DropdownMenuSubContent>
             </DropdownMenuSub>

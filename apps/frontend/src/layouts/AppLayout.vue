@@ -52,8 +52,8 @@ const breadcrumbs = computed(() => {
     <AppSidebar />
     <SidebarInset class="flex min-h-0 flex-col overflow-hidden">
       <SiteHeader :breadcrumbs="breadcrumbs" />
-      <div class="flex flex-1 flex-col overflow-auto bg-muted/5 font-sans">
-        <div class="flex-1">
+      <div class="flex min-h-0 flex-1 flex-col overflow-auto bg-muted/5 font-sans">
+        <div class="flex min-h-0 flex-1 flex-col">
           <RouterView />
         </div>
         <footer class="py-4 text-center text-sm text-muted-foreground">

@@ -1,0 +1,65 @@
+<script setup lang="ts">
+import { Archive, Ellipsis, FolderX, PanelLeftClose } from '@lucide/vue'
+
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import type { TreeNode, WorkspaceFile } from '@/features/sql-workspace/types'
+
+import SqlWorkspaceOpenMenu from './SqlWorkspaceOpenMenu.vue'
+import SqlWorkspaceTree from './SqlWorkspaceTree.vue'
+
+defineProps<{ filesCount: number; loading: boolean; nodes: TreeNode[]; selectedPath: string }>()
+const emit = defineEmits<{
+  collapse: []
+  closeWorkspace: []
+  openPicker: [id: string]
+  openUrl: []
+  saveWorkspace: []
+  select: [file: WorkspaceFile]
+}>()
+const { t } = useI18n()
+</script>
+
+<template>
+  <aside class="sql-workspace-explorer flex h-full min-h-0 min-w-0 flex-col overflow-hidden border-r py-2">
+    <div class="flex h-7 min-w-0 items-center justify-between overflow-hidden px-3">
+      <p class="sql-workspace-muted min-w-0 flex-1 truncate text-[11px] font-medium tracking-wide whitespace-nowrap uppercase">{{ t('sql_workspace.explorer') }}</p>
+      <div class="flex shrink-0 items-center gap-1">
+        <SqlWorkspaceOpenMenu v-if="filesCount" compact :loading="loading" @open-picker="emit('openPicker', $event)" @open-url="emit('openUrl')" />
+        <DropdownMenu v-if="filesCount">
+          <DropdownMenuTrigger as-child>
+            <button
+              type="button"
+              class="sql-workspace-icon-button inline-flex size-6 items-center justify-center rounded"
+              :disabled="loading"
+              :title="t('sql_workspace.workspace_actions')"
+              :aria-label="t('sql_workspace.workspace_actions')"
+            ><Ellipsis class="size-4" /></button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem :disabled="loading" @select="emit('saveWorkspace')">
+              <Archive />{{ t('sql_workspace.save_workspace') }}
+            </DropdownMenuItem>
+            <DropdownMenuItem :disabled="loading" @select="emit('closeWorkspace')">
+              <FolderX />{{ t('sql_workspace.close_workspace') }}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <button
+          type="button"
+          class="sql-workspace-icon-button inline-flex size-6 items-center justify-center rounded"
+          :title="t('sql_workspace.collapse_explorer')"
+          :aria-label="t('sql_workspace.collapse_explorer')"
+          @click="emit('collapse')"
+        ><PanelLeftClose class="size-4" /></button>
+      </div>
+    </div>
+    <div class="min-h-0 flex-1 overflow-auto">
+      <SqlWorkspaceTree v-if="nodes.length" :nodes="nodes" :selected-path="selectedPath" @select="emit('select', $event)" />
+    </div>
+  </aside>
+</template>
