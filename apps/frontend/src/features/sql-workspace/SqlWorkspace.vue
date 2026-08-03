@@ -1,10 +1,6 @@
 <script setup lang="ts">
 import PageShell from '@/components/common/PageShell.vue'
-import {
-  ResizableHandle,
-  ResizablePanel,
-  ResizablePanelGroup,
-} from '@/components/ui/resizable'
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
 import SqlWorkspaceDialogs from '@/features/sql-workspace/components/SqlWorkspaceDialogs.vue'
 import SqlWorkspaceEditor from '@/features/sql-workspace/components/SqlWorkspaceEditor.vue'
 import SqlWorkspaceExplorer from '@/features/sql-workspace/components/SqlWorkspaceExplorer.vue'
@@ -120,7 +116,14 @@ async function confirmSave() {
 }
 
 function saveShortcut(event: KeyboardEvent) {
-  if (loading.value || !selectedFile.value || event.altKey || (!event.ctrlKey && !event.metaKey) || event.key.toLowerCase() !== 's') return
+  if (
+    loading.value ||
+    !selectedFile.value ||
+    event.altKey ||
+    (!event.ctrlKey && !event.metaKey) ||
+    event.key.toLowerCase() !== 's'
+  )
+    return
   event.preventDefault()
   void saveSelectedFile()
 }
@@ -169,11 +172,17 @@ onBeforeUnmount(() => {
       :disabled="loading"
       @change="importDirectory"
     />
-    <p v-if="uploadError" class="sql-workspace-error shrink-0 border-x px-3 py-2 text-sm" role="alert">{{ uploadError }}</p>
+    <p
+      v-if="uploadError"
+      class="sql-workspace-error shrink-0 border-x px-3 py-2 text-sm"
+      role="alert"
+    >
+      {{ uploadError }}
+    </p>
     <div class="min-h-0 flex-1 overflow-auto">
       <ResizablePanelGroup
         direction="horizontal"
-        class="sql-workspace-frame h-full min-h-[32rem] min-w-[44rem] overflow-hidden rounded-b-md border"
+        class="sql-workspace-frame h-full min-h-128 min-w-176 overflow-hidden rounded-b-md border"
         :class="explorerResizing && 'sql-workspace-resizing'"
       >
         <ResizablePanel
@@ -196,7 +205,7 @@ onBeforeUnmount(() => {
           />
         </ResizablePanel>
         <ResizableHandle
-          :class="explorerCollapsed && 'pointer-events-none !w-0 opacity-0'"
+          :class="explorerCollapsed && 'pointer-events-none w-0! opacity-0'"
           @dragging="explorerResizing = $event"
         />
         <ResizablePanel :min-size="40">
@@ -221,7 +230,18 @@ onBeforeUnmount(() => {
         </ResizablePanel>
       </ResizablePanelGroup>
     </div>
-    <SqlWorkspaceDialogs v-model:close-open="closeDialogOpen" v-model:remote-url="remoteUrl" v-model:remote-url-open="remoteUrlDialogOpen" v-model:replace-open="replaceDialogOpen" v-model:save-open="saveDialogOpen" :loading="loading" @close="closeWorkspace" @replace="confirmReplaceWorkspace" @save="confirmSave" @submit-url="submitRemoteUrl" />
+    <SqlWorkspaceDialogs
+      v-model:close-open="closeDialogOpen"
+      v-model:remote-url="remoteUrl"
+      v-model:remote-url-open="remoteUrlDialogOpen"
+      v-model:replace-open="replaceDialogOpen"
+      v-model:save-open="saveDialogOpen"
+      :loading="loading"
+      @close="closeWorkspace"
+      @replace="confirmReplaceWorkspace"
+      @save="confirmSave"
+      @submit-url="submitRemoteUrl"
+    />
   </PageShell>
 </template>
 
@@ -240,7 +260,9 @@ onBeforeUnmount(() => {
   --sql-workspace-error: var(--destructive);
 }
 
-.dark .sql-workspace { --sql-workspace-canvas: #1f1f1d; }
+.dark .sql-workspace {
+  --sql-workspace-canvas: #1f1f1d;
+}
 
 .sql-workspace-header,
 .sql-workspace-toolbar,
@@ -274,37 +296,51 @@ onBeforeUnmount(() => {
 }
 
 .sql-workspace-frame [data-slot='resizable-handle'] {
-  transition: width 180ms ease-out, opacity 120ms ease-out;
+  transition:
+    width 180ms ease-out,
+    opacity 120ms ease-out;
 }
 
 .sql-workspace-frame.sql-workspace-resizing [data-slot='resizable-panel'] {
   transition: none;
 }
 
-.sql-workspace-explorer { background: var(--sql-workspace-sidebar); }
+.sql-workspace-explorer {
+  background: var(--sql-workspace-sidebar);
+}
 .sql-workspace-error {
   border-color: var(--sql-workspace-border);
   background: var(--sql-workspace-error-bg);
   color: var(--sql-workspace-error);
 }
-.sql-workspace-icon-button { color: var(--sql-workspace-text); }
-.sql-workspace-icon-button:hover { background: var(--sql-workspace-hover); }
+.sql-workspace-icon-button {
+  color: var(--sql-workspace-text);
+}
+.sql-workspace-icon-button:hover {
+  background: var(--sql-workspace-hover);
+}
 .sql-workspace-open-button {
   background: var(--sql-workspace-hover);
   color: var(--sql-workspace-text);
 }
-.sql-workspace-open-button:hover { filter: brightness(0.96); }
+.sql-workspace-open-button:hover {
+  filter: brightness(0.96);
+}
 .sql-workspace-tab {
   border-color: var(--sql-workspace-accent);
   color: var(--sql-workspace-text);
 }
 .sql-workspace-dialect-label,
 .sql-workspace-empty,
-.sql-workspace-muted { color: var(--sql-workspace-muted); }
+.sql-workspace-muted {
+  color: var(--sql-workspace-muted);
+}
 .sql-workspace-select {
   border-color: var(--sql-workspace-border);
   background: var(--sql-workspace-canvas);
   color: var(--sql-workspace-text);
 }
-.sql-workspace-select:focus { border-color: var(--sql-workspace-accent); }
+.sql-workspace-select:focus {
+  border-color: var(--sql-workspace-accent);
+}
 </style>
