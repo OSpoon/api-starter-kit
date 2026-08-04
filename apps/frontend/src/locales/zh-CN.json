@@ -108,7 +108,7 @@
     "theme_system": "跟随系统"
   },
   "footer": {
-    "built_by": "由 {platform} 团队构建"
+    "copyright": "© 2026 OSpoon，采用 MIT 许可证授权"
   },
   "ai_chat": {
     "resize_both": "调整助手大小",

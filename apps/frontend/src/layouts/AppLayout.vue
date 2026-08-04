@@ -4,11 +4,9 @@ import AppSidebar from '@/components/AppSidebar.vue'
 import SiteHeader from '@/components/SiteHeader.vue'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { useAiChat } from '@/composables/useAiChat'
-import { useSettingsStore } from '@/stores/settings'
 
 const route = useRoute()
 const { t } = useI18n()
-const settingsStore = useSettingsStore()
 
 const {
   aiConversations,
@@ -57,7 +55,7 @@ const breadcrumbs = computed(() => {
           <RouterView />
         </div>
         <footer class="py-4 text-center text-sm text-muted-foreground">
-          {{ t('footer.built_by', { platform: settingsStore.platformName }) }}
+          {{ t('footer.copyright') }}
         </footer>
       </div>
       <AiChatAssistant

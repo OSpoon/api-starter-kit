@@ -108,7 +108,7 @@
     "theme_system": "System"
   },
   "footer": {
-    "built_by": "Built with care by the {platform} team"
+    "copyright": "© 2026 OSpoon. Licensed under the MIT License."
   },
   "ai_chat": {
     "resize_both": "Resize assistant",
