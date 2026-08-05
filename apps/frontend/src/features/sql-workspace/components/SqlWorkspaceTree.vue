@@ -69,6 +69,10 @@ function toggle(node: TreeNode) {
 .sql-workspace-tree-icon {
   color: var(--sql-workspace-muted);
 }
+.sql-workspace-tree :deep(button:hover .sql-workspace-tree-icon),
+.sql-workspace-tree :deep(button[aria-current='page'] .sql-workspace-tree-icon) {
+  color: var(--accent-foreground);
+}
 .sql-workspace-tree-children {
   border-color: var(--sql-workspace-border);
 }

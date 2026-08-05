@@ -1,18 +1,23 @@
 import JSZip from 'jszip'
 
-import { clearStoredSqlWorkspace, loadStoredSqlWorkspace, saveStoredSqlWorkspace } from '@/features/sql-workspace/browser-storage'
-import type { DialectSelection, SqlDialect, TreeNode, WorkspaceFile } from '@/features/sql-workspace/types'
+import {
+  clearStoredSqlWorkspace,
+  loadStoredSqlWorkspace,
+  saveStoredSqlWorkspace,
+} from '@/features/sql-workspace/browser-storage'
+import type {
+  DialectSelection,
+  SqlDialect,
+  TreeNode,
+  WorkspaceFile,
+} from '@/features/sql-workspace/types'
 
 const MAX_ARCHIVE_SIZE = 50 * 1024 * 1024
 const MAX_UNCOMPRESSED_SIZE = 64 * 1024 * 1024
 const MAX_FILES = 100
 const DIALECT_SAMPLE_SIZE = 256 * 1024
 
-export const DIALECT_OPTIONS: DialectSelection[] = [
-  'auto',
-  'PostgreSQL',
-  'MySQL',
-]
+export const DIALECT_OPTIONS: DialectSelection[] = ['auto', 'PostgreSQL', 'MySQL']
 
 function isSafePath(path: string) {
   return (
@@ -209,15 +214,19 @@ export function useSqlWorkspace() {
   const dialect = ref<DialectSelection>('auto')
   const explorerCollapsed = ref(true)
   const loading = ref(false)
+  const pendingWorkspacePersistence = ref(false)
   const restoring = ref(false)
   const uploadError = ref('')
   const selectedFile = computed(() => files.value.find((file) => file.path === selectedPath.value))
-  const selectedFileDirty = computed(() => Boolean(selectedFile.value && dirtyPaths.value.has(selectedFile.value.path)))
+  const selectedFileDirty = computed(() =>
+    Boolean(selectedFile.value && dirtyPaths.value.has(selectedFile.value.path))
+  )
   const tree = computed(() => buildTree(files.value))
   const activeDialect = computed<SqlDialect>(() =>
     dialect.value === 'auto' ? detectDialect(selectedFile.value?.content ?? '') : dialect.value
   )
   let persistTimer: ReturnType<typeof setTimeout> | undefined
+  let persistenceRevision = 0
 
   function workspaceSnapshot() {
     return {
@@ -229,18 +238,35 @@ export function useSqlWorkspace() {
     }
   }
 
-  async function persistWorkspace() {
+  function beginWorkspacePersistence() {
+    persistenceRevision += 1
+    pendingWorkspacePersistence.value = Boolean(files.value.length)
+    return persistenceRevision
+  }
+
+  async function persistWorkspace(revision: number) {
     if (!files.value.length) return
+    let persisted = false
     try {
       await saveStoredSqlWorkspace(workspaceSnapshot())
+      persisted = true
     } catch {
       uploadError.value = t('sql_workspace.errors.storage_unavailable')
+    } finally {
+      if (persisted && revision === persistenceRevision) pendingWorkspacePersistence.value = false
     }
   }
 
   function scheduleWorkspacePersistence() {
+    if (!files.value.length) return
+    const revision = beginWorkspacePersistence()
     clearTimeout(persistTimer)
-    persistTimer = setTimeout(() => void persistWorkspace(), 600)
+    persistTimer = setTimeout(() => void persistWorkspace(revision), 600)
+  }
+
+  async function persistWorkspaceNow() {
+    clearTimeout(persistTimer)
+    await persistWorkspace(beginWorkspacePersistence())
   }
 
   async function restoreWorkspace() {
@@ -256,7 +282,9 @@ export function useSqlWorkspace() {
       dialect.value = workspace.dialect
       explorerCollapsed.value = workspace.explorerCollapsed
       dirtyPaths.value = new Set(
-        workspace.files.filter((file) => file.content !== file.savedContent).map((file) => file.path)
+        workspace.files
+          .filter((file) => file.content !== file.savedContent)
+          .map((file) => file.path)
       )
     } catch {
       uploadError.value = t('sql_workspace.errors.storage_unavailable')
@@ -278,7 +306,7 @@ export function useSqlWorkspace() {
         dirtyPaths.value = new Set()
         selectedPath.value = source.name
         explorerCollapsed.value = false
-        void persistWorkspace()
+        scheduleWorkspacePersistence()
         return
       }
       const zip = await JSZip.loadAsync(source)
@@ -289,7 +317,8 @@ export function useSqlWorkspace() {
         (size, entry) =>
           size +
           Number(
-            (entry as unknown as { _data?: { uncompressedSize?: number } })._data?.uncompressedSize ?? 0
+            (entry as unknown as { _data?: { uncompressedSize?: number } })._data
+              ?.uncompressedSize ?? 0
           ),
         0
       )
@@ -303,7 +332,7 @@ export function useSqlWorkspace() {
       selectedPath.value = unpacked[0]?.path ?? ''
       if (unpacked.length) explorerCollapsed.value = false
       else uploadError.value = t('sql_workspace.errors.no_files')
-      if (unpacked.length) void persistWorkspace()
+      if (unpacked.length) scheduleWorkspacePersistence()
     } catch (error) {
       uploadError.value = t(
         `sql_workspace.errors.${error instanceof Error && error.message === 'too_many_files' ? 'too_many_files' : error instanceof Error && error.message === 'too_large' ? 'archive_too_large' : 'invalid_archive'}`
@@ -332,12 +361,18 @@ export function useSqlWorkspace() {
       const filename = decodeURIComponent(parsedUrl.pathname.split('/').at(-1) || 'remote.sql')
       const zipResponse = /zip|compressed/i.test(contentType)
       if (!isSqlFile(filename) && !zipResponse) throw new Error('unsupported')
-      const source = new File([await response.blob()], zipResponse && !isSqlFile(filename) ? 'remote.zip' : filename, { type: contentType })
+      const source = new File(
+        [await response.blob()],
+        zipResponse && !isSqlFile(filename) ? 'remote.zip' : filename,
+        { type: contentType }
+      )
       loading.value = false
       await importSource(source)
     } catch (error) {
       loading.value = false
-      uploadError.value = t(`sql_workspace.errors.${error instanceof Error && error.message === 'unsupported' ? 'remote_unsupported' : 'remote_unavailable'}`)
+      uploadError.value = t(
+        `sql_workspace.errors.${error instanceof Error && error.message === 'unsupported' ? 'remote_unsupported' : 'remote_unavailable'}`
+      )
     }
   }
 
@@ -371,7 +406,7 @@ export function useSqlWorkspace() {
       dirtyPaths.value = new Set()
       selectedPath.value = importedFiles[0]?.path ?? ''
       explorerCollapsed.value = false
-      void persistWorkspace()
+      scheduleWorkspacePersistence()
     } finally {
       loading.value = false
       input.value = ''
@@ -387,7 +422,8 @@ export function useSqlWorkspace() {
     if (selectedFile.value) {
       selectedFile.value.content = content
       const nextDirtyPaths = new Set(dirtyPaths.value)
-      if (content === selectedFile.value.savedContent) nextDirtyPaths.delete(selectedFile.value.path)
+      if (content === selectedFile.value.savedContent)
+        nextDirtyPaths.delete(selectedFile.value.path)
       else nextDirtyPaths.add(selectedFile.value.path)
       dirtyPaths.value = nextDirtyPaths
       triggerRef(files)
@@ -403,7 +439,7 @@ export function useSqlWorkspace() {
     nextDirtyPaths.delete(file.path)
     dirtyPaths.value = nextDirtyPaths
     triggerRef(files)
-    await persistWorkspace()
+    await persistWorkspaceNow()
   }
 
   async function saveWorkspace() {
@@ -411,13 +447,18 @@ export function useSqlWorkspace() {
     const archive = new JSZip()
     files.value.forEach((file) => archive.file(file.path, file.content))
     downloadBlob(await archive.generateAsync({ type: 'blob' }), 'sql-workspace.zip')
-    files.value.forEach((file) => { file.savedContent = file.content })
+    files.value.forEach((file) => {
+      file.savedContent = file.content
+    })
     dirtyPaths.value = new Set()
     triggerRef(files)
+    scheduleWorkspacePersistence()
   }
 
   async function closeWorkspace() {
     clearTimeout(persistTimer)
+    persistenceRevision += 1
+    pendingWorkspacePersistence.value = false
     files.value = []
     dirtyPaths.value = new Set()
     selectedPath.value = ''
@@ -444,6 +485,7 @@ export function useSqlWorkspace() {
     importRemoteSource,
     importSqlSource,
     loading,
+    pendingWorkspacePersistence,
     restoring,
     restoreWorkspace,
     selectedFile,

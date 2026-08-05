@@ -23,6 +23,7 @@ const {
   importRemoteSource,
   importSqlSource,
   loading,
+  pendingWorkspacePersistence,
   restoreWorkspace,
   restoring,
   selectedFile,
@@ -107,7 +108,7 @@ async function submitRemoteUrl() {
 }
 
 function warnBeforeUnload(event: BeforeUnloadEvent) {
-  if (!files.value.length) return
+  if (!pendingWorkspacePersistence.value) return
   event.preventDefault()
   event.returnValue = ''
 }
