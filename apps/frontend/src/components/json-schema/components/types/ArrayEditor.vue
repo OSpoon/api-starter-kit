@@ -10,6 +10,8 @@ import type {
 } from '@/components/json-schema/types/jsonSchema.ts'
 import { isBooleanSchema, withObjectSchema } from '@/components/json-schema/types/jsonSchema.ts'
 import type { ValidationTreeNode } from '@/components/json-schema/types/validation.ts'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Input } from '@/components/ui/input'
 
 const props = withDefaults(
   defineProps<{
@@ -74,8 +76,7 @@ const handleMaxItemsInput = (e: Event) => {
   maxItems.value = el.value ? Number(el.value) : null
   handleValidationChange()
 }
-const handleUniqueItemsChange = (e: Event) => {
-  const checked = (e.target as HTMLInputElement).checked
+const handleUniqueItemsChange = (checked: boolean) => {
   uniqueItems.value = checked
   emit('change', buildValidationProps({ uniqueItems: checked }))
 }
@@ -105,19 +106,20 @@ const maxItemsError = computed(
 
 <template>
   <div class="space-y-6">
-    <div v-if="!readOnly || !!maxItems || !!minItems" class="
-      grid grid-cols-1 gap-4
-      md:grid-cols-2
-    ">
+    <div v-if="!readOnly || !!maxItems || !!minItems" class="grid grid-cols-1 gap-4 md:grid-cols-2">
       <div v-if="!readOnly || minItems !== null" class="flex flex-col gap-2">
         <label
           :for="minItemsId"
-          :class="['text-sm font-medium', (!!minMaxError || !!minItemsError) && `
+          :class="[
+            'text-sm font-medium',
+            (!!minMaxError || !!minItemsError) &&
+              `
             text-red-500
-          `]"
+          `,
+          ]"
           >{{ t.arrayMinimumLabel }}</label
         >
-        <input
+        <Input
           :id="minItemsId"
           type="number"
           :value="minItems ?? ''"
@@ -131,12 +133,16 @@ const maxItemsError = computed(
       <div v-if="!readOnly || maxItems !== null" class="flex flex-col gap-2">
         <label
           :for="maxItemsId"
-          :class="['text-sm font-medium', (!!minMaxError || !!maxItemsError) && `
+          :class="[
+            'text-sm font-medium',
+            (!!minMaxError || !!maxItemsError) &&
+              `
             text-red-500
-          `]"
+          `,
+          ]"
           >{{ t.arrayMaximumLabel }}</label
         >
-        <input
+        <Input
           :id="maxItemsId"
           type="number"
           :value="maxItems ?? ''"
@@ -149,26 +155,19 @@ const maxItemsError = computed(
       </div>
       <div
         v-if="!!minMaxError || !!minItemsError || !!maxItemsError"
-        class="
-          text-xs whitespace-pre-line text-red-500 italic
-          md:col-span-2
-        "
+        class="text-xs whitespace-pre-line text-red-500 italic md:col-span-2"
       >
         {{ [minMaxError, minItemsError ?? maxItemsError].filter(Boolean).join('\n') }}
       </div>
     </div>
 
     <div v-if="!readOnly || uniqueItems" class="flex items-center gap-2">
-      <input
+      <Checkbox
         :id="uniqueItemsId"
-        type="checkbox"
-        :checked="uniqueItems"
+        :model-value="uniqueItems"
         :disabled="readOnly"
-        @change="handleUniqueItemsChange"
-        class="
-          rounded-sm border-gray-300 text-primary
-          focus:ring-primary
-        "
+        @update:model-value="handleUniqueItemsChange($event === true)"
+        class="rounded-sm border-gray-300 text-primary focus:ring-primary"
       />
       <label :for="uniqueItemsId" class="cursor-pointer text-sm">{{
         t.arrayForceUniqueItemsLabel

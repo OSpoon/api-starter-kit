@@ -4,6 +4,8 @@ import { AlertCircleIcon, CheckCircleIcon } from '@lucide/vue'
 import { useSchemaStore } from '@/components/json-schema/hooks/useSchemaStore.ts'
 import { useTranslation } from '@/components/json-schema/hooks/useTranslation.ts'
 import { validateJson } from '@/components/json-schema/utils/jsonValidator.ts'
+import { Button } from '@/components/ui/button'
+import { Textarea } from '@/components/ui/textarea'
 
 withDefaults(defineProps<{ open?: boolean }>(), { open: false })
 const emit = defineEmits<{ 'update:open': [value: boolean] }>()
@@ -25,23 +27,15 @@ const result = computed(() => {
   >
     <div class="fixed inset-0 bg-black/50" />
     <div
-      class="
-        relative max-h-[85vh] w-[95vw] max-w-175 overflow-y-auto rounded-xl
-        bg-popover p-6 text-popover-foreground shadow-lg
-      "
+      class="relative max-h-[85vh] w-[95vw] max-w-175 overflow-y-auto rounded-xl bg-popover p-6 text-popover-foreground shadow-lg"
     >
       <h2 class="mb-2 text-lg font-medium">{{ t.validatorTitle }}</h2>
       <p class="mb-4 text-sm text-muted-foreground">{{ t.validatorDescription }}</p>
       <div class="space-y-4">
-        <textarea
+        <Textarea
           v-model="jsonInput"
           :placeholder="t.validatorContent"
-          class="
-            h-48 w-full resize-none rounded-md border border-input
-            bg-transparent p-3 font-mono text-sm outline-none
-            focus-visible:border-ring focus-visible:ring-3
-            focus-visible:ring-ring/50
-          "
+          class="h-48 w-full resize-none rounded-md border border-input bg-transparent p-3 font-mono text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
           spellcheck="false"
         />
         <div v-if="result">
@@ -64,9 +58,7 @@ const result = computed(() => {
               }})
             </p>
             <ul class="max-h-40 space-y-1 overflow-y-auto">
-              <li v-for="(err, i) in result.errors" :key="i" class="
-                text-xs text-muted-foreground
-              ">
+              <li v-for="(err, i) in result.errors" :key="i" class="text-xs text-muted-foreground">
                 [{{ err.line ?? '?' }}:{{ err.column ?? '?' }}] {{ err.message }}
               </li>
             </ul>
@@ -74,18 +66,15 @@ const result = computed(() => {
         </div>
       </div>
       <div class="mt-4 flex justify-end">
-        <button
+        <Button
+          variant="outline"
+          size="sm"
           type="button"
           @click="emit('update:open', false)"
-          class="
-            inline-flex h-9 items-center justify-center gap-2 rounded-md border
-            bg-background px-4 text-sm font-medium whitespace-nowrap shadow-xs
-            transition-all
-            hover:bg-accent hover:text-accent-foreground
-          "
+          class="inline-flex h-9 items-center justify-center gap-2 rounded-md border bg-background px-4 text-sm font-medium whitespace-nowrap shadow-xs transition-all hover:bg-accent hover:text-accent-foreground"
         >
           {{ t.fieldAddNewCancel }}
-        </button>
+        </Button>
       </div>
     </div>
   </div>

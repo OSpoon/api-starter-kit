@@ -15,6 +15,8 @@ import {
 } from '@/components/json-schema/types/jsonSchema.ts'
 import type { ValidationTreeNode } from '@/components/json-schema/types/validation.ts'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 
 import TypeDropdown from './TypeDropdown.vue'
 import TypeEditor from './TypeEditor.vue'
@@ -109,7 +111,8 @@ const inputClass =
     :class="
       cn(
         'mb-2 rounded-lg border border-border transition-colors duration-200',
-        depth > 0 && `
+        depth > 0 &&
+          `
           ml-0
           sm:ml-4
         `
@@ -117,56 +120,50 @@ const inputClass =
     "
   >
     <div
-      class="
-        group relative flex items-center justify-between gap-2 rounded-md px-3
-        py-2 transition-colors
-        hover:bg-secondary/30
-      "
+      class="group relative flex items-center justify-between gap-2 rounded-md px-3 py-2 transition-colors hover:bg-secondary/30"
     >
       <div class="flex min-w-0 grow items-center gap-2">
-        <button
+        <Button
+          variant="ghost"
+          size="icon-sm"
           type="button"
-          class="
-            text-muted-foreground transition-colors
-            hover:text-foreground
-          "
+          class="text-muted-foreground transition-colors hover:text-foreground"
           @click="expanded = !expanded"
           :aria-label="expanded ? t.collapse : t.expand"
         >
           <ChevronDownIcon v-if="expanded" class="size-4.5" />
           <ChevronRightIcon v-else class="size-4.5" />
-        </button>
+        </Button>
 
         <div class="flex min-w-0 grow items-center gap-2 overflow-visible">
           <div class="flex min-w-0 grow items-center gap-2 overflow-visible">
-            <input
+            <Input
               v-if="!readOnly && isEditingName"
               v-model="tempName"
               @blur="handleNameSubmit()"
               @keydown.enter="handleNameSubmit()"
-              :class="[inputClass, `
+              :class="[
+                inputClass,
+                `
                 z-10 h-8 max-w-full min-w-30 text-sm font-medium
-              `]"
+              `,
+              ]"
               ref="nameInput"
               @focus="($event.target as HTMLInputElement)?.select()"
             />
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
               v-else
               type="button"
               @click="startEditingName()"
               @keydown.enter="startEditingName()"
-              class="
-                -mx-0.5 max-w-[50%] min-w-20 cursor-text truncate rounded-sm
-                px-2 py-0.5 text-left text-sm font-medium text-foreground
-                transition-all
-                hover:bg-secondary/30 hover:shadow-xs hover:ring-1
-                hover:ring-ring/20
-              "
+              class="-mx-0.5 max-w-[50%] min-w-20 cursor-text truncate rounded-sm px-2 py-0.5 text-left text-sm font-medium text-foreground transition-all hover:bg-secondary/30 hover:shadow-xs hover:ring-1 hover:ring-ring/20"
             >
               {{ displayName }}
-            </button>
+            </Button>
 
-            <input
+            <Input
               v-if="!readOnly && isEditingDesc"
               v-model="tempDesc"
               @blur="handleDescSubmit()"
@@ -181,35 +178,26 @@ const inputClass =
               ]"
               @focus="($event.target as HTMLInputElement)?.select()"
             />
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
               v-else-if="displayDesc"
               type="button"
               @click="startEditingDesc()"
-              class="
-                -mx-0.5 mr-2 max-w-[40%] flex-1 cursor-text truncate rounded-sm
-                px-2 py-0.5 text-left text-xs text-muted-foreground italic
-                transition-all
-                hover:bg-secondary/30 hover:shadow-xs hover:ring-1
-                hover:ring-ring/20
-              "
+              class="-mx-0.5 mr-2 max-w-[40%] flex-1 cursor-text truncate rounded-sm px-2 py-0.5 text-left text-xs text-muted-foreground italic transition-all hover:bg-secondary/30 hover:shadow-xs hover:ring-1 hover:ring-ring/20"
             >
               {{ displayDesc }}
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
               v-else
               type="button"
               @click="startEditingDesc()"
-              class="
-                -mx-0.5 mr-2 max-w-[40%] flex-1 cursor-text truncate rounded-sm
-                px-2 py-0.5 text-left text-xs text-muted-foreground/50 italic
-                opacity-0 transition-all
-                group-hover:opacity-100
-                hover:bg-secondary/30 hover:shadow-xs hover:ring-1
-                hover:ring-ring/20
-              "
+              class="-mx-0.5 mr-2 max-w-[40%] flex-1 cursor-text truncate rounded-sm px-2 py-0.5 text-left text-xs text-muted-foreground/50 italic opacity-0 transition-all group-hover:opacity-100 hover:bg-secondary/30 hover:shadow-xs hover:ring-1 hover:ring-ring/20"
             >
               {{ t.propertyDescriptionButton }}
-            </button>
+            </Button>
           </div>
 
           <div class="flex shrink-0 items-center justify-end gap-2">
@@ -218,7 +206,9 @@ const inputClass =
               :read-only="readOnly"
               @update:model-value="handleTypeChange"
             />
-            <button
+            <Button
+              variant="secondary"
+              size="sm"
               type="button"
               @click="handleRequiredToggle"
               :class="[
@@ -226,13 +216,15 @@ const inputClass =
                   inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs
                   font-medium transition-colors
                 `,
-                required ? 'bg-red-500/10 text-red-500' : `
+                required
+                  ? 'bg-red-500/10 text-red-500'
+                  : `
                   bg-secondary text-muted-foreground
                 `,
               ]"
             >
               {{ required ? t.propertyRequired : t.propertyOptional }}
-            </button>
+            </Button>
           </div>
         </div>
       </div>
@@ -245,28 +237,21 @@ const inputClass =
         {{ validationNode!.cumulativeChildrenErrors }}
       </Badge>
 
-      <div v-if="!readOnly" class="
-        flex items-center gap-1 text-muted-foreground
-      ">
-        <button
+      <div v-if="!readOnly" class="flex items-center gap-1 text-muted-foreground">
+        <Button
+          variant="ghost"
+          size="icon-sm"
           type="button"
           @click="handleDelete"
-          class="
-            rounded-md p-1 opacity-0 transition-colors
-            group-hover:opacity-100
-            hover:bg-secondary hover:text-destructive
-          "
+          class="rounded-md p-1 opacity-0 transition-colors group-hover:opacity-100 hover:bg-secondary hover:text-destructive"
           :aria-label="t.propertyDelete"
         >
           <XIcon class="size-4" />
-        </button>
+        </Button>
       </div>
     </div>
 
-    <div v-if="expanded" class="
-      px-2 pt-1 pb-2
-      sm:px-3
-    ">
+    <div v-if="expanded" class="px-2 pt-1 pb-2 sm:px-3">
       <p v-if="readOnly && displayDesc" class="pb-2 text-sm">{{ displayDesc }}</p>
       <TypeEditor
         :schema="schema"

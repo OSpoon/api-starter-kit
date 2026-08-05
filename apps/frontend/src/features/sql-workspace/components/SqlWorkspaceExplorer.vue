@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Archive, Ellipsis, FolderX, PanelLeftClose } from '@lucide/vue'
 
+import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -64,7 +65,9 @@ function filterNodes(nodes: TreeNode[], query: string): TreeNode[] {
         />
         <DropdownMenu v-if="filesCount">
           <DropdownMenuTrigger as-child>
-            <button
+            <Button
+              variant="ghost"
+              size="icon-sm"
               type="button"
               class="sql-workspace-icon-button inline-flex size-6 items-center justify-center rounded"
               :disabled="loading"
@@ -72,7 +75,7 @@ function filterNodes(nodes: TreeNode[], query: string): TreeNode[] {
               :aria-label="t('sql_workspace.workspace_actions')"
             >
               <Ellipsis class="size-4" />
-            </button>
+            </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem :disabled="loading" @select="emit('saveWorkspace')">
@@ -83,7 +86,9 @@ function filterNodes(nodes: TreeNode[], query: string): TreeNode[] {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-        <button
+        <Button
+          variant="ghost"
+          size="icon-sm"
           type="button"
           class="sql-workspace-icon-button inline-flex size-6 items-center justify-center rounded"
           :title="t('sql_workspace.collapse_explorer')"
@@ -91,7 +96,7 @@ function filterNodes(nodes: TreeNode[], query: string): TreeNode[] {
           @click="emit('collapse')"
         >
           <PanelLeftClose class="size-4" />
-        </button>
+        </Button>
       </div>
     </div>
     <div v-if="filesCount" class="px-2 pb-2">

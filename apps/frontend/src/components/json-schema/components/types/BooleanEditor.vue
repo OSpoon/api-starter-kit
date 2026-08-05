@@ -3,6 +3,7 @@ import { useTranslation } from '@/components/json-schema/hooks/useTranslation.ts
 import type { JSONSchema, ObjectJSONSchema } from '@/components/json-schema/types/jsonSchema.ts'
 import { withObjectSchema } from '@/components/json-schema/types/jsonSchema.ts'
 import type { ValidationTreeNode } from '@/components/json-schema/types/validation.ts'
+import { Checkbox } from '@/components/ui/checkbox'
 
 const props = withDefaults(
   defineProps<{
@@ -52,48 +53,34 @@ const hasEnum = () => {
 
 <template>
   <div class="space-y-4">
-    <p v-if="readOnly && !hasEnum()" class="
-      text-sm text-muted-foreground italic
-    ">
+    <p v-if="readOnly && !hasEnum()" class="text-sm text-muted-foreground italic">
       {{ t.booleanNoConstraint }}
     </p>
-    <div v-if="!readOnly || !allowsTrue() || !allowsFalse()" class="
-      space-y-2 pt-2
-    ">
+    <div v-if="!readOnly || !allowsTrue() || !allowsFalse()" class="space-y-2 pt-2">
       <template v-if="!readOnly || hasEnum()">
         <label class="text-sm font-medium">{{ t.booleanAllowedValuesLabel }}</label>
         <div class="space-y-3">
           <label class="flex cursor-pointer items-center gap-2">
-            <input
-              type="checkbox"
-              :checked="allowsTrue()"
+            <Checkbox
+              :model-value="allowsTrue()"
               :disabled="readOnly"
-              @change="handleAllowedChange(true, ($event.target as HTMLInputElement).checked)"
-              class="
-                rounded-sm border-gray-300 text-primary
-                focus:ring-primary
-              "
+              @update:model-value="handleAllowedChange(true, $event === true)"
+              class="rounded-sm border-gray-300 text-primary focus:ring-primary"
             />
             <span class="text-sm">{{ t.booleanAllowTrueLabel }}</span>
           </label>
           <label class="flex cursor-pointer items-center gap-2">
-            <input
-              type="checkbox"
-              :checked="allowsFalse()"
+            <Checkbox
+              :model-value="allowsFalse()"
               :disabled="readOnly"
-              @change="handleAllowedChange(false, ($event.target as HTMLInputElement).checked)"
-              class="
-                rounded-sm border-gray-300 text-primary
-                focus:ring-primary
-              "
+              @update:model-value="handleAllowedChange(false, $event === true)"
+              class="rounded-sm border-gray-300 text-primary focus:ring-primary"
             />
             <span class="text-sm">{{ t.booleanAllowFalseLabel }}</span>
           </label>
         </div>
       </template>
-      <p v-if="!allowsTrue() && !allowsFalse()" class="
-        mt-2 text-xs text-amber-600
-      ">
+      <p v-if="!allowsTrue() && !allowsFalse()" class="mt-2 text-xs text-amber-600">
         {{ t.booleanNeitherWarning }}
       </p>
     </div>

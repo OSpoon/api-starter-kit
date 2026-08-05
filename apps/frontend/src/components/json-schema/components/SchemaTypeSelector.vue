@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { SchemaType } from '@/components/json-schema/types/jsonSchema.ts'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 
 interface TypeOption {
   id: SchemaType
@@ -16,33 +17,28 @@ const typeOptions: TypeOption[] = [
 ]
 
 defineProps<{ id?: string; modelValue: SchemaType }>()
-const emit = defineEmits<{ 'update:modelValue': [value: SchemaType] }>()
 </script>
 
 <template>
-  <div :id="id" class="
-    grid grid-cols-1 gap-2
-    xs:grid-cols-2
-    md:grid-cols-3
-  ">
-    <button
+  <ToggleGroup
+    :id="id"
+    type="single"
+    :model-value="modelValue"
+    variant="outline"
+    size="sm"
+    :spacing="8"
+    class="grid grid-cols-1 gap-2 xs:grid-cols-2 md:grid-cols-3"
+    @update:model-value="$emit('update:modelValue', $event as SchemaType)"
+  >
+    <ToggleGroupItem
       v-for="type in typeOptions"
       :key="type.id"
-      type="button"
+      :value="type.id"
       :title="type.description"
-      :class="[
-        'rounded-lg border-2 p-2.5 text-left transition-all duration-200',
-        modelValue === type.id
-          ? 'border-primary bg-primary/5 shadow-xs'
-          : `
-            border-border
-            hover:border-primary/30 hover:bg-secondary
-          `,
-      ]"
-      @click="emit('update:modelValue', type.id)"
+      class="h-auto justify-start rounded-lg p-2.5 text-left whitespace-normal"
     >
       <div class="text-sm font-medium">{{ type.label }}</div>
       <div class="line-clamp-1 text-xs text-muted-foreground">{{ type.description }}</div>
-    </button>
-  </div>
+    </ToggleGroupItem>
+  </ToggleGroup>
 </template>

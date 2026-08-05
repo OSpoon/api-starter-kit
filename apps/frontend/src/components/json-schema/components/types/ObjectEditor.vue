@@ -7,6 +7,7 @@ import { getSchemaProperties } from '@/components/json-schema/lib/schemaEditor.t
 import type { JSONSchema } from '@/components/json-schema/types/jsonSchema.ts'
 import { isBooleanSchema } from '@/components/json-schema/types/jsonSchema.ts'
 import type { ValidationTreeNode } from '@/components/json-schema/types/validation.ts'
+import { Button } from '@/components/ui/button'
 
 const props = withDefaults(
   defineProps<{
@@ -62,15 +63,15 @@ const handleAdditionalPropertiesToggle = () => {
         :depth="depth"
       />
     </div>
-    <div v-else class="
-      rounded-md border p-2 text-center text-sm text-muted-foreground italic
-    ">
+    <div v-else class="rounded-md border p-2 text-center text-sm text-muted-foreground italic">
       {{ t.objectPropertiesNone }}
     </div>
 
     <div v-if="!readOnly" class="mt-4 flex flex-row gap-x-4">
       <AddFieldButton :path="path" variant="secondary" />
-      <button
+      <Button
+        variant="secondary"
+        size="sm"
         type="button"
         @click="handleAdditionalPropertiesToggle()"
         :class="[
@@ -88,7 +89,7 @@ const handleAdditionalPropertiesToggle = () => {
             ? t.additionalPropertiesForbid
             : t.additionalPropertiesAllow
         }}
-      </button>
+      </Button>
     </div>
   </div>
 </template>

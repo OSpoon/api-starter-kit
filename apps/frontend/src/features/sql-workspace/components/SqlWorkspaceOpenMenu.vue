@@ -9,11 +9,14 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 
-const props = withDefaults(defineProps<{ compact?: boolean; loading?: boolean; prominent?: boolean }>(), {
-  compact: false,
-  loading: false,
-  prominent: false,
-})
+const props = withDefaults(
+  defineProps<{ compact?: boolean; loading?: boolean; prominent?: boolean }>(),
+  {
+    compact: false,
+    loading: false,
+    prominent: false,
+  }
+)
 const emit = defineEmits<{ openPicker: [id: string]; openUrl: [] }>()
 const { t } = useI18n()
 
@@ -25,21 +28,29 @@ function openPicker(id: string) {
 <template>
   <DropdownMenu>
     <DropdownMenuTrigger as-child>
-      <button
+      <Button
+        variant="ghost"
+        size="icon-sm"
         v-if="compact"
         type="button"
         class="sql-workspace-icon-button inline-flex size-6 items-center justify-center rounded"
         :disabled="loading"
         :title="t('sql_workspace.open')"
         :aria-label="t('sql_workspace.open')"
-      ><Upload class="size-4" /></button>
-      <Button v-else-if="prominent" size="sm" :disabled="loading"><Upload />{{ t('sql_workspace.open') }}<ChevronDown /></Button>
-      <button
+        ><Upload class="size-4"
+      /></Button>
+      <Button v-else-if="prominent" size="sm" :disabled="loading"
+        ><Upload />{{ t('sql_workspace.open') }}<ChevronDown
+      /></Button>
+      <Button
+        variant="outline"
+        size="sm"
         v-else
         type="button"
         class="sql-workspace-open-button inline-flex h-7 items-center gap-1.5 rounded px-2 text-xs font-medium"
         :disabled="loading"
-      ><Upload class="size-3.5" />{{ t('sql_workspace.open') }}<ChevronDown class="size-3.5" /></button>
+        ><Upload class="size-3.5" />{{ t('sql_workspace.open') }}<ChevronDown class="size-3.5"
+      /></Button>
     </DropdownMenuTrigger>
     <DropdownMenuContent align="end">
       <DropdownMenuItem :disabled="loading" @select="openPicker('sql-workspace-script')">

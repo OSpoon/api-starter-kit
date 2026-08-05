@@ -4,6 +4,8 @@ import { onErrorCaptured, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
+import { Button } from '@/components/ui/button'
+
 const { t } = useI18n()
 const error = ref<Error | null>(null)
 
@@ -39,13 +41,13 @@ function goHome() {
       <h2 class="error-boundary-title">{{ t('error_boundary.title') }}</h2>
       <p class="error-boundary-message">{{ t('error_boundary.message') }}</p>
       <div class="error-boundary-actions">
-        <button class="error-boundary-btn error-boundary-btn-primary" @click="reload">
+        <Button class="error-boundary-btn error-boundary-btn-primary" @click="reload">
           <RefreshCw class="error-boundary-btn-icon" />
           {{ t('error_boundary.reload') }}
-        </button>
-        <button class="error-boundary-btn" @click="goHome">
+        </Button>
+        <Button variant="outline" class="error-boundary-btn" @click="goHome">
           {{ t('error_boundary.go_home') }}
-        </button>
+        </Button>
       </div>
     </div>
   </div>

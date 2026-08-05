@@ -31,3 +31,6 @@ yarn-error.log
 
 # Frontend compiled assets
 public/assets
+
+db/
+docker-compose/

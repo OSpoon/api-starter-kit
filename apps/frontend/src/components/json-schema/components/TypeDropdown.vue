@@ -2,6 +2,7 @@
 import { cn } from '@/components/json-schema/lib/utils.ts'
 import { getTypeColor, getTypeLabel } from '@/components/json-schema/lib/utils.ts'
 import type { SchemaType } from '@/components/json-schema/types/jsonSchema.ts'
+import { NativeSelect } from '@/components/ui/native-select'
 
 const props = withDefaults(
   defineProps<{ modelValue: SchemaType; class?: string; readOnly?: boolean }>(),
@@ -17,7 +18,7 @@ const options = computed(() =>
 </script>
 
 <template>
-  <select
+  <NativeSelect
     :value="modelValue"
     :disabled="readOnly"
     @change="emit('update:modelValue', ($event.target as HTMLSelectElement).value as SchemaType)"
@@ -40,5 +41,5 @@ const options = computed(() =>
     <option v-for="opt in options" :key="opt.value" :value="opt.value" :class="opt.color">
       {{ opt.label }}
     </option>
-  </select>
+  </NativeSelect>
 </template>

@@ -286,7 +286,9 @@ defineExpose({ formatSql, validateSql, insertVariable, focusVariable, validate: 
         t('sql_editor.variables')
       }}</span>
       <div class="flex gap-1.5">
-        <button
+        <Button
+          variant="secondary"
+          size="sm"
           v-for="variable in variables"
           :key="variable.name"
           type="button"
@@ -295,7 +297,7 @@ defineExpose({ formatSql, validateSql, insertVariable, focusVariable, validate: 
           @click="focusVariable(variable)"
         >
           {{ variable.name }}
-        </button>
+        </Button>
       </div>
     </div>
     <div class="relative min-h-[120px] flex-1 overflow-hidden">
@@ -324,7 +326,9 @@ defineExpose({ formatSql, validateSql, insertVariable, focusVariable, validate: 
     >
       <div class="flex min-w-0 items-center gap-3">
         <span v-if="syntaxError" class="flex min-w-0 items-center gap-1 text-destructive"
-          ><CircleAlert class="size-3 shrink-0" /><span class="truncate">{{ syntaxError }}</span></span
+          ><CircleAlert class="size-3 shrink-0" /><span class="truncate">{{
+            syntaxError
+          }}</span></span
         >
         <span v-if="schemaSynced && schema.length" class="flex items-center gap-1"
           ><CheckCircle2 class="size-3 text-chart-3" />{{ t('sql_editor.schema_sync') }}</span

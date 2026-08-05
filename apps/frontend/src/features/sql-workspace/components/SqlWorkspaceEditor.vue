@@ -3,6 +3,14 @@ import { VueMonacoEditor } from '@guolao/vue-monaco-editor'
 import { Download, FolderOpen, PanelLeftOpen } from '@lucide/vue'
 import type { editor } from 'monaco-editor'
 
+import { Button } from '@/components/ui/button'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { DIALECT_OPTIONS } from '@/features/sql-workspace/composables/useSqlWorkspace'
 import type { DialectSelection, SqlDialect, WorkspaceFile } from '@/features/sql-workspace/types'
 
@@ -71,7 +79,9 @@ defineExpose({ revealPosition })
       v-if="selectedFile"
       class="sql-workspace-toolbar flex h-9 shrink-0 items-center justify-between gap-3 border-b pl-2"
     >
-      <button
+      <Button
+        variant="ghost"
+        size="icon-sm"
         v-if="explorerCollapsed"
         type="button"
         class="sql-workspace-icon-button inline-flex size-6 shrink-0 items-center justify-center rounded"
@@ -80,7 +90,7 @@ defineExpose({ revealPosition })
         @click="emit('toggleExplorer')"
       >
         <PanelLeftOpen class="size-4" />
-      </button>
+      </Button>
       <span class="sql-workspace-tab self-stretch truncate border-t-2 px-1 pt-2 font-mono text-xs">
         <span
           v-if="selectedFileDirty"
@@ -91,7 +101,9 @@ defineExpose({ revealPosition })
       </span>
       <div class="mr-2 flex shrink-0 items-center gap-3">
         <div class="flex items-center gap-1">
-          <button
+          <Button
+            variant="ghost"
+            size="icon-sm"
             type="button"
             class="sql-workspace-icon-button inline-flex size-6 items-center justify-center rounded"
             :title="t('sql_workspace.save_file')"
@@ -99,18 +111,27 @@ defineExpose({ revealPosition })
             @click="emit('save')"
           >
             <Download class="size-4" />
-          </button>
+          </Button>
         </div>
-        <label class="sql-workspace-dialect-label flex items-center gap-2 text-xs"
+        <label class="sql-workspace-dialect-label flex items-center gap-1.5 text-xs"
           ><span>{{ t('sql_workspace.dialect') }}</span
-          ><select
-            v-model="dialectModel"
-            class="sql-workspace-select h-7 rounded border px-2 text-xs outline-none"
-          >
-            <option v-for="item in DIALECT_OPTIONS" :key="item" :value="item">
-              {{ item === 'auto' ? `${t('sql_workspace.dialect_auto')} (${activeDialect})` : item }}
-            </option>
-          </select></label
+          ><Select v-model="dialectModel">
+            <SelectTrigger size="sm" class="h-7 w-23 gap-1 px-2 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem
+                v-for="item in DIALECT_OPTIONS"
+                :key="item"
+                :value="item"
+                class="py-1 text-xs"
+              >
+                {{
+                  item === 'auto' ? `${t('sql_workspace.dialect_auto')} (${activeDialect})` : item
+                }}
+              </SelectItem>
+            </SelectContent>
+          </Select></label
         >
       </div>
     </div>
@@ -132,13 +153,15 @@ defineExpose({ revealPosition })
     >
       <span>{{ activeDialect }} · {{ (selectedFile.content.length / 1024).toFixed(1) }} KB</span>
       <span class="flex items-center gap-3"
-        ><button
+        ><Button
+          variant="ghost"
+          size="sm"
           v-if="diagnostics.length"
           type="button"
           class="text-destructive"
           @click="showProblems = !showProblems"
         >
-          {{ diagnostics.length }} {{ t('sql_workspace.problems') }}</button
+          {{ diagnostics.length }} {{ t('sql_workspace.problems') }}</Button
         ><span>{{
           t('sql_workspace.line_column', { line: cursorLine, column: cursorColumn })
         }}</span></span
@@ -149,7 +172,9 @@ defineExpose({ revealPosition })
         v-if="showProblems && diagnostics.length"
         class="max-h-32 shrink-0 overflow-auto border-t px-2 py-1 text-xs"
       >
-        <button
+        <Button
+          variant="ghost"
+          size="sm"
           v-for="(problem, index) in diagnostics"
           :key="index"
           type="button"
@@ -163,7 +188,7 @@ defineExpose({ revealPosition })
             })
           }}
           · {{ problem.message }}
-        </button>
+        </Button>
       </div>
     </Transition>
     <div

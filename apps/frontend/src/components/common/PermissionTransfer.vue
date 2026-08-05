@@ -105,9 +105,7 @@ function selectionState(ids: number[], selected: number[]) {
 }
 
 function toggleSelection(current: number[], ids: number[], checked: boolean) {
-  return checked
-    ? [...new Set([...current, ...ids])]
-    : current.filter((id) => !ids.includes(id))
+  return checked ? [...new Set([...current, ...ids])] : current.filter((id) => !ids.includes(id))
 }
 
 function toggleGroup(group: string) {
@@ -143,23 +141,38 @@ function moveToAvailable(ids: number[]) {
 
 <template>
   <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
-    <section class="min-w-0 overflow-hidden rounded-md border" :aria-label="t('rbac.roles.available_permissions')">
+    <section
+      class="min-w-0 overflow-hidden rounded-md border"
+      :aria-label="t('rbac.roles.available_permissions')"
+    >
       <div class="border-b bg-muted/30 p-3">
         <div class="flex items-center justify-between gap-3">
           <p class="text-sm font-medium">{{ t('rbac.roles.available_permissions') }}</p>
           <span class="text-xs text-muted-foreground">{{ availablePermissions.length }}</span>
         </div>
         <div class="relative mt-2">
-          <Search class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input v-model="availableQuery" class="pl-9" :placeholder="t('rbac.roles.search_available_permissions')" />
+          <Search
+            class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+          />
+          <Input
+            v-model="availableQuery"
+            class="pl-9"
+            :placeholder="t('rbac.roles.search_available_permissions')"
+          />
         </div>
       </div>
 
       <div class="h-72 overflow-auto">
         <div v-if="visibleAvailableTree.length">
-          <div v-for="[group, resources] in visibleAvailableTree" :key="group" class="border-b last:border-b-0">
+          <div
+            v-for="[group, resources] in visibleAvailableTree"
+            :key="group"
+            class="border-b last:border-b-0"
+          >
             <div class="flex items-center gap-2 bg-muted/20 px-3 py-2">
-              <button
+              <Button
+                variant="ghost"
+                size="icon-sm"
                 type="button"
                 class="flex size-5 items-center justify-center"
                 :aria-expanded="expandedGroups.has(group)"
@@ -167,11 +180,22 @@ function moveToAvailable(ids: number[]) {
               >
                 <ChevronDown v-if="expandedGroups.has(group)" class="size-4" />
                 <ChevronRight v-else class="size-4" />
-              </button>
+              </Button>
               <Checkbox
-                :model-value="selectionState([...resources.values()].flatMap((items) => items.map((item) => item.id)), pendingAddIds)"
+                :model-value="
+                  selectionState(
+                    [...resources.values()].flatMap((items) => items.map((item) => item.id)),
+                    pendingAddIds
+                  )
+                "
                 :disabled="disabled"
-                @update:model-value="pendingAddIds = toggleSelection(pendingAddIds, [...resources.values()].flatMap((items) => items.map((item) => item.id)), $event === true)"
+                @update:model-value="
+                  pendingAddIds = toggleSelection(
+                    pendingAddIds,
+                    [...resources.values()].flatMap((items) => items.map((item) => item.id)),
+                    $event === true
+                  )
+                "
               />
               <span class="text-sm font-medium">{{ group }}</span>
             </div>
@@ -179,19 +203,35 @@ function moveToAvailable(ids: number[]) {
             <div v-if="expandedGroups.has(group)">
               <div v-for="[resource, items] in resources" :key="resource" class="border-t">
                 <div class="flex items-center gap-2 px-3 py-2 pl-9">
-                  <button
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
                     type="button"
                     class="flex size-5 items-center justify-center"
                     :aria-expanded="expandedResources.has(`${group}:${resource}`)"
                     @click="toggleResource(`${group}:${resource}`)"
                   >
-                    <ChevronDown v-if="expandedResources.has(`${group}:${resource}`)" class="size-4" />
+                    <ChevronDown
+                      v-if="expandedResources.has(`${group}:${resource}`)"
+                      class="size-4"
+                    />
                     <ChevronRight v-else class="size-4" />
-                  </button>
+                  </Button>
                   <Checkbox
-                    :model-value="selectionState(items.map((item) => item.id), pendingAddIds)"
+                    :model-value="
+                      selectionState(
+                        items.map((item) => item.id),
+                        pendingAddIds
+                      )
+                    "
                     :disabled="disabled"
-                    @update:model-value="pendingAddIds = toggleSelection(pendingAddIds, items.map((item) => item.id), $event === true)"
+                    @update:model-value="
+                      pendingAddIds = toggleSelection(
+                        pendingAddIds,
+                        items.map((item) => item.id),
+                        $event === true
+                      )
+                    "
                   />
                   <code class="text-xs text-muted-foreground">{{ resource }}</code>
                 </div>
@@ -206,7 +246,13 @@ function moveToAvailable(ids: number[]) {
                     <Checkbox
                       :model-value="pendingAddIds.includes(permission.id)"
                       :disabled="disabled"
-                      @update:model-value="pendingAddIds = toggleSelection(pendingAddIds, [permission.id], $event === true)"
+                      @update:model-value="
+                        pendingAddIds = toggleSelection(
+                          pendingAddIds,
+                          [permission.id],
+                          $event === true
+                        )
+                      "
                     />
                     <ShieldCheck class="size-4 text-muted-foreground" />
                     <span class="min-w-0 flex-1 text-sm">{{ permission.name }}</span>
@@ -217,7 +263,9 @@ function moveToAvailable(ids: number[]) {
             </div>
           </div>
         </div>
-        <p v-else class="p-4 text-center text-sm text-muted-foreground">{{ t('rbac.roles.no_available_permissions') }}</p>
+        <p v-else class="p-4 text-center text-sm text-muted-foreground">
+          {{ t('rbac.roles.no_available_permissions') }}
+        </p>
       </div>
     </section>
 
@@ -264,15 +312,24 @@ function moveToAvailable(ids: number[]) {
       </Button>
     </div>
 
-    <section class="min-w-0 overflow-hidden rounded-md border" :aria-label="t('rbac.roles.assigned_permissions')">
+    <section
+      class="min-w-0 overflow-hidden rounded-md border"
+      :aria-label="t('rbac.roles.assigned_permissions')"
+    >
       <div class="border-b bg-muted/30 p-3">
         <div class="flex items-center justify-between gap-3">
           <p class="text-sm font-medium">{{ t('rbac.roles.assigned_permissions') }}</p>
           <span class="text-xs text-muted-foreground">{{ assignedPermissions.length }}</span>
         </div>
         <div class="relative mt-2">
-          <Search class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input v-model="assignedQuery" class="pl-9" :placeholder="t('rbac.roles.search_assigned_permissions')" />
+          <Search
+            class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+          />
+          <Input
+            v-model="assignedQuery"
+            class="pl-9"
+            :placeholder="t('rbac.roles.search_assigned_permissions')"
+          />
         </div>
       </div>
 
@@ -286,7 +343,9 @@ function moveToAvailable(ids: number[]) {
           <Checkbox
             :model-value="pendingRemoveIds.includes(permission.id)"
             :disabled="disabled"
-            @update:model-value="pendingRemoveIds = toggleSelection(pendingRemoveIds, [permission.id], $event === true)"
+            @update:model-value="
+              pendingRemoveIds = toggleSelection(pendingRemoveIds, [permission.id], $event === true)
+            "
           />
           <ShieldCheck class="size-4 text-muted-foreground" />
           <span class="min-w-0 flex-1">
@@ -294,7 +353,10 @@ function moveToAvailable(ids: number[]) {
             <code class="block text-xs text-muted-foreground">{{ permission.code }}</code>
           </span>
         </label>
-        <p v-if="visibleAssignedPermissions.length === 0" class="p-4 text-center text-sm text-muted-foreground">
+        <p
+          v-if="visibleAssignedPermissions.length === 0"
+          class="p-4 text-center text-sm text-muted-foreground"
+        >
           {{ t('rbac.roles.no_assigned_permissions') }}
         </p>
       </div>

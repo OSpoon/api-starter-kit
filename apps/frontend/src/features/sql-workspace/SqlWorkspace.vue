@@ -346,16 +346,6 @@ onBeforeUnmount(() => {
 .sql-workspace-icon-button {
   color: var(--sql-workspace-text);
 }
-.sql-workspace-icon-button:hover {
-  background: var(--sql-workspace-hover);
-}
-.sql-workspace-open-button {
-  background: var(--sql-workspace-hover);
-  color: var(--sql-workspace-text);
-}
-.sql-workspace-open-button:hover {
-  filter: brightness(0.96);
-}
 .sql-workspace-tab {
   border-color: var(--sql-workspace-accent);
   color: var(--sql-workspace-text);

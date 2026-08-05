@@ -3,6 +3,8 @@ import { DownloadIcon, FileJsonIcon } from '@lucide/vue'
 
 import { useSchemaStore } from '@/components/json-schema/hooks/useSchemaStore.ts'
 import { useTranslation } from '@/components/json-schema/hooks/useTranslation.ts'
+import { Button } from '@/components/ui/button'
+import { Textarea } from '@/components/ui/textarea'
 
 defineProps<{ class?: string }>()
 
@@ -51,36 +53,28 @@ const handleDownload = () => {
 <template>
   <div class="relative flex h-full flex-col overflow-hidden">
     <div
-      class="
-        flex shrink-0 items-center justify-between border-b bg-secondary/80 px-4
-        py-2 backdrop-blur-xs
-      "
+      class="flex shrink-0 items-center justify-between border-b bg-secondary/80 px-4 py-2 backdrop-blur-xs"
     >
       <div class="flex items-center gap-2">
         <FileJsonIcon class="size-4.5" />
         <span class="text-sm font-medium">{{ t.visualizerSource }}</span>
       </div>
-      <button
+      <Button
+        variant="ghost"
+        size="icon-sm"
         type="button"
         @click="handleDownload"
-        class="
-          rounded-md p-1.5 transition-colors
-          hover:bg-secondary
-        "
+        class="rounded-md p-1.5 transition-colors hover:bg-secondary"
         :title="t.visualizerDownloadTitle"
       >
         <DownloadIcon class="size-4" />
-      </button>
+      </Button>
     </div>
     <div class="relative flex min-h-0 grow">
-      <textarea
+      <Textarea
         v-model="editorText"
         @input="handleEditorUpdate"
-        class="
-          size-full resize-none border-0 bg-transparent p-4 font-mono text-sm
-          text-foreground
-          focus-visible:outline-none
-        "
+        class="size-full resize-none border-0 bg-transparent p-4 font-mono text-sm text-foreground focus-visible:outline-none"
         spellcheck="false"
       />
     </div>
