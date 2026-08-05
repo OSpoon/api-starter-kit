@@ -303,7 +303,7 @@ watch(page, (nextPage) => void fetchKeys(nextPage))
         <FormDialogContent
           :title="t('api_keys.dialog_create_title')"
           :description="t('api_keys.dialog_create_desc')"
-          class="sm:max-w-106.25"
+          class="overflow-visible sm:max-w-106.25"
         >
           <ApiKeyForm
             class="flex-1 overflow-hidden"
