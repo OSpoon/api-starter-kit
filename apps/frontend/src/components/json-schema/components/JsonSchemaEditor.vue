@@ -117,7 +117,7 @@ const handleMouseUp = () => {
             v-if="showFullscreen"
             type="button"
             @click="toggleFullscreen"
-            class="rounded-md p-1.5 transition-colors hover:bg-secondary"
+            class="p-1.5"
           >
             <Maximize2Icon v-if="!isFullscreen" class="size-4" />
             <Minimize2Icon v-else class="size-4" />
@@ -144,7 +144,7 @@ const handleMouseUp = () => {
               v-if="showFullscreen"
               type="button"
               @click="toggleFullscreen"
-              class="rounded-md p-1.5 transition-colors hover:bg-secondary"
+              class="p-1.5"
             >
               <Maximize2Icon v-if="!isFullscreen" class="size-4" />
               <Minimize2Icon v-else class="size-4" />
@@ -201,7 +201,7 @@ const handleMouseUp = () => {
             v-if="showFullscreen"
             type="button"
             @click="toggleFullscreen"
-            class="rounded-md p-1.5 transition-colors hover:bg-secondary"
+            class="p-1.5"
           >
             <Maximize2Icon v-if="!isFullscreen" class="size-4" />
             <Minimize2Icon v-else class="size-4" />

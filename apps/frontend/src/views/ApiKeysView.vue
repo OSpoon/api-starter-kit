@@ -266,7 +266,6 @@ onMounted(() => {
   void fetchKeys()
 })
 
-
 watch(page, (nextPage) => void fetchKeys(nextPage))
 </script>
 
@@ -331,7 +330,7 @@ watch(page, (nextPage) => void fetchKeys(nextPage))
               <p class="shrink-0 font-mono text-sm/snug whitespace-nowrap">
                 {{ createdToken }}
               </p>
-              <Button size="sm" variant="secondary" class="ml-auto h-8 shrink-0" @click="copyToken">
+              <Button size="sm" variant="secondary" class="ml-auto shrink-0" @click="copyToken">
                 <Check v-if="copied" class="mr-1 size-4 text-chart-3" />
                 <Copy v-else class="mr-1 size-4" />
                 {{ copied ? t('api_keys.copied') : t('api_keys.copy') }}

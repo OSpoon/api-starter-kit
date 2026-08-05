@@ -91,7 +91,7 @@ const handleSubmit = (e: Event) => {
                 v-model="fieldName"
                 :placeholder="t.fieldNamePlaceholder"
                 required
-                class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 font-mono text-sm shadow-xs transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                class="font-mono text-sm"
               />
             </div>
             <div>
@@ -105,26 +105,18 @@ const handleSubmit = (e: Event) => {
                 :id="fieldDescId"
                 v-model="fieldDesc"
                 :placeholder="t.fieldDescriptionPlaceholder"
-                class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                class="font-mono text-sm"
               />
             </div>
             <label class="flex cursor-pointer items-center gap-3 rounded-lg border bg-muted/50 p-3">
-              <Checkbox
-                :id="fieldRequiredId"
-                v-model="fieldRequired"
-                class="shrink-0 rounded-sm border-gray-300 text-primary focus:ring-primary"
-              />
+              <Checkbox :id="fieldRequiredId" v-model="fieldRequired" />
               <span class="text-sm">{{ t.fieldRequiredLabel }}</span>
             </label>
             <label
               v-if="fieldType === 'object'"
               class="flex cursor-pointer items-center gap-3 rounded-lg border bg-muted/50 p-3"
             >
-              <Checkbox
-                :id="additionalPropertiesId"
-                v-model="additionalProperties"
-                class="shrink-0 rounded-sm border-gray-300 text-primary focus:ring-primary"
-              />
+              <Checkbox :id="additionalPropertiesId" v-model="additionalProperties" />
               <span class="text-sm">{{ t.additionalPropertiesAllow }}</span>
               <InfoIcon class="size-4 shrink-0 text-muted-foreground" />
             </label>

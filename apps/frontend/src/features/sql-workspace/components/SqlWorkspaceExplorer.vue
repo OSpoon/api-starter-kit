@@ -47,9 +47,9 @@ function filterNodes(nodes: TreeNode[], query: string): TreeNode[] {
 
 <template>
   <aside
-    class="sql-workspace-explorer flex h-full min-h-0 min-w-0 flex-col overflow-hidden border-r py-2"
+    class="sql-workspace-explorer flex h-full min-h-0 min-w-0 flex-col overflow-hidden border-r pb-2"
   >
-    <div class="flex h-7 min-w-0 items-center justify-between overflow-hidden px-3">
+    <div class="flex h-9 min-w-0 items-center justify-between overflow-hidden px-3">
       <p
         class="sql-workspace-muted min-w-0 flex-1 truncate text-[11px] font-medium tracking-wide whitespace-nowrap uppercase"
       >
@@ -69,7 +69,6 @@ function filterNodes(nodes: TreeNode[], query: string): TreeNode[] {
               variant="ghost"
               size="icon-sm"
               type="button"
-              class="sql-workspace-icon-button inline-flex size-6 items-center justify-center rounded"
               :disabled="loading"
               :title="t('sql_workspace.workspace_actions')"
               :aria-label="t('sql_workspace.workspace_actions')"
@@ -90,7 +89,6 @@ function filterNodes(nodes: TreeNode[], query: string): TreeNode[] {
           variant="ghost"
           size="icon-sm"
           type="button"
-          class="sql-workspace-icon-button inline-flex size-6 items-center justify-center rounded"
           :title="t('sql_workspace.collapse_explorer')"
           :aria-label="t('sql_workspace.collapse_explorer')"
           @click="emit('collapse')"

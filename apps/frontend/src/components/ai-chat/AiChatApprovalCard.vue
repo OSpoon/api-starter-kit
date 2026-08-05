@@ -84,7 +84,6 @@ function getChangeValue(value: string) {
         type="button"
         size="sm"
         variant="ghost"
-        class="h-7 px-2 text-xs"
         :disabled="loading || disabled"
         @click="emit('dismiss')"
       >
@@ -94,7 +93,6 @@ function getChangeValue(value: string) {
         type="button"
         size="sm"
         variant="outline"
-        class="h-7 px-2 text-xs"
         :disabled="loading || disabled"
         @click="emit('approve')"
       >

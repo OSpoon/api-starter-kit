@@ -29,8 +29,7 @@ const t = useTranslation()
 const minItemsId = useId()
 const maxItemsId = useId()
 const uniqueItemsId = useId()
-const inputClass =
-  'flex h-8 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-3 outline-none disabled:cursor-not-allowed disabled:opacity-50'
+const inputClass = 'h-8 text-sm'
 
 const minItems = ref<number | null>(withObjectSchema(props.schema, (s) => s.minItems ?? null, null))
 const maxItems = ref<number | null>(withObjectSchema(props.schema, (s) => s.maxItems ?? null, null))
@@ -167,7 +166,6 @@ const maxItemsError = computed(
         :model-value="uniqueItems"
         :disabled="readOnly"
         @update:model-value="handleUniqueItemsChange($event === true)"
-        class="rounded-sm border-gray-300 text-primary focus:ring-primary"
       />
       <label :for="uniqueItemsId" class="cursor-pointer text-sm">{{
         t.arrayForceUniqueItemsLabel

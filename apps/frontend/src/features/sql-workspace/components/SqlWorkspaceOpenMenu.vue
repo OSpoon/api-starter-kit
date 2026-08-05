@@ -33,7 +33,6 @@ function openPicker(id: string) {
         size="icon-sm"
         v-if="compact"
         type="button"
-        class="sql-workspace-icon-button inline-flex size-6 items-center justify-center rounded"
         :disabled="loading"
         :title="t('sql_workspace.open')"
         :aria-label="t('sql_workspace.open')"
@@ -47,7 +46,7 @@ function openPicker(id: string) {
         size="sm"
         v-else
         type="button"
-        class="sql-workspace-open-button inline-flex h-7 items-center gap-1.5 rounded px-2 text-xs font-medium"
+        class="sql-workspace-open-button"
         :disabled="loading"
         ><Upload class="size-3.5" />{{ t('sql_workspace.open') }}<ChevronDown class="size-3.5"
       /></Button>

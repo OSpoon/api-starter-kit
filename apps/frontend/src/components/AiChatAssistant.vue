@@ -363,8 +363,8 @@ onUnmounted(() => {
         <div class="flex items-center gap-1">
           <Button
             variant="ghost"
-            class="size-7 text-muted-foreground"
-            size="icon"
+            class="text-muted-foreground"
+            size="icon-sm"
             :title="t('ai_chat.new_chat')"
             @click="clearChat"
           >
@@ -374,8 +374,8 @@ onUnmounted(() => {
             <DropdownMenuTrigger as-child>
               <Button
                 variant="ghost"
-                size="icon"
-                class="size-7 text-muted-foreground"
+                size="icon-sm"
+                class="text-muted-foreground"
                 :title="t('ai_chat.history')"
               >
                 <History class="size-4" />
@@ -402,8 +402,8 @@ onUnmounted(() => {
                 </span>
                 <Button
                   variant="ghost"
-                  size="icon"
-                  class="size-6 shrink-0 text-muted-foreground"
+                  size="icon-sm"
+                  class="shrink-0 text-muted-foreground"
                   :title="t('common.delete')"
                   @click.stop="emit('deleteConversation', conversation.id)"
                 >
@@ -414,8 +414,8 @@ onUnmounted(() => {
           </DropdownMenu>
           <Button
             variant="ghost"
-            size="icon"
-            class="size-7 text-muted-foreground"
+            size="icon-sm"
+            class="text-muted-foreground"
             :title="t('ai_chat.minimize')"
             @click="closeAssistant"
           >
@@ -423,8 +423,8 @@ onUnmounted(() => {
           </Button>
           <Button
             variant="ghost"
-            size="icon"
-            class="size-7 text-muted-foreground"
+            size="icon-sm"
+            class="text-muted-foreground"
             :title="t('common.cancel')"
             @click="closeAssistant"
           >
@@ -455,7 +455,6 @@ onUnmounted(() => {
                   type="button"
                   variant="secondary"
                   size="sm"
-                  class="h-7 rounded-md px-3 text-xs"
                   :disabled="loading || disabled"
                   @click="sendMessage(suggestion)"
                 >
@@ -465,8 +464,8 @@ onUnmounted(() => {
                   v-if="canRefreshSuggestions"
                   type="button"
                   variant="ghost"
-                  size="icon"
-                  class="size-7 text-muted-foreground"
+                  size="icon-sm"
+                  class="text-muted-foreground"
                   :title="t('ai_chat.refresh_suggestions')"
                   :aria-label="t('ai_chat.refresh_suggestions')"
                   :disabled="loading || disabled"
@@ -483,7 +482,7 @@ onUnmounted(() => {
           type="button"
           variant="secondary"
           size="sm"
-          class="absolute bottom-6 left-1/2 h-8 -translate-x-1/2 gap-1.5 rounded-full px-3 text-xs shadow-sm"
+          class="absolute bottom-6 left-1/2 -translate-x-1/2 rounded-full text-xs shadow-sm"
           @click="resumeAutoScroll"
         >
           <ChevronDown class="size-3.5" />
@@ -521,8 +520,8 @@ onUnmounted(() => {
             />
             <Button
               :type="loading ? 'button' : 'submit'"
-              size="icon"
-              class="absolute right-2 bottom-2 size-7 rounded-md"
+              size="icon-sm"
+              class="absolute right-2 bottom-2"
               :disabled="(!input.trim() && !loading) || disabled"
               :title="loading ? t('ai_chat.stop_generating') : undefined"
               @click="loading ? stopGeneration() : undefined"
@@ -547,10 +546,9 @@ onUnmounted(() => {
 
       <Button
         variant="outline"
-        size="lg"
-        class="relative z-10 size-14 rounded-full border bg-card p-0 text-foreground shadow-md transition-colors hover:bg-accent hover:text-accent-foreground"
         :title="assistantTitle"
         @click="openAssistant"
+        class="relative z-10 size-14 rounded-full bg-card p-0 text-foreground shadow-md"
       >
         <MessageCircle v-if="!loading" class="size-6" />
         <Sparkles v-else class="size-6 animate-pulse text-primary" />

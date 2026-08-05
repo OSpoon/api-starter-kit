@@ -21,11 +21,11 @@ const { t } = useI18n()
     <p class="font-medium">{{ credential.label }}</p>
     <code class="mt-1 block break-all">{{ credential.value }}</code>
     <div class="mt-1 flex gap-1">
-      <Button size="sm" variant="ghost" class="h-7 px-2" @click="emit('copy', credential)">
+      <Button size="sm" variant="ghost" @click="emit('copy', credential)">
         <Copy class="size-3.5" />
         {{ t('ai_chat.credential.copy') }}
       </Button>
-      <Button size="sm" variant="ghost" class="h-7 px-2" @click="emit('dismiss')">
+      <Button size="sm" variant="ghost" @click="emit('dismiss')">
         {{ t('common.close') }}
       </Button>
     </div>

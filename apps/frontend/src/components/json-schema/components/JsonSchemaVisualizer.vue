@@ -64,7 +64,7 @@ const handleDownload = () => {
         size="icon-sm"
         type="button"
         @click="handleDownload"
-        class="rounded-md p-1.5 transition-colors hover:bg-secondary"
+        class="p-1.5"
         :title="t.visualizerDownloadTitle"
       >
         <DownloadIcon class="size-4" />
@@ -74,7 +74,7 @@ const handleDownload = () => {
       <Textarea
         v-model="editorText"
         @input="handleEditorUpdate"
-        class="size-full resize-none border-0 bg-transparent p-4 font-mono text-sm text-foreground focus-visible:outline-none"
+        class="size-full resize-none border-0 p-4 font-mono text-sm text-foreground"
         spellcheck="false"
       />
     </div>

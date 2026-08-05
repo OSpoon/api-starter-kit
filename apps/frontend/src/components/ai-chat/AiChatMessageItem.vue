@@ -119,8 +119,8 @@ function canRetryMessage(message: AiChatMessageItemData) {
         <Button
           type="button"
           variant="ghost"
-          size="icon"
-          class="size-6 text-muted-foreground"
+          size="icon-sm"
+          class="text-muted-foreground"
           :title="t('ai_chat.copy_message')"
           @click="$emit('copy', message)"
         >
@@ -130,8 +130,8 @@ function canRetryMessage(message: AiChatMessageItemData) {
           v-if="canRetryMessage(message)"
           type="button"
           variant="ghost"
-          size="icon"
-          class="size-6 text-muted-foreground"
+          size="icon-sm"
+          class="text-muted-foreground"
           :title="t('ai_chat.retry_message')"
           :disabled="loading || loading"
           @click="$emit('retry', message)"

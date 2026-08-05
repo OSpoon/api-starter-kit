@@ -75,10 +75,7 @@ const handleAdditionalPropertiesToggle = () => {
         type="button"
         @click="handleAdditionalPropertiesToggle()"
         :class="[
-          `
-            inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs
-            font-medium transition-colors
-          `,
+          'px-2 py-1 text-xs',
           isAdditionalPropertiesForbidden
             ? 'bg-amber-50 text-amber-600'
             : 'bg-lime-50 text-lime-600',

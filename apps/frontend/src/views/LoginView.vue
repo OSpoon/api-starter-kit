@@ -157,8 +157,8 @@ function backToLogin() {
             <Button
               type="button"
               variant="ghost"
-              size="icon"
-              class="absolute top-1/2 right-1 size-8 -translate-y-1/2 text-muted-foreground"
+              size="icon-sm"
+              class="absolute top-1/2 right-1 -translate-y-1/2 text-muted-foreground"
               :aria-label="passwordVisible ? t('auth.hide_password') : t('auth.show_password')"
               :title="passwordVisible ? t('auth.hide_password') : t('auth.show_password')"
               :disabled="auth.loading"

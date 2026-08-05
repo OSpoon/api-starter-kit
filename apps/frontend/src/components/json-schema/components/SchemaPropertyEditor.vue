@@ -102,8 +102,7 @@ const handleDelete = () => {
   store.deleteProperty(props.path, props.name)
 }
 
-const inputClass =
-  'flex h-8 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-3 outline-none disabled:cursor-not-allowed disabled:opacity-50'
+const inputClass = 'h-8 text-sm'
 </script>
 
 <template>
@@ -142,12 +141,7 @@ const inputClass =
               v-model="tempName"
               @blur="handleNameSubmit()"
               @keydown.enter="handleNameSubmit()"
-              :class="[
-                inputClass,
-                `
-                z-10 h-8 max-w-full min-w-30 text-sm font-medium
-              `,
-              ]"
+              :class="[inputClass, 'z-10 h-8 max-w-full min-w-30 text-sm font-medium']"
               ref="nameInput"
               @focus="($event.target as HTMLInputElement)?.select()"
             />
@@ -158,7 +152,7 @@ const inputClass =
               type="button"
               @click="startEditingName()"
               @keydown.enter="startEditingName()"
-              class="-mx-0.5 max-w-[50%] min-w-20 cursor-text truncate rounded-sm px-2 py-0.5 text-left text-sm font-medium text-foreground transition-all hover:bg-secondary/30 hover:shadow-xs hover:ring-1 hover:ring-ring/20"
+              class="-mx-0.5 max-w-[50%] min-w-20 cursor-text truncate rounded-sm px-2 py-0.5 text-left text-foreground hover:bg-secondary/30 hover:shadow-xs hover:ring-1 hover:ring-ring/20"
             >
               {{ displayName }}
             </Button>
@@ -171,10 +165,7 @@ const inputClass =
               :placeholder="t.propertyDescriptionPlaceholder"
               :class="[
                 inputClass,
-                `
-                  z-10 h-8 min-w-37.5 flex-1 text-xs text-muted-foreground
-                  italic
-                `,
+                'z-10 h-8 min-w-37.5 flex-1 text-xs text-muted-foreground italic',
               ]"
               @focus="($event.target as HTMLInputElement)?.select()"
             />
@@ -184,7 +175,7 @@ const inputClass =
               v-else-if="displayDesc"
               type="button"
               @click="startEditingDesc()"
-              class="-mx-0.5 mr-2 max-w-[40%] flex-1 cursor-text truncate rounded-sm px-2 py-0.5 text-left text-xs text-muted-foreground italic transition-all hover:bg-secondary/30 hover:shadow-xs hover:ring-1 hover:ring-ring/20"
+              class="-mx-0.5 mr-2 max-w-[40%] flex-1 cursor-text truncate rounded-sm px-2 py-0.5 text-left text-xs text-muted-foreground italic hover:bg-secondary/30 hover:shadow-xs hover:ring-1 hover:ring-ring/20"
             >
               {{ displayDesc }}
             </Button>
@@ -194,7 +185,7 @@ const inputClass =
               v-else
               type="button"
               @click="startEditingDesc()"
-              class="-mx-0.5 mr-2 max-w-[40%] flex-1 cursor-text truncate rounded-sm px-2 py-0.5 text-left text-xs text-muted-foreground/50 italic opacity-0 transition-all group-hover:opacity-100 hover:bg-secondary/30 hover:shadow-xs hover:ring-1 hover:ring-ring/20"
+              class="-mx-0.5 mr-2 max-w-[40%] flex-1 cursor-text truncate rounded-sm px-2 py-0.5 text-left text-xs text-muted-foreground/50 italic opacity-0 group-hover:opacity-100 hover:bg-secondary/30 hover:shadow-xs hover:ring-1 hover:ring-ring/20"
             >
               {{ t.propertyDescriptionButton }}
             </Button>
@@ -211,17 +202,7 @@ const inputClass =
               size="sm"
               type="button"
               @click="handleRequiredToggle"
-              :class="[
-                `
-                  inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs
-                  font-medium transition-colors
-                `,
-                required
-                  ? 'bg-red-500/10 text-red-500'
-                  : `
-                  bg-secondary text-muted-foreground
-                `,
-              ]"
+              :class="['px-2 py-1 text-xs', required ? 'bg-red-500/10 text-red-500' : '']"
             >
               {{ required ? t.propertyRequired : t.propertyOptional }}
             </Button>
@@ -243,7 +224,7 @@ const inputClass =
           size="icon-sm"
           type="button"
           @click="handleDelete"
-          class="rounded-md p-1 opacity-0 transition-colors group-hover:opacity-100 hover:bg-secondary hover:text-destructive"
+          class="p-1 opacity-0 group-hover:opacity-100 hover:text-destructive"
           :aria-label="t.propertyDelete"
         >
           <XIcon class="size-4" />

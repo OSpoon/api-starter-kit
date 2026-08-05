@@ -146,7 +146,7 @@ const needsDetail = computed(
           :placeholder="t.stringMinimumLengthPlaceholder"
           :min="0"
           :disabled="readOnly"
-          class="flex h-8 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors outline-none file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
+          class="h-8 text-sm"
         />
       </div>
 
@@ -177,7 +177,7 @@ const needsDetail = computed(
           :placeholder="t.stringMaximumLengthPlaceholder"
           :min="0"
           :disabled="readOnly"
-          class="flex h-8 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors outline-none file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
+          class="h-8 text-sm"
         />
       </div>
 
@@ -210,7 +210,7 @@ const needsDetail = computed(
         "
         :placeholder="t.stringPatternPlaceholder"
         :disabled="readOnly"
-        class="flex h-8 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors outline-none file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
+        class="h-8 text-sm"
       />
     </div>
 
@@ -229,6 +229,7 @@ const needsDetail = computed(
       <NativeSelect
         :id="formatId"
         :value="format || 'none'"
+        size="sm"
         @change="
           handleValidationChange(
             'format',
@@ -238,7 +239,6 @@ const needsDetail = computed(
           )
         "
         :disabled="readOnly"
-        class="flex h-8 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
       >
         <option v-for="opt in formatOptions" :key="opt.value" :value="opt.value">
           {{ opt.label }}
@@ -277,16 +277,10 @@ const needsDetail = computed(
           type="text"
           v-model="enumValue"
           :placeholder="t.stringAllowedValuesEnumAddPlaceholder"
-          class="flex h-8 flex-1 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+          class="flex-1 text-sm"
           @keydown.enter="handleAddEnumValue()"
         />
-        <Button
-          variant="outline"
-          size="sm"
-          type="button"
-          @click="handleAddEnumValue()"
-          class="inline-flex h-8 items-center justify-center gap-2 rounded-md border bg-background px-3 text-sm font-medium whitespace-nowrap shadow-xs transition-all hover:bg-accent hover:text-accent-foreground"
-        >
+        <Button variant="outline" size="sm" type="button" @click="handleAddEnumValue()">
           <PlusIcon class="size-3" /> {{ t.stringAllowedValuesEnumAddLabel }}
         </Button>
       </div>

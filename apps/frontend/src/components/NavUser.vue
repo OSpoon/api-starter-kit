@@ -23,6 +23,8 @@ import {
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuSub,
   DropdownMenuSubContent,
@@ -187,14 +189,19 @@ function setTheme(mode: 'light' | 'dark' | 'auto') {
                 <span>{{ t('nav.language') }}</span>
               </DropdownMenuSubTrigger>
               <DropdownMenuSubContent>
-                <DropdownMenuItem class="cursor-pointer gap-2" @click="setLocale('en')">
-                  <span>English</span>
-                  <Check v-if="locale === 'en'" class="ml-auto size-4" />
-                </DropdownMenuItem>
-                <DropdownMenuItem class="cursor-pointer gap-2" @click="setLocale('zh-CN')">
-                  <span>中文 (简体)</span>
-                  <Check v-if="locale === 'zh-CN'" class="ml-auto size-4" />
-                </DropdownMenuItem>
+                <DropdownMenuRadioGroup
+                  :model-value="locale"
+                  @update:model-value="(value) => setLocale(String(value))"
+                >
+                  <DropdownMenuRadioItem value="en">
+                    <template #indicator-icon><Check class="size-4" /></template>
+                    <span>English</span>
+                  </DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="zh-CN">
+                    <template #indicator-icon><Check class="size-4" /></template>
+                    <span>中文 (简体)</span>
+                  </DropdownMenuRadioItem>
+                </DropdownMenuRadioGroup>
               </DropdownMenuSubContent>
             </DropdownMenuSub>
             <DropdownMenuSub>
@@ -203,21 +210,26 @@ function setTheme(mode: 'light' | 'dark' | 'auto') {
                 <span>{{ t('nav.theme') }}</span>
               </DropdownMenuSubTrigger>
               <DropdownMenuSubContent>
-                <DropdownMenuItem class="cursor-pointer gap-2" @click="setTheme('light')">
-                  <Sun />
-                  <span>{{ t('nav.theme_light') }}</span>
-                  <Check v-if="colorMode === 'light'" class="ml-auto size-4" />
-                </DropdownMenuItem>
-                <DropdownMenuItem class="cursor-pointer gap-2" @click="setTheme('dark')">
-                  <Moon />
-                  <span>{{ t('nav.theme_dark') }}</span>
-                  <Check v-if="colorMode === 'dark'" class="ml-auto size-4" />
-                </DropdownMenuItem>
-                <DropdownMenuItem class="cursor-pointer gap-2" @click="setTheme('auto')">
-                  <Monitor />
-                  <span>{{ t('nav.theme_system') }}</span>
-                  <Check v-if="colorMode === 'auto'" class="ml-auto size-4" />
-                </DropdownMenuItem>
+                <DropdownMenuRadioGroup
+                  :model-value="colorMode"
+                  @update:model-value="(value) => setTheme(value as 'light' | 'dark' | 'auto')"
+                >
+                  <DropdownMenuRadioItem value="light">
+                    <template #indicator-icon><Check class="size-4" /></template>
+                    <Sun />
+                    <span>{{ t('nav.theme_light') }}</span>
+                  </DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="dark">
+                    <template #indicator-icon><Check class="size-4" /></template>
+                    <Moon />
+                    <span>{{ t('nav.theme_dark') }}</span>
+                  </DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="auto">
+                    <template #indicator-icon><Check class="size-4" /></template>
+                    <Monitor />
+                    <span>{{ t('nav.theme_system') }}</span>
+                  </DropdownMenuRadioItem>
+                </DropdownMenuRadioGroup>
               </DropdownMenuSubContent>
             </DropdownMenuSub>
           </DropdownMenuGroup>

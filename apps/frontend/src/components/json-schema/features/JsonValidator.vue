@@ -35,7 +35,7 @@ const result = computed(() => {
         <Textarea
           v-model="jsonInput"
           :placeholder="t.validatorContent"
-          class="h-48 w-full resize-none rounded-md border border-input bg-transparent p-3 font-mono text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+          class="h-48 resize-none p-3 font-mono text-sm"
           spellcheck="false"
         />
         <div v-if="result">
@@ -66,13 +66,7 @@ const result = computed(() => {
         </div>
       </div>
       <div class="mt-4 flex justify-end">
-        <Button
-          variant="outline"
-          size="sm"
-          type="button"
-          @click="emit('update:open', false)"
-          class="inline-flex h-9 items-center justify-center gap-2 rounded-md border bg-background px-4 text-sm font-medium whitespace-nowrap shadow-xs transition-all hover:bg-accent hover:text-accent-foreground"
-        >
+        <Button variant="outline" size="sm" type="button" @click="emit('update:open', false)">
           {{ t.fieldAddNewCancel }}
         </Button>
       </div>

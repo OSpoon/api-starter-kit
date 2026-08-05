@@ -344,9 +344,7 @@ onBeforeUnmount(() => {
   background: var(--sql-workspace-error-bg);
   color: var(--sql-workspace-error);
 }
-.sql-workspace-icon-button {
-  color: var(--sql-workspace-text);
-}
+
 .sql-workspace-tab {
   border-color: var(--sql-workspace-accent);
   color: var(--sql-workspace-text);

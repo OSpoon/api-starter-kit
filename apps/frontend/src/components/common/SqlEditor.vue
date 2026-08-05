@@ -235,7 +235,7 @@ defineExpose({ formatSql, validateSql, insertVariable, focusVariable, validate: 
                 v-for="dialect in sqlDialects"
                 :key="dialect"
                 :value="dialect"
-                class="text-xs focus:bg-muted focus:text-foreground data-[state=checked]:bg-muted data-[state=checked]:text-foreground"
+                class="text-xs"
                 >{{ t(`sql_editor.dialects.${dialect}`) }}</SelectItem
               >
             </SelectContent>
@@ -259,8 +259,8 @@ defineExpose({ formatSql, validateSql, insertVariable, focusVariable, validate: 
         <Button
           type="button"
           variant="ghost"
-          size="icon"
-          class="size-7 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+          size="icon-sm"
+          class="text-muted-foreground"
           :aria-label="t('sql_editor.actions.format')"
           :title="t('sql_editor.actions.format')"
           @click="formatSql"
@@ -269,8 +269,8 @@ defineExpose({ formatSql, validateSql, insertVariable, focusVariable, validate: 
         <Button
           type="button"
           variant="ghost"
-          size="icon"
-          class="size-7 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+          size="icon-sm"
+          class="text-muted-foreground"
           :aria-label="t('sql_editor.actions.clear')"
           :title="t('sql_editor.actions.clear')"
           @click="clearSql"
@@ -287,12 +287,12 @@ defineExpose({ formatSql, validateSql, insertVariable, focusVariable, validate: 
       }}</span>
       <div class="flex gap-1.5">
         <Button
-          variant="secondary"
+          variant="outline"
           size="sm"
           v-for="variable in variables"
           :key="variable.name"
           type="button"
-          class="inline-flex h-5 items-center rounded border border-border bg-background px-2 text-[10px] font-medium text-foreground shadow-sm hover:bg-muted"
+          class="h-5 gap-0.5 px-2 text-[10px]"
           :title="variable.description ?? variable.name"
           @click="focusVariable(variable)"
         >

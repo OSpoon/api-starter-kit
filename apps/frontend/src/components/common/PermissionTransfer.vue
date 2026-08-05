@@ -174,7 +174,7 @@ function moveToAvailable(ids: number[]) {
                 variant="ghost"
                 size="icon-sm"
                 type="button"
-                class="flex size-5 items-center justify-center"
+                class="size-5"
                 :aria-expanded="expandedGroups.has(group)"
                 @click="toggleGroup(group)"
               >
@@ -207,7 +207,7 @@ function moveToAvailable(ids: number[]) {
                     variant="ghost"
                     size="icon-sm"
                     type="button"
-                    class="flex size-5 items-center justify-center"
+                    class="size-5"
                     :aria-expanded="expandedResources.has(`${group}:${resource}`)"
                     @click="toggleResource(`${group}:${resource}`)"
                   >

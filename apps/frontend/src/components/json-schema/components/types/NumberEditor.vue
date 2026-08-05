@@ -119,8 +119,7 @@ const hasConstraint = computed(
     !!multipleOf.value ||
     enumValues.value.length > 0
 )
-const numInputClass =
-  'flex h-8 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-3 outline-none disabled:cursor-not-allowed disabled:opacity-50'
+const numInputClass = 'h-8 text-sm'
 </script>
 
 <template>
@@ -323,13 +322,7 @@ const numInputClass =
           :class="[numInputClass, 'flex-1']"
           @keydown.enter="handleAddEnumValue()"
         />
-        <Button
-          variant="outline"
-          size="sm"
-          type="button"
-          @click="handleAddEnumValue()"
-          class="inline-flex h-8 items-center justify-center gap-2 rounded-md border bg-background px-3 text-sm font-medium whitespace-nowrap shadow-xs transition-all hover:bg-accent hover:text-accent-foreground"
-        >
+        <Button variant="outline" size="sm" type="button" @click="handleAddEnumValue()">
           <PlusIcon class="size-3" /> {{ t.numberAllowedValuesEnumAddLabel }}
         </Button>
       </div>

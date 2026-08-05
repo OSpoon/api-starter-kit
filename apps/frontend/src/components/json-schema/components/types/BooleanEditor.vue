@@ -65,7 +65,6 @@ const hasEnum = () => {
               :model-value="allowsTrue()"
               :disabled="readOnly"
               @update:model-value="handleAllowedChange(true, $event === true)"
-              class="rounded-sm border-gray-300 text-primary focus:ring-primary"
             />
             <span class="text-sm">{{ t.booleanAllowTrueLabel }}</span>
           </label>
@@ -74,7 +73,6 @@ const hasEnum = () => {
               :model-value="allowsFalse()"
               :disabled="readOnly"
               @update:model-value="handleAllowedChange(false, $event === true)"
-              class="rounded-sm border-gray-300 text-primary focus:ring-primary"
             />
             <span class="text-sm">{{ t.booleanAllowFalseLabel }}</span>
           </label>
