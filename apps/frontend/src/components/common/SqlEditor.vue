@@ -216,7 +216,7 @@ defineExpose({ formatSql, validateSql, insertVariable, focusVariable, validate: 
         <template v-if="dialectSelectable">
           <Label
             for="sql-editor-dialect"
-            class="flex h-6 items-center gap-1.5 rounded-md border border-border bg-background px-2 font-mono text-[10px] font-bold tracking-wider text-muted-foreground"
+            class="flex h-6 items-center gap-1.5 rounded-md border border-border bg-background px-2 font-mono text-xs font-medium tracking-wider text-muted-foreground"
             ><span class="size-1.5 animate-pulse rounded-full bg-chart-3" />SQL</Label
           >
           <Select
@@ -227,10 +227,10 @@ defineExpose({ formatSql, validateSql, insertVariable, focusVariable, validate: 
             <SelectTrigger
               id="sql-editor-dialect"
               :aria-label="t('sql_editor.dialect_label')"
-              class="h-6 min-w-0 border-0 bg-transparent px-1 font-sans text-[11px] font-medium tracking-wide text-muted-foreground uppercase shadow-none transition-none focus-visible:border-0 focus-visible:ring-0"
+              class="h-6 min-w-0 border-0 bg-transparent px-1 font-mono text-xs font-medium tracking-wide text-muted-foreground uppercase shadow-none transition-none focus-visible:border-0 focus-visible:ring-0"
               ><SelectValue
             /></SelectTrigger>
-            <SelectContent class="min-w-36 font-sans">
+            <SelectContent class="min-w-36 font-mono">
               <SelectItem
                 v-for="dialect in sqlDialects"
                 :key="dialect"
@@ -243,12 +243,12 @@ defineExpose({ formatSql, validateSql, insertVariable, focusVariable, validate: 
         </template>
         <template v-else>
           <div
-            class="flex h-6 items-center gap-1.5 rounded-md border border-border bg-background px-2 text-[10px] font-bold tracking-wider text-muted-foreground"
+            class="flex h-6 items-center gap-1.5 rounded-md border border-border bg-background px-2 font-mono text-xs font-medium tracking-wider text-muted-foreground"
           >
             <span class="size-1.5 animate-pulse rounded-full bg-chart-3" />SQL
           </div>
           <span
-            class="font-sans text-[11px] font-medium tracking-wide text-muted-foreground uppercase"
+            class="font-mono text-xs font-medium tracking-wide text-muted-foreground uppercase"
             >{{ dbType }}</span
           >
         </template>
@@ -282,7 +282,7 @@ defineExpose({ formatSql, validateSql, insertVariable, focusVariable, validate: 
       v-if="variables.length && !hideToolbar"
       class="flex items-center gap-2 overflow-x-auto border-b border-border bg-muted/30 px-3 py-1.5"
     >
-      <span class="text-[10px] font-bold whitespace-nowrap text-muted-foreground uppercase">{{
+      <span class="text-xs font-medium whitespace-nowrap text-muted-foreground uppercase">{{
         t('sql_editor.variables')
       }}</span>
       <div class="flex gap-1.5">
@@ -292,7 +292,7 @@ defineExpose({ formatSql, validateSql, insertVariable, focusVariable, validate: 
           v-for="variable in variables"
           :key="variable.name"
           type="button"
-          class="h-5 gap-0.5 px-2 text-[10px]"
+          class="h-5 gap-0.5 px-2 text-xs"
           :title="variable.description ?? variable.name"
           @click="focusVariable(variable)"
         >
@@ -315,13 +315,13 @@ defineExpose({ formatSql, validateSql, insertVariable, focusVariable, validate: 
       >
         <div class="flex flex-col items-center gap-3">
           <Braces class="size-10 text-muted-foreground" />
-          <p class="text-[11px] font-medium text-muted-foreground">{{ t('sql_editor.empty') }}</p>
+          <p class="text-xs font-medium text-muted-foreground">{{ t('sql_editor.empty') }}</p>
         </div>
       </div>
     </div>
     <div
       v-if="!hideToolbar"
-      class="flex min-h-6 items-center justify-between border-t border-border bg-muted/50 px-2 text-[10px] text-muted-foreground"
+      class="flex min-h-6 items-center justify-between border-t border-border bg-muted/50 px-2 text-xs text-muted-foreground"
       :class="{ 'border-destructive/30 bg-destructive/5': syntaxError }"
     >
       <div class="flex min-w-0 items-center gap-3">

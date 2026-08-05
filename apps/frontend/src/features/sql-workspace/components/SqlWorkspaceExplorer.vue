@@ -51,7 +51,7 @@ function filterNodes(nodes: TreeNode[], query: string): TreeNode[] {
   >
     <div class="flex h-9 min-w-0 items-center justify-between overflow-hidden px-3">
       <p
-        class="sql-workspace-muted min-w-0 flex-1 truncate text-[11px] font-medium tracking-wide whitespace-nowrap uppercase"
+        class="sql-workspace-muted min-w-0 flex-1 truncate text-xs font-medium tracking-wider whitespace-nowrap uppercase"
       >
         {{ t('sql_workspace.explorer') }}
       </p>

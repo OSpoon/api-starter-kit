@@ -148,7 +148,7 @@ function setTheme(mode: 'light' | 'dark' | 'auto') {
                 </AvatarFallback>
               </Avatar>
               <div class="grid flex-1 text-left text-sm/tight">
-                <span class="truncate font-semibold">{{ user.name }}</span>
+                <span class="truncate font-medium">{{ user.name }}</span>
                 <span class="truncate text-xs text-muted-foreground">{{ user.email }}</span>
               </div>
             </div>

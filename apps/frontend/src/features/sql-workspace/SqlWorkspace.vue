@@ -158,7 +158,7 @@ onBeforeUnmount(() => {
   <PageShell
     :title="t('sql_workspace.title')"
     class="sql-workspace min-h-0 gap-0 overflow-hidden p-4"
-    header-class="sql-workspace-header rounded-t-md border border-b-0 px-3 py-2 [&_h1]:font-sans [&_h1]:text-sm [&_h1]:font-medium [&_h1]:tracking-normal"
+    header-class="sql-workspace-header rounded-t-md border border-b-0 px-3 py-2 [&_h1]:font-sans [&_h1]:text-sm [&_h1]:font-semibold [&_h1]:tracking-normal"
   >
     <input
       id="sql-workspace-script"

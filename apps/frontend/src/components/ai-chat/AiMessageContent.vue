@@ -49,7 +49,7 @@ const isError = computed(() => props.status === 'error')
 
 <style scoped>
 .ai-message-content-markdown {
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.5;
 }
 
@@ -58,13 +58,13 @@ const isError = computed(() => props.status === 'error')
   align-items: center;
   gap: 0.375rem;
   height: 1.25rem;
-  color: hsl(var(--muted-foreground));
+  color: var(--muted-foreground);
   font-size: 12px;
   line-height: 1;
 }
 
 .ai-message-content-error {
-  color: hsl(var(--destructive));
+  color: var(--destructive);
 }
 
 .ai-message-content-waiting span {
@@ -72,7 +72,7 @@ const isError = computed(() => props.status === 'error')
 }
 
 .ai-message-content-markdown :deep(.markstream-vue) {
-  --ms-text-body: 13px;
+  --ms-text-body: 14px;
   --ms-leading-body: 1.5;
   --ms-text-h1: 0.95rem;
   --ms-text-h2: 0.925rem;
@@ -110,7 +110,7 @@ const isError = computed(() => props.status === 'error')
   --ms-size-code-max-height: 240px;
   --vscode-editor-font-size: 12px;
   --vscode-editor-line-height: 1.45;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.5;
   color: inherit;
 }
@@ -119,7 +119,7 @@ const isError = computed(() => props.status === 'error')
 .ai-message-content-markdown :deep(.markstream-vue .paragraph-node),
 .ai-message-content-markdown :deep(.markstream-vue .list-node),
 .ai-message-content-markdown :deep(.markstream-vue .list-item-node) {
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.5;
 }
 
@@ -166,8 +166,8 @@ const isError = computed(() => props.status === 'error')
   max-width: 100%;
   overflow-x: auto;
   border-radius: 0.375rem;
-  border: 1px solid hsl(var(--border));
-  background: hsl(var(--muted) / 0.35);
+  border: 1px solid var(--border);
+  background: color-mix(in oklab, var(--muted) 35%, transparent);
   padding: 0.625rem;
   font-size: 0.75rem;
   line-height: 1.45;
@@ -175,7 +175,7 @@ const isError = computed(() => props.status === 'error')
 
 .ai-message-content-markdown :deep(code) {
   border-radius: 0.25rem;
-  background: hsl(var(--muted) / 0.45);
+  background: color-mix(in oklab, var(--muted) 45%, transparent);
   padding: 0.08rem 0.25rem;
   font-size: 0.78rem;
 }
@@ -188,9 +188,9 @@ const isError = computed(() => props.status === 'error')
 
 .ai-message-content-markdown :deep(blockquote) {
   margin: 0.5rem 0 0;
-  border-left: 2px solid hsl(var(--border));
+  border-left: 2px solid var(--border);
   padding-left: 0.625rem;
-  color: hsl(var(--muted-foreground));
+  color: var(--muted-foreground);
 }
 
 .ai-message-content-markdown :deep(table) {
@@ -202,7 +202,7 @@ const isError = computed(() => props.status === 'error')
 
 .ai-message-content-markdown :deep(th),
 .ai-message-content-markdown :deep(td) {
-  border: 1px solid hsl(var(--border));
+  border: 1px solid var(--border);
   padding: 0.25rem 0.375rem;
 }
 </style>

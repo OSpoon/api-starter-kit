@@ -204,7 +204,7 @@ onMounted(async () => {
             <div
               :class="
                 cn(
-                  'text-xl font-bold',
+                  'text-xl font-semibold',
                   passwordDaysLeft < 14
                     ? `
                   text-destructive
@@ -299,7 +299,7 @@ onMounted(async () => {
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{{ t('profile.recovery_codes') }}</DialogTitle>
-          <DialogDescription class="font-semibold text-destructive">
+          <DialogDescription class="text-destructive">
             {{ t('profile.recovery_desc') }}
           </DialogDescription>
         </DialogHeader>

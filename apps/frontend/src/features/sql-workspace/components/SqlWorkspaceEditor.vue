@@ -148,7 +148,7 @@ defineExpose({ revealPosition })
     </div>
     <div
       v-if="selectedFile"
-      class="sql-workspace-statusbar flex h-6 shrink-0 items-center justify-between px-2 text-[11px]"
+      class="sql-workspace-statusbar flex h-6 shrink-0 items-center justify-between px-2 text-xs"
     >
       <span>{{ activeDialect }} · {{ (selectedFile.content.length / 1024).toFixed(1) }} KB</span>
       <span class="flex items-center gap-3"

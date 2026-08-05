@@ -455,7 +455,7 @@ onUnmounted(() => {
                   type="button"
                   variant="outline"
                   size="sm"
-                  class="h-auto rounded-lg px-3 py-2 text-[13px]/5 font-normal shadow-none"
+                  class="h-auto rounded-lg px-3 py-2 font-normal shadow-none"
                   :disabled="loading || disabled"
                   @click="sendMessage(suggestion)"
                 >

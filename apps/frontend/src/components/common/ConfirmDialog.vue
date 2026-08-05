@@ -37,7 +37,7 @@ const { t } = useI18n()
     class="absolute inset-0 z-[60] flex items-center justify-center bg-background/80 p-4 backdrop-blur-sm"
   >
     <div class="w-full max-w-sm rounded-xl border bg-popover p-5 text-popover-foreground shadow-xl">
-      <h2 class="text-base font-semibold">{{ title }}</h2>
+      <h2 class="cn-font-heading text-lg leading-none font-semibold">{{ title }}</h2>
       <p class="mt-2 text-sm text-muted-foreground">{{ description }}</p>
       <div class="mt-5 flex justify-end gap-2">
         <Button variant="outline" :disabled="loading" @click="$emit('update:open', false)">

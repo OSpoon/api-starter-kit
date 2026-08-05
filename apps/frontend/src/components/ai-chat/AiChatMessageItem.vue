@@ -69,10 +69,7 @@ function canRetryMessage(message: AiChatMessageItemData) {
 </script>
 
 <template>
-  <div
-    class="flex gap-2.5 text-[13px]/5"
-    :class="message.role === 'user' ? 'flex-row-reverse' : ''"
-  >
+  <div class="flex gap-2.5 text-sm/5" :class="message.role === 'user' ? 'flex-row-reverse' : ''">
     <div
       class="flex size-7 shrink-0 items-center justify-center rounded-full"
       :class="
@@ -86,7 +83,7 @@ function canRetryMessage(message: AiChatMessageItemData) {
     </div>
     <div class="group/message flex max-w-[85%] flex-col gap-1">
       <div
-        class="rounded-lg px-3 py-2 text-[13px]/5 whitespace-pre-wrap"
+        class="rounded-lg px-3 py-2 text-sm/5 whitespace-pre-wrap"
         :class="
           message.role === 'user'
             ? 'bg-accent text-accent-foreground'

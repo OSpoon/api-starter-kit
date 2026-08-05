@@ -111,16 +111,13 @@ async function handleLogout() {
           <SidebarMenuButton size="lg" as-child>
             <RouterLink to="/dashboard">
               <div
-                class="
-                  flex aspect-square size-8 items-center justify-center
-                  rounded-lg border bg-background shadow-xs
-                "
+                class="flex aspect-square size-8 items-center justify-center rounded-lg border bg-background shadow-xs"
               >
                 <Activity class="size-5 text-primary" />
               </div>
               <div class="grid flex-1 text-left text-sm/tight">
                 <span class="truncate font-medium">{{ settingsStore.platformName }}</span>
-                <span class="truncate text-xs font-medium text-muted-foreground">
+                <span class="truncate text-xs text-muted-foreground">
                   {{ settingsStore.platformTagline }}
                 </span>
               </div>
