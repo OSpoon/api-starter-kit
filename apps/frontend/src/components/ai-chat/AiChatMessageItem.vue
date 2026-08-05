@@ -90,7 +90,7 @@ function canRetryMessage(message: AiChatMessageItemData) {
         :class="
           message.role === 'user'
             ? 'bg-accent text-accent-foreground'
-            : 'border bg-background text-foreground'
+            : 'border bg-background text-foreground dark:bg-input/30'
         "
       >
         <AiMessageContent
