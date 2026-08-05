@@ -453,8 +453,9 @@ onUnmounted(() => {
                   v-for="suggestion in promptSuggestions"
                   :key="suggestion"
                   type="button"
-                  variant="secondary"
+                  variant="outline"
                   size="sm"
+                  class="h-auto rounded-lg px-3 py-2 text-[13px]/5 font-normal shadow-none"
                   :disabled="loading || disabled"
                   @click="sendMessage(suggestion)"
                 >
@@ -463,9 +464,9 @@ onUnmounted(() => {
                 <Button
                   v-if="canRefreshSuggestions"
                   type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  class="text-muted-foreground"
+                  variant="outline"
+                  size="icon"
+                  class="rounded-lg shadow-none"
                   :title="t('ai_chat.refresh_suggestions')"
                   :aria-label="t('ai_chat.refresh_suggestions')"
                   :disabled="loading || disabled"

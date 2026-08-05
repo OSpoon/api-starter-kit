@@ -123,7 +123,7 @@
     "minimize": "最小化",
     "copy_message": "复制消息",
     "retry_message": "重新生成",
-    "refresh_suggestions": "换一批建议",
+    "refresh_suggestions": "换一批",
     "scroll_to_latest": "回到最新消息",
     "activities": {
       "diagnose_my_access": {
