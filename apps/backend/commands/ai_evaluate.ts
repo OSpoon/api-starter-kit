@@ -29,7 +29,6 @@ export default class AiEvaluate extends BaseCommand {
       model: createAiAgentModel(),
       systemPrompt: createAiAgentSystemPrompt(
         undefined,
-        ' <authorization-context>Current server-side permissions: ["*"]</authorization-context>',
         ' <live-session-state>{"pendingConfirmations":[]}</live-session-state>'
       ),
       tools: [
