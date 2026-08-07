@@ -11,7 +11,11 @@ import {
   getAiAgentAction,
   getAiAgentActionCapabilities,
 } from '#services/ai_agent_action_registry'
-import { AiAgentConfirmationError, proposeAiAgentAction } from '#services/ai_agent_confirmation'
+import {
+  AiAgentConfirmationError,
+  type AiAgentConfirmationSummary,
+  proposeAiAgentAction,
+} from '#services/ai_agent_confirmation'
 import {
   aiQueryTemplateCodes,
   aiQueryTemplateInstructions,
@@ -26,6 +30,16 @@ export interface AiAgentCapability {
   description: string
   permission?: string
   requiresConfirmation: boolean
+}
+
+export type AiAgentActionToolArtifact =
+  | { kind: 'confirmation'; confirmation: AiAgentConfirmationSummary }
+  | { kind: 'action_error'; message: string }
+
+function actionToolResult(
+  artifact: AiAgentActionToolArtifact
+): [string, AiAgentActionToolArtifact] {
+  return [JSON.stringify(artifact), artifact]
 }
 
 const readAgentCapabilities: readonly AiAgentCapability[] = [
@@ -171,13 +185,13 @@ export function createAiAgentTools(input: {
             agentRunId: input.agentRunId,
           })
           throwIfAborted()
-          return JSON.stringify({ kind: 'confirmation', confirmation })
+          return actionToolResult({ kind: 'confirmation', confirmation })
         } catch (error) {
           const message = error instanceof Error ? error.message : '无法准备受控操作'
           if (error instanceof AiAgentConfirmationError) {
-            return JSON.stringify({ kind: 'action_error', message: error.message })
+            return actionToolResult({ kind: 'action_error', message: error.message })
           }
-          return JSON.stringify({
+          return actionToolResult({
             kind: 'action_error',
             message,
           })
@@ -186,8 +200,9 @@ export function createAiAgentTools(input: {
       {
         name: 'propose_system_management_change',
         description:
-          'Prepare a clearly requested management change. Never execute it: the structured confirmation card is required. For revoke_api_key, input.apiKeyId is a positive key ID.',
+          'Prepare a clearly requested management change. Never execute it: the structured confirmation card is required. Ask for missing required fields before calling this tool. For create_api_key, input.name is required. For revoke_api_key, input.apiKeyId is a positive key ID.',
         schema: aiAgentChangeSchema,
+        responseFormat: 'content_and_artifact',
       }
     ),
   ]

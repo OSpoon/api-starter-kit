@@ -11,6 +11,7 @@ import {
   failUnattachedAgentRunConfirmations,
   listConversationConfirmations,
 } from '#services/ai_agent_confirmation'
+import type { AiAgentActionToolArtifact } from '#services/ai_agent_registry'
 import { resolveGroundedAssistantResponse } from '#services/ai_agent_response_policy'
 import { createAiAgentStream, getAiRequestTimeout } from '#services/ai_agent_service'
 import { resolveAiChatRegeneration } from '#services/ai_chat_regeneration'
@@ -58,42 +59,18 @@ function getSafeAiErrorMessage(error: unknown) {
   return '本次 AI 请求未完成，请稍后重试。'
 }
 
-function parseAgentConfirmation(output: unknown) {
-  const content =
-    typeof output === 'string'
-      ? output
-      : output &&
-          typeof output === 'object' &&
-          'content' in output &&
-          typeof output.content === 'string'
-        ? output.content
-        : null
-  if (!content) {
-    return null
+function readAgentToolArtifact(output: unknown): AiAgentActionToolArtifact | null {
+  const artifact =
+    output && typeof output === 'object' && 'artifact' in output ? output.artifact : null
+  if (
+    artifact &&
+    typeof artifact === 'object' &&
+    'kind' in artifact &&
+    (artifact.kind === 'confirmation' || artifact.kind === 'action_error')
+  ) {
+    return artifact as AiAgentActionToolArtifact
   }
 
-  try {
-    const payload = JSON.parse(content) as {
-      kind?: string
-      confirmation?: { id?: number; action?: string; targetSummary?: unknown; expiresAt?: unknown }
-    }
-    const confirmation = payload.confirmation
-    if (
-      payload.kind !== 'confirmation' ||
-      !confirmation ||
-      !Number.isInteger(confirmation.id) ||
-      !confirmation.action ||
-      !confirmation.targetSummary
-    ) {
-      return null
-    }
-    return confirmation
-  } catch {
-    return null
-  }
-}
-
-function parseAgentToolError(output: unknown) {
   const content =
     typeof output === 'string'
       ? output
@@ -106,10 +83,8 @@ function parseAgentToolError(output: unknown) {
   if (!content) return null
 
   try {
-    const payload = JSON.parse(content) as { kind?: string; message?: unknown }
-    return payload.kind === 'action_error' && typeof payload.message === 'string'
-      ? payload.message
-      : null
+    const payload = JSON.parse(content) as AiAgentActionToolArtifact
+    return payload.kind === 'confirmation' || payload.kind === 'action_error' ? payload : null
   } catch {
     return null
   }
@@ -130,19 +105,23 @@ async function streamAiAgentToolStatuses(
     writeSse(response, 'agent_status', { name: toolCall.name, state: 'running' })
     const state = await toolCall.status
     const output = state === 'finished' ? await toolCall.output : null
-    const toolError = parseAgentToolError(output)
+    const toolArtifact = readAgentToolArtifact(output)
+    const toolError = toolArtifact?.kind === 'action_error' ? toolArtifact.message : null
+    // Business-level action errors are fed back to the model, which explains
+    // the denial or asks for the missing field. Showing the raw validator
+    // error as an activity first creates a confusing duplicate message.
+    const visibleToolError = toolArtifact?.kind === 'action_error' ? null : toolError
     writeSse(response, 'agent_status', {
       name: toolCall.name,
-      state: state === 'finished' && !toolError ? 'done' : 'error',
-      ...(toolError ? { message: toolError } : {}),
+      state: state === 'finished' && !visibleToolError ? 'done' : 'error',
+      ...(visibleToolError ? { message: visibleToolError } : {}),
     })
     timing.finishTool(toolCall.name)
     if (state === 'finished') {
       completedToolNames.add(toolCall.name)
       await onToolCompleted?.(toolCall.name, output)
-      const confirmation = parseAgentConfirmation(output)
-      if (confirmation) {
-        writeSse(response, 'agent_confirmation', confirmation)
+      if (toolArtifact?.kind === 'confirmation') {
+        writeSse(response, 'agent_confirmation', toolArtifact.confirmation)
       }
     }
   }
