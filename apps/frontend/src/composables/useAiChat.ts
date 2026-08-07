@@ -20,6 +20,7 @@ import {
   listAiChatConversations,
   streamAiChatMessage,
 } from '@/lib/ai-chat-api'
+import { hasAiChatConversationContent } from '@/lib/ai-chat-conversation-state'
 import { formatAiChatMessagesAsMarkdown } from '@/lib/ai-chat-markdown'
 import { getAiChatSuggestions, pickRandomAiChatSuggestions } from '@/lib/ai-chat-suggestions'
 import { copyText } from '@/lib/clipboard'
@@ -115,6 +116,11 @@ export function useAiChat() {
   }
 
   async function handleAiNewChat() {
+    const shouldReuseEmptyConversation =
+      aiConversation.value &&
+      !hasAiChatConversationContent(aiConversation.value.messages) &&
+      !hasAiChatConversationContent(aiStreamingMessages.value)
+
     aiAbortController.value?.abort()
     aiAbortController.value = null
     aiStreamingMessages.value = []
@@ -122,6 +128,9 @@ export function useAiChat() {
     aiConfirmations.value = []
     pendingAiConfirmation.value = null
     aiApprovalDismissed.value = false
+    if (shouldReuseEmptyConversation) {
+      return
+    }
     aiConversation.value = await createAiChatConversation(auth.token)
     await refreshAiConversations()
   }

@@ -18,6 +18,9 @@ const { getAiChatSuggestions, pickRandomAiChatSuggestions } = await jiti.import(
 const { formatAiChatMessagesAsMarkdown } = await jiti.import(
   `${root}/src/lib/ai-chat-markdown.ts`
 )
+const { hasAiChatConversationContent } = await jiti.import(
+  `${root}/src/lib/ai-chat-conversation-state.ts`
+)
 
 test('password change validation covers required fields, mismatch, and strength', () => {
   assert.equal(
@@ -127,4 +130,10 @@ test('AI chat Markdown export preserves selected messages in conversation order'
     ),
     '# AI Assistant Conversation\n\n## User\n\nCan you check this?\n\n## AI Assistant\n\n## Findings\n\nEverything is working.'
   )
+})
+
+test('empty AI conversations are reused when starting a new chat', () => {
+  assert.equal(hasAiChatConversationContent([]), false)
+  assert.equal(hasAiChatConversationContent([{ content: '  ' }]), false)
+  assert.equal(hasAiChatConversationContent([{ content: 'Hello' }]), true)
 })
