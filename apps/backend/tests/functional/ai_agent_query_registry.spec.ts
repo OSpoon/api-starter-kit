@@ -327,10 +327,48 @@ test.group('AI agent registered queries', (group) => {
         targetType: 'role',
         targetId: '123',
         createdAt: audit.createdAt.toISO(),
-        actor: { id: user.id, fullName: 'Q*' },
+        actor: { fullName: 'Q*' },
       },
     ])
     assert.notProperty(result.rows[0] as object, 'metadata')
+    assert.notProperty((result.rows[0] as { actor?: object }).actor ?? {}, 'id')
+  })
+
+  test('redacts recent audit-log actors and excludes IPs, user agents, and metadata', async ({
+    assert,
+  }) => {
+    const { user, conversation } = await createAdminConversation()
+    const audit = await AuditLog.create({
+      actorUserId: user.id,
+      action: 'user.updated',
+      targetType: 'user',
+      targetId: '7',
+      metadata: { email: user.email, ipAddress: '10.0.0.1', userAgent: 'curl/8.0' },
+    })
+
+    const result = await runRegisteredAiQuery({
+      conversationId: conversation.id,
+      userId: user.id,
+      templateCode: 'recent_audit_logs',
+      params: {},
+    })
+
+    assert.equal(result.kind, 'query_result')
+    if (result.kind !== 'query_result') throw new Error('Expected a query result')
+    const auditRow = result.rows.find(
+      (row) => typeof row === 'object' && row !== null && 'id' in row && row.id === audit.id
+    ) as Record<string, unknown> | undefined
+    assert.deepEqual(auditRow, {
+      id: audit.id,
+      action: 'user.updated',
+      targetType: 'user',
+      targetId: '7',
+      createdAt: audit.createdAt.toISO(),
+      actor: { fullName: 'Q*' },
+    })
+    assert.notProperty(auditRow ?? {}, 'metadata')
+    assert.notProperty((auditRow as { actor?: object }).actor ?? {}, 'id')
+    assert.notInclude(JSON.stringify(result.rows), user.email)
   })
 
   test('uses bounded, permission-scoped templates for API Key, role, and permission lists', async ({

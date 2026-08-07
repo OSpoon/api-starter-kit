@@ -157,9 +157,9 @@ const queryTemplates: readonly AiQueryTemplate[] = [
           targetId: log.targetId,
           // Metadata is deliberately excluded: it can contain business identifiers.
           createdAt: log.createdAt.toISO(),
-          actor: log.actor
-            ? { id: log.actor.id, fullName: maskName(log.actor.fullName ?? '') }
-            : null,
+          // The actor's database id and business identifiers are excluded: only
+          // a masked display name is safe for the model context.
+          actor: log.actor ? { fullName: maskName(log.actor.fullName ?? '') } : null,
         })),
       }
     },
@@ -323,9 +323,9 @@ const queryTemplates: readonly AiQueryTemplate[] = [
           targetType: log.targetType,
           targetId: log.targetId,
           createdAt: log.createdAt.toISO(),
-          actor: log.actor
-            ? { id: log.actor.id, fullName: maskName(log.actor.fullName ?? '') }
-            : null,
+          // The actor's database id is excluded, matching the recent_audit_logs
+          // template: only a masked display name is returned to the model.
+          actor: log.actor ? { fullName: maskName(log.actor.fullName ?? '') } : null,
         })),
       }
     },

@@ -219,7 +219,7 @@ function getStatusLabel(message: AiChatMessageItemData) {
           size="icon-sm"
           class="text-muted-foreground"
           :title="t('ai_chat.retry_message')"
-          :disabled="loading || loading"
+          :disabled="loading"
           @click="$emit('retry', message)"
         >
           <RotateCcw class="size-3.5" />

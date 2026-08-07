@@ -41,6 +41,39 @@ function getSafeAiErrorMessage(error: unknown) {
   return '本次 AI 请求未完成，请稍后重试。'
 }
 
+const MAX_CONFIRMATION_CLEANUP_ATTEMPTS = 3
+const CONFIRMATION_CLEANUP_RETRY_DELAY_MS = 150
+
+async function failUnattachedConfirmationsWithRetry(input: {
+  conversationId: number
+  userId: number
+  agentRunId: string
+  ctx: HttpContext
+}) {
+  const attributes = {
+    conversationId: input.conversationId,
+    userId: input.userId,
+    agentRunId: input.agentRunId,
+  }
+  for (let attempt = 1; attempt <= MAX_CONFIRMATION_CLEANUP_ATTEMPTS; attempt += 1) {
+    try {
+      await failUnattachedAgentRunConfirmations(input)
+      return
+    } catch (error) {
+      if (attempt === MAX_CONFIRMATION_CLEANUP_ATTEMPTS) {
+        logger.error(
+          { err: error, ...attributes },
+          'AI unattached confirmation cleanup failed after retries'
+        )
+        return
+      }
+      await new Promise((resolve) =>
+        setTimeout(resolve, CONFIRMATION_CLEANUP_RETRY_DELAY_MS * attempt)
+      )
+    }
+  }
+}
+
 @ApiSecurity('bearerAuth')
 export default class AiChatController {
   @ApiOperation({
@@ -373,18 +406,14 @@ export default class AiChatController {
       }
       if (agentRunId) {
         // Confirmation cleanup must not prevent the streamed assistant text
-        // from being retained in the conversation history.
-        try {
-          await failUnattachedAgentRunConfirmations({
-            conversationId: conversation.id,
-            userId: user.id,
-            agentRunId,
-            ctx,
-          })
-        } catch {
-          // The response was already persisted; cleanup can be retried by a
-          // subsequent maintenance path without losing the conversation.
-        }
+        // from being retained in the conversation history. Retry transient
+        // failures inline so unattached proposals do not linger indefinitely.
+        await failUnattachedConfirmationsWithRetry({
+          conversationId: conversation.id,
+          userId: user.id,
+          agentRunId,
+          ctx,
+        })
       }
       await resetAiConversationState({ conversationId: conversation.id, userId: user.id })
       writeAiChatSse(response, 'error', {
