@@ -2,7 +2,7 @@ import { BaseCommand } from '@adonisjs/core/ace'
 import { createAgent, tool } from 'langchain'
 import { z } from 'zod'
 
-import { aiAgentChangeSchema } from '#services/ai_agent_action_registry'
+import { aiAgentChangeSchema, aiApiKeyChangeSchema } from '#services/ai_agent_action_registry'
 import {
   aiQueryTemplateCodes,
   aiQueryTemplateInstructions,
@@ -65,14 +65,47 @@ export default class AiEvaluate extends BaseCommand {
             kind: 'confirmation',
             confirmation: {
               id: 1,
+              action: 'create_api_key',
+              targetSummary: { name: '演示密钥' },
+            },
+          }),
+          {
+            name: 'propose_system_management_change',
+            description:
+              'Prepare a management-change proposal (non-API-Key); it never executes the operation.',
+            schema: aiAgentChangeSchema,
+          }
+        ),
+        tool(
+          remember('propose_api_key_revocation', {
+            kind: 'confirmation',
+            confirmation: {
+              id: 1,
               action: 'revoke_api_key',
               targetSummary: { name: '测试密钥' },
             },
           }),
           {
-            name: 'propose_system_management_change',
-            description: 'Prepare a management-change proposal; it never executes the operation.',
-            schema: aiAgentChangeSchema,
+            name: 'propose_api_key_revocation',
+            description:
+              'Prepare a proposal to revoke an active API Key; it never executes the operation.',
+            schema: aiApiKeyChangeSchema,
+          }
+        ),
+        tool(
+          remember('propose_api_key_deletion', {
+            kind: 'confirmation',
+            confirmation: {
+              id: 1,
+              action: 'delete_api_key',
+              targetSummary: { name: '测试密钥' },
+            },
+          }),
+          {
+            name: 'propose_api_key_deletion',
+            description:
+              'Prepare a proposal to delete an already-revoked API Key; it never executes the operation.',
+            schema: aiApiKeyChangeSchema,
           }
         ),
       ],

@@ -31,7 +31,9 @@ flowchart TB
 | `diagnose_my_access`               | 只诊断当前认证用户的服务端权限。                                                                                                                  |
 | `run_registered_query`             | 只调用 `ai_agent_query_registry` 中的固定模板；禁止自由 SQL。所有列表固定最多返回 20 条，不提供分页或继续查询协议，更多数据需到对应管理模块查看。 |
 | `search_knowledge`                 | 只检索已授权的知识文档，用于产品说明和流程指导，不用于实时系统数据。                                                                              |
-| `propose_system_management_change` | 只创建持久化变更提议，不执行破坏性操作。执行必须经过确认 API。                                                                                    |
+| `propose_system_management_change` | 只创建非 API Key 的持久化变更提议（如用户、角色、权限、创建 API Key），不执行破坏性操作。执行必须经过确认 API。                                   |
+| `propose_api_key_revocation`       | 只创建吊销活跃 API Key 的持久化提议，与删除工具解耦；不执行。执行必须经过确认 API。                                                               |
+| `propose_api_key_deletion`         | 只创建删除已吊销 API Key 的持久化提议；不执行。执行必须经过确认 API。                                                                             |
 
 查询模板具有稳定 code/version、参数 schema、权限码、服务端作用域、字段脱敏和固定 20 条结果上限。缺少必要参数时，`AiAgentPendingQuery` 只保存参数收集状态，下一轮会话重新校验模板、归属、权限和有效期。
 

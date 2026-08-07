@@ -20,14 +20,13 @@ const { t, te } = useI18n()
 
 function getApprovalTarget(approval: AiChatConfirmation) {
   const summary = approval.targetSummary
-  const name = summary.name
-  if (typeof name === 'string') return name
-
-  const fullName = summary.fullName
-  if (typeof fullName === 'string') return fullName
-
-  const code = summary.code
-  return typeof code === 'string' ? code : approval.targetId
+  const parts: string[] = []
+  if (typeof summary.name === 'string') parts.push(summary.name)
+  else if (typeof summary.fullName === 'string') parts.push(summary.fullName)
+  else if (typeof summary.code === 'string') parts.push(summary.code)
+  if (typeof summary.prefix === 'string') parts.push(`(${summary.prefix})`)
+  if (/^\d+$/.test(approval.targetId)) parts.push(`#${approval.targetId}`)
+  return parts.length ? parts.join(' ') : approval.targetId
 }
 
 function getApprovalActionLabel(approval: AiChatConfirmation) {

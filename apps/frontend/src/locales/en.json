@@ -154,6 +154,11 @@
         "done": "Revocation confirmation created",
         "error": "Could not create revocation confirmation"
       },
+      "propose_api_key_deletion": {
+        "running": "Preparing deletion confirmation…",
+        "done": "Deletion confirmation created",
+        "error": "Could not create deletion confirmation"
+      },
       "propose_system_management_change": {
         "running": "Preparing a system-management change…",
         "done": "Change check completed",
@@ -208,6 +213,7 @@
     },
     "actions": {
       "revoke_api_key": "Revoke API key",
+      "delete_api_key": "Delete API key",
       "create_api_key": "Create API key",
       "reset_user_password": "Reset user password",
       "disable_user": "Disable user",
@@ -258,6 +264,7 @@
       },
       "actions": {
         "revoke_api_key": "Revoke API key",
+        "delete_api_key": "Delete API key",
         "create_api_key": "Create API key",
         "reset_user_password": "Reset user password",
         "disable_user": "Disable user",
@@ -525,7 +532,8 @@
       "agent": {
         "access_diagnosed": "AI access diagnosed",
         "action_confirmed": "AI action confirmed",
-        "api_key_revoked": "API key revoked by AI"
+        "api_key_revoked": "API key revoked by AI",
+        "api_key_deleted": "API key deleted by AI"
       }
     },
     "targets": {

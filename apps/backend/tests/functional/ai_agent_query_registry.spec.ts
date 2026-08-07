@@ -1,5 +1,6 @@
 import testUtils from '@adonisjs/core/services/test_utils'
 import { test } from '@japa/runner'
+import { DateTime } from 'luxon'
 
 import AiAgentPendingQuery from '#models/ai_agent_pending_query'
 import AiChatConversation from '#models/ai_chat_conversation'
@@ -117,6 +118,84 @@ test.group('AI agent registered queries', (group) => {
       }
     )
     assert.isNumber(audit.metadata?.durationMs)
+  })
+
+  test('looks up an API Key profile by ID with status and without the key hash', async ({
+    assert,
+  }) => {
+    const { user, conversation } = await createAdminConversation()
+    const suffix = Date.now()
+    const active = await ApiKey.create({
+      name: `Profile active ${suffix}`,
+      prefix: `pa${suffix}`,
+      keyHash: `hash-active-${suffix}`,
+    })
+    const revoked = await ApiKey.create({
+      name: `Profile revoked ${suffix}`,
+      prefix: `pr${suffix}`,
+      keyHash: `hash-revoked-${suffix}`,
+      revokedAt: DateTime.now(),
+    })
+
+    const activeResult = await runRegisteredAiQuery({
+      conversationId: conversation.id,
+      userId: user.id,
+      templateCode: 'api_key_profile',
+      params: { apiKeyId: String(active.id) },
+    })
+    assert.deepEqual(activeResult, {
+      kind: 'query_result',
+      templateCode: 'api_key_profile',
+      rows: [
+        {
+          id: active.id,
+          name: active.name,
+          prefix: active.prefix,
+          status: 'active',
+          expiresAt: null,
+        },
+      ],
+    })
+    assert.notInclude(JSON.stringify(activeResult), 'hash-')
+
+    const revokedResult = await runRegisteredAiQuery({
+      conversationId: conversation.id,
+      userId: user.id,
+      templateCode: 'api_key_profile',
+      params: { apiKeyId: String(revoked.id) },
+    })
+    assert.deepEqual(revokedResult, {
+      kind: 'query_result',
+      templateCode: 'api_key_profile',
+      rows: [
+        {
+          id: revoked.id,
+          name: revoked.name,
+          prefix: revoked.prefix,
+          status: 'revoked',
+          expiresAt: null,
+        },
+      ],
+    })
+
+    const missing = await runRegisteredAiQuery({
+      conversationId: conversation.id,
+      userId: user.id,
+      templateCode: 'api_key_profile',
+      params: {},
+    })
+    assert.deepEqual(missing, {
+      kind: 'missing_parameters',
+      templateCode: 'api_key_profile',
+      missingFields: [{ name: 'apiKeyId', description: 'Required positive API Key ID.' }],
+    })
+    const completed = await runRegisteredAiQuery({
+      conversationId: conversation.id,
+      userId: user.id,
+      templateCode: 'api_key_profile',
+      params: { apiKeyId: String(revoked.id) },
+    })
+    assert.equal(completed.kind, 'query_result')
   })
 
   test('rejects unknown parameters without persisting them', async ({ assert }) => {
@@ -494,6 +573,7 @@ test.group('AI agent registered queries', (group) => {
       ['permission_usage', { permissionCode: 'users:read' }],
       ['recent_access_control_changes', {}],
       ['active_api_keys', {}],
+      ['api_key_profile', { apiKeyId: 1 }],
       ['roles_with_permissions', {}],
       ['permission_catalog', {}],
     ] as const) {

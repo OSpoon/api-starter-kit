@@ -20,6 +20,7 @@ import { generateInitialPassword } from '#services/user_credentials'
 
 export type AiAgentActionName =
   | 'revoke_api_key'
+  | 'delete_api_key'
   | 'create_api_key'
   | 'reset_user_password'
   | 'disable_user'
@@ -58,6 +59,25 @@ export class AiAgentActionAuthorizationError extends Error {}
 
 export const aiAgentActionNames = [
   'revoke_api_key',
+  'delete_api_key',
+  'create_api_key',
+  'reset_user_password',
+  'disable_user',
+  'enable_user',
+  'update_user',
+  'delete_user',
+  'create_role',
+  'update_role',
+  'delete_role',
+  'create_permission',
+  'update_permission',
+  'delete_permission',
+] as const
+
+// API Key revocation and deletion are exposed to the model as two dedicated
+// proposal tools instead of actions inside the generic management tool, so the
+// model's choice between them is explicit and never merged.
+export const genericProposalActionNames = [
   'create_api_key',
   'reset_user_password',
   'disable_user',
@@ -74,6 +94,7 @@ export const aiAgentActionNames = [
 
 const destructiveActionNames = new Set<AiAgentActionName>([
   'revoke_api_key',
+  'delete_api_key',
   'reset_user_password',
   'disable_user',
   'delete_user',
@@ -85,8 +106,16 @@ const destructiveActionNames = new Set<AiAgentActionName>([
 // preparation function remains the authoritative validator for every field,
 // target lookup, and conflict condition before a proposal is persisted.
 export const aiAgentChangeSchema = z.object({
-  action: z.enum(aiAgentActionNames),
+  action: z.enum(genericProposalActionNames),
   input: z.record(z.unknown()),
+})
+
+// Shared schema for the dedicated API Key revocation and deletion tools. The
+// preparation function still resolves the target and validates its state.
+export const aiApiKeyChangeSchema = z.object({
+  apiKeyId: z.coerce.number().int().positive().optional(),
+  id: z.coerce.number().int().positive().optional(),
+  name: z.string().trim().max(120).optional(),
 })
 
 async function ensurePermission(ctx: HttpContext, permission: PermissionCode) {
@@ -201,7 +230,7 @@ const revokeApiKeyAction: AiAgentActionImplementation = {
     // canonical payload remains apiKeyId after validation and target lookup.
     const apiKey = await ApiKey.find(await resolveApiKeyId(input))
     if (!apiKey) throw new Error('API Key 不存在')
-    if (apiKey.revokedAt) throw new Error('该 API Key 已被吊销')
+    if (apiKey.revokedAt) throw new Error('该 API Key 已被吊销，如需删除请改用 delete_api_key 操作')
     return {
       targetType: 'api_key',
       targetId: String(apiKey.id),
@@ -218,6 +247,35 @@ const revokeApiKeyAction: AiAgentActionImplementation = {
     await recordAuditEvent(ctx, {
       actorUserId: actor.id,
       action: 'agent.api_key_revoked',
+      targetType: 'api_key',
+      targetId: apiKey.id,
+      metadata: { name: apiKey.name, prefix: apiKey.prefix, source: 'ai_agent' },
+    })
+  },
+}
+
+const deleteApiKeyAction: AiAgentActionImplementation = {
+  permission: 'api-keys:delete',
+  async prepare(input) {
+    const apiKey = await ApiKey.find(await resolveApiKeyId(input))
+    if (!apiKey) throw new Error('API Key 不存在')
+    if (!apiKey.revokedAt)
+      throw new Error('仅已吊销的 API Key 可被删除，请改用 revoke_api_key 操作')
+    return {
+      targetType: 'api_key',
+      targetId: String(apiKey.id),
+      targetSummary: { name: apiKey.name, prefix: apiKey.prefix },
+      payload: { apiKeyId: apiKey.id },
+    }
+  },
+  async execute({ confirmation, ctx }) {
+    const actor = await ensurePermission(ctx, 'api-keys:delete')
+    const apiKey = await ApiKey.find(integer(confirmation.payload, 'apiKeyId'))
+    if (!apiKey || !apiKey.revokedAt) throw new Error('API Key 不存在或未被吊销')
+    await apiKey.delete()
+    await recordAuditEvent(ctx, {
+      actorUserId: actor.id,
+      action: 'agent.api_key_deleted',
       targetType: 'api_key',
       targetId: apiKey.id,
       metadata: { name: apiKey.name, prefix: apiKey.prefix, source: 'ai_agent' },
@@ -662,6 +720,7 @@ function defineAction(
 
 const aiAgentActions: Record<AiAgentActionName, AiAgentActionDefinition> = {
   revoke_api_key: defineAction('revoke_api_key', revokeApiKeyAction),
+  delete_api_key: defineAction('delete_api_key', deleteApiKeyAction),
   create_api_key: defineAction('create_api_key', createApiKeyAction),
   reset_user_password: defineAction('reset_user_password', resetUserPasswordAction),
   disable_user: defineAction('disable_user', userEnabledAction(true)),
@@ -692,6 +751,8 @@ export function getAiAgentActionChangeSummary(action: string, payload: Record<st
   switch (action as AiAgentActionName) {
     case 'revoke_api_key':
       return [{ field: 'result', value: 'revoked' }]
+    case 'delete_api_key':
+      return [{ field: 'result', value: 'permanently_deleted' }]
     case 'create_api_key':
       return [
         { field: 'name', value: summaryValue(payload, 'name') },

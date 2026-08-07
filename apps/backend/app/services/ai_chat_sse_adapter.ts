@@ -48,6 +48,30 @@ export function startAiChatSseKeepalive(response: HttpContext['response']) {
   return () => clearInterval(handle)
 }
 
+const PROPOSAL_TOOL_ACTIONS: Record<string, string> = {
+  propose_api_key_revocation: 'revoke_api_key',
+  propose_api_key_deletion: 'delete_api_key',
+}
+
+function isProposalTool(name: string) {
+  return (
+    name === 'propose_system_management_change' ||
+    name === 'propose_api_key_revocation' ||
+    name === 'propose_api_key_deletion'
+  )
+}
+
+function getProposalAction(name: string, input: unknown) {
+  if (name === 'propose_system_management_change') {
+    if (input && typeof input === 'object') {
+      const action = (input as Record<string, unknown>).action
+      if (typeof action === 'string') return action
+    }
+    return null
+  }
+  return PROPOSAL_TOOL_ACTIONS[name] ?? null
+}
+
 function getAgentStatusDetail(name: string, input: unknown, output?: unknown) {
   if (!input || typeof input !== 'object') return undefined
   const values = input as Record<string, unknown>
@@ -61,7 +85,8 @@ function getAgentStatusDetail(name: string, input: unknown, output?: unknown) {
         : {}),
     }
   }
-  if (name === 'propose_system_management_change' && typeof values.action === 'string') {
+  const action = getProposalAction(name, input)
+  if (isProposalTool(name) && action) {
     const artifact =
       outputRecord?.artifact && typeof outputRecord.artifact === 'object'
         ? (outputRecord.artifact as Record<string, unknown>)
@@ -80,7 +105,7 @@ function getAgentStatusDetail(name: string, input: unknown, output?: unknown) {
       (typeof targetSummary?.email === 'string' && targetSummary.email) ||
       (typeof targetSummary?.code === 'string' && targetSummary.code)
     return {
-      action: values.action,
+      action,
       ...(confirmation?.targetType ? { targetType: confirmation.targetType } : {}),
       ...(confirmation?.targetId ? { targetId: confirmation.targetId } : {}),
       ...(targetLabel ? { targetLabel } : {}),
@@ -96,7 +121,7 @@ function getAgentStatusPhase(name: string, state: 'running' | 'done' | 'error') 
   if (name === 'run_registered_query') {
     return state === 'running' ? 'identifying_target' : 'target_identified'
   }
-  if (name === 'propose_system_management_change') {
+  if (isProposalTool(name)) {
     return state === 'running' ? 'preparing_proposal' : 'awaiting_confirmation'
   }
   if (name === 'search_knowledge') {
@@ -157,7 +182,7 @@ export async function* streamAiAgentToolFrames(
       plan[0].state = 'running'
       yield planFrame()
     }
-    if (toolCall.name === 'propose_system_management_change') {
+    if (isProposalTool(toolCall.name)) {
       plan[0].state = 'done'
       plan[1].state = 'running'
       yield planFrame()
@@ -199,7 +224,7 @@ export async function* streamAiAgentToolFrames(
     }
     if (state === 'finished') {
       if (toolCall.name === 'run_registered_query') plan[0].state = 'done'
-      if (toolCall.name === 'propose_system_management_change') {
+      if (isProposalTool(toolCall.name)) {
         plan[1].state = 'done'
         plan[2].state = 'running'
       }

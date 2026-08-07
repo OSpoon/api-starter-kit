@@ -154,6 +154,11 @@
         "done": "已生成吊销确认",
         "error": "未能生成吊销确认"
       },
+      "propose_api_key_deletion": {
+        "running": "正在准备删除确认…",
+        "done": "已生成删除确认",
+        "error": "未能生成删除确认"
+      },
       "propose_system_management_change": {
         "running": "正在准备系统管理变更…",
         "done": "已完成变更检查",
@@ -200,6 +205,7 @@
     },
     "actions": {
       "revoke_api_key": "吊销 API Key",
+      "delete_api_key": "删除 API Key",
       "create_api_key": "创建 API Key",
       "reset_user_password": "重置用户密码",
       "disable_user": "禁用用户",
@@ -250,6 +256,7 @@
       },
       "actions": {
         "revoke_api_key": "吊销 API Key",
+        "delete_api_key": "删除 API Key",
         "create_api_key": "创建 API Key",
         "reset_user_password": "重置用户密码",
         "disable_user": "停用用户",
@@ -517,7 +524,8 @@
       "agent": {
         "access_diagnosed": "AI 权限诊断",
         "action_confirmed": "AI 操作已确认",
-        "api_key_revoked": "AI 已吊销 API 密钥"
+        "api_key_revoked": "AI 已吊销 API 密钥",
+        "api_key_deleted": "AI 已删除 API 密钥"
       }
     },
     "targets": {

@@ -171,6 +171,58 @@ test.group('AI chat SSE adapter', () => {
     assert.deepEqual(frames[4].data, confirmation)
   })
 
+  test('derives the action from the dedicated API Key proposal tool name', async ({ assert }) => {
+    const { writes, response } = createFakeResponse()
+    const confirmation = {
+      id: 8,
+      action: 'revoke_api_key',
+      impact: { scope: 'single_user' },
+      targetType: 'api_key',
+      targetId: '19',
+      targetSummary: { name: '测试密钥', prefix: 'tk' },
+      changeSummary: [{ field: 'result', value: 'revoked' }],
+      expiresAt: null,
+    }
+    const run = createFakeRun([
+      {
+        name: 'propose_api_key_revocation',
+        callId: 'call-5',
+        input: { apiKeyId: 19 },
+        status: Promise.resolve('finished'),
+        output: Promise.resolve({
+          artifact: { kind: 'confirmation', confirmation },
+        }),
+      },
+    ])
+
+    const result = await streamAiAgentToolStatuses(run, response, new AbortController().signal)
+    const frames = parseSse(writes)
+
+    assert.deepEqual(
+      frames.map((frame) => frame.event),
+      ['agent_plan', 'agent_status', 'agent_status', 'agent_plan', 'agent_confirmation']
+    )
+
+    const running = frames[1].data as Record<string, unknown>
+    assert.equal(running.state, 'running')
+    assert.equal((running.detail as Record<string, unknown>).action, 'revoke_api_key')
+    assert.equal(running.phase, 'preparing_proposal')
+
+    const done = frames[2].data as Record<string, unknown>
+    assert.equal(done.state, 'done')
+    assert.equal((done.detail as Record<string, unknown>).targetType, 'api_key')
+    assert.equal((done.detail as Record<string, unknown>).targetId, '19')
+    assert.equal((done.detail as Record<string, unknown>).targetLabel, '测试密钥')
+
+    const lastPlan = frames[3].data as { steps: Array<{ key: string; state: string }> }
+    assert.equal(lastPlan.steps[0].state, 'done')
+    assert.equal(lastPlan.steps[1].state, 'done')
+    assert.equal(lastPlan.steps[2].state, 'running')
+
+    assert.deepEqual(frames[4].data, confirmation)
+    assert.isTrue(result.has('propose_api_key_revocation'))
+  })
+
   test('keeps a denied proposal terminal frame as done with its error code', async ({ assert }) => {
     const { writes, response } = createFakeResponse()
     const run = createFakeRun([

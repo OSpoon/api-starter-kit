@@ -33,6 +33,7 @@ export type AiRegisteredQueryResult =
 type AiQueryTemplate = {
   code:
     | 'active_api_keys'
+    | 'api_key_profile'
     | 'managed_users'
     | 'managed_user_profile'
     | 'recent_audit_logs'
@@ -80,6 +81,37 @@ const queryTemplates: readonly AiQueryTemplate[] = [
           expiresAt: key.expiresAt?.toISO() ?? null,
           lastUsedAt: key.lastUsedAt?.toISO() ?? null,
         })),
+      }
+    },
+  },
+  {
+    code: 'api_key_profile',
+    version: 1,
+    description:
+      'Look up one API Key by ID and report its name, prefix, and revoked status. Use it to verify a key before proposing revoke_api_key or delete_api_key.',
+    permission: 'api-keys:read',
+    parameters: {
+      apiKeyId: {
+        description: 'Required positive API Key ID.',
+        required: true,
+        schema: z.coerce.number().int().positive(),
+      },
+    },
+    async execute(params) {
+      const key = await ApiKey.query()
+        .where('id', params.apiKeyId as number)
+        .first()
+      if (!key) return { rows: [], message: 'No API Key matched that ID.' }
+      return {
+        rows: [
+          {
+            id: key.id,
+            name: key.name,
+            prefix: key.prefix,
+            status: key.revokedAt ? 'revoked' : 'active',
+            expiresAt: key.expiresAt?.toISO() ?? null,
+          },
+        ],
       }
     },
   },
