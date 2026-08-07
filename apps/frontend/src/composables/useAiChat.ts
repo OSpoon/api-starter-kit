@@ -8,6 +8,7 @@ import type {
   AiChatCredentialDisclosure,
   AiChatPendingConfirmation,
   AiChatPlanStep,
+  AiChatRunMeta,
 } from '@/lib/ai-chat-api'
 import {
   type AiChatConversation,
@@ -65,6 +66,7 @@ export function useAiChat() {
   const aiApprovalDismissed = ref(false)
   const aiCredentialDisclosure = ref<AiChatCredentialDisclosure | null>(null)
   const aiSuggestions = ref<string[]>([])
+  const aiRunMeta = ref<AiChatRunMeta | null>(null)
 
   const displayedAiChatMessages = computed<DisplayAiChatMessage[]>(() => {
     const messages = aiStreamingMessages.value.length
@@ -131,6 +133,7 @@ export function useAiChat() {
     aiConfirmations.value = []
     pendingAiConfirmation.value = null
     aiApprovalDismissed.value = false
+    aiRunMeta.value = null
     if (shouldReuseEmptyConversation) {
       return
     }
@@ -148,6 +151,7 @@ export function useAiChat() {
       aiConfirmations.value = []
       pendingAiConfirmation.value = null
       aiApprovalDismissed.value = false
+      aiRunMeta.value = null
       aiConversation.value = await getAiChatConversation(auth.token, Number(id))
       aiConfirmations.value = aiConversation.value.confirmations ?? []
       presentLatestAiConfirmation(aiConfirmations.value)
@@ -171,6 +175,7 @@ export function useAiChat() {
         aiConfirmations.value = []
         pendingAiConfirmation.value = null
         aiApprovalDismissed.value = false
+        aiRunMeta.value = null
         aiStreamingMessages.value = []
         aiStreamingMessageId.value = null
       }
@@ -297,6 +302,7 @@ export function useAiChat() {
     const abortController = new AbortController()
     aiAbortController.value = abortController
     aiLoading.value = true
+    aiRunMeta.value = null
     const currentMessages = aiConversation.value?.messages ?? []
     const userMessage = regenerateAssistantMessageId
       ? null
@@ -351,6 +357,8 @@ export function useAiChat() {
             assistantMessage.activity = {
               name: event.name,
               state: event.state,
+              callId: event.callId,
+              durationMs: event.durationMs,
               message: event.message,
               errorCode: event.errorCode,
               phase: event.phase,
@@ -373,6 +381,14 @@ export function useAiChat() {
             aiStreamingMessages.value = aiStreamingMessages.value.map((item) =>
               item.id === assistantMessage.id ? { ...assistantMessage } : item
             )
+          }
+
+          if (event.type === 'run') {
+            aiRunMeta.value = {
+              agentRunId: event.agentRunId,
+              usage: event.usage,
+              durationMs: event.durationMs,
+            }
           }
 
           if (event.type === 'agent_confirmation') {
@@ -533,6 +549,7 @@ export function useAiChat() {
     aiApprovalDismissed,
     aiCredentialDisclosure,
     aiSuggestions,
+    aiRunMeta,
     displayedAiChatMessages,
     allAiSuggestions,
     aiPageContext,

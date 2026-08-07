@@ -75,6 +75,8 @@ const AI_STREAM_TIMEOUT_MS = 305_000
 export interface AiChatAgentActivity {
   name: string
   state: 'running' | 'done' | 'error'
+  callId?: string
+  durationMs?: number
   message?: string
   errorCode?: 'permission_denied' | 'invalid_input' | 'conflict' | 'failed'
   phase?: string
@@ -87,6 +89,19 @@ export interface AiChatAgentActivity {
     targetLabel?: string
     resultCount?: number
   }
+}
+
+export interface AiChatRunUsage {
+  inputTokens: number
+  outputTokens: number
+  totalTokens: number
+  modelCalls: number
+}
+
+export interface AiChatRunMeta {
+  agentRunId: string
+  usage: AiChatRunUsage
+  durationMs: number
 }
 
 export interface AiChatPlanStep {
@@ -148,6 +163,8 @@ type AiChatStreamEvent =
       type: 'agent_status'
       name: string
       state: AiChatAgentActivity['state']
+      callId?: string
+      durationMs?: number
       message?: string
       errorCode?: AiChatAgentActivity['errorCode']
       phase?: string
@@ -156,6 +173,7 @@ type AiChatStreamEvent =
   | { type: 'agent_plan'; steps: AiChatPlanStep[] }
   | { type: 'agent_citations'; citations: AiChatCitation[] }
   | ({ type: 'agent_confirmation' } & AiChatPendingConfirmation)
+  | ({ type: 'run' } & AiChatRunMeta)
   | {
       type: 'done'
       conversation: AiChatConversation

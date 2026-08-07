@@ -131,6 +131,7 @@ export async function streamAiAgentToolStatuses(
   const writePlan = () => writeAiChatSse(response, 'agent_plan', { steps: plan })
   for await (const toolCall of run.stream.toolCalls) {
     if (signal.aborted) throw new DOMException('AI request was cancelled', 'AbortError')
+    const toolStartedAt = Date.now()
     if (toolCall.name === 'run_registered_query') {
       plan[0].state = 'running'
       writePlan()
@@ -144,6 +145,7 @@ export async function streamAiAgentToolStatuses(
     const runningPhase = getAgentStatusPhase(toolCall.name, 'running')
     writeAiChatSse(response, 'agent_status', {
       name: toolCall.name,
+      callId: toolCall.callId,
       state: 'running',
       ...(runningDetail ? { detail: runningDetail } : {}),
       ...(runningPhase ? { phase: runningPhase } : {}),
@@ -158,7 +160,9 @@ export async function streamAiAgentToolStatuses(
     const completedState = state === 'finished' && !visibleToolError ? 'done' : 'error'
     writeAiChatSse(response, 'agent_status', {
       name: toolCall.name,
+      callId: toolCall.callId,
       state: completedState,
+      durationMs: Date.now() - toolStartedAt,
       ...(completedDetail ? { detail: completedDetail } : {}),
       ...(getAgentStatusPhase(toolCall.name, completedState)
         ? { phase: getAgentStatusPhase(toolCall.name, completedState) }
