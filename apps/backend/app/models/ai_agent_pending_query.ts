@@ -21,17 +21,6 @@ function consumeJsonRecord(value: unknown): Record<string, unknown> {
   }
 }
 
-function consumeStringArray(value: unknown): string[] {
-  if (Array.isArray(value) && value.every((item) => typeof item === 'string')) return value
-  if (typeof value !== 'string') return []
-  try {
-    const parsed = JSON.parse(value)
-    return Array.isArray(parsed) && parsed.every((item) => typeof item === 'string') ? parsed : []
-  } catch {
-    return []
-  }
-}
-
 export default class AiAgentPendingQuery extends BaseModel {
   static table = 'ai_agent_pending_queries'
 
@@ -55,12 +44,6 @@ export default class AiAgentPendingQuery extends BaseModel {
     consume: consumeJsonRecord,
   })
   declare params: Record<string, unknown>
-
-  @column({
-    prepare: (value: string[]) => JSON.stringify(value ?? []),
-    consume: consumeStringArray,
-  })
-  declare missingFields: string[]
 
   @column()
   declare status: AiAgentPendingQueryStatus

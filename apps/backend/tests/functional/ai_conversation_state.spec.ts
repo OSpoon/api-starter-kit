@@ -34,7 +34,6 @@ test.group('AI conversation state reset', (group) => {
       templateCode: 'managed_user_profile',
       templateVersion: 1,
       params: {},
-      missingFields: ['userId'],
       status: 'collecting_parameters',
       expiresAt: DateTime.now().plus({ minutes: 15 }),
     })
@@ -55,7 +54,6 @@ test.group('AI conversation state reset', (group) => {
       templateCode: 'managed_users',
       templateVersion: 1,
       params: { limit: 10 },
-      missingFields: [],
       status: 'executed',
       expiresAt: DateTime.now().minus({ minutes: 1 }),
       completedAt: DateTime.now(),
@@ -78,7 +76,6 @@ test.group('AI conversation state reset', (group) => {
       templateCode: 'managed_user_profile',
       templateVersion: 1,
       params: {},
-      missingFields: ['userId'],
       status: 'collecting_parameters',
       expiresAt: DateTime.now().plus({ minutes: 15 }),
     })

@@ -449,11 +449,13 @@ async function findActivePendingQuery(input: { conversationId: number; userId: n
 export async function getPendingAiQueryContext(input: { conversationId: number; userId: number }) {
   const pending = await findActivePendingQuery(input)
   if (!pending) return ''
+  const template = getAiQueryTemplate(pending.templateCode)
+  const missingFields = template ? getMissingFields(template, pending.params) : []
   return ` <pending-query-context>${JSON.stringify({
     templateCode: pending.templateCode,
     templateVersion: pending.templateVersion,
     collectedParameterNames: Object.keys(pending.params),
-    missingRequired: pending.missingFields,
+    missingRequired: missingFields,
     expiresAt: pending.expiresAt.toISO(),
   })}</pending-query-context>`
 }
@@ -534,13 +536,11 @@ export async function runRegisteredAiQuery(input: {
             templateCode: template.code,
             templateVersion: template.version,
             params: {},
-            missingFields: [],
             status: 'collecting_parameters',
             expiresAt: DateTime.now().plus({ minutes: 15 }),
           })
     pending.merge({
       params: mergedParams,
-      missingFields,
       expiresAt: DateTime.now().plus({ minutes: 15 }),
     })
     await pending.save()
@@ -591,7 +591,6 @@ export async function runRegisteredAiQuery(input: {
   if (active?.templateCode === template.code) {
     active.status = 'executed'
     active.completedAt = DateTime.now()
-    active.missingFields = []
     await active.save()
   }
   await recordQueryAudit({

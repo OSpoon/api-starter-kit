@@ -66,11 +66,12 @@ test.group('AI agent registered queries', (group) => {
       .where('conversation_id', conversation.id)
       .firstOrFail()
     assert.equal(pending.status, 'collecting_parameters')
-    assert.deepEqual(pending.missingFields, ['userId'])
-    assert.include(
-      await getPendingAiQueryContext({ conversationId: conversation.id, userId: user.id }),
-      'managed_user_profile'
-    )
+    const pendingContext = await getPendingAiQueryContext({
+      conversationId: conversation.id,
+      userId: user.id,
+    })
+    assert.include(pendingContext, 'managed_user_profile')
+    assert.include(pendingContext, '"missingRequired":["userId"]')
 
     const completed = await runRegisteredAiQuery({
       conversationId: conversation.id,
@@ -96,7 +97,6 @@ test.group('AI agent registered queries', (group) => {
     ])
     await pending.refresh()
     assert.equal(pending.status, 'executed')
-    assert.deepEqual(pending.missingFields, [])
     const audit = await AuditLog.query()
       .where('action', 'agent.query_executed')
       .where('target_id', 'managed_user_profile')
