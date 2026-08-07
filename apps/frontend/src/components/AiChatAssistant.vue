@@ -3,6 +3,7 @@ import {
   Bot,
   ChevronDown,
   History,
+  ListChecks,
   MessageCircle,
   MessageCirclePlus,
   Minus,
@@ -18,6 +19,7 @@ import AiChatApprovalCard from '@/components/ai-chat/AiChatApprovalCard.vue'
 import AiChatCredentialCard from '@/components/ai-chat/AiChatCredentialCard.vue'
 import AiChatMessageItem from '@/components/ai-chat/AiChatMessageItem.vue'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -80,6 +82,7 @@ const emit = defineEmits<{
   selectConversation: [id: string | number]
   deleteConversation: [id: string | number]
   copyMessage: [message: DisplayAiChatMessage]
+  copyMessagesAsMarkdown: [messages: DisplayAiChatMessage[]]
   retryMessage: [message: DisplayAiChatMessage]
   stop: []
   refreshSuggestions: []
@@ -97,6 +100,8 @@ const isComposingInput = ref(false)
 const compositionEndedAt = ref(0)
 const scrollAreaRef = ref<InstanceType<typeof ScrollArea> | null>(null)
 const autoScrollEnabled = ref(true)
+const isSelectingMessages = ref(false)
+const selectedMessageKeys = ref(new Set<string>())
 
 let scrollViewport: HTMLElement | null = null
 
@@ -140,6 +145,57 @@ const promptSuggestions = computed(
       t('ai_chat.suggestions.schema'),
     ]
 )
+
+function getMessageKey(message: DisplayAiChatMessage, index: number) {
+  return `${message.id ?? 'message'}-${index}`
+}
+
+const selectableMessageCount = computed(
+  () =>
+    displayMessages.value.filter((message) => message.id !== 'welcome' && message.content.trim())
+      .length
+)
+const selectedMessages = computed(() =>
+  displayMessages.value.filter((message, index) =>
+    selectedMessageKeys.value.has(getMessageKey(message, index))
+  )
+)
+
+function startMessageSelection() {
+  isSelectingMessages.value = true
+  selectedMessageKeys.value = new Set()
+}
+
+function cancelMessageSelection() {
+  isSelectingMessages.value = false
+  selectedMessageKeys.value = new Set()
+}
+
+function selectMessage(message: DisplayAiChatMessage, index: number, selected: boolean) {
+  const key = getMessageKey(message, index)
+  const nextSelection = new Set(selectedMessageKeys.value)
+  if (selected) {
+    nextSelection.add(key)
+  } else {
+    nextSelection.delete(key)
+  }
+  selectedMessageKeys.value = nextSelection
+}
+
+function toggleAllMessages(selected: boolean) {
+  selectedMessageKeys.value = selected
+    ? new Set(
+        displayMessages.value.flatMap((message, index) =>
+          message.id !== 'welcome' && message.content.trim() ? [getMessageKey(message, index)] : []
+        )
+      )
+    : new Set()
+}
+
+function copySelectedMessagesAsMarkdown() {
+  emit('copyMessagesAsMarkdown', selectedMessages.value)
+  cancelMessageSelection()
+}
 
 function startResize(event: MouseEvent) {
   isResizing.value = true
@@ -313,6 +369,10 @@ function handlePaste(event: ClipboardEvent) {
 watch(
   () => displayMessages.value,
   () => {
+    const availableKeys = new Set(displayMessages.value.map(getMessageKey))
+    selectedMessageKeys.value = new Set(
+      [...selectedMessageKeys.value].filter((key) => availableKeys.has(key))
+    )
     scrollToBottom()
   },
   { deep: true }
@@ -361,6 +421,18 @@ onUnmounted(() => {
           <span class="truncate text-sm font-medium">{{ assistantTitle }}</span>
         </div>
         <div class="flex items-center gap-1">
+          <Button
+            v-if="!isSelectingMessages"
+            variant="ghost"
+            class="text-muted-foreground"
+            size="icon-sm"
+            :title="t('ai_chat.select_messages')"
+            :aria-label="t('ai_chat.select_messages')"
+            :disabled="loading || selectableMessageCount === 0"
+            @click="startMessageSelection"
+          >
+            <ListChecks class="size-4" />
+          </Button>
           <Button
             variant="ghost"
             class="text-muted-foreground"
@@ -433,6 +505,33 @@ onUnmounted(() => {
         </div>
       </div>
 
+      <div
+        v-if="isSelectingMessages"
+        class="flex items-center gap-2 border-b bg-muted/30 px-4 py-2"
+      >
+        <Checkbox
+          :model-value="
+            selectedMessages.length === selectableMessageCount && selectableMessageCount > 0
+          "
+          :aria-label="t('ai_chat.select_all_messages')"
+          @update:model-value="toggleAllMessages($event === true)"
+        />
+        <span class="min-w-0 flex-1 text-xs text-muted-foreground">
+          {{ t('ai_chat.selected_messages', { count: selectedMessages.length }) }}
+        </span>
+        <Button type="button" variant="ghost" size="sm" @click="cancelMessageSelection">
+          {{ t('common.cancel') }}
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          :disabled="selectedMessages.length === 0"
+          @click="copySelectedMessagesAsMarkdown"
+        >
+          {{ t('ai_chat.copy_as_markdown') }}
+        </Button>
+      </div>
+
       <div class="relative min-h-0 flex-1 p-4">
         <ScrollArea ref="scrollAreaRef" class="h-full">
           <div class="space-y-3 pr-3">
@@ -443,9 +542,14 @@ onUnmounted(() => {
               :all-messages="displayMessages"
               :streaming-message-id="streamingMessageId"
               :loading="loading"
-              :show-message-actions="showMessageActions"
+              :show-message-actions="showMessageActions && !isSelectingMessages"
+              :selectable="isSelectingMessages"
+              :selected="selectedMessageKeys.has(getMessageKey(message, index))"
               @copy="emit('copyMessage', $event)"
               @retry="emit('retryMessage', $event)"
+              @select="
+                (selectedMessage, selected) => selectMessage(selectedMessage, index, selected)
+              "
             />
             <template v-if="displayMessages.length <= 1">
               <div class="ml-9.5 flex flex-wrap gap-2 pt-1">

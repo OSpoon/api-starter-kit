@@ -22,6 +22,7 @@ const {
   displayedAiChatMessages,
   handleAiNewChat,
   handleAiCopyMessage,
+  handleAiCopyMessagesAsMarkdown,
   handleAiDeleteConversation,
   handleAiRetryMessage,
   refreshAiSuggestions,
@@ -71,6 +72,7 @@ const breadcrumbs = computed(() => {
         :credential-disclosure="aiCredentialDisclosure"
         @clear="handleAiNewChat"
         @copy-message="handleAiCopyMessage"
+        @copy-messages-as-markdown="handleAiCopyMessagesAsMarkdown"
         @delete-conversation="handleAiDeleteConversation"
         @retry-message="handleAiRetryMessage"
         @refresh-suggestions="refreshAiSuggestions"

@@ -15,6 +15,9 @@ const { streamAiChatMessage } = await jiti.import(`${root}/src/lib/ai-chat-api.t
 const { getAiChatSuggestions, pickRandomAiChatSuggestions } = await jiti.import(
   `${root}/src/lib/ai-chat-suggestions.ts`
 )
+const { formatAiChatMessagesAsMarkdown } = await jiti.import(
+  `${root}/src/lib/ai-chat-markdown.ts`
+)
 
 test('password change validation covers required fields, mismatch, and strength', () => {
   assert.equal(
@@ -110,5 +113,18 @@ test('AI suggestions use effective permissions and prioritize the current page',
   assert.deepEqual(
     pickRandomAiChatSuggestions(['a', 'b', 'c', 'd'], [], () => 0),
     ['b', 'c', 'd']
+  )
+})
+
+test('AI chat Markdown export preserves selected messages in conversation order', () => {
+  assert.equal(
+    formatAiChatMessagesAsMarkdown(
+      [
+        { role: 'user', content: 'Can you check this?' },
+        { role: 'assistant', content: '## Findings\n\nEverything is working.' },
+      ],
+      { conversation: 'AI Assistant Conversation', user: 'User', assistant: 'AI Assistant' }
+    ),
+    '# AI Assistant Conversation\n\n## User\n\nCan you check this?\n\n## AI Assistant\n\n## Findings\n\nEverything is working.'
   )
 })

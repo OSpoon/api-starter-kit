@@ -2,6 +2,7 @@
 import { Bot, Copy, RotateCcw, User } from '@lucide/vue'
 
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import type { AiChatAgentActivity } from '@/lib/ai-chat-api'
 
 import AiMessageContent from './AiMessageContent.vue'
@@ -23,18 +24,23 @@ const props = withDefaults(
     streamingMessageId?: string | number | null
     loading?: boolean
     showMessageActions?: boolean
+    selectable?: boolean
+    selected?: boolean
   }>(),
   {
     allMessages: undefined,
     streamingMessageId: null,
     loading: false,
     showMessageActions: true,
+    selectable: false,
+    selected: false,
   }
 )
 
 defineEmits<{
   copy: [message: AiChatMessageItemData]
   retry: [message: AiChatMessageItemData]
+  select: [message: AiChatMessageItemData, selected: boolean]
 }>()
 
 const { t, te } = useI18n()
@@ -70,6 +76,13 @@ function canRetryMessage(message: AiChatMessageItemData) {
 
 <template>
   <div class="flex gap-2.5 text-sm/5" :class="message.role === 'user' ? 'flex-row-reverse' : ''">
+    <Checkbox
+      v-if="selectable && message.id !== 'welcome' && message.content.trim()"
+      :model-value="selected"
+      :aria-label="t('ai_chat.select_message')"
+      class="mt-1.5"
+      @update:model-value="$emit('select', message, $event === true)"
+    />
     <div
       class="flex size-7 shrink-0 items-center justify-center rounded-full"
       :class="

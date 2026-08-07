@@ -20,6 +20,7 @@ import {
   listAiChatConversations,
   streamAiChatMessage,
 } from '@/lib/ai-chat-api'
+import { formatAiChatMessagesAsMarkdown } from '@/lib/ai-chat-markdown'
 import { getAiChatSuggestions, pickRandomAiChatSuggestions } from '@/lib/ai-chat-suggestions'
 import { copyText } from '@/lib/clipboard'
 import { useAuthStore } from '@/stores/auth'
@@ -193,6 +194,25 @@ export function useAiChat() {
     try {
       await copyText(message.content)
       toast.success(t('ai_chat.copy_success'))
+    } catch {
+      toast.error(t('ai_chat.copy_failed'))
+    }
+  }
+
+  async function handleAiCopyMessagesAsMarkdown(messages: DisplayAiChatMessage[]) {
+    if (messages.length === 0) {
+      return
+    }
+
+    try {
+      await copyText(
+        formatAiChatMessagesAsMarkdown(messages, {
+          conversation: t('ai_chat.shared_conversation'),
+          user: t('ai_chat.user'),
+          assistant: t('ai_chat.assistant'),
+        })
+      )
+      toast.success(t('ai_chat.share_success'))
     } catch {
       toast.error(t('ai_chat.copy_failed'))
     }
@@ -502,6 +522,7 @@ export function useAiChat() {
     handleAiDeleteConversation,
     handleAiStop,
     handleAiCopyMessage,
+    handleAiCopyMessagesAsMarkdown,
     handleAiCopyCredential,
     presentLatestAiConfirmation,
     dismissAiConfirmation,
