@@ -101,6 +101,31 @@ export const aiAssistantEvaluationCases: readonly AiEvaluationCase[] = [
     ],
   },
   {
+    name: 'name-based controlled operation',
+    turns: [
+      {
+        question: '请吊销名为测试密钥的 API Key。',
+        expectedTools: ['propose_system_management_change'],
+        expectedResponse: 'grounded',
+      },
+    ],
+  },
+  {
+    name: 'knowledge versus live data routing',
+    turns: [
+      {
+        question: '如何在系统中维护知识库？',
+        expectedTools: ['search_knowledge'],
+        expectedResponse: 'grounded',
+      },
+      {
+        question: '列出当前权限目录。',
+        expectedTools: ['run_registered_query'],
+        expectedResponse: 'grounded',
+      },
+    ],
+  },
+  {
     name: 'permission denied change',
     turns: [
       {

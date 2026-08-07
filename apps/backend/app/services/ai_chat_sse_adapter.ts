@@ -3,6 +3,11 @@ import type { HttpContext } from '@adonisjs/core/http'
 import type { AiAgentActionToolArtifact } from '#services/ai_agent_confirmation'
 import type { createAiAgentStream } from '#services/ai_agent_service'
 
+type AiAgentPlanStep = {
+  key: 'identify_target' | 'prepare_proposal' | 'await_confirmation'
+  state: 'pending' | 'running' | 'done'
+}
+
 export function writeAiChatSse(response: HttpContext['response'], event: string, data: unknown) {
   if (response.response.writableEnded || response.response.destroyed) return
   response.response.write(`event: ${event}\n`)
@@ -44,10 +49,20 @@ function getAgentStatusDetail(name: string, input: unknown, output?: unknown) {
       artifact?.kind === 'confirmation' && typeof artifact.confirmation === 'object'
         ? (artifact.confirmation as Record<string, unknown>)
         : null
+    const targetSummary =
+      confirmation?.targetSummary && typeof confirmation.targetSummary === 'object'
+        ? (confirmation.targetSummary as Record<string, unknown>)
+        : null
+    const targetLabel =
+      (typeof targetSummary?.name === 'string' && targetSummary.name) ||
+      (typeof targetSummary?.fullName === 'string' && targetSummary.fullName) ||
+      (typeof targetSummary?.email === 'string' && targetSummary.email) ||
+      (typeof targetSummary?.code === 'string' && targetSummary.code)
     return {
       action: values.action,
       ...(confirmation?.targetType ? { targetType: confirmation.targetType } : {}),
       ...(confirmation?.targetId ? { targetId: confirmation.targetId } : {}),
+      ...(targetLabel ? { targetLabel } : {}),
     }
   }
   if (name === 'diagnose_my_access' && typeof values.permissionCode === 'string') {
@@ -108,8 +123,23 @@ export async function streamAiAgentToolStatuses(
   onToolCompleted?: (name: string, output: unknown) => void | Promise<void>
 ) {
   const completedToolNames = new Set<string>()
+  const plan: AiAgentPlanStep[] = [
+    { key: 'identify_target', state: 'pending' },
+    { key: 'prepare_proposal', state: 'pending' },
+    { key: 'await_confirmation', state: 'pending' },
+  ]
+  const writePlan = () => writeAiChatSse(response, 'agent_plan', { steps: plan })
   for await (const toolCall of run.stream.toolCalls) {
     if (signal.aborted) throw new DOMException('AI request was cancelled', 'AbortError')
+    if (toolCall.name === 'run_registered_query') {
+      plan[0].state = 'running'
+      writePlan()
+    }
+    if (toolCall.name === 'propose_system_management_change') {
+      plan[0].state = 'done'
+      plan[1].state = 'running'
+      writePlan()
+    }
     const runningDetail = getAgentStatusDetail(toolCall.name, toolCall.input)
     const runningPhase = getAgentStatusPhase(toolCall.name, 'running')
     writeAiChatSse(response, 'agent_status', {
@@ -122,6 +152,7 @@ export async function streamAiAgentToolStatuses(
     const output = state === 'finished' ? await toolCall.output : null
     const toolArtifact = readAgentToolArtifact(output)
     const toolError = toolArtifact?.kind === 'action_error' ? toolArtifact.message : null
+    const toolErrorCode = toolArtifact?.kind === 'action_error' ? toolArtifact.code : undefined
     const visibleToolError = toolArtifact?.kind === 'action_error' ? null : toolError
     const completedDetail = getAgentStatusDetail(toolCall.name, toolCall.input, output)
     const completedState = state === 'finished' && !visibleToolError ? 'done' : 'error'
@@ -133,9 +164,16 @@ export async function streamAiAgentToolStatuses(
         ? { phase: getAgentStatusPhase(toolCall.name, completedState) }
         : {}),
       ...(visibleToolError ? { message: visibleToolError } : {}),
+      ...(toolErrorCode ? { errorCode: toolErrorCode } : {}),
     })
     if (state === 'finished') {
       completedToolNames.add(toolCall.name)
+      if (toolCall.name === 'run_registered_query') plan[0].state = 'done'
+      if (toolCall.name === 'propose_system_management_change') {
+        plan[1].state = 'done'
+        plan[2].state = 'running'
+      }
+      writePlan()
       await onToolCompleted?.(toolCall.name, output)
       if (toolArtifact?.kind === 'confirmation') {
         writeAiChatSse(response, 'agent_confirmation', toolArtifact.confirmation)

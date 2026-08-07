@@ -76,6 +76,7 @@ export interface AiChatAgentActivity {
   name: string
   state: 'running' | 'done' | 'error'
   message?: string
+  errorCode?: 'permission_denied' | 'invalid_input' | 'conflict' | 'failed'
   phase?: string
   detail?: {
     templateCode?: string
@@ -83,8 +84,14 @@ export interface AiChatAgentActivity {
     permissionCode?: string
     targetType?: string
     targetId?: string | number
+    targetLabel?: string
     resultCount?: number
   }
+}
+
+export interface AiChatPlanStep {
+  key: 'identify_target' | 'prepare_proposal' | 'await_confirmation'
+  state: 'pending' | 'running' | 'done'
 }
 
 export class AiChatStreamIncompleteError extends Error {
@@ -142,9 +149,11 @@ type AiChatStreamEvent =
       name: string
       state: AiChatAgentActivity['state']
       message?: string
+      errorCode?: AiChatAgentActivity['errorCode']
       phase?: string
       detail?: AiChatAgentActivity['detail']
     }
+  | { type: 'agent_plan'; steps: AiChatPlanStep[] }
   | { type: 'agent_citations'; citations: AiChatCitation[] }
   | ({ type: 'agent_confirmation' } & AiChatPendingConfirmation)
   | {

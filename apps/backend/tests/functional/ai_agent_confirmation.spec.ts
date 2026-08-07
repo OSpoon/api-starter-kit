@@ -215,6 +215,39 @@ test.group('AI agent confirmations', (group) => {
     })
   })
 
+  test('resolves an API Key by its exact name when no ID is supplied', async ({ assert }) => {
+    const superAdminRole = await Role.findByOrFail('code', 'super-admin')
+    const user = await User.create({
+      fullName: 'Name resolver admin',
+      email: `name-resolver-${Date.now()}@example.com`,
+      password: generateInitialPassword(),
+    })
+    await user.related('roles').sync([superAdminRole.id])
+    const conversation = await AiChatConversation.create({
+      userId: user.id,
+      title: 'Name resolver action',
+    })
+    const apiKey = await ApiKey.create({
+      name: `Resolvable key ${Date.now()}`,
+      prefix: `r${Date.now()}`,
+      keyHash: `hash-${Date.now()}`,
+    })
+    const proposalTool = createAiAgentTools({
+      userId: user.id,
+      conversationId: conversation.id,
+      agentRunId: crypto.randomUUID(),
+    }).find((tool) => tool.name === 'propose_system_management_change')
+
+    const output = await proposalTool!.invoke({
+      action: 'revoke_api_key',
+      input: { name: apiKey.name },
+    })
+
+    const content = JSON.parse(String(output))
+    assert.equal(content.kind, 'confirmation', JSON.stringify(content))
+    assert.equal(content.confirmation.targetId, String(apiKey.id))
+  })
+
   test('returns a safe change summary without exposing the proposal payload', async ({
     client,
     assert,

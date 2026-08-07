@@ -165,6 +165,62 @@
         "error": "Operation did not complete"
       }
     },
+    "plan": {
+      "identify_target": {
+        "pending": "Identify target",
+        "running": "Identifying target",
+        "done": "Target identified"
+      },
+      "prepare_proposal": {
+        "pending": "Prepare proposal",
+        "running": "Preparing proposal",
+        "done": "Proposal prepared"
+      },
+      "await_confirmation": {
+        "pending": "Await confirmation",
+        "running": "Awaiting confirmation",
+        "done": "Confirmed"
+      }
+    },
+    "errors": {
+      "permission_denied": "Permission denied",
+      "invalid_input": "Invalid input",
+      "conflict": "Current state conflict",
+      "failed": "Tool execution failed"
+    },
+    "query_templates": {
+      "active_api_keys": "active API keys",
+      "managed_users": "users and roles",
+      "recent_audit_logs": "recent audit logs",
+      "roles_with_permissions": "roles and permissions",
+      "permission_catalog": "permission catalog",
+      "recent_access_control_changes": "access-control changes"
+    },
+    "query_status": {
+      "running": "Querying",
+      "done": "Query completed",
+      "error": "Query failed"
+    },
+    "knowledge_status": {
+      "running": "Searching knowledge",
+      "done": "Knowledge search completed",
+      "error": "Knowledge search failed"
+    },
+    "actions": {
+      "revoke_api_key": "Revoke API key",
+      "create_api_key": "Create API key",
+      "reset_user_password": "Reset user password",
+      "disable_user": "Disable user",
+      "enable_user": "Enable user",
+      "update_user": "Update user",
+      "delete_user": "Delete user",
+      "create_role": "Create role",
+      "update_role": "Update role",
+      "delete_role": "Delete role",
+      "create_permission": "Create permission",
+      "update_permission": "Update permission",
+      "delete_permission": "Delete permission"
+    },
     "confirmations": {
       "revoke_api_key": "Ready to revoke API key “{name}” ({prefix}). Once confirmed, any script using this key will stop immediately.",
       "confirm": "Confirm revocation",

@@ -138,7 +138,7 @@ export function createAiAgentTools(input: {
       {
         name: 'propose_system_management_change',
         description:
-          'Prepare a clearly requested management change. Never execute it: the structured confirmation card is required. Ask for missing required fields before calling this tool. For create_api_key, input.name is required. For revoke_api_key, input.apiKeyId is a positive key ID.',
+          'Prepare a clearly requested management change. Never execute it: the structured confirmation card is required. Ask for missing required fields before calling this tool. Resolve existing targets with stable IDs when available; exact API Key name, user email, role code, and permission code may be used when an ID is unavailable. Ambiguous names must be rejected. For create_api_key, input.name is required.',
         schema: aiAgentChangeSchema,
         responseFormat: 'content_and_artifact',
       }

@@ -165,6 +165,54 @@
         "error": "操作未完成"
       }
     },
+    "plan": {
+      "identify_target": { "pending": "识别目标", "running": "正在识别目标", "done": "已识别目标" },
+      "prepare_proposal": {
+        "pending": "准备变更提案",
+        "running": "正在准备变更提案",
+        "done": "已准备变更提案"
+      },
+      "await_confirmation": { "pending": "等待确认", "running": "等待确认", "done": "已确认" }
+    },
+    "errors": {
+      "permission_denied": "权限不足",
+      "invalid_input": "输入无效",
+      "conflict": "当前状态冲突",
+      "failed": "工具执行失败"
+    },
+    "query_templates": {
+      "active_api_keys": "当前有效的 API Key",
+      "managed_users": "用户及其角色",
+      "recent_audit_logs": "最近审计记录",
+      "roles_with_permissions": "角色及其权限",
+      "permission_catalog": "权限目录",
+      "recent_access_control_changes": "访问控制变更记录"
+    },
+    "query_status": {
+      "running": "正在查询",
+      "done": "已完成查询",
+      "error": "查询失败"
+    },
+    "knowledge_status": {
+      "running": "正在检索知识文档",
+      "done": "已完成知识检索",
+      "error": "知识检索失败"
+    },
+    "actions": {
+      "revoke_api_key": "吊销 API Key",
+      "create_api_key": "创建 API Key",
+      "reset_user_password": "重置用户密码",
+      "disable_user": "禁用用户",
+      "enable_user": "启用用户",
+      "update_user": "更新用户",
+      "delete_user": "删除用户",
+      "create_role": "创建角色",
+      "update_role": "更新角色",
+      "delete_role": "删除角色",
+      "create_permission": "创建权限",
+      "update_permission": "更新权限",
+      "delete_permission": "删除权限"
+    },
     "confirmations": {
       "revoke_api_key": "准备吊销 API Key「{name}」（{prefix}）。确认后，所有使用此密钥的脚本将立即失效。",
       "confirm": "确认吊销",

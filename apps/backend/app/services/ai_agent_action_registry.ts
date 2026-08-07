@@ -115,6 +115,43 @@ function integer(input: Record<string, unknown>, name: string, aliases: string[]
   return parsed
 }
 
+async function resolveApiKeyId(input: Record<string, unknown>) {
+  const value = [input.apiKeyId, input.id].find((candidate) => candidate !== undefined)
+  if (value !== undefined) return integer({ apiKeyId: value }, 'apiKeyId')
+  const name = string(input, 'name', 120)
+  const matches = await ApiKey.query().where('name', name).limit(2)
+  if (matches.length === 0) throw new Error('API Key 不存在')
+  if (matches.length > 1) throw new Error('存在多个同名 API Key，请提供 apiKeyId')
+  return matches[0].id
+}
+
+async function resolveUserId(input: Record<string, unknown>) {
+  const value = input.userId
+  if (value !== undefined) return integer({ userId: value }, 'userId')
+  const email = string(input, 'email', 254)
+  const user = await User.findBy('email', email)
+  if (!user) throw new Error('用户不存在')
+  return user.id
+}
+
+async function resolveRoleId(input: Record<string, unknown>) {
+  const value = input.roleId
+  if (value !== undefined) return integer({ roleId: value }, 'roleId')
+  const code = string(input, 'code', 100)
+  const role = await Role.findBy('code', code)
+  if (!role) throw new Error('角色不存在')
+  return role.id
+}
+
+async function resolvePermissionId(input: Record<string, unknown>) {
+  const value = input.permissionId
+  if (value !== undefined) return integer({ permissionId: value }, 'permissionId')
+  const code = string(input, 'code', 100)
+  const permission = await Permission.findBy('code', code)
+  if (!permission) throw new Error('权限不存在')
+  return permission.id
+}
+
 function string(input: Record<string, unknown>, name: string, maxLength: number) {
   const value = input[name]
   if (typeof value !== 'string' || !value.trim() || value.trim().length > maxLength) {
@@ -162,7 +199,7 @@ const revokeApiKeyAction: AiAgentActionImplementation = {
   async prepare(input) {
     // Small models commonly use the visible table's generic `id` field. The
     // canonical payload remains apiKeyId after validation and target lookup.
-    const apiKey = await ApiKey.find(integer(input, 'apiKeyId', ['id']))
+    const apiKey = await ApiKey.find(await resolveApiKeyId(input))
     if (!apiKey) throw new Error('API Key 不存在')
     if (apiKey.revokedAt) throw new Error('该 API Key 已被吊销')
     return {
@@ -226,7 +263,7 @@ function userTargetSummary(user: User) {
 const resetUserPasswordAction: AiAgentActionImplementation = {
   permission: 'users:update',
   async prepare(input) {
-    const user = await User.find(integer(input, 'userId'))
+    const user = await User.find(await resolveUserId(input))
     if (!user) throw new Error('用户不存在')
     return {
       targetType: 'user',
@@ -260,7 +297,7 @@ function userEnabledAction(disabled: boolean): AiAgentActionImplementation {
   return {
     permission: 'users:update',
     async prepare(input) {
-      const user = await User.find(integer(input, 'userId'))
+      const user = await User.find(await resolveUserId(input))
       if (!user) throw new Error('用户不存在')
       if (Boolean(user.disabledAt) === disabled)
         throw new Error(disabled ? '用户已被禁用' : '用户未被禁用')
@@ -296,7 +333,7 @@ function userEnabledAction(disabled: boolean): AiAgentActionImplementation {
 const updateUserAction: AiAgentActionImplementation = {
   permission: 'users:update',
   async prepare(input) {
-    const user = await User.find(integer(input, 'userId'))
+    const user = await User.find(await resolveUserId(input))
     const nextRoleIds = roleIds(input)
     if (!user) throw new Error('用户不存在')
     if (await includesSuperAdminRole(nextRoleIds)) throw new Error('超级管理员角色不可授予')
@@ -342,7 +379,7 @@ const updateUserAction: AiAgentActionImplementation = {
 const deleteUserAction: AiAgentActionImplementation = {
   permission: 'users:delete',
   async prepare(input) {
-    const user = await User.find(integer(input, 'userId'))
+    const user = await User.find(await resolveUserId(input))
     if (!user) throw new Error('用户不存在')
     return {
       targetType: 'user',
@@ -417,7 +454,7 @@ const createRoleAction: AiAgentActionImplementation = {
 const updateRoleAction: AiAgentActionImplementation = {
   permission: 'roles:update',
   async prepare(input) {
-    const role = await Role.find(integer(input, 'roleId'))
+    const role = await Role.find(await resolveRoleId(input))
     if (!role) throw new Error('角色不存在')
     if (role.isSystem) throw new Error('系统内置角色不可编辑')
     const ids = permissionIds(input)
@@ -459,7 +496,7 @@ const deleteRoleAction: AiAgentActionImplementation = {
   permission: 'roles:delete',
   async prepare(input) {
     const role = await Role.query()
-      .where('id', integer(input, 'roleId'))
+      .where('id', await resolveRoleId(input))
       .withCount('users')
       .withCount('permissions')
       .first()
@@ -544,7 +581,7 @@ const createPermissionAction: AiAgentActionImplementation = {
 const updatePermissionAction: AiAgentActionImplementation = {
   permission: 'permissions:update',
   async prepare(input) {
-    const permission = await Permission.find(integer(input, 'permissionId'))
+    const permission = await Permission.find(await resolvePermissionId(input))
     if (!permission || permission.isSystem) throw new Error('权限不存在或不可编辑')
     return {
       targetType: 'permission',
@@ -581,7 +618,7 @@ const deletePermissionAction: AiAgentActionImplementation = {
   permission: 'permissions:delete',
   async prepare(input) {
     const permission = await Permission.query()
-      .where('id', integer(input, 'permissionId'))
+      .where('id', await resolvePermissionId(input))
       .withCount('roles')
       .first()
     if (!permission) throw new Error('权限不存在')

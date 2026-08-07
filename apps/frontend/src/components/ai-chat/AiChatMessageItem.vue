@@ -3,7 +3,7 @@ import { Bot, Copy, RotateCcw, User } from '@lucide/vue'
 
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
-import type { AiChatAgentActivity } from '@/lib/ai-chat-api'
+import type { AiChatAgentActivity, AiChatPlanStep } from '@/lib/ai-chat-api'
 
 import AiMessageContent from './AiMessageContent.vue'
 
@@ -15,6 +15,7 @@ export interface AiChatMessageItemData {
   content: string
   status?: AiChatMessageItemStatus
   activity?: AiChatAgentActivity
+  plan?: AiChatPlanStep[]
 }
 
 const props = withDefaults(
@@ -66,6 +67,9 @@ function getActivityLabel(activity: AiChatAgentActivity) {
   if (activity.state === 'error' && activity.message) {
     return `${activity.message}${suffix}`
   }
+  if (activity.state === 'error' && activity.errorCode) {
+    return `${t(`ai_chat.errors.${activity.errorCode}`)}${suffix}`
+  }
   const key = `ai_chat.activities.${activity.name}.${activity.state}`
   const label = te(key) ? t(key) : t(`ai_chat.activities.generic.${activity.state}`)
   return `${label}${suffix}`
@@ -83,6 +87,60 @@ function canRetryMessage(message: AiChatMessageItemData) {
     message.id !== props.streamingMessageId &&
     message.id !== 'welcome'
   )
+}
+
+function getPlanLabel(step: AiChatPlanStep) {
+  return t(`ai_chat.plan.${step.key}.${step.state}`)
+}
+
+function getCurrentPlanStep(plan: AiChatPlanStep[]) {
+  return (
+    [...plan].reverse().find((step) => step.state === 'running') ??
+    [...plan].reverse().find((step) => step.state === 'done') ??
+    plan[0]!
+  )
+}
+
+function getActivityTarget(activity?: AiChatAgentActivity) {
+  if (!activity?.detail) return ''
+  if (activity.detail.templateCode) {
+    const key = `ai_chat.query_templates.${activity.detail.templateCode}`
+    return te(key) ? t(key) : activity.detail.templateCode
+  }
+  if (activity.detail.action) {
+    const key = `ai_chat.actions.${activity.detail.action}`
+    const action = te(key) ? t(key) : activity.detail.action
+    const target =
+      activity.detail.targetLabel ??
+      (activity.detail.targetType && activity.detail.targetId
+        ? `${activity.detail.targetType} ${activity.detail.targetId}`
+        : '')
+    return target ? `${action}：${target}` : action
+  }
+  if (activity.detail.permissionCode) return activity.detail.permissionCode
+  if (activity.detail.targetType && activity.detail.targetId) {
+    return `${activity.detail.targetType} ${activity.detail.targetId}`
+  }
+  return ''
+}
+
+function getStatusLabel(message: AiChatMessageItemData) {
+  const activity = message.activity
+  if (!activity) return ''
+  const target = getActivityTarget(activity)
+  if (activity.name === 'run_registered_query') {
+    const key = `ai_chat.query_status.${activity.state}`
+    return `${t(key)}${target ? `：${target}` : ''}`
+  }
+  if (activity.name === 'search_knowledge') {
+    const key = `ai_chat.knowledge_status.${activity.state}`
+    return t(key)
+  }
+  if (message.plan?.length) {
+    const planStep = getCurrentPlanStep(message.plan)
+    return `${getPlanLabel(planStep)}${target ? `：${target}` : ''}`
+  }
+  return getActivityLabel(activity)
 }
 </script>
 
@@ -126,12 +184,18 @@ function canRetryMessage(message: AiChatMessageItemData) {
         </template>
       </div>
       <div
-        v-if="message.role === 'assistant' && message.activity"
+        v-if="message.role === 'assistant' && message.activity && !message.plan?.length"
         class="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground"
       >
         <span v-if="getActivityLabel(message.activity)">
           {{ getActivityLabel(message.activity) }}
         </span>
+      </div>
+      <div
+        v-if="message.role === 'assistant' && message.plan?.length"
+        class="flex flex-wrap gap-x-2 gap-y-1 text-xs text-muted-foreground"
+      >
+        <span class="font-medium text-foreground">{{ getStatusLabel(message) }}</span>
       </div>
       <div
         v-if="showMessageActions && message.id !== 'welcome' && message.content.trim().length > 0"

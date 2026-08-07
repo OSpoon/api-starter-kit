@@ -7,6 +7,7 @@ import type {
   AiChatConfirmation,
   AiChatCredentialDisclosure,
   AiChatPendingConfirmation,
+  AiChatPlanStep,
 } from '@/lib/ai-chat-api'
 import {
   type AiChatConversation,
@@ -33,6 +34,7 @@ type LocalAiChatMessage = {
   content: string
   status?: AiMessageContentStatus
   activity?: AiChatAgentActivity
+  plan?: AiChatPlanStep[]
   citations?: AiChatCitation[]
 }
 
@@ -42,6 +44,7 @@ export type DisplayAiChatMessage = {
   content: string
   status?: AiMessageContentStatus
   activity?: AiChatAgentActivity
+  plan?: AiChatPlanStep[]
 }
 
 export function useAiChat() {
@@ -349,9 +352,17 @@ export function useAiChat() {
               name: event.name,
               state: event.state,
               message: event.message,
+              errorCode: event.errorCode,
               phase: event.phase,
               detail: event.detail,
             }
+            aiStreamingMessages.value = aiStreamingMessages.value.map((item) =>
+              item.id === assistantMessage.id ? { ...assistantMessage } : item
+            )
+          }
+
+          if (event.type === 'agent_plan') {
+            assistantMessage.plan = event.steps
             aiStreamingMessages.value = aiStreamingMessages.value.map((item) =>
               item.id === assistantMessage.id ? { ...assistantMessage } : item
             )
