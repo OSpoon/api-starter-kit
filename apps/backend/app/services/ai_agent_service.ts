@@ -39,22 +39,15 @@ export function getAiAgentModelName() {
 }
 
 function getTemperature() {
-  const configuredTemperature = env.get('AI_TEMPERATURE')
   const defaultTemperature = /qwen/i.test(getAiAgentModelName()) ? 0.1 : 0.3
-  return Math.min(Math.max(configuredTemperature ?? defaultTemperature, 0), 2)
+  return defaultTemperature
 }
 
 export function getAiAgentSummarizationOptions() {
   return {
     enabled: env.get('AI_CONTEXT_COMPRESSION_ENABLED') ?? true,
-    thresholdTokens: Math.min(
-      Math.max(env.get('AI_CONTEXT_COMPRESSION_THRESHOLD_TOKENS') ?? 6000, 1024),
-      1_000_000
-    ),
-    recentMessageCount: Math.min(
-      Math.max(env.get('AI_CONTEXT_COMPRESSION_RECENT_MESSAGES') ?? 8, 1),
-      100
-    ),
+    thresholdTokens: 6000,
+    recentMessageCount: 8,
   }
 }
 
@@ -84,10 +77,6 @@ export function getAiRequestTimeout() {
   return Math.min(Math.max(env.get('AI_REQUEST_TIMEOUT_MS') ?? 180_000, 5_000), 300_000)
 }
 
-function getMaxRetries() {
-  return Math.min(Math.max(env.get('AI_MAX_RETRIES') ?? 2, 0), 5)
-}
-
 export function createAiAgentModel() {
   return new ChatOpenAI({
     apiKey: env.get('AI_OPENAI_API_KEY') || 'no-key',
@@ -97,7 +86,7 @@ export function createAiAgentModel() {
     model: getAiAgentModelName(),
     temperature: getTemperature(),
     timeout: getAiRequestTimeout(),
-    maxRetries: getMaxRetries(),
+    maxRetries: 2,
   })
 }
 

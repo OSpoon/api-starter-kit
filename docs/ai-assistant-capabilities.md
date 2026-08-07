@@ -46,7 +46,7 @@ embedding 模型必须匹配向量维度（默认 `1024`）。上传、替换和
 
 ## 配置与评估
 
-助手通过 `AI_OPENAI_*` 接入 Ollama、OpenAI、DeepSeek、Qwen 或其他 OpenAI 兼容服务；知识检索使用 `AI_EMBEDDING_*`。超时、重试和上下文压缩配置位于 `apps/backend/.env.example`。
+助手通过 `AI_OPENAI_*` 接入 Ollama、OpenAI、DeepSeek、Qwen 或其他 OpenAI 兼容服务；知识检索使用 `AI_EMBEDDING_*`。超时和上下文压缩开关位于 `apps/backend/.env.example`，模型温度、重试次数和摘要阈值使用服务内置默认值。
 
 使用以下命令评估已配置模型：
 
