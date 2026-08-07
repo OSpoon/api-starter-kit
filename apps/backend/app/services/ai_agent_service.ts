@@ -46,8 +46,8 @@ function getTemperature() {
 export function getAiAgentSummarizationOptions() {
   return {
     enabled: env.get('AI_CONTEXT_COMPRESSION_ENABLED') ?? true,
-    thresholdTokens: 6000,
-    recentMessageCount: 8,
+    thresholdTokens: env.get('AI_CONTEXT_COMPRESSION_THRESHOLD_TOKENS') ?? 6000,
+    recentMessageCount: env.get('AI_CONTEXT_COMPRESSION_RECENT_MESSAGES') ?? 8,
   }
 }
 

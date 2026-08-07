@@ -7,7 +7,6 @@ import {
   aiQueryTemplateCodes,
   aiQueryTemplateInstructions,
 } from '#services/ai_agent_query_registry'
-import { resolveGroundedAssistantResponse } from '#services/ai_agent_response_policy'
 import { createAiAgentModel, createAiAgentSystemPrompt } from '#services/ai_agent_service'
 import { aiAssistantEvaluationCases, evaluateAiAssistantTurn } from '#services/ai_evaluation'
 
@@ -94,28 +93,22 @@ export default class AiEvaluate extends BaseCommand {
           const turnTools = calledTools.slice(calledBeforeTurn)
           const lastMessage = result.messages.at(-1)
           const rawContent = typeof lastMessage?.content === 'string' ? lastMessage.content : ''
-          const response = resolveGroundedAssistantResponse({
-            content: rawContent,
-            completedToolNames: new Set(turnTools),
-          })
           const evaluationResult = evaluateAiAssistantTurn({
             evaluation: turn,
             calledTools: turnTools,
-            rawContent,
-            response,
           })
           conversationMessages = [
             ...conversationMessages,
             { role: 'user', content: turn.question },
-            { role: 'assistant', content: response },
+            { role: 'assistant', content: rawContent },
           ]
           if (evaluationResult.passed) {
             this.logger.success(
-              `PASS ${label}: ${turn.expectedTools.join(', ') || 'scope guard'} (${Math.round(performance.now() - startedAt)}ms)`
+              `PASS ${label}: ${turn.expectedTools.join(', ') || 'no tool'} (${Math.round(performance.now() - startedAt)}ms)`
             )
           } else {
             failures.push(
-              `${label}: expected ${turn.expectedTools.join(', ') || 'no tool'} and ${turn.expectedResponse} response, got ${turnTools.join(', ') || 'no tool call'} and ${response === rawContent ? 'grounded' : 'scope'} response`
+              `${label}: expected ${turn.expectedTools.join(', ') || 'no tool call'}, got ${turnTools.join(', ') || 'no tool call'}`
             )
           }
         } catch (error) {

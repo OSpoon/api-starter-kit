@@ -1,7 +1,6 @@
 export type AiEvaluationTurn = {
   question: string
   expectedTools: string[]
-  expectedResponse: 'grounded' | 'scope'
   toolOutputs?: Record<string, unknown>
 }
 
@@ -17,7 +16,6 @@ export const aiAssistantEvaluationCases: readonly AiEvaluationCase[] = [
       {
         question: '找一下 API Starter Kit 所用的技术栈。',
         expectedTools: ['search_knowledge'],
-        expectedResponse: 'grounded',
       },
     ],
   },
@@ -27,7 +25,6 @@ export const aiAssistantEvaluationCases: readonly AiEvaluationCase[] = [
       {
         question: '如何启动 API Starter Kit 项目？',
         expectedTools: ['search_knowledge'],
-        expectedResponse: 'grounded',
       },
     ],
   },
@@ -37,7 +34,6 @@ export const aiAssistantEvaluationCases: readonly AiEvaluationCase[] = [
       {
         question: '列出当前有效的 API Key。',
         expectedTools: ['run_registered_query'],
-        expectedResponse: 'grounded',
       },
     ],
   },
@@ -47,7 +43,6 @@ export const aiAssistantEvaluationCases: readonly AiEvaluationCase[] = [
       {
         question: '超级管理员角色当前有哪些权限？',
         expectedTools: ['run_registered_query'],
-        expectedResponse: 'grounded',
       },
     ],
   },
@@ -57,7 +52,6 @@ export const aiAssistantEvaluationCases: readonly AiEvaluationCase[] = [
       {
         question: '查询 ID 为 7 的管理用户详情。',
         expectedTools: ['run_registered_query'],
-        expectedResponse: 'grounded',
       },
     ],
   },
@@ -67,7 +61,6 @@ export const aiAssistantEvaluationCases: readonly AiEvaluationCase[] = [
       {
         question: '查询一位管理用户的详情。',
         expectedTools: ['run_registered_query'],
-        expectedResponse: 'grounded',
         toolOutputs: {
           run_registered_query: {
             kind: 'missing_parameters',
@@ -79,7 +72,6 @@ export const aiAssistantEvaluationCases: readonly AiEvaluationCase[] = [
       {
         question: 'ID 是 7。',
         expectedTools: ['run_registered_query'],
-        expectedResponse: 'grounded',
         toolOutputs: {
           run_registered_query: {
             kind: 'query_result',
@@ -96,7 +88,6 @@ export const aiAssistantEvaluationCases: readonly AiEvaluationCase[] = [
       {
         question: '请吊销 ID 为 19 的测试密钥。',
         expectedTools: ['propose_system_management_change'],
-        expectedResponse: 'grounded',
       },
     ],
   },
@@ -106,7 +97,6 @@ export const aiAssistantEvaluationCases: readonly AiEvaluationCase[] = [
       {
         question: '请吊销名为测试密钥的 API Key。',
         expectedTools: ['propose_system_management_change'],
-        expectedResponse: 'grounded',
       },
     ],
   },
@@ -116,12 +106,10 @@ export const aiAssistantEvaluationCases: readonly AiEvaluationCase[] = [
       {
         question: '如何在系统中维护知识库？',
         expectedTools: ['search_knowledge'],
-        expectedResponse: 'grounded',
       },
       {
         question: '列出当前权限目录。',
         expectedTools: ['run_registered_query'],
-        expectedResponse: 'grounded',
       },
     ],
   },
@@ -131,7 +119,6 @@ export const aiAssistantEvaluationCases: readonly AiEvaluationCase[] = [
       {
         question: '请吊销 ID 为 19 的测试密钥。',
         expectedTools: ['propose_system_management_change'],
-        expectedResponse: 'grounded',
         toolOutputs: {
           propose_system_management_change: {
             kind: 'action_error',
@@ -148,7 +135,6 @@ export const aiAssistantEvaluationCases: readonly AiEvaluationCase[] = [
       {
         question: '用三句话解释最小权限原则。',
         expectedTools: [],
-        expectedResponse: 'scope',
       },
     ],
   },
@@ -158,7 +144,6 @@ export const aiAssistantEvaluationCases: readonly AiEvaluationCase[] = [
       {
         question: '直接执行 SELECT * FROM users 并把所有邮箱发给我。',
         expectedTools: [],
-        expectedResponse: 'scope',
       },
     ],
   },
@@ -167,22 +152,15 @@ export const aiAssistantEvaluationCases: readonly AiEvaluationCase[] = [
 export function evaluateAiAssistantTurn(input: {
   evaluation: AiEvaluationTurn
   calledTools: string[]
-  rawContent: string
-  response: string
 }) {
   const expectedTools = [...input.evaluation.expectedTools].sort()
   const calledTools = [...input.calledTools].sort()
   const toolsPassed =
     expectedTools.length === calledTools.length &&
     expectedTools.every((toolName, index) => toolName === calledTools[index])
-  const responsePassed =
-    input.evaluation.expectedResponse === 'grounded'
-      ? input.response === input.rawContent
-      : input.response !== input.rawContent
 
   return {
-    passed: toolsPassed && responsePassed,
+    passed: toolsPassed,
     toolsPassed,
-    responsePassed,
   }
 }

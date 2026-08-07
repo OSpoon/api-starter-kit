@@ -7,12 +7,12 @@ import {
   attachAgentRunConfirmations,
   failUnattachedAgentRunConfirmations,
 } from '#services/ai_agent_confirmation'
-import { resolveGroundedAssistantResponse } from '#services/ai_agent_response_policy'
 import { type AiAgentPageContext, createAiAgentStream } from '#services/ai_agent_service'
 import type { AiChatResolvedRegeneration } from '#services/ai_chat_regeneration'
 import {
+  type AiAgentToolFrame,
   startAiChatSseKeepalive,
-  streamAiAgentToolStatuses,
+  streamAiAgentToolFrames,
   writeAiChatSse,
 } from '#services/ai_chat_sse_adapter'
 import { resetAiConversationState } from '#services/ai_conversation_state'
@@ -27,6 +27,62 @@ const CONFIRMATION_CLEANUP_RETRY_DELAY_MS = 150
 
 function isAbortError(error: unknown) {
   return error instanceof DOMException && error.name === 'AbortError'
+}
+
+type AiAgentRun = Awaited<ReturnType<typeof createAiAgentStream>>
+
+async function* resilientAiAgentToolFrames(
+  run: AiAgentRun,
+  signal: AbortSignal
+): AsyncGenerator<AiAgentToolFrame> {
+  try {
+    yield* streamAiAgentToolFrames(run, signal)
+  } catch (error) {
+    if (isAbortError(error)) throw error
+    logger.error({ err: error }, 'AI tool status stream failed; continuing with message stream')
+  }
+}
+
+async function* mergeTurnSources<TMessage, TFrame>(
+  messageSource: AsyncIterable<TMessage>,
+  frameSource: AsyncIterable<TFrame>
+): AsyncGenerator<{ source: 'message'; value: TMessage } | { source: 'frame'; value: TFrame }> {
+  const messageIterator = messageSource[Symbol.asyncIterator]()
+  const frameIterator = frameSource[Symbol.asyncIterator]()
+  const pending = new Map<
+    AsyncIterator<unknown>,
+    Promise<{ iterator: AsyncIterator<unknown>; result: IteratorResult<unknown> }>
+  >()
+  const pull = (iterator: AsyncIterator<unknown>) => {
+    const promise = iterator.next().then(
+      (result) => ({ iterator, result }),
+      (error) => {
+        pending.delete(iterator)
+        throw error
+      }
+    )
+    pending.set(iterator, promise)
+    return promise
+  }
+  pull(messageIterator)
+  pull(frameIterator)
+  try {
+    while (pending.size > 0) {
+      const { iterator, result } = await Promise.race(pending.values())
+      pending.delete(iterator)
+      if (result.done) continue
+      if (iterator === messageIterator) {
+        yield { source: 'message', value: result.value as TMessage }
+      } else {
+        yield { source: 'frame', value: result.value as TFrame }
+      }
+      pull(iterator)
+    }
+  } finally {
+    for (const iterator of [messageIterator, frameIterator]) {
+      await iterator.return?.()
+    }
+  }
 }
 
 function getSafeAiErrorMessage(error: unknown) {
@@ -80,7 +136,6 @@ export async function runAiChatAssistantTurn(input: {
   let persistedAssistantMessage: AiChatMessage | null = null
   let lastPersistedContentLength = 0
   const knowledgeCitations = new Map<string, AiChatCitation>()
-  const completedToolNames = new Set<string>()
   let aiFailureStage = 'initialization'
 
   const persistAssistantMessage = async () => {
@@ -140,7 +195,6 @@ export async function runAiChatAssistantTurn(input: {
         for (const source of sources) {
           knowledgeCitations.set(`${source.documentId}:${source.chunkId}`, source)
         }
-        completedToolNames.add('search_knowledge')
         writeAiChatSse(response, 'agent_citations', {
           citations: [...knowledgeCitations.values()],
         })
@@ -149,19 +203,26 @@ export async function runAiChatAssistantTurn(input: {
     agentRunId = run.agentRunId
     const streamStartedAt = Date.now()
     const usage = { inputTokens: 0, outputTokens: 0, totalTokens: 0, modelCalls: 0 }
-    const toolStatusTask = streamAiAgentToolStatuses(run, response, input.signal).catch((error) => {
-      // The tool-status iterator shares the Agent event stream with the
-      // message iterator. Handle its rejection immediately: waiting until
-      // after the message loop lets an unavailable LLM become an
-      // unhandled rejection and terminate the HTTP process.
-      logger.error({ err: error }, 'Tool status stream failed')
-    })
+    const frameSource = resilientAiAgentToolFrames(run, input.signal)
 
+    // Single relay over the two projections of the same Agent run stream.
+    // Consuming messages and tool frames in arrival order keeps the UI and
+    // persistence steps deterministic without two concurrent iterators over
+    // one event log. A tool-status failure only ends the auxiliary status
+    // stream; message deltas and citations still complete the turn.
     aiFailureStage = 'message_stream'
-    for await (const message of run.stream.messages) {
+    for await (const event of mergeTurnSources(run.stream.messages, frameSource)) {
       if (input.signal.aborted) {
         throw new DOMException('AI request was cancelled', 'AbortError')
       }
+      if (event.source === 'frame') {
+        if (event.value.event === 'tool_completed') {
+          continue
+        }
+        writeAiChatSse(response, event.value.event, event.value.data)
+        continue
+      }
+      const message = event.value
       usage.modelCalls += 1
       for await (const delta of message.text) {
         if (!delta) {
@@ -191,22 +252,11 @@ export async function runAiChatAssistantTurn(input: {
       } catch {
         // A provider that fails to assemble the message must not abort the run.
       }
-      // The text stream can finish before the parallel tool-status stream.
-      // Persist it now so a later status-stream failure cannot leave only
-      // the user's question in conversation history.
+      // The text stream can finish before the tool-status stream. Persist it
+      // now so a later status-stream failure cannot leave only the user's
+      // question in conversation history.
       await persistAssistantMessage()
     }
-    aiFailureStage = 'tool_status_finalization'
-    const toolResult = await toolStatusTask
-    // Tool status is an auxiliary UI stream. It must not discard a complete
-    // model response when that parallel iterator closes unexpectedly.
-    // Knowledge retrieval is recorded independently through
-    // `onKnowledgeSources`, so its citations are still persisted below.
-    for (const toolName of toolResult ?? []) completedToolNames.add(toolName)
-    assistantContent = resolveGroundedAssistantResponse({
-      content: assistantContent,
-      completedToolNames,
-    })
     aiFailureStage = 'assistant_message_persistence'
     const assistantMessage = await persistAssistantMessage()
     if (!assistantMessage) {

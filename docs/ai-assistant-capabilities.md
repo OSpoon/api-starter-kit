@@ -38,7 +38,7 @@ flowchart TB
 
 ## 配置与观测
 
-模型通过 `AI_OPENAI_*` 接入 OpenAI 兼容服务；知识检索使用 `AI_EMBEDDING_*`。上下文压缩由 `AI_CONTEXT_COMPRESSION_ENABLED` 控制，Agent 请求超时由 `AI_REQUEST_TIMEOUT_MS` 控制。
+模型通过 `AI_OPENAI_*` 接入 OpenAI 兼容服务；知识检索使用 `AI_EMBEDDING_*`。上下文压缩由 `AI_CONTEXT_COMPRESSION_ENABLED` 控制（触发阈值 `AI_CONTEXT_COMPRESSION_THRESHOLD_TOKENS`，保留消息数 `AI_CONTEXT_COMPRESSION_RECENT_MESSAGES`），Agent 请求超时由 `AI_REQUEST_TIMEOUT_MS` 控制。
 
 Langfuse 通过 `LANGFUSE_PUBLIC_KEY`、`LANGFUSE_SECRET_KEY`、`LANGFUSE_BASE_URL`（以及启用开关）提供模型运行观测。项目不再维护独立的 AI 请求计时指标。
 
