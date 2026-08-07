@@ -136,7 +136,7 @@ function createAiAgent(input: {
         ]
       : []),
     // Native LangChain safeguards for one user-message -> agent-response run.
-    modelCallLimitMiddleware({ runLimit: 6, exitBehavior: 'error' }),
+    modelCallLimitMiddleware({ runLimit: 6, exitBehavior: 'end' }),
     toolCallLimitMiddleware({ runLimit: 10, exitBehavior: 'continue' }),
   ]
 
@@ -210,6 +210,10 @@ export async function createAiAgentStream(input: {
     {
       version: 'v3',
       signal: input.signal,
+      // The graph counts model and tool nodes separately. Keep this above
+      // the middleware call/tool budgets so those safeguards can terminate
+      // the run before LangGraph's generic recursion guard does.
+      recursionLimit: 50,
       ...getAiAgentCheckpointConfig(checkpointInput),
       ...(langfuseCallback ? { callbacks: [langfuseCallback] } : {}),
     }

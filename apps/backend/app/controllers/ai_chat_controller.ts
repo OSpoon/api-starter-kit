@@ -4,6 +4,7 @@ import { ApiOperation, ApiResponse, ApiSecurity } from '@foadonis/openapi/decora
 
 import AiChatConversation from '#models/ai_chat_conversation'
 import AiChatMessage, { type AiChatCitation } from '#models/ai_chat_message'
+import type { AiAgentActionToolArtifact } from '#services/ai_agent_confirmation'
 import {
   AiAgentConfirmationError,
   attachAgentRunConfirmations,
@@ -11,7 +12,6 @@ import {
   failUnattachedAgentRunConfirmations,
   listConversationConfirmations,
 } from '#services/ai_agent_confirmation'
-import type { AiAgentActionToolArtifact } from '#services/ai_agent_registry'
 import { resolveGroundedAssistantResponse } from '#services/ai_agent_response_policy'
 import { createAiAgentStream, getAiRequestTimeout } from '#services/ai_agent_service'
 import { resolveAiChatRegeneration } from '#services/ai_chat_regeneration'
@@ -59,6 +59,21 @@ function getSafeAiErrorMessage(error: unknown) {
   return '本次 AI 请求未完成，请稍后重试。'
 }
 
+function getAgentStatusDetail(name: string, input: unknown) {
+  if (!input || typeof input !== 'object') return undefined
+  const values = input as Record<string, unknown>
+  if (name === 'run_registered_query' && typeof values.templateCode === 'string') {
+    return { templateCode: values.templateCode }
+  }
+  if (name === 'propose_system_management_change' && typeof values.action === 'string') {
+    return { action: values.action }
+  }
+  if (name === 'diagnose_my_access' && typeof values.permissionCode === 'string') {
+    return { permissionCode: values.permissionCode }
+  }
+  return undefined
+}
+
 function readAgentToolArtifact(output: unknown): AiAgentActionToolArtifact | null {
   const artifact =
     output && typeof output === 'object' && 'artifact' in output ? output.artifact : null
@@ -101,8 +116,14 @@ async function streamAiAgentToolStatuses(
   for await (const toolCall of run.stream.toolCalls) {
     if (signal.aborted) throw new DOMException('AI request was cancelled', 'AbortError')
     timing.markFirstAgentEvent()
-    timing.startTool(toolCall.name)
-    writeSse(response, 'agent_status', { name: toolCall.name, state: 'running' })
+    timing.markFirstToolStarted()
+    writeSse(response, 'agent_status', {
+      name: toolCall.name,
+      state: 'running',
+      ...(getAgentStatusDetail(toolCall.name, toolCall.input)
+        ? { detail: getAgentStatusDetail(toolCall.name, toolCall.input) }
+        : {}),
+    })
     const state = await toolCall.status
     const output = state === 'finished' ? await toolCall.output : null
     const toolArtifact = readAgentToolArtifact(output)
@@ -114,9 +135,12 @@ async function streamAiAgentToolStatuses(
     writeSse(response, 'agent_status', {
       name: toolCall.name,
       state: state === 'finished' && !visibleToolError ? 'done' : 'error',
+      ...(getAgentStatusDetail(toolCall.name, toolCall.input)
+        ? { detail: getAgentStatusDetail(toolCall.name, toolCall.input) }
+        : {}),
       ...(visibleToolError ? { message: visibleToolError } : {}),
     })
-    timing.finishTool(toolCall.name)
+    timing.markFirstToolCompleted()
     if (state === 'finished') {
       completedToolNames.add(toolCall.name)
       await onToolCompleted?.(toolCall.name, output)
@@ -248,6 +272,7 @@ export default class AiChatController {
     const completedToolNames = new Set<string>()
     const timing = new AiChatTiming()
     let timingOutcome: 'completed' | 'failed' | 'aborted' = 'failed'
+    let aiFailureStage = 'initialization'
     const requestTimeout = setTimeout(() => abortController.abort(), getAiRequestTimeout())
 
     const persistAssistantMessage = async () => {
@@ -277,7 +302,6 @@ export default class AiChatController {
 
     try {
       stopKeepalive = startSseKeepalive(response)
-      timing.startNode('context_preparation')
       const persistedMessages = payload.regenerateAssistantMessageId
         ? regeneration!.messages
         : conversation.messages
@@ -293,8 +317,7 @@ export default class AiChatController {
             })),
             { role: userMessage.role, content: userMessage.content },
           ]
-      timing.finishNode('context_preparation')
-      timing.startNode('agent_run')
+      aiFailureStage = 'agent_stream'
       const run = await createAiAgentStream({
         conversationId: conversation.id,
         userId: user.id,
@@ -334,6 +357,7 @@ export default class AiChatController {
         logger.error({ err: error }, 'Tool status stream failed')
       })
 
+      aiFailureStage = 'message_stream'
       for await (const message of run.stream.messages) {
         timing.markFirstAgentEvent()
         if (abortController.signal.aborted) {
@@ -366,14 +390,13 @@ export default class AiChatController {
         // the user's question in conversation history.
         await persistAssistantMessage()
       }
+      aiFailureStage = 'tool_status_finalization'
       const toolResult = await toolStatusTask
       // Tool status is an auxiliary UI stream. It must not discard a complete
       // model response when that parallel iterator closes unexpectedly.
       // Knowledge retrieval is recorded independently through
       // `onKnowledgeSources`, so its citations are still persisted below.
       for (const toolName of toolResult ?? []) completedToolNames.add(toolName)
-      timing.finishNode('agent_run')
-      timing.startNode('finalize_reply')
       assistantContent = resolveGroundedAssistantResponse({
         content: assistantContent,
         completedToolNames,
@@ -381,32 +404,83 @@ export default class AiChatController {
       if (!hasCompletedTool) {
         writeSse(response, 'delta', { content: assistantContent })
       }
+      aiFailureStage = 'assistant_message_persistence'
       const assistantMessage = await persistAssistantMessage()
       if (!assistantMessage) {
         throw new Error('AI response did not contain assistant content')
       }
-      const confirmations = await attachAgentRunConfirmations({
-        conversationId: conversation.id,
-        userId: user.id,
-        agentRunId: run.agentRunId,
-        assistantMessageId: assistantMessage.id,
-      })
+      aiFailureStage = 'confirmation_attachment'
+      let confirmations: Awaited<ReturnType<typeof attachAgentRunConfirmations>> = []
+      try {
+        confirmations = await attachAgentRunConfirmations({
+          conversationId: conversation.id,
+          userId: user.id,
+          agentRunId: run.agentRunId,
+          assistantMessageId: assistantMessage.id,
+        })
+      } catch (error) {
+        logger.error(
+          { err: error, conversationId: conversation.id },
+          'AI confirmation attachment failed'
+        )
+      }
 
-      await conversation.load('messages', (query) => query.orderBy('created_at', 'asc'))
+      try {
+        await conversation.load('messages', (query) => query.orderBy('created_at', 'asc'))
+      } catch (error) {
+        logger.error(
+          { err: error, conversationId: conversation.id },
+          'AI conversation reload failed'
+        )
+      }
+      aiFailureStage = 'done_event_serialization'
       writeSse(response, 'done', {
         conversation: serializeAiChatConversationWithMessages(conversation),
         message: serializeAiChatMessage(assistantMessage),
         confirmations,
       })
-      timing.finishNode('finalize_reply')
       timingOutcome = 'completed'
     } catch (error) {
       timingOutcome = isAbortError(error) ? 'aborted' : 'failed'
+      logger.error(
+        { err: error, conversationId: conversation.id, agentRunId, aiFailureStage },
+        'AI chat stream failed'
+      )
       const message = getSafeAiErrorMessage(error)
-      assistantContent = assistantContent.trim() ? `${assistantContent}\n\n${message}` : message
+      const hasPartialAssistantContent = Boolean(assistantContent.trim())
+      // Preserve a useful partial response (for example, a confirmation
+      // proposal) when a parallel stream fails during finalization. The SSE
+      // error event still terminates the request, but the persisted message
+      // must not duplicate it with a generic failure sentence.
+      assistantContent = assistantContent.trim() ? assistantContent : message
       const failedAssistantMessage = await persistAssistantMessage()
       if (!failedAssistantMessage) {
         throw error
+      }
+      if (hasPartialAssistantContent) {
+        let confirmations: Awaited<ReturnType<typeof attachAgentRunConfirmations>> = []
+        if (agentRunId) {
+          try {
+            confirmations = await attachAgentRunConfirmations({
+              conversationId: conversation.id,
+              userId: user.id,
+              agentRunId,
+              assistantMessageId: failedAssistantMessage.id,
+            })
+          } catch (attachmentError) {
+            logger.error(
+              { err: attachmentError, conversationId: conversation.id, agentRunId },
+              'AI recovered confirmation attachment failed'
+            )
+          }
+        }
+        writeSse(response, 'done', {
+          conversation: serializeAiChatConversationWithMessages(conversation),
+          message: serializeAiChatMessage(failedAssistantMessage),
+          confirmations,
+        })
+        timingOutcome = 'completed'
+        return
       }
       if (agentRunId) {
         // Confirmation cleanup must not prevent the streamed assistant text
@@ -432,7 +506,6 @@ export default class AiChatController {
       clearTimeout(requestTimeout)
       stopKeepalive?.()
       response.response.off('close', abortOnDisconnect)
-      timing.finishOpenNodes()
       logger.info(
         {
           conversationId: conversation.id,

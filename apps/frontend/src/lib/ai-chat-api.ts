@@ -76,6 +76,11 @@ export interface AiChatAgentActivity {
   name: string
   state: 'running' | 'done' | 'error'
   message?: string
+  detail?: {
+    templateCode?: string
+    action?: string
+    permissionCode?: string
+  }
 }
 
 export class AiChatStreamIncompleteError extends Error {

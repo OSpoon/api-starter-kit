@@ -52,11 +52,15 @@ function getMessageContent(content: string) {
 }
 
 function getActivityLabel(activity: AiChatAgentActivity) {
+  const detail =
+    activity.detail?.action ?? activity.detail?.templateCode ?? activity.detail?.permissionCode
+  const suffix = detail ? `：${detail}` : ''
   if (activity.state === 'error' && activity.message) {
-    return activity.message
+    return `${activity.message}${suffix}`
   }
   const key = `ai_chat.activities.${activity.name}.${activity.state}`
-  return te(key) ? t(key) : t(`ai_chat.activities.generic.${activity.state}`)
+  const label = te(key) ? t(key) : t(`ai_chat.activities.generic.${activity.state}`)
+  return `${label}${suffix}`
 }
 
 function canRetryMessage(message: AiChatMessageItemData) {

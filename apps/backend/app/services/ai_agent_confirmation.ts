@@ -14,6 +14,16 @@ import { recordAuditEvent } from '#services/audit_log'
 
 const confirmationLifetimeMinutes = 5
 
+export type AiAgentActionToolArtifact =
+  | { kind: 'confirmation'; confirmation: AiAgentConfirmationSummary }
+  | { kind: 'action_error'; message: string }
+
+export function createAiAgentActionToolResult(
+  artifact: AiAgentActionToolArtifact
+): [string, AiAgentActionToolArtifact] {
+  return [JSON.stringify(artifact), artifact]
+}
+
 export type AiAgentConfirmationSummary = {
   id: number
   action: string

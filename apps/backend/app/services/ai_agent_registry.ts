@@ -1,19 +1,12 @@
-import { Bouncer } from '@adonisjs/bouncer'
 import { tool } from 'langchain'
 import { z } from 'zod'
 
-import { access } from '#abilities/main'
-import AuditLog from '#models/audit_log'
-import User from '#models/user'
-import { buildMyAccessDiagnosis } from '#services/ai_access_diagnostic'
-import {
-  aiAgentChangeSchema,
-  getAiAgentAction,
-  getAiAgentActionCapabilities,
-} from '#services/ai_agent_action_registry'
+import { diagnoseMyAccess } from '#services/ai_access_diagnostic'
+import { aiAgentChangeSchema, getAiAgentAction } from '#services/ai_agent_action_registry'
+import { ensureAiAgentPermission } from '#services/ai_agent_authorization'
 import {
   AiAgentConfirmationError,
-  type AiAgentConfirmationSummary,
+  createAiAgentActionToolResult,
   proposeAiAgentAction,
 } from '#services/ai_agent_confirmation'
 import {
@@ -22,56 +15,7 @@ import {
   runRegisteredAiQuery,
 } from '#services/ai_agent_query_registry'
 import { searchKnowledge } from '#services/knowledge_service'
-import { type PermissionCode, permissionCodes } from '#services/permission_catalog'
-import { loadUserAccess } from '#services/user_access'
-
-export interface AiAgentCapability {
-  name: string
-  description: string
-  permission?: string
-  requiresConfirmation: boolean
-}
-
-export type AiAgentActionToolArtifact =
-  | { kind: 'confirmation'; confirmation: AiAgentConfirmationSummary }
-  | { kind: 'action_error'; message: string }
-
-function actionToolResult(
-  artifact: AiAgentActionToolArtifact
-): [string, AiAgentActionToolArtifact] {
-  return [JSON.stringify(artifact), artifact]
-}
-
-const readAgentCapabilities: readonly AiAgentCapability[] = [
-  {
-    name: 'diagnose_my_access',
-    description: 'Explain the current user’s effective access.',
-    requiresConfirmation: false,
-  },
-  {
-    name: 'run_registered_query',
-    description: 'Run a pre-registered, permission-checked, redacted database query.',
-    requiresConfirmation: false,
-  },
-  {
-    name: 'search_knowledge',
-    description: 'Search indexed knowledge-base guidance available to the current user.',
-    permission: 'knowledge:read',
-    requiresConfirmation: false,
-  },
-]
-
-export const aiAgentCapabilities: readonly AiAgentCapability[] = [
-  ...readAgentCapabilities,
-  ...getAiAgentActionCapabilities(),
-]
-
-async function ensurePermission(userId: number, permission: PermissionCode) {
-  const user = await User.findOrFail(userId)
-  const bouncer = new Bouncer(() => user, { access })
-  if (!(await bouncer.allows('access', permission))) throw new Error('当前账号没有执行此操作的权限')
-  return user
-}
+import { permissionCodes } from '#services/permission_catalog'
 
 export function createAiAgentTools(input: {
   userId: number
@@ -92,24 +36,7 @@ export function createAiAgentTools(input: {
     tool(
       async ({ permissionCode }) => {
         throwIfAborted()
-        const user = await User.findOrFail(input.userId)
-        await loadUserAccess(user)
-        const diagnosis = buildMyAccessDiagnosis(
-          user.roles.map((role) => ({
-            code: role.code,
-            name: role.name,
-            permissions: role.permissions.map((permission) => permission.code),
-          })),
-          permissionCode
-        )
-        await AuditLog.create({
-          actorUserId: user.id,
-          action: 'agent.access_diagnosed',
-          targetType: 'user',
-          targetId: String(user.id),
-          metadata: { permissionCode: permissionCode ?? null },
-        })
-        return JSON.stringify(diagnosis)
+        return diagnoseMyAccess(input.userId, permissionCode)
       },
       {
         name: 'diagnose_my_access',
@@ -128,12 +55,12 @@ export function createAiAgentTools(input: {
             params,
           })
           throwIfAborted()
-          return JSON.stringify(result)
+          return result
         } catch (error) {
-          return JSON.stringify({
+          return {
             kind: 'query_error',
             message: error instanceof Error ? error.message : '查询未完成',
-          })
+          }
         }
       },
       {
@@ -148,7 +75,7 @@ export function createAiAgentTools(input: {
     tool(
       async ({ query }) => {
         throwIfAborted()
-        const user = await ensurePermission(input.userId, 'knowledge:read')
+        const user = await ensureAiAgentPermission(input.userId, 'knowledge:read')
         const sources = await searchKnowledge({ user, query })
         const serializedSources = sources.map((source) => ({
           documentId: source.documentId,
@@ -157,12 +84,12 @@ export function createAiAgentTools(input: {
           excerpt: source.content,
         }))
         input.onKnowledgeSources?.(serializedSources)
-        return JSON.stringify({
+        return {
           sources: serializedSources.map((source, index) => ({
             ...source,
             similarity: sources[index].similarity,
           })),
-        })
+        }
       },
       {
         name: 'search_knowledge',
@@ -176,7 +103,7 @@ export function createAiAgentTools(input: {
         try {
           throwIfAborted()
           const definition = getAiAgentAction(action)!
-          await ensurePermission(input.userId, definition.permission)
+          await ensureAiAgentPermission(input.userId, definition.permission)
           const confirmation = await proposeAiAgentAction({
             action,
             actionInput,
@@ -185,13 +112,13 @@ export function createAiAgentTools(input: {
             agentRunId: input.agentRunId,
           })
           throwIfAborted()
-          return actionToolResult({ kind: 'confirmation', confirmation })
+          return createAiAgentActionToolResult({ kind: 'confirmation', confirmation })
         } catch (error) {
           const message = error instanceof Error ? error.message : '无法准备受控操作'
           if (error instanceof AiAgentConfirmationError) {
-            return actionToolResult({ kind: 'action_error', message: error.message })
+            return createAiAgentActionToolResult({ kind: 'action_error', message: error.message })
           }
-          return actionToolResult({
+          return createAiAgentActionToolResult({
             kind: 'action_error',
             message,
           })

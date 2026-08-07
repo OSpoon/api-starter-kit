@@ -1,14 +1,13 @@
-import { Bouncer } from '@adonisjs/bouncer'
 import type { HttpContext } from '@adonisjs/core/http'
 import { DateTime } from 'luxon'
 import { z } from 'zod'
 
-import { access } from '#abilities/main'
 import type AiAgentConfirmation from '#models/ai_agent_confirmation'
 import ApiKey from '#models/api_key'
 import Permission from '#models/permission'
 import Role from '#models/role'
 import User from '#models/user'
+import { ensureAiAgentPermission } from '#services/ai_agent_authorization'
 import { createApiKey } from '#services/api_key_service'
 import { recordAuditEvent } from '#services/audit_log'
 import type { PermissionCode } from '#services/permission_catalog'
@@ -92,8 +91,9 @@ export const aiAgentChangeSchema = z.object({
 
 async function ensurePermission(ctx: HttpContext, permission: PermissionCode) {
   const user = ctx.auth.getUserOrFail()
-  const bouncer = new Bouncer(() => user, { access })
-  if (!(await bouncer.allows('access', permission))) {
+  try {
+    await ensureAiAgentPermission(user.id, permission)
+  } catch {
     throw new AiAgentActionAuthorizationError('当前账号没有执行此操作的权限')
   }
   return user
@@ -705,13 +705,4 @@ export function getAiAgentActionChangeSummary(action: string, payload: Record<st
   }
 
   return []
-}
-
-export function getAiAgentActionCapabilities() {
-  return Object.entries(aiAgentActions).map(([name, action]) => ({
-    name,
-    description: `Prepare ${name.replaceAll('_', ' ')} for explicit confirmation.`,
-    permission: action.permission,
-    requiresConfirmation: true,
-  }))
 }

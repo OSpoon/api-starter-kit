@@ -1,3 +1,7 @@
+import AuditLog from '#models/audit_log'
+import User from '#models/user'
+import { loadUserAccess } from '#services/user_access'
+
 export type AiAccessRole = {
   code: string
   name: string
@@ -23,4 +27,25 @@ export function buildMyAccessDiagnosis(roles: AiAccessRole[], requestedPermissio
         }
       : null,
   }
+}
+
+export async function diagnoseMyAccess(userId: number, requestedPermission?: string) {
+  const user = await User.findOrFail(userId)
+  await loadUserAccess(user)
+  const diagnosis = buildMyAccessDiagnosis(
+    user.roles.map((role) => ({
+      code: role.code,
+      name: role.name,
+      permissions: role.permissions.map((permission) => permission.code),
+    })),
+    requestedPermission
+  )
+  await AuditLog.create({
+    actorUserId: user.id,
+    action: 'agent.access_diagnosed',
+    targetType: 'user',
+    targetId: String(user.id),
+    metadata: { permissionCode: requestedPermission ?? null },
+  })
+  return diagnosis
 }

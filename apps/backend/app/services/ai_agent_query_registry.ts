@@ -1,14 +1,13 @@
-import { Bouncer } from '@adonisjs/bouncer'
 import { DateTime } from 'luxon'
 import { z } from 'zod'
 
-import { access } from '#abilities/main'
 import AiAgentPendingQuery from '#models/ai_agent_pending_query'
 import ApiKey from '#models/api_key'
 import AuditLog from '#models/audit_log'
 import Permission from '#models/permission'
 import Role from '#models/role'
 import User from '#models/user'
+import { ensureAiAgentPermission } from '#services/ai_agent_authorization'
 import type { PermissionCode } from '#services/permission_catalog'
 
 export type AiQueryParameter = {
@@ -365,9 +364,7 @@ export function getAiQueryTemplate(code: string) {
 }
 
 async function ensurePermission(userId: number, permission: PermissionCode) {
-  const user = await User.findOrFail(userId)
-  const bouncer = new Bouncer(() => user, { access })
-  if (!(await bouncer.allows('access', permission))) throw new Error('当前账号没有执行此查询的权限')
+  await ensureAiAgentPermission(userId, permission, '当前账号没有执行此查询的权限')
 }
 
 async function recordQueryAudit(input: {
