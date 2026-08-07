@@ -349,6 +349,8 @@ export function useAiChat() {
               name: event.name,
               state: event.state,
               message: event.message,
+              phase: event.phase,
+              detail: event.detail,
             }
             aiStreamingMessages.value = aiStreamingMessages.value.map((item) =>
               item.id === assistantMessage.id ? { ...assistantMessage } : item

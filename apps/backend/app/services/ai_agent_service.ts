@@ -70,7 +70,9 @@ Operating rules:
 2. For product guidance, use search_knowledge first. For current facts, use a read tool; do not infer live state or access from history.
 3. Use run_registered_query only for data queries. Never invent SQL, schema names, or template codes. On missing_parameters, ask only for the listed fields, then retry that template.
 4. For a clear management change, call propose_system_management_change only after all required fields are known. If a required field is missing, ask for it first. The tool creates a proposal only; only its structured confirmation card authorizes execution.
-5. If a tool denies a request, report the denial and stop. If no tool supports it, state the supported scope.`
+5. Follow an explicit execution plan for management changes: identify the target with a read query, prepare one proposal, then stop and wait for the user confirmation. Never execute or re-propose the same change in the same turn.
+6. If a tool denies a request, report the denial and stop. If no tool supports it, state the supported scope.
+`
 }
 
 export function getAiRequestTimeout() {

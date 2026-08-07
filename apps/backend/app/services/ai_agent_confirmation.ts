@@ -16,7 +16,11 @@ const confirmationLifetimeMinutes = 5
 
 export type AiAgentActionToolArtifact =
   | { kind: 'confirmation'; confirmation: AiAgentConfirmationSummary }
-  | { kind: 'action_error'; message: string }
+  | {
+      kind: 'action_error'
+      code: 'permission_denied' | 'invalid_input' | 'conflict' | 'failed'
+      message: string
+    }
 
 export function createAiAgentActionToolResult(
   artifact: AiAgentActionToolArtifact

@@ -110,6 +110,7 @@ export const aiAssistantEvaluationCases: readonly AiEvaluationCase[] = [
         toolOutputs: {
           propose_system_management_change: {
             kind: 'action_error',
+            code: 'permission_denied',
             message: '当前账号没有执行此操作的权限',
           },
         },

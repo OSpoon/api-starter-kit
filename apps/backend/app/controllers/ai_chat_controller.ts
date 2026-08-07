@@ -4,7 +4,6 @@ import { ApiOperation, ApiResponse, ApiSecurity } from '@foadonis/openapi/decora
 
 import AiChatConversation from '#models/ai_chat_conversation'
 import AiChatMessage, { type AiChatCitation } from '#models/ai_chat_message'
-import type { AiAgentActionToolArtifact } from '#services/ai_agent_confirmation'
 import {
   AiAgentConfirmationError,
   attachAgentRunConfirmations,
@@ -15,7 +14,11 @@ import {
 import { resolveGroundedAssistantResponse } from '#services/ai_agent_response_policy'
 import { createAiAgentStream, getAiRequestTimeout } from '#services/ai_agent_service'
 import { resolveAiChatRegeneration } from '#services/ai_chat_regeneration'
-import { AiChatTiming } from '#services/ai_chat_timing'
+import {
+  startAiChatSseKeepalive,
+  streamAiAgentToolStatuses,
+  writeAiChatSse,
+} from '#services/ai_chat_sse_adapter'
 import { resetAiConversationState } from '#services/ai_conversation_state'
 import {
   serializeAiChatConversation,
@@ -29,27 +32,6 @@ function createTitle(content: string) {
   return title.length > 60 ? `${title.slice(0, 57)}...` : title || 'New chat'
 }
 
-function writeSse(response: HttpContext['response'], event: string, data: unknown) {
-  if (response.response.writableEnded || response.response.destroyed) {
-    return
-  }
-  response.response.write(`event: ${event}\n`)
-  response.response.write(`data: ${JSON.stringify(data)}\n\n`)
-}
-
-const SSE_KEEPALIVE_INTERVAL_MS = 15_000
-
-function startSseKeepalive(response: HttpContext['response']) {
-  const handle = setInterval(() => {
-    if (response.response.writableEnded || response.response.destroyed) {
-      clearInterval(handle)
-      return
-    }
-    response.response.write(': keepalive\n\n')
-  }, SSE_KEEPALIVE_INTERVAL_MS)
-  return () => clearInterval(handle)
-}
-
 function isAbortError(error: unknown) {
   return error instanceof DOMException && error.name === 'AbortError'
 }
@@ -57,99 +39,6 @@ function isAbortError(error: unknown) {
 function getSafeAiErrorMessage(error: unknown) {
   if (isAbortError(error)) return '已停止生成本次回复。'
   return '本次 AI 请求未完成，请稍后重试。'
-}
-
-function getAgentStatusDetail(name: string, input: unknown) {
-  if (!input || typeof input !== 'object') return undefined
-  const values = input as Record<string, unknown>
-  if (name === 'run_registered_query' && typeof values.templateCode === 'string') {
-    return { templateCode: values.templateCode }
-  }
-  if (name === 'propose_system_management_change' && typeof values.action === 'string') {
-    return { action: values.action }
-  }
-  if (name === 'diagnose_my_access' && typeof values.permissionCode === 'string') {
-    return { permissionCode: values.permissionCode }
-  }
-  return undefined
-}
-
-function readAgentToolArtifact(output: unknown): AiAgentActionToolArtifact | null {
-  const artifact =
-    output && typeof output === 'object' && 'artifact' in output ? output.artifact : null
-  if (
-    artifact &&
-    typeof artifact === 'object' &&
-    'kind' in artifact &&
-    (artifact.kind === 'confirmation' || artifact.kind === 'action_error')
-  ) {
-    return artifact as AiAgentActionToolArtifact
-  }
-
-  const content =
-    typeof output === 'string'
-      ? output
-      : output &&
-          typeof output === 'object' &&
-          'content' in output &&
-          typeof output.content === 'string'
-        ? output.content
-        : null
-  if (!content) return null
-
-  try {
-    const payload = JSON.parse(content) as AiAgentActionToolArtifact
-    return payload.kind === 'confirmation' || payload.kind === 'action_error' ? payload : null
-  } catch {
-    return null
-  }
-}
-
-async function streamAiAgentToolStatuses(
-  run: Awaited<ReturnType<typeof createAiAgentStream>>,
-  response: HttpContext['response'],
-  signal: AbortSignal,
-  timing: AiChatTiming,
-  onToolCompleted?: (name: string, output: unknown) => void | Promise<void>
-) {
-  const completedToolNames = new Set<string>()
-  for await (const toolCall of run.stream.toolCalls) {
-    if (signal.aborted) throw new DOMException('AI request was cancelled', 'AbortError')
-    timing.markFirstAgentEvent()
-    timing.markFirstToolStarted()
-    writeSse(response, 'agent_status', {
-      name: toolCall.name,
-      state: 'running',
-      ...(getAgentStatusDetail(toolCall.name, toolCall.input)
-        ? { detail: getAgentStatusDetail(toolCall.name, toolCall.input) }
-        : {}),
-    })
-    const state = await toolCall.status
-    const output = state === 'finished' ? await toolCall.output : null
-    const toolArtifact = readAgentToolArtifact(output)
-    const toolError = toolArtifact?.kind === 'action_error' ? toolArtifact.message : null
-    // Business-level action errors are fed back to the model, which explains
-    // the denial or asks for the missing field. Showing the raw validator
-    // error as an activity first creates a confusing duplicate message.
-    const visibleToolError = toolArtifact?.kind === 'action_error' ? null : toolError
-    writeSse(response, 'agent_status', {
-      name: toolCall.name,
-      state: state === 'finished' && !visibleToolError ? 'done' : 'error',
-      ...(getAgentStatusDetail(toolCall.name, toolCall.input)
-        ? { detail: getAgentStatusDetail(toolCall.name, toolCall.input) }
-        : {}),
-      ...(visibleToolError ? { message: visibleToolError } : {}),
-    })
-    timing.markFirstToolCompleted()
-    if (state === 'finished') {
-      completedToolNames.add(toolCall.name)
-      await onToolCompleted?.(toolCall.name, output)
-      if (toolArtifact?.kind === 'confirmation') {
-        writeSse(response, 'agent_confirmation', toolArtifact.confirmation)
-      }
-    }
-  }
-  return completedToolNames
 }
 
 @ApiSecurity('bearerAuth')
@@ -259,7 +148,7 @@ export default class AiChatController {
     const abortOnDisconnect = () => abortController.abort()
     response.response.once('close', abortOnDisconnect)
 
-    writeSse(response, 'user', {
+    writeAiChatSse(response, 'user', {
       conversation: serializeAiChatConversation(conversation),
       message: serializeAiChatMessage(userMessage),
     })
@@ -270,8 +159,6 @@ export default class AiChatController {
     let lastPersistedContentLength = 0
     const knowledgeCitations = new Map<string, AiChatCitation>()
     const completedToolNames = new Set<string>()
-    const timing = new AiChatTiming()
-    let timingOutcome: 'completed' | 'failed' | 'aborted' = 'failed'
     let aiFailureStage = 'initialization'
     const requestTimeout = setTimeout(() => abortController.abort(), getAiRequestTimeout())
 
@@ -301,7 +188,7 @@ export default class AiChatController {
     let stopKeepalive: (() => void) | undefined
 
     try {
-      stopKeepalive = startSseKeepalive(response)
+      stopKeepalive = startAiChatSseKeepalive(response)
       const persistedMessages = payload.regenerateAssistantMessageId
         ? regeneration!.messages
         : conversation.messages
@@ -329,7 +216,7 @@ export default class AiChatController {
             knowledgeCitations.set(`${source.documentId}:${source.chunkId}`, source)
           }
           completedToolNames.add('search_knowledge')
-          writeSse(response, 'agent_citations', {
+          writeAiChatSse(response, 'agent_citations', {
             citations: [...knowledgeCitations.values()],
           })
         },
@@ -341,11 +228,10 @@ export default class AiChatController {
         run,
         response,
         abortController.signal,
-        timing,
         (_toolName, _output) => {
           hasCompletedTool = true
           if (bufferedContent) {
-            writeSse(response, 'delta', { content: bufferedContent })
+            writeAiChatSse(response, 'delta', { content: bufferedContent })
             bufferedContent = ''
           }
         }
@@ -359,7 +245,6 @@ export default class AiChatController {
 
       aiFailureStage = 'message_stream'
       for await (const message of run.stream.messages) {
-        timing.markFirstAgentEvent()
         if (abortController.signal.aborted) {
           throw new DOMException('AI request was cancelled', 'AbortError')
         }
@@ -368,7 +253,6 @@ export default class AiChatController {
             continue
           }
 
-          timing.markFirstResponseToken()
           assistantContent += delta
           // Create the assistant record as soon as content starts arriving,
           // then checkpoint substantial progress. This keeps history durable
@@ -380,7 +264,7 @@ export default class AiChatController {
             await persistAssistantMessage()
           }
           if (hasCompletedTool) {
-            writeSse(response, 'delta', { content: delta })
+            writeAiChatSse(response, 'delta', { content: delta })
           } else {
             bufferedContent += delta
           }
@@ -402,7 +286,7 @@ export default class AiChatController {
         completedToolNames,
       })
       if (!hasCompletedTool) {
-        writeSse(response, 'delta', { content: assistantContent })
+        writeAiChatSse(response, 'delta', { content: assistantContent })
       }
       aiFailureStage = 'assistant_message_persistence'
       const assistantMessage = await persistAssistantMessage()
@@ -434,14 +318,12 @@ export default class AiChatController {
         )
       }
       aiFailureStage = 'done_event_serialization'
-      writeSse(response, 'done', {
+      writeAiChatSse(response, 'done', {
         conversation: serializeAiChatConversationWithMessages(conversation),
         message: serializeAiChatMessage(assistantMessage),
         confirmations,
       })
-      timingOutcome = 'completed'
     } catch (error) {
-      timingOutcome = isAbortError(error) ? 'aborted' : 'failed'
       logger.error(
         { err: error, conversationId: conversation.id, agentRunId, aiFailureStage },
         'AI chat stream failed'
@@ -474,12 +356,19 @@ export default class AiChatController {
             )
           }
         }
-        writeSse(response, 'done', {
+        writeAiChatSse(response, 'done', {
           conversation: serializeAiChatConversationWithMessages(conversation),
           message: serializeAiChatMessage(failedAssistantMessage),
           confirmations,
         })
-        timingOutcome = 'completed'
+        try {
+          await resetAiConversationState({ conversationId: conversation.id, userId: user.id })
+        } catch (stateError) {
+          logger.error(
+            { err: stateError, conversationId: conversation.id, agentRunId },
+            'AI recovered checkpoint cleanup failed'
+          )
+        }
         return
       }
       if (agentRunId) {
@@ -498,7 +387,7 @@ export default class AiChatController {
         }
       }
       await resetAiConversationState({ conversationId: conversation.id, userId: user.id })
-      writeSse(response, 'error', {
+      writeAiChatSse(response, 'error', {
         message,
         assistantMessage: serializeAiChatMessage(failedAssistantMessage),
       })
@@ -506,14 +395,6 @@ export default class AiChatController {
       clearTimeout(requestTimeout)
       stopKeepalive?.()
       response.response.off('close', abortOnDisconnect)
-      logger.info(
-        {
-          conversationId: conversation.id,
-          agentRunId,
-          ...timing.summary(timingOutcome),
-        },
-        'AI chat timing'
-      )
       response.response.end()
     }
   }

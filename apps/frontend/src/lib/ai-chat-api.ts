@@ -76,10 +76,14 @@ export interface AiChatAgentActivity {
   name: string
   state: 'running' | 'done' | 'error'
   message?: string
+  phase?: string
   detail?: {
     templateCode?: string
     action?: string
     permissionCode?: string
+    targetType?: string
+    targetId?: string | number
+    resultCount?: number
   }
 }
 
@@ -138,6 +142,8 @@ type AiChatStreamEvent =
       name: string
       state: AiChatAgentActivity['state']
       message?: string
+      phase?: string
+      detail?: AiChatAgentActivity['detail']
     }
   | { type: 'agent_citations'; citations: AiChatCitation[] }
   | ({ type: 'agent_confirmation' } & AiChatPendingConfirmation)

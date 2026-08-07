@@ -17,7 +17,7 @@ export type AiQueryParameter = {
 }
 
 export type AiRegisteredQueryResult =
-  | { kind: 'query_error'; message: string }
+  | { kind: 'query_error'; code: 'unknown_template' | 'invalid_input' | 'failed'; message: string }
   | {
       kind: 'missing_parameters'
       templateCode: AiQueryTemplate['code']
@@ -48,7 +48,7 @@ type AiQueryTemplate = {
   execute: (params: Record<string, unknown>) => Promise<Record<string, unknown>>
 }
 
-const maxRows = 50
+const queryResultLimit = 20
 
 function maskEmail(email: string) {
   const [local, domain] = email.split('@')
@@ -64,14 +64,14 @@ const queryTemplates: readonly AiQueryTemplate[] = [
   {
     code: 'active_api_keys',
     version: 1,
-    description: 'List up to 50 active API Key metadata without secret values.',
+    description: 'List active API Key metadata without secret values.',
     permission: 'api-keys:read',
     parameters: {},
     async execute() {
       const keys = await ApiKey.query()
         .whereNull('revoked_at')
         .orderBy('created_at', 'desc')
-        .limit(50)
+        .limit(queryResultLimit)
       return {
         rows: keys.map((key) => ({
           id: key.id,
@@ -86,19 +86,11 @@ const queryTemplates: readonly AiQueryTemplate[] = [
   {
     code: 'managed_users',
     version: 1,
-    description: 'List up to 50 managed users with masked personal information and their roles.',
+    description: 'List managed users with masked personal information and their roles.',
     permission: 'users:read',
-    parameters: {
-      limit: {
-        description: 'Maximum number of users to return, from 1 to 50. Defaults to 50.',
-        schema: z.number().int().min(1).max(maxRows).default(maxRows),
-      },
-    },
-    async execute(params) {
-      const users = await User.query()
-        .preload('roles')
-        .orderBy('id')
-        .limit(params.limit as number)
+    parameters: {},
+    async execute() {
+      const users = await User.query().preload('roles').orderBy('id').limit(queryResultLimit)
       return {
         rows: users.map((user) => ({
           id: user.id,
@@ -151,17 +143,12 @@ const queryTemplates: readonly AiQueryTemplate[] = [
     description:
       'List recent audit events without IP addresses, user agents, or unredacted actor email addresses.',
     permission: 'audit-logs:read',
-    parameters: {
-      limit: {
-        description: 'Maximum number of audit events to return, from 1 to 50. Defaults to 30.',
-        schema: z.number().int().min(1).max(maxRows).default(30),
-      },
-    },
-    async execute(params) {
+    parameters: {},
+    async execute() {
       const logs = await AuditLog.query()
         .preload('actor')
         .orderBy('id', 'desc')
-        .limit(params.limit as number)
+        .limit(queryResultLimit)
       return {
         rows: logs.map((log) => ({
           id: log.id,
@@ -180,7 +167,7 @@ const queryTemplates: readonly AiQueryTemplate[] = [
   {
     code: 'roles_with_permissions',
     version: 1,
-    description: 'List up to 100 roles with their assigned permissions and user counts.',
+    description: 'List roles with assigned permissions and user counts.',
     permission: 'roles:read',
     parameters: {},
     async execute() {
@@ -189,7 +176,7 @@ const queryTemplates: readonly AiQueryTemplate[] = [
         .withCount('users')
         .orderBy('is_system', 'desc')
         .orderBy('name')
-        .limit(100)
+        .limit(queryResultLimit)
       return {
         rows: roles.map((role) => ({
           id: role.id,
@@ -249,7 +236,7 @@ const queryTemplates: readonly AiQueryTemplate[] = [
   {
     code: 'permission_catalog',
     version: 1,
-    description: 'List up to 200 permission catalog entries with role reference counts.',
+    description: 'List permission catalog entries with role reference counts.',
     permission: 'permissions:read',
     parameters: {},
     async execute() {
@@ -257,7 +244,7 @@ const queryTemplates: readonly AiQueryTemplate[] = [
         .withCount('roles')
         .orderBy('group_name')
         .orderBy('code')
-        .limit(200)
+        .limit(queryResultLimit)
       return {
         rows: permissions.map((permission) => ({
           id: permission.id,
@@ -315,13 +302,8 @@ const queryTemplates: readonly AiQueryTemplate[] = [
     description:
       'List recent role and permission create, update, and delete audit events without metadata or unredacted actor details.',
     permission: 'audit-logs:read',
-    parameters: {
-      limit: {
-        description: 'Maximum number of events to return, from 1 to 50. Defaults to 30.',
-        schema: z.number().int().min(1).max(maxRows).default(30),
-      },
-    },
-    async execute(params) {
+    parameters: {},
+    async execute() {
       const logs = await AuditLog.query()
         .whereIn('action', [
           'role.created',
@@ -333,7 +315,7 @@ const queryTemplates: readonly AiQueryTemplate[] = [
         ])
         .preload('actor')
         .orderBy('id', 'desc')
-        .limit(params.limit as number)
+        .limit(queryResultLimit)
       return {
         rows: logs.map((log) => ({
           id: log.id,
@@ -475,7 +457,7 @@ export async function runRegisteredAiQuery(input: {
       parameterNames: Object.keys(input.params),
       startedAt,
     })
-    return { kind: 'query_error', message: '未知的查询模板' }
+    return { kind: 'query_error', code: 'unknown_template', message: '未知的查询模板' }
   }
   try {
     await ensurePermission(input.userId, template.permission)
@@ -508,7 +490,11 @@ export async function runRegisteredAiQuery(input: {
       unknownParameterNames: unknownParameters,
       startedAt,
     })
-    return { kind: 'query_error', message: `不支持的查询参数：${unknownParameters.join(', ')}` }
+    return {
+      kind: 'query_error',
+      code: 'invalid_input',
+      message: `不支持的查询参数：${unknownParameters.join(', ')}`,
+    }
   }
 
   const active = await findActivePendingQuery({
@@ -565,7 +551,11 @@ export async function runRegisteredAiQuery(input: {
       parameterNames: Object.keys(mergedParams),
       startedAt,
     })
-    return { kind: 'query_error', message: error instanceof Error ? error.message : '查询未完成' }
+    return {
+      kind: 'query_error',
+      code: 'invalid_input',
+      message: error instanceof Error ? error.message : '查询未完成',
+    }
   }
 
   let result: Record<string, unknown>
@@ -582,7 +572,11 @@ export async function runRegisteredAiQuery(input: {
       parameterNames: Object.keys(parsedParams),
       startedAt,
     })
-    return { kind: 'query_error', message: error instanceof Error ? error.message : '查询未完成' }
+    return {
+      kind: 'query_error',
+      code: 'failed',
+      message: error instanceof Error ? error.message : '查询未完成',
+    }
   }
 
   if (active?.templateCode === template.code) {

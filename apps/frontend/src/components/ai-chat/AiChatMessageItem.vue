@@ -53,8 +53,16 @@ function getMessageContent(content: string) {
 
 function getActivityLabel(activity: AiChatAgentActivity) {
   const detail =
-    activity.detail?.action ?? activity.detail?.templateCode ?? activity.detail?.permissionCode
-  const suffix = detail ? `：${detail}` : ''
+    activity.detail?.action ??
+    activity.detail?.templateCode ??
+    activity.detail?.permissionCode ??
+    (activity.detail?.targetType && activity.detail?.targetId
+      ? `${activity.detail.targetType} ${activity.detail.targetId}`
+      : undefined)
+  const countSuffix =
+    typeof activity.detail?.resultCount === 'number' ? `（${activity.detail.resultCount} 条）` : ''
+  const phaseSuffix = activity.phase ? `（${activity.phase}）` : ''
+  const suffix = detail ? `：${detail}${countSuffix}${phaseSuffix}` : `${countSuffix}${phaseSuffix}`
   if (activity.state === 'error' && activity.message) {
     return `${activity.message}${suffix}`
   }

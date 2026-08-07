@@ -551,35 +551,6 @@ onUnmounted(() => {
                 (selectedMessage, selected) => selectMessage(selectedMessage, index, selected)
               "
             />
-            <template v-if="displayMessages.length <= 1">
-              <div class="ml-9.5 flex flex-wrap gap-2 pt-1">
-                <Button
-                  v-for="suggestion in promptSuggestions"
-                  :key="suggestion"
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  class="h-auto rounded-lg px-3 py-2 font-normal shadow-none"
-                  :disabled="loading || disabled"
-                  @click="sendMessage(suggestion)"
-                >
-                  {{ suggestion }}
-                </Button>
-                <Button
-                  v-if="canRefreshSuggestions"
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  class="rounded-lg shadow-none"
-                  :title="t('ai_chat.refresh_suggestions')"
-                  :aria-label="t('ai_chat.refresh_suggestions')"
-                  :disabled="loading || disabled"
-                  @click="emit('refreshSuggestions')"
-                >
-                  <RefreshCw class="size-3.5" />
-                </Button>
-              </div>
-            </template>
           </div>
         </ScrollArea>
         <Button
@@ -596,6 +567,34 @@ onUnmounted(() => {
       </div>
 
       <div class="p-3 pt-0">
+        <div v-if="displayMessages.length <= 1" class="mb-3 grid max-w-full grid-cols-4 gap-2">
+          <Button
+            v-for="suggestion in promptSuggestions"
+            :key="suggestion"
+            type="button"
+            variant="outline"
+            size="sm"
+            class="h-auto min-w-0 rounded-lg px-3 py-2 font-normal shadow-none"
+            :disabled="loading || disabled"
+            :title="suggestion"
+            @click="sendMessage(suggestion)"
+          >
+            <span class="block truncate">{{ suggestion }}</span>
+          </Button>
+          <Button
+            v-if="canRefreshSuggestions"
+            type="button"
+            variant="outline"
+            size="icon"
+            class="rounded-lg shadow-none"
+            :title="t('ai_chat.refresh_suggestions')"
+            :aria-label="t('ai_chat.refresh_suggestions')"
+            :disabled="loading || disabled"
+            @click="emit('refreshSuggestions')"
+          >
+            <RefreshCw class="size-3.5" />
+          </Button>
+        </div>
         <AiChatCredentialCard
           v-if="credentialDisclosure"
           :credential="credentialDisclosure"

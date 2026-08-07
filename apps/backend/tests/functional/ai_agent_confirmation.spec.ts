@@ -210,6 +210,7 @@ test.group('AI agent confirmations', (group) => {
 
     assert.deepEqual(JSON.parse(String(output)), {
       kind: 'action_error',
+      code: 'failed',
       message: 'API Key 不存在',
     })
   })
@@ -266,6 +267,7 @@ test.group('AI agent confirmations', (group) => {
 
     assert.deepEqual(JSON.parse(String(output)), {
       kind: 'action_error',
+      code: 'permission_denied',
       message: '当前账号没有执行此操作的权限',
     })
     assert.isNull(await AiAgentConfirmation.query().where('requested_by_user_id', user.id).first())

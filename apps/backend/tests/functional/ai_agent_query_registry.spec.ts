@@ -129,7 +129,11 @@ test.group('AI agent registered queries', (group) => {
       params: { userId: 1, sql: 'select * from users' },
     })
 
-    assert.deepEqual(result, { kind: 'query_error', message: '不支持的查询参数：sql' })
+    assert.deepEqual(result, {
+      kind: 'query_error',
+      code: 'invalid_input',
+      message: '不支持的查询参数：sql',
+    })
     assert.isNull(
       await AiAgentPendingQuery.query().where('conversation_id', conversation.id).first()
     )
@@ -311,7 +315,7 @@ test.group('AI agent registered queries', (group) => {
       conversationId: conversation.id,
       userId: user.id,
       templateCode: 'recent_access_control_changes',
-      params: { limit: 1 },
+      params: {},
     })
 
     assert.equal(result.kind, 'query_result')
@@ -432,7 +436,11 @@ test.group('AI agent registered queries', (group) => {
       templateCode: 'role_profile',
       params: { roleCode: 'super-admin', unrestricted: true },
     })
-    assert.deepEqual(invalid, { kind: 'query_error', message: '不支持的查询参数：unrestricted' })
+    assert.deepEqual(invalid, {
+      kind: 'query_error',
+      code: 'invalid_input',
+      message: '不支持的查询参数：unrestricted',
+    })
 
     const deniedUser = await User.create({
       fullName: 'No Access',

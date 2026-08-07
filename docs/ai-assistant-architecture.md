@@ -1,49 +1,67 @@
 # AI 助手架构
 
-本文档面向维护人员，说明 AI 子系统的职责划分；面向产品的功能说明见 [AI 助手能力](ai-assistant-capabilities.md)。
+本文档描述当前 AI 助手的实现边界、数据流和维护入口。产品能力说明见 [AI 助手能力](ai-assistant-capabilities.md)。
 
-## 主流程
+## 运行时分层
 
-`ai_chat_controller.ts` 负责 HTTP 和 SSE：持久化消息、发送工具与确认事件、将完成的 proposal 关联到助手消息，并委托 service 执行 AI 工作。`ai_agent_service.ts` 负责 Agent、系统提示词、模型请求、流式过程和上下文压缩。
+```mermaid
+flowchart TB
+  A["HTTP 请求"] --> B["ai_chat_controller"]
+  B --> C["ai_chat_sse_adapter"]
+  B --> D["ai_agent_service"]
+  D --> E["LangGraph createAgent"]
+  E --> F["ai_agent_registry"]
+  F --> G["注册查询"]
+  F --> H["知识检索"]
+  F --> I["变更提议"]
+  I --> J["确认 API"]
+  D --> K["LangGraph Postgres checkpoint"]
+  D --> L["Langfuse callbacks"]
+```
 
-会话状态有两类持久化数据：
-
-- `AiChatConversation` 与 `AiChatMessage` 保留完整的用户可见历史和引用。
-- LangGraph checkpoint 保存 Agent 运行状态，`AiAgentPendingQuery` 保存多轮查询的安全参数。`ai_conversation_state.ts` 统一重置两者，避免状态机漂移。
+- `ai_chat_controller.ts` 只负责会话归属、输入校验、消息持久化和 HTTP/SSE 生命周期。
+- `ai_chat_sse_adapter.ts` 负责 SSE 写出、keepalive、工具状态详情、阶段和确认事件。
+- `ai_agent_service.ts` 创建 LangChain Agent，配置 LangGraph checkpoint、上下文压缩、模型调用限制和 Langfuse。
+- `ai_agent_registry.ts` 是纯适配层，只向 Agent 注册工具，不承载 HTTP 或数据库编排。
 
 ## 工具边界
 
-`ai_agent_registry.ts` 向模型提供四类工具：
+| 工具                               | 行为                                                                                                                                              |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `diagnose_my_access`               | 只诊断当前认证用户的服务端权限。                                                                                                                  |
+| `run_registered_query`             | 只调用 `ai_agent_query_registry` 中的固定模板；禁止自由 SQL。所有列表固定最多返回 20 条，不提供分页或继续查询协议，更多数据需到对应管理模块查看。 |
+| `search_knowledge`                 | 只检索已授权的知识文档，用于产品说明和流程指导，不用于实时系统数据。                                                                              |
+| `propose_system_management_change` | 只创建持久化变更提议，不执行破坏性操作。执行必须经过确认 API。                                                                                    |
 
-| 工具     | 注册表或服务职责                                                                                      |
-| -------- | ----------------------------------------------------------------------------------------------------- |
-| 权限诊断 | 构建当前用户的角色与权限摘要                                                                          |
-| 注册查询 | `ai_agent_query_registry.ts` 校验参数、检查权限、限量与脱敏输出、持久化 pending query 并审计执行      |
-| 知识检索 | `knowledge_service.ts` 在已索引文档中执行权限过滤的混合检索                                           |
-| 变更提议 | `ai_agent_action_registry.ts` 准备安全的目标和 payload；`ai_agent_confirmation.ts` 持久化并在后续确认 |
+查询模板具有稳定 code/version、参数 schema、权限码、服务端作用域、字段脱敏和固定 20 条结果上限。缺少必要参数时，`AiAgentPendingQuery` 只保存参数收集状态，下一轮会话重新校验模板、归属、权限和有效期。
 
-注册查询具有稳定的 code 和 version。action 明确区分 `prepare` 和 `execute`：前者在持久化前校验输入、目标状态和冲突，后者在确认后重复校验权限与目标状态。
+变更提议由 `prepare` 创建安全目标摘要和 payload；`confirmAiAgentAction` 在执行前重新校验会话归属、权限、proposal 状态、有效期和目标当前状态，并记录审计。
 
-## 数据与安全控制
+## 状态与持久化
 
-相关 model 包括 `AiChatConversation`、`AiChatMessage`、`AiAgentConfirmation`、`AiAgentPendingQuery`、`KnowledgeDocument` 和 `KnowledgeChunk`；迁移还会创建 LangGraph checkpoint schema。
+- `AiChatConversation`、`AiChatMessage`：保存完整用户可见历史和引用。
+- LangGraph checkpoint：保存 Agent 跨请求运行状态，thread key 为 `ai-chat:{userId}:{conversationId}`。
+- `AiAgentPendingQuery`：保存多轮查询的缺参状态，不保存原始查询结果。
+- `AiAgentConfirmation`：保存待确认提议及安全摘要，不向普通消息暴露 payload 或密钥。
+- `ai_conversation_state.ts`：统一清理 checkpoint 和 pending query；重新生成、会话删除、失败恢复均通过此入口处理。
 
-`ai_agent_response_policy.ts` 在本轮没有工具提供必要事实时阻止无依据的回答。`ai_chat_timing.ts` 记录请求耗时，`audit_log.ts` 记录查询和 action 事件；可选的 `langfuse.ts` 仅通过环境变量启用。
+AI 请求完成时间不再由自研 `AiChatTiming` 记录，统一依赖 Langfuse（可选）和现有审计日志。Langfuse 未配置时不发起外部观测请求。
 
-## 前端职责
+## SSE 与前端
 
-`apps/frontend/src/lib/ai-chat-api.ts` 管理 API 调用和 SSE 解析。`AiChatAssistant.vue` 提供浮动工作台、会话历史、工具状态、引用、proposal 控制、回复重新生成、取消和凭据一次性展示。`AiMessageContent.vue` 渲染流式 Markdown，并转义 raw HTML。
+后端 SSE 事件包括 `user`、`agent_status`、`agent_confirmation`、`agent_citations`、`delta`、`done` 和 `error`。`agent_status` 只返回工具名称、状态、阶段及安全详情，不返回敏感参数或原始结果。
 
-知识库管理是独立 feature，位于 `apps/frontend/src/features/knowledge`，包含页面、dialog 组件和 API 模块。
+前端 `ai-chat-api.ts` 解析事件，`useAiChat.ts` 管理流式消息和确认状态，`AiChatAssistant.vue` 提供会话、工具状态、确认、重试、停止生成和快捷建议。AI 查询没有“继续查看”按钮；完整数据由业务模块自身的列表分页提供。
 
-## 测试与评估
+## 验证
 
-单元测试覆盖响应接地、耗时、重新生成、transformer、权限诊断、checkpoint、评估断言和知识处理；功能测试覆盖 checkpoint 持久化、确认、pending query、消息引用和会话状态重置。
-
-修改模型、量化或提示词后运行：
+修改 Agent、工具协议、提示词或确认流程后运行：
 
 ```bash
+pnpm --dir apps/backend typecheck
+pnpm --dir apps/backend lint:check
+pnpm --dir apps/backend exec node ace test --files=tests/functional/ai_agent_query_registry.spec.ts --files=tests/functional/ai_agent_confirmation.spec.ts
 pnpm --dir apps/backend exec node ace ai:evaluate
+pnpm --dir apps/frontend typecheck
+pnpm --dir apps/frontend lint:check
 ```
-
-命令使用 mock 工具验证预期工具选择与有依据的输出，不会访问业务数据库。
