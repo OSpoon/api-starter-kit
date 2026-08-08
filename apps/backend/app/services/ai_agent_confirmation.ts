@@ -37,6 +37,15 @@ export type AiAgentConfirmationSummary = {
   targetSummary: Record<string, unknown>
   changeSummary: Array<{ field: string; value: string }>
   expiresAt: string | null
+  presentation: {
+    title: string
+    summary: string
+    targetLabel: string
+    changes: Array<{ label: string; value: string }>
+    impactLabel: string
+    approveLabel: string
+    cancelLabel: string
+  }
 }
 
 export class AiAgentConfirmationError extends Error {
@@ -50,16 +59,90 @@ export class AiAgentConfirmationError extends Error {
 
 function serializeConfirmation(confirmation: AiAgentConfirmation): AiAgentConfirmationSummary {
   const action = getAiAgentAction(confirmation.action)
+  const changeSummary = getAiAgentActionChangeSummary(confirmation.action, confirmation.payload)
+  const targetSummary = confirmation.targetSummary ?? {}
   return {
     id: confirmation.id,
     action: confirmation.action,
     impact: action?.impact ?? 'destructive',
     targetType: confirmation.targetType ?? 'unknown',
     targetId: confirmation.targetId ?? String(confirmation.id),
-    targetSummary: confirmation.targetSummary ?? {},
-    changeSummary: getAiAgentActionChangeSummary(confirmation.action, confirmation.payload),
+    targetSummary,
+    changeSummary,
     expiresAt: confirmation.expiresAt.toISO(),
+    presentation: {
+      title: getActionTitle(confirmation.action),
+      summary: '请确认以下受控系统管理操作。',
+      targetLabel: getTargetLabel(confirmation.targetId ?? String(confirmation.id), targetSummary),
+      changes: changeSummary.map(({ field, value }) => ({
+        label: getChangeLabel(field),
+        value: getChangeValue(value),
+      })),
+      impactLabel:
+        action?.impact === 'destructive'
+          ? '此操作可能不可逆，请谨慎确认。'
+          : '此操作将更改当前系统配置。',
+      approveLabel: '确认执行',
+      cancelLabel: '取消',
+    },
   }
+}
+
+const actionTitles: Record<string, string> = {
+  revoke_api_key: '确认吊销 API Key',
+  delete_api_key: '确认删除 API Key',
+  create_api_key: '确认创建 API Key',
+  reset_user_password: '确认重置用户密码',
+  disable_user: '确认停用用户',
+  enable_user: '确认启用用户',
+  update_user: '确认更新用户',
+  delete_user: '确认删除用户',
+  create_role: '确认创建角色',
+  update_role: '确认更新角色',
+  delete_role: '确认删除角色',
+  create_permission: '确认创建权限',
+  update_permission: '确认更新权限',
+  delete_permission: '确认删除权限',
+}
+
+function getActionTitle(action: string) {
+  return actionTitles[action] ?? '确认系统管理操作'
+}
+function getTargetLabel(targetId: string, summary: Record<string, unknown>) {
+  const name = summary.name ?? summary.fullName ?? summary.code
+  return typeof name === 'string' ? name : targetId
+}
+function getChangeLabel(field: string) {
+  return (
+    (
+      {
+        result: '操作结果',
+        name: '名称',
+        expiry: '有效期',
+        account_status: '账号状态',
+        full_name: '姓名',
+        email: '邮箱',
+        role_ids: '角色',
+        code: '编码',
+        description: '说明',
+        permission_ids: '权限',
+        group: '分组',
+      } as Record<string, string>
+    )[field] ?? field
+  )
+}
+function getChangeValue(value: string) {
+  return (
+    (
+      {
+        revoked: '已吊销',
+        permanently_deleted: '永久删除',
+        new_temporary_password: '将生成新的临时密码',
+        disabled: '已停用',
+        enabled: '已启用',
+      } as Record<string, string>
+    )[value] ?? value
+  )
 }
 
 export async function proposeAiAgentAction(input: {

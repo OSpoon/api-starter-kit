@@ -401,6 +401,7 @@ export function useAiChat() {
               targetSummary: event.targetSummary,
               changeSummary: event.changeSummary,
               expiresAt: event.expiresAt,
+              presentation: event.presentation,
             }
           }
 

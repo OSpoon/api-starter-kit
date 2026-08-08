@@ -42,6 +42,15 @@ export interface AiChatConfirmation {
   targetSummary: Record<string, unknown>
   changeSummary: Array<{ field: string; value: string }>
   expiresAt: string | null
+  presentation: {
+    title: string
+    summary: string
+    targetLabel: string
+    changes: Array<{ label: string; value: string }>
+    impactLabel: string
+    approveLabel: string
+    cancelLabel: string
+  }
 }
 export interface AiChatCredentialDisclosure {
   kind: 'api_key' | 'password'

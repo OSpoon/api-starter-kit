@@ -16,33 +16,7 @@ const emit = defineEmits<{
   dismiss: []
 }>()
 
-const { t, te } = useI18n()
-
-function getApprovalTarget(approval: AiChatConfirmation) {
-  const summary = approval.targetSummary
-  const parts: string[] = []
-  if (typeof summary.name === 'string') parts.push(summary.name)
-  else if (typeof summary.fullName === 'string') parts.push(summary.fullName)
-  else if (typeof summary.code === 'string') parts.push(summary.code)
-  if (typeof summary.prefix === 'string') parts.push(`(${summary.prefix})`)
-  if (/^\d+$/.test(approval.targetId)) parts.push(`#${approval.targetId}`)
-  return parts.length ? parts.join(' ') : approval.targetId
-}
-
-function getApprovalActionLabel(approval: AiChatConfirmation) {
-  const key = `ai_chat.approval.actions.${approval.action}`
-  return te(key) ? t(key) : t('ai_chat.approval.actions.generic')
-}
-
-function getChangeFieldLabel(field: string) {
-  const key = `ai_chat.approval.change_fields.${field}`
-  return te(key) ? t(key) : field
-}
-
-function getChangeValue(value: string) {
-  const key = `ai_chat.approval.change_values.${value}`
-  return te(key) ? t(key) : value
-}
+const { t } = useI18n()
 </script>
 
 <template>
@@ -51,23 +25,23 @@ function getChangeValue(value: string) {
       <ShieldCheck class="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
       <div class="min-w-0 flex-1 space-y-1">
         <p class="font-medium text-foreground">
-          {{ getApprovalActionLabel(approval) }}
+          {{ approval.presentation.title }}
         </p>
         <p class="wrap-break-word text-muted-foreground">
-          {{ t('ai_chat.approval.target', { target: getApprovalTarget(approval) }) }}
+          {{ approval.presentation.summary }} {{ approval.presentation.targetLabel }}
         </p>
-        <dl v-if="approval.changeSummary.length" class="space-y-1 text-muted-foreground">
-          <div v-for="change in approval.changeSummary" :key="change.field" class="flex gap-1">
-            <dt class="shrink-0">{{ getChangeFieldLabel(change.field) }}:</dt>
-            <dd class="break-all">{{ getChangeValue(change.value) }}</dd>
+        <dl v-if="approval.presentation.changes.length" class="space-y-1 text-muted-foreground">
+          <div
+            v-for="change in approval.presentation.changes"
+            :key="change.label"
+            class="flex gap-1"
+          >
+            <dt class="shrink-0">{{ change.label }}:</dt>
+            <dd class="break-all">{{ change.value }}</dd>
           </div>
         </dl>
         <p class="text-muted-foreground">
-          {{
-            approval.impact === 'destructive'
-              ? t('ai_chat.approval.destructive_impact')
-              : t('ai_chat.approval.standard_impact')
-          }}
+          {{ approval.presentation.impactLabel }}
         </p>
         <p v-if="approval.expiresAt" class="text-muted-foreground">
           {{
@@ -86,7 +60,7 @@ function getChangeValue(value: string) {
         :disabled="loading || disabled"
         @click="emit('dismiss')"
       >
-        {{ t('ai_chat.approval.cancel') }}
+        {{ approval.presentation.cancelLabel }}
       </Button>
       <Button
         type="button"
@@ -95,7 +69,7 @@ function getChangeValue(value: string) {
         :disabled="loading || disabled"
         @click="emit('approve')"
       >
-        {{ loading ? t('common.loading') : t('ai_chat.approval.approve') }}
+        {{ loading ? t('common.loading') : approval.presentation.approveLabel }}
       </Button>
     </div>
   </div>
