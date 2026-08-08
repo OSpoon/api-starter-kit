@@ -171,13 +171,21 @@
       }
     },
     "plan": {
-      "identify_target": { "pending": "识别目标", "running": "正在识别目标", "done": "已识别目标" },
-      "prepare_proposal": {
-        "pending": "准备变更提案",
-        "running": "正在准备变更提案",
-        "done": "已准备变更提案"
+      "identify_target": {
+        "pending": "正在确定需要处理的系统对象",
+        "running": "正在定位需要处理的系统对象",
+        "done": "已定位需要处理的系统对象"
       },
-      "await_confirmation": { "pending": "等待确认", "running": "等待确认", "done": "已确认" }
+      "prepare_proposal": {
+        "pending": "正在准备系统管理变更提案",
+        "running": "正在准备系统管理变更提案",
+        "done": "已准备系统管理变更提案"
+      },
+      "await_confirmation": {
+        "pending": "正在等待您确认该变更提案",
+        "running": "正在等待您确认该变更提案",
+        "done": "该变更提案已获确认"
+      }
     },
     "errors": {
       "permission_denied": "权限不足",

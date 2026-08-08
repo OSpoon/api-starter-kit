@@ -172,19 +172,19 @@
     },
     "plan": {
       "identify_target": {
-        "pending": "Identify target",
-        "running": "Identifying target",
-        "done": "Target identified"
+        "pending": "Determining the system item to handle",
+        "running": "Locating the system item to handle",
+        "done": "Located the system item to handle"
       },
       "prepare_proposal": {
-        "pending": "Prepare proposal",
-        "running": "Preparing proposal",
-        "done": "Proposal prepared"
+        "pending": "Preparing a system-management change proposal",
+        "running": "Preparing a system-management change proposal",
+        "done": "Prepared a system-management change proposal"
       },
       "await_confirmation": {
-        "pending": "Await confirmation",
-        "running": "Awaiting confirmation",
-        "done": "Confirmed"
+        "pending": "Waiting for your confirmation of this change proposal",
+        "running": "Waiting for your confirmation of this change proposal",
+        "done": "This change proposal has been confirmed"
       }
     },
     "errors": {

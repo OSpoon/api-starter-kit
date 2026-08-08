@@ -118,9 +118,6 @@ function getAgentStatusDetail(name: string, input: unknown, output?: unknown) {
 }
 
 function getAgentStatusPhase(name: string, state: 'running' | 'done' | 'error') {
-  if (name === 'run_registered_query') {
-    return state === 'running' ? 'identifying_target' : 'target_identified'
-  }
   if (isProposalTool(name)) {
     return state === 'running' ? 'preparing_proposal' : 'awaiting_confirmation'
   }
@@ -178,10 +175,6 @@ export async function* streamAiAgentToolFrames(
   for await (const toolCall of run.stream.toolCalls) {
     if (signal.aborted) throw new DOMException('AI request was cancelled', 'AbortError')
     const toolStartedAt = Date.now()
-    if (toolCall.name === 'run_registered_query') {
-      plan[0].state = 'running'
-      yield planFrame()
-    }
     if (isProposalTool(toolCall.name)) {
       plan[0].state = 'done'
       plan[1].state = 'running'
@@ -223,12 +216,11 @@ export async function* streamAiAgentToolFrames(
       },
     }
     if (state === 'finished') {
-      if (toolCall.name === 'run_registered_query') plan[0].state = 'done'
       if (isProposalTool(toolCall.name)) {
         plan[1].state = 'done'
         plan[2].state = 'running'
+        yield planFrame()
       }
-      yield planFrame()
       yield { event: 'tool_completed', data: { name: toolCall.name, output } }
       if (toolArtifact?.kind === 'confirmation') {
         yield { event: 'agent_confirmation', data: toolArtifact.confirmation }

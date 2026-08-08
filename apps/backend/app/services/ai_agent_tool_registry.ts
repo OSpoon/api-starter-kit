@@ -78,7 +78,8 @@ export function createAiAgentTools(input: AiAgentToolContext) {
       },
       {
         name: 'diagnose_my_access',
-        description: 'Diagnose only the current authenticated user’s access.',
+        description:
+          'Diagnose only the current authenticated user’s access. For an overall permission review, call with an empty object and summarize effectivePermissions; omit permissionCode. Set permissionCode only when the user explicitly asks whether they have one named permission.',
         schema: z.object({ permissionCode: z.enum(permissionCodes).optional() }),
       }
     ),

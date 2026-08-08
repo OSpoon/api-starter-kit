@@ -62,8 +62,7 @@ function getActivityLabel(activity: AiChatAgentActivity) {
       : undefined)
   const countSuffix =
     typeof activity.detail?.resultCount === 'number' ? `（${activity.detail.resultCount} 条）` : ''
-  const phaseSuffix = activity.phase ? `（${activity.phase}）` : ''
-  const suffix = detail ? `：${detail}${countSuffix}${phaseSuffix}` : `${countSuffix}${phaseSuffix}`
+  const suffix = detail ? `：${detail}${countSuffix}` : countSuffix
   if (activity.state === 'error' && activity.message) {
     return `${activity.message}${suffix}`
   }
@@ -89,7 +88,7 @@ function canRetryMessage(message: AiChatMessageItemData) {
   )
 }
 
-function getPlanLabel(step: AiChatPlanStep) {
+function getPlanStatusLabel(step: AiChatPlanStep) {
   return t(`ai_chat.plan.${step.key}.${step.state}`)
 }
 
@@ -138,7 +137,7 @@ function getStatusLabel(message: AiChatMessageItemData) {
   }
   if (message.plan?.length) {
     const planStep = getCurrentPlanStep(message.plan)
-    return `${getPlanLabel(planStep)}${target ? `：${target}` : ''}`
+    return `${getPlanStatusLabel(planStep)}${target ? `：${target}` : ''}`
   }
   return getActivityLabel(activity)
 }
@@ -195,7 +194,9 @@ function getStatusLabel(message: AiChatMessageItemData) {
         v-if="message.role === 'assistant' && message.plan?.length"
         class="flex flex-wrap gap-x-2 gap-y-1 text-xs text-muted-foreground"
       >
-        <span class="font-medium text-foreground">{{ getStatusLabel(message) }}</span>
+        <span v-if="getStatusLabel(message)" class="font-medium text-foreground">
+          {{ getStatusLabel(message) }}
+        </span>
       </div>
       <div
         v-if="showMessageActions && message.id !== 'welcome' && message.content.trim().length > 0"

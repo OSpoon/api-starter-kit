@@ -89,31 +89,25 @@ test.group('AI chat SSE adapter', () => {
 
     assert.deepEqual(
       frames.map((frame) => frame.event),
-      ['agent_plan', 'agent_status', 'agent_status', 'agent_plan']
+      ['agent_status', 'agent_status']
     )
 
-    const running = frames[1].data as Record<string, unknown>
+    const running = frames[0].data as Record<string, unknown>
     assert.equal(running.name, 'run_registered_query')
     assert.equal(running.callId, 'call-1')
     assert.equal(running.state, 'running')
-    assert.equal(running.phase, 'identifying_target')
+    assert.isUndefined(running.phase)
     assert.equal((running.detail as Record<string, unknown>).templateCode, 'team_member_count')
     assert.isUndefined(running.durationMs)
 
-    const done = frames[2].data as Record<string, unknown>
+    const done = frames[1].data as Record<string, unknown>
     assert.equal(done.name, 'run_registered_query')
     assert.equal(done.callId, 'call-1')
     assert.equal(done.state, 'done')
-    assert.equal(done.phase, 'target_identified')
+    assert.isUndefined(done.phase)
     assert.isNumber(done.durationMs)
     assert.isAtLeast(done.durationMs as number, 0)
     assert.equal((done.detail as Record<string, unknown>).resultCount, 3)
-
-    const firstPlan = frames[0].data as { steps: Array<{ key: string; state: string }> }
-    assert.equal(firstPlan.steps[0].key, 'identify_target')
-    assert.equal(firstPlan.steps[0].state, 'running')
-    const lastPlan = frames[3].data as { steps: Array<{ key: string; state: string }> }
-    assert.equal(lastPlan.steps[0].state, 'done')
 
     assert.deepEqual(completedNames, ['run_registered_query'])
     assert.isTrue(result.has('run_registered_query'))
