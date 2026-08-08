@@ -37,3 +37,12 @@ ${systemPolicy}
 ${domainPolicies}
 `
 }
+
+export function createAiAgentSystemPrompt(context?: AiAgentPageContext, liveSessionContext = '') {
+  return buildAiAgentSystemPrompt({
+    identity: env.get('AI_SYSTEM_PROMPT')?.trim() || 'You are an admin-console assistant.',
+    context,
+    liveSessionContext,
+  })
+}
+import env from '#start/env'
