@@ -14,7 +14,7 @@ import Role from '#models/role'
 import User from '#models/user'
 import { getAiAgentAction } from '#services/ai_agent_action_registry'
 import { proposeAiAgentAction } from '#services/ai_agent_confirmation'
-import { createAiAgentTools } from '#services/ai_agent_registry'
+import { createAiAgentTools } from '#services/ai_agent_tool_registry'
 import { generateInitialPassword } from '#services/user_credentials'
 
 async function createConfirmation(user: User) {

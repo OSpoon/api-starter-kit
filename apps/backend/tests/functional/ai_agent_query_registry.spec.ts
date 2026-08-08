@@ -10,7 +10,7 @@ import Permission from '#models/permission'
 import Role from '#models/role'
 import User from '#models/user'
 import { getPendingAiQueryContext, runRegisteredAiQuery } from '#services/ai_agent_query_registry'
-import { createAiAgentTools } from '#services/ai_agent_registry'
+import { createAiAgentTools } from '#services/ai_agent_tool_registry'
 import { generateInitialPassword } from '#services/user_credentials'
 
 async function createAdminConversation() {

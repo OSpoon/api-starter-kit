@@ -2,7 +2,6 @@ import crypto from 'node:crypto'
 
 import { AIMessage, createAgent, HumanMessage, SystemMessage } from 'langchain'
 
-import type { AiChatCitation } from '#models/ai_chat_message'
 import {
   getAiAgentCheckpointConfig,
   getAiAgentCheckpointer,
@@ -13,8 +12,9 @@ import {
   createAiAgentSystemPrompt,
 } from '#services/ai_agent_prompt_policy'
 import { getPendingAiQueryContext } from '#services/ai_agent_query_registry'
-import { createAiAgentTools } from '#services/ai_agent_registry'
 import { createAiAgentMiddleware, createAiAgentModel } from '#services/ai_agent_runtime'
+import type { AiAgentToolContext, AiAgentToolRequestContext } from '#services/ai_agent_tool_context'
+import { createAiAgentTools } from '#services/ai_agent_tool_registry'
 import { createLangfuseCallback } from '#services/langfuse'
 
 export {
@@ -33,15 +33,12 @@ export interface AiAgentMessage {
   content: string
 }
 
-function createAiAgent(input: {
-  userId: number
-  conversationId: number
-  agentRunId: string
-  context?: AiAgentPageContext
-  liveSessionContext?: string
-  signal?: AbortSignal
-  onKnowledgeSources?: (sources: AiChatCitation[]) => void
-}) {
+function createAiAgent(
+  input: AiAgentToolContext & {
+    context?: AiAgentPageContext
+    liveSessionContext?: string
+  }
+) {
   const model = createAiAgentModel()
 
   return createAgent({
@@ -72,14 +69,12 @@ export function selectAiAgentInvocationMessages(input: {
   return [latestMessage]
 }
 
-export async function createAiAgentStream(input: {
-  conversationId: number
-  userId: number
-  messages: AiAgentMessage[]
-  context?: AiAgentPageContext
-  signal?: AbortSignal
-  onKnowledgeSources?: (sources: AiChatCitation[]) => void
-}) {
+export async function createAiAgentStream(
+  input: AiAgentToolRequestContext & {
+    messages: AiAgentMessage[]
+    context?: AiAgentPageContext
+  }
+) {
   const agentRunId = crypto.randomUUID()
   const langfuseCallback = createLangfuseCallback({
     userId: input.userId,

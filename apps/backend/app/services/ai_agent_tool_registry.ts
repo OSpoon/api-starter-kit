@@ -19,18 +19,11 @@ import {
   aiQueryTemplateInstructions,
   runRegisteredAiQuery,
 } from '#services/ai_agent_query_registry'
+import type { AiAgentToolContext } from '#services/ai_agent_tool_context'
 import { searchKnowledge } from '#services/knowledge_service'
 import { permissionCodes } from '#services/permission_catalog'
 
-export function createAiAgentTools(input: {
-  userId: number
-  conversationId: number
-  agentRunId: string
-  signal?: AbortSignal
-  onKnowledgeSources?: (
-    sources: Array<{ documentId: number; chunkId: number; title: string; excerpt: string }>
-  ) => void
-}) {
+export function createAiAgentTools(input: AiAgentToolContext) {
   const throwIfAborted = () => {
     if (input.signal?.aborted) {
       throw new DOMException('AI request was cancelled', 'AbortError')
