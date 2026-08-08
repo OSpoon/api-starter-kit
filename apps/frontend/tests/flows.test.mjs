@@ -61,7 +61,7 @@ test('AI stream rejects when the connection closes without a terminal event', as
   try {
     await assert.rejects(
       streamAiChatMessage(null, 1, 'Hello', () => undefined),
-      /ended before completion/
+      /terminal event/
     )
   } finally {
     globalThis.fetch = originalFetch
@@ -114,7 +114,7 @@ test('AI suggestions use effective permissions and prioritize the current page',
   )
 
   assert.deepEqual(
-    pickRandomAiChatSuggestions(['a', 'b', 'c', 'd'], [], () => 0),
+    pickRandomAiChatSuggestions(['a', 'b', 'c', 'd'], () => 0),
     ['b', 'c', 'd']
   )
 })

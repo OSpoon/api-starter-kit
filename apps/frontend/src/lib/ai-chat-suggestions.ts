@@ -70,5 +70,10 @@ export function pickRandomAiChatSuggestions(
   random: () => number = Math.random
 ) {
   const count = Math.min(suggestions.length, 3)
-  return [...suggestions].sort(() => random() - 0.5).slice(0, count)
+  const shuffled = [...suggestions]
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(random() * (index + 1))
+    ;[shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex]!, shuffled[index]!]
+  }
+  return shuffled.slice(0, count)
 }
