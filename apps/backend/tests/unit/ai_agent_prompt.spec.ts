@@ -10,6 +10,12 @@ test.group('AI agent prompt', () => {
     )
 
     assert.include(prompt, 'You are an admin-console assistant.')
+    assert.include(
+      prompt,
+      'Use the product identity "admin-console AI assistant" when introducing yourself'
+    )
+    assert.include(prompt, 'Never call yourself a dashboard assistant')
+    assert.notInclude(prompt, '仪表盘助手')
     assert.include(prompt, "Reply in the user's language, briefly and practically.")
     assert.include(prompt, 'General product guidance and explanations may be answered directly')
     assert.include(prompt, 'consult the knowledge base when it can improve accuracy')
