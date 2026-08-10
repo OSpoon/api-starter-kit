@@ -60,6 +60,8 @@ declare module 'vue' {
     StringEditor: typeof import('./components/json-schema/components/types/StringEditor.vue')['default']
     TypeDropdown: typeof import('./components/json-schema/components/TypeDropdown.vue')['default']
     TypeEditor: typeof import('./components/json-schema/components/TypeEditor.vue')['default']
+    WecomMessageTemplateForm: typeof import('./components/workbench/WecomMessageTemplateForm.vue')['default']
+    WecomMessageVisualEditor: typeof import('./components/workbench/WecomMessageVisualEditor.vue')['default']
     WizardPageTemplate: typeof import('./components/templates/WizardPageTemplate.vue')['default']
     WorkflowPageTemplate: typeof import('./components/templates/WorkflowPageTemplate.vue')['default']
   }

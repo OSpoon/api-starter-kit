@@ -19,6 +19,12 @@ export const permissionCodes = [
   'audit-logs:read',
   'knowledge:read',
   'knowledge:manage',
+  'wecom-templates:read',
+  'wecom-templates:create',
+  'wecom-templates:update',
+  'wecom-templates:delete',
+  'wecom-templates:test',
+  'wecom-templates:upload',
 ] as const
 
 export type PermissionCode = (typeof permissionCodes)[number]

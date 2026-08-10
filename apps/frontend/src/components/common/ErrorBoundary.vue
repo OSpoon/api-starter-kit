@@ -2,7 +2,6 @@
 import { AlertTriangle, RefreshCw } from '@lucide/vue'
 import { onErrorCaptured, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRouter } from 'vue-router'
 
 import { Button } from '@/components/ui/button'
 
@@ -24,12 +23,9 @@ function reload() {
 
 function goHome() {
   error.value = null
-  // Lazily access the router so setup does not fail if the component
-  // renders before the router is fully installed (e.g. during initial
-  // navigation errors or bfcache restoration).
-  useRouter()
-    .push('/')
-    .catch(() => window.location.assign('/'))
+  // Error boundaries can render outside a usable router context. A full
+  // navigation remains reliable even when route initialization failed.
+  window.location.assign('/')
 }
 </script>
 

@@ -23,6 +23,13 @@ export type ScannedRoutes = {
     'api_keys.store': { paramsTuple?: []; params?: {} }
     'api_keys.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'api_keys.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'wecom_message_templates.index': { paramsTuple?: []; params?: {} }
+    'wecom_message_templates.store': { paramsTuple?: []; params?: {} }
+    'wecom_message_templates.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'wecom_message_templates.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'wecom_message_templates.test_draft': { paramsTuple?: []; params?: {} }
+    'wecom_message_templates.test_send': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'wecom_message_templates.upload_media': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'knowledge_documents.index': { paramsTuple?: []; params?: {} }
     'knowledge_documents.store': { paramsTuple?: []; params?: {} }
     'knowledge_documents.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
@@ -60,6 +67,7 @@ export type ScannedRoutes = {
     'auth.github.callback': { paramsTuple?: []; params?: {} }
     'profile.profile.show': { paramsTuple?: []; params?: {} }
     'api_keys.index': { paramsTuple?: []; params?: {} }
+    'wecom_message_templates.index': { paramsTuple?: []; params?: {} }
     'knowledge_documents.index': { paramsTuple?: []; params?: {} }
     'users.index': { paramsTuple?: []; params?: {} }
     'roles.catalog': { paramsTuple?: []; params?: {} }
@@ -78,6 +86,7 @@ export type ScannedRoutes = {
     'auth.github.callback': { paramsTuple?: []; params?: {} }
     'profile.profile.show': { paramsTuple?: []; params?: {} }
     'api_keys.index': { paramsTuple?: []; params?: {} }
+    'wecom_message_templates.index': { paramsTuple?: []; params?: {} }
     'knowledge_documents.index': { paramsTuple?: []; params?: {} }
     'users.index': { paramsTuple?: []; params?: {} }
     'roles.catalog': { paramsTuple?: []; params?: {} }
@@ -98,6 +107,10 @@ export type ScannedRoutes = {
     'profile.profile.disable_two_factor': { paramsTuple?: []; params?: {} }
     'profile.access_tokens.destroy': { paramsTuple?: []; params?: {} }
     'api_keys.store': { paramsTuple?: []; params?: {} }
+    'wecom_message_templates.store': { paramsTuple?: []; params?: {} }
+    'wecom_message_templates.test_draft': { paramsTuple?: []; params?: {} }
+    'wecom_message_templates.test_send': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'wecom_message_templates.upload_media': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'knowledge_documents.store': { paramsTuple?: []; params?: {} }
     'knowledge_documents.reindex': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'users.store': { paramsTuple?: []; params?: {} }
@@ -112,6 +125,7 @@ export type ScannedRoutes = {
   PUT: {
     'profile.profile.change_password': { paramsTuple?: []; params?: {} }
     'api_keys.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'wecom_message_templates.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'knowledge_documents.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'users.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'roles.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
@@ -119,6 +133,7 @@ export type ScannedRoutes = {
   }
   DELETE: {
     'api_keys.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'wecom_message_templates.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'knowledge_documents.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'users.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'roles.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }

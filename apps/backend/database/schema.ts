@@ -74,7 +74,6 @@ export class AiAgentPendingQuerySchema extends BaseModel {
     'createdAt',
     'expiresAt',
     'id',
-    'missingFields',
     'params',
     'requestedByUserId',
     'status',
@@ -93,8 +92,6 @@ export class AiAgentPendingQuerySchema extends BaseModel {
   declare expiresAt: DateTime
   @column({ isPrimary: true })
   declare id: number
-  @column()
-  declare missingFields: any
   @column()
   declare params: any
   @column()
@@ -126,7 +123,6 @@ export class AiChatConversationSchema extends BaseModel {
 
 export class AiChatMessageSchema extends BaseModel {
   static $columns = [
-    'agentContext',
     'citations',
     'content',
     'conversationId',
@@ -136,8 +132,6 @@ export class AiChatMessageSchema extends BaseModel {
     'updatedAt',
   ] as const
   $columns = AiChatMessageSchema.$columns
-  @column()
-  declare agentContext: any
   @column()
   declare citations: any
   @column()
@@ -480,4 +474,40 @@ export class UserSchema extends BaseModel {
   declare twoFactorSecret: string | null
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime | null
+}
+
+export class WecomMessageTemplateSchema extends BaseModel {
+  static $columns = [
+    'createdAt',
+    'description',
+    'enabled',
+    'id',
+    'msgtype',
+    'name',
+    'parameters',
+    'payload',
+    'updatedAt',
+    'webhookUrl',
+  ] as const
+  $columns = WecomMessageTemplateSchema.$columns
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare description: string | null
+  @column()
+  declare enabled: boolean
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare msgtype: string
+  @column()
+  declare name: string
+  @column()
+  declare parameters: any
+  @column()
+  declare payload: any
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+  @column()
+  declare webhookUrl: string
 }

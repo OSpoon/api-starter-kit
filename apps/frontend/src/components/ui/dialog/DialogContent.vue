@@ -71,6 +71,8 @@ function handleCloseAutoFocus(event: Event) {
       "
       @open-auto-focus="handleOpenAutoFocus"
       @close-auto-focus="handleCloseAutoFocus"
+      @pointer-down-outside="(event) => event.preventDefault()"
+      @interact-outside="(event) => event.preventDefault()"
     >
       <slot />
 

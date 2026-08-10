@@ -14,6 +14,8 @@ const PermissionsController = () => import('#controllers/permissions_controller'
 const RolesController = () => import('#controllers/roles_controller')
 const TwoFactorAuthController = () => import('#controllers/two_factor_auth_controller')
 const UsersController = () => import('#controllers/users_controller')
+const WecomMessageTemplatesController = () =>
+  import('#controllers/wecom_message_templates_controller')
 
 router.get('/api/v1/health', () => {
   return { status: 'ok' }
@@ -90,6 +92,39 @@ router
       .delete('api-keys/:id', [ApiKeysController, 'destroy'])
       .use(middleware.auth())
       .use(middleware.permission(['api-keys:delete']))
+
+    router
+      .group(() => {
+        router
+          .get('wecom-message-templates', [WecomMessageTemplatesController, 'index'])
+          .use(middleware.permission(['wecom-templates:read']))
+        router
+          .post('wecom-message-templates', [WecomMessageTemplatesController, 'store'])
+          .use(middleware.permission(['wecom-templates:create']))
+        router
+          .put('wecom-message-templates/:id', [WecomMessageTemplatesController, 'update'])
+          .use(middleware.permission(['wecom-templates:update']))
+        router
+          .delete('wecom-message-templates/:id', [WecomMessageTemplatesController, 'destroy'])
+          .use(middleware.permission(['wecom-templates:delete']))
+        router
+          .post('wecom-message-templates/test', [WecomMessageTemplatesController, 'testDraft'])
+          .use(middleware.permission(['wecom-templates:test']))
+          .use(middleware.throttle({ max: 20, windowSeconds: 60, key: 'user' }))
+        router
+          .post('wecom-message-templates/:id/test', [WecomMessageTemplatesController, 'testSend'])
+          .use(middleware.permission(['wecom-templates:test']))
+          .use(middleware.throttle({ max: 20, windowSeconds: 60, key: 'user' }))
+        router
+          .post('wecom-message-templates/:id/media', [
+            WecomMessageTemplatesController,
+            'uploadMedia',
+          ])
+          .use(middleware.permission(['wecom-templates:upload']))
+          .use(middleware.throttle({ max: 20, windowSeconds: 60, key: 'user' }))
+      })
+      .prefix('system')
+      .use(middleware.auth())
 
     router
       .group(() => {

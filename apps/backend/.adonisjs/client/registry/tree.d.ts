@@ -39,6 +39,15 @@ export interface ApiDefinition {
     update: typeof routes['api_keys.update']
     destroy: typeof routes['api_keys.destroy']
   }
+  wecomMessageTemplates: {
+    index: typeof routes['wecom_message_templates.index']
+    store: typeof routes['wecom_message_templates.store']
+    update: typeof routes['wecom_message_templates.update']
+    destroy: typeof routes['wecom_message_templates.destroy']
+    testDraft: typeof routes['wecom_message_templates.test_draft']
+    testSend: typeof routes['wecom_message_templates.test_send']
+    uploadMedia: typeof routes['wecom_message_templates.upload_media']
+  }
   knowledgeDocuments: {
     index: typeof routes['knowledge_documents.index']
     store: typeof routes['knowledge_documents.store']

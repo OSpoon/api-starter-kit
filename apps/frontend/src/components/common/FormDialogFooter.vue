@@ -10,11 +10,13 @@ const props = defineProps<{
 </script>
 
 <template>
-  <div :class="cn('flex items-center justify-between gap-2 border-t p-6 pt-4', props.class)">
+  <div
+    :class="cn('flex flex-wrap items-center justify-between gap-3 border-t p-6 pt-4', props.class)"
+  >
     <div class="flex min-w-0 items-center gap-2">
       <slot name="start" />
     </div>
-    <div class="flex justify-end gap-2">
+    <div class="flex flex-wrap justify-end gap-2">
       <slot>
         <Button type="button" variant="ghost">
           <slot name="cancel" />

@@ -16,4 +16,5 @@ export const controllers = {
   Roles: () => import('#controllers/roles_controller'),
   TwoFactorAuth: () => import('#controllers/two_factor_auth_controller'),
   Users: () => import('#controllers/users_controller'),
+  WecomMessageTemplates: () => import('#controllers/wecom_message_templates_controller'),
 }

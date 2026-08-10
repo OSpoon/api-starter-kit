@@ -21,6 +21,10 @@ const permissions = [
   ['audit-logs:read', '查看审计日志', '系统管理'],
   ['knowledge:read', '检索知识库', '系统管理'],
   ['knowledge:manage', '管理知识库', '系统管理'],
+  ['wecom-templates:read', '查看企业微信消息模板', '系统管理'],
+  ['wecom-templates:create', '创建企业微信消息模板', '系统管理'],
+  ['wecom-templates:update', '编辑企业微信消息模板', '系统管理'],
+  ['wecom-templates:delete', '删除企业微信消息模板', '系统管理'],
 ] as const
 
 export default class extends BaseSchema {

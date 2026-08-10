@@ -5,6 +5,7 @@ import {
   Gauge,
   Key,
   ListTodo,
+  MessageSquare,
   Route,
   ShieldCheck,
   Sparkles,
@@ -110,6 +111,17 @@ export const workbenchRoutes: RouteRecordRaw[] = [
           pageKind: 'list',
           permission: 'knowledge:manage',
           nav: { group: 'sidebar.system', icon: BookOpen, order: 60 },
+        },
+      },
+      {
+        path: 'system/wecom-message-templates',
+        name: 'wecom-message-templates',
+        component: () => import('@/views/WecomMessageTemplatesView.vue'),
+        meta: {
+          title: 'sidebar.wecom_message_templates',
+          pageKind: 'list',
+          permission: 'wecom-templates:read',
+          nav: { group: 'sidebar.system', icon: MessageSquare, order: 70 },
         },
       },
       {

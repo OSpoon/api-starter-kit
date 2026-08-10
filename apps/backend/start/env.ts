@@ -40,6 +40,9 @@ export default await Env.create(new URL('../', import.meta.url), {
   // CORS
   CORS_ORIGIN: Env.schema.string.optional(),
 
+  // WeCom
+  WECOM_TEST_WEBHOOK_URL: Env.schema.string.optional(),
+
   // GitHub OAuth
   GITHUB_CLIENT_ID: Env.schema.string.optional(),
   GITHUB_CLIENT_SECRET: Env.schema.secret.optional(),
