@@ -3,6 +3,7 @@ import logger from '@adonisjs/core/services/logger'
 
 import type AiChatConversation from '#models/ai_chat_conversation'
 import AiChatMessage, { type AiChatCitation } from '#models/ai_chat_message'
+import { hasAiAgentCheckpoint } from '#services/ai_agent_checkpoint'
 import {
   attachAgentRunConfirmations,
   failUnattachedAgentRunConfirmations,
@@ -90,6 +91,10 @@ function getSafeAiErrorMessage(error: unknown) {
   return '本次 AI 请求未完成，请稍后重试。'
 }
 
+export function shouldPreserveAiAgentCheckpoint(error: unknown) {
+  return isAbortError(error)
+}
+
 async function failUnattachedConfirmationsWithRetry(input: {
   conversationId: number
   userId: number
@@ -171,19 +176,30 @@ export async function runAiChatAssistantTurn(input: {
     })
 
     const regenerate = regeneration !== null
-    const persistedMessages = regenerate ? regeneration.messages : conversation.messages
+    const hasCheckpoint = await hasAiAgentCheckpoint({
+      conversationId: conversation.id,
+      userId,
+    })
+    if (!regenerate && !hasCheckpoint) {
+      await conversation.load('messages', (query) => query.orderBy('created_at', 'asc'))
+    }
+
     const history = regenerate
-      ? persistedMessages.map((message) => ({
+      ? regeneration.messages.map((message) => ({
           role: message.role,
           content: message.content,
         }))
-      : [
-          ...persistedMessages.map((message) => ({
-            role: message.role,
-            content: message.content,
-          })),
-          { role: userMessage.role, content: userMessage.content },
-        ]
+      : hasCheckpoint
+        ? [{ role: userMessage.role, content: userMessage.content }]
+        : [
+            ...conversation.messages
+              .filter((message) => message.id !== userMessage.id)
+              .map((message) => ({
+                role: message.role,
+                content: message.content,
+              })),
+            { role: userMessage.role, content: userMessage.content },
+          ]
     aiFailureStage = 'agent_stream'
     const run = await createAiAgentStream({
       conversationId: conversation.id,
@@ -332,13 +348,15 @@ export async function runAiChatAssistantTurn(input: {
         message: serializeAiChatMessage(failedAssistantMessage),
         confirmations,
       })
-      try {
-        await resetAiConversationState({ conversationId: conversation.id, userId })
-      } catch (stateError) {
-        logger.error(
-          { err: stateError, conversationId: conversation.id, agentRunId },
-          'AI recovered checkpoint cleanup failed'
-        )
+      if (!shouldPreserveAiAgentCheckpoint(error)) {
+        try {
+          await resetAiConversationState({ conversationId: conversation.id, userId })
+        } catch (stateError) {
+          logger.error(
+            { err: stateError, conversationId: conversation.id, agentRunId },
+            'AI recovered checkpoint cleanup failed'
+          )
+        }
       }
       return
     }
@@ -353,7 +371,9 @@ export async function runAiChatAssistantTurn(input: {
         ctx: input.ctx,
       })
     }
-    await resetAiConversationState({ conversationId: conversation.id, userId })
+    if (!shouldPreserveAiAgentCheckpoint(error)) {
+      await resetAiConversationState({ conversationId: conversation.id, userId })
+    }
     writeAiChatSse(response, 'error', {
       message,
       assistantMessage: serializeAiChatMessage(failedAssistantMessage),

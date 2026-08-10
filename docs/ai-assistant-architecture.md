@@ -41,11 +41,13 @@ flowchart TB
 
 ## 状态与持久化
 
-- `AiChatConversation`、`AiChatMessage`：保存完整用户可见历史和引用。
-- LangGraph checkpoint：保存 Agent 跨请求运行状态，thread key 为 `ai-chat:{userId}:{conversationId}`。
+- `AiChatConversation`、`AiChatMessage`：保存完整用户可见历史和引用，作为前端历史 API 的稳定数据源。
+- LangGraph checkpoint：保存 Agent 跨请求运行状态、压缩后的上下文、rolling summary 和最近一次已提交的工具调用状态，thread key 为 `ai-chat:{userId}:{conversationId}`。checkpoint 存在时，后续请求只提交最新用户消息；缺失时才从消息表恢复完整历史。
 - `AiAgentPendingQuery`：保存多轮查询的缺参状态，不保存原始查询结果。
 - `AiAgentConfirmation`：保存待确认提议及安全摘要，不向普通消息暴露 payload 或密钥。
-- `ai_conversation_state.ts`：统一清理 checkpoint 和 pending query；重新生成、会话删除、失败恢复均通过此入口处理。
+- `ai_conversation_state.ts`：统一清理 checkpoint 和 pending query；重新生成和会话删除通过此入口处理，不可恢复失败也使用该入口。
+
+客户端断开、用户停止生成或请求超时属于可恢复中断：系统保留最近一次已提交的 checkpoint，下一轮同一会话继续使用它。不可恢复错误、重新生成和会话删除会清理 checkpoint。受控管理操作仍必须经过结构化确认；确认执行使用数据库条件更新和执行令牌保证幂等，Agent 恢复不会绕过确认流程。
 
 AI 请求完成时间不再由自研 `AiChatTiming` 记录，统一依赖 Langfuse（可选）和现有审计日志。Langfuse 未配置时不发起外部观测请求。
 

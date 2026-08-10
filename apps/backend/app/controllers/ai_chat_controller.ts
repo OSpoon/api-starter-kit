@@ -66,10 +66,10 @@ export default class AiChatController {
     const conversation = await AiChatConversation.query()
       .where('id', params.id)
       .where('user_id', user.id)
-      .preload('messages', (query) => query.orderBy('created_at', 'asc'))
       .firstOrFail()
 
     const confirmations = await listConversationConfirmations(conversation.id, user.id)
+    await conversation.load('messages', (query) => query.orderBy('created_at', 'asc'))
     return serialize({ ...serializeAiChatConversationWithMessages(conversation), confirmations })
   }
 
@@ -85,8 +85,11 @@ export default class AiChatController {
     const conversation = await AiChatConversation.query()
       .where('id', params.id)
       .where('user_id', user.id)
-      .preload('messages', (query) => query.orderBy('created_at', 'asc'))
       .firstOrFail()
+
+    if (payload.regenerateAssistantMessageId) {
+      await conversation.load('messages', (query) => query.orderBy('created_at', 'asc'))
+    }
 
     const regeneration = payload.regenerateAssistantMessageId
       ? resolveAiChatRegeneration(conversation.messages, payload.regenerateAssistantMessageId)
@@ -112,9 +115,12 @@ export default class AiChatController {
         content: payload.content,
       }))
 
+    const messageCount = await AiChatMessage.query()
+      .where('conversation_id', conversation.id)
+      .count('* as total')
     if (
       !payload.regenerateAssistantMessageId &&
-      conversation.messages.length === 0 &&
+      Number(messageCount[0].$extras.total) === 1 &&
       conversation.title === 'New chat'
     ) {
       conversation.title = createTitle(payload.content)
