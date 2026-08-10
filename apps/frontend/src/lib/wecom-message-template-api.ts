@@ -93,6 +93,41 @@ export async function testWecomTemplate(
     })
   )
 }
+
+export async function sendWecomTemplate(
+  token: string | null,
+  id: number,
+  params: Record<string, unknown>,
+  mentions: WecomRuntimeMentions = {}
+) {
+  return readItem(
+    await apiRequest<{ sent: boolean }>(`/api/v1/system/wecom-messages/${id}/send`, {
+      ...auth(token),
+      method: 'POST',
+      body: JSON.stringify({ params, ...mentions }),
+    })
+  )
+}
+
+export function buildWecomTemplateCurl(
+  template: WecomMessageTemplate,
+  baseUrl = window.location.origin
+) {
+  const params = Object.fromEntries(template.parameters.map((parameter) => [parameter.name, '']))
+  const body: Record<string, unknown> = { params }
+  if (template.msgtype === 'text') {
+    body.mentioned_list = []
+    body.mentioned_mobile_list = []
+  }
+  const url = `${baseUrl.replace(/\/$/, '')}/api/v1/wecom-messages/${template.id}/send`
+  return [
+    `curl --request POST '${url}' \\`,
+    "  --header 'Content-Type: application/json' \\",
+    "  --header 'X-API-Key: YOUR_API_KEY' \\",
+    `  --data-raw '${JSON.stringify(body, null, 2)}'`,
+  ].join('\n')
+}
+
 export async function testWecomTemplateDraft(
   token: string | null,
   msgtype: WecomMessageType,

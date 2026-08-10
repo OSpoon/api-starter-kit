@@ -6,6 +6,12 @@ import type { ApiDefinition } from './tree.d.ts'
 const placeholder: any = {}
 
 const routes = {
+  'wecom.messages.send': {
+    methods: ["POST"],
+    pattern: '/api/v1/wecom-messages/:id/send',
+    tokens: [{"old":"/api/v1/wecom-messages/:id/send","type":0,"val":"api","end":""},{"old":"/api/v1/wecom-messages/:id/send","type":0,"val":"v1","end":""},{"old":"/api/v1/wecom-messages/:id/send","type":0,"val":"wecom-messages","end":""},{"old":"/api/v1/wecom-messages/:id/send","type":1,"val":"id","end":""},{"old":"/api/v1/wecom-messages/:id/send","type":0,"val":"send","end":""}],
+    types: placeholder as Registry['wecom.messages.send']['types'],
+  },
   'openapi.html': {
     methods: ["GET","HEAD"],
     pattern: '/api-docs',
@@ -155,6 +161,12 @@ const routes = {
     pattern: '/api/v1/system/wecom-message-templates/:id/test',
     tokens: [{"old":"/api/v1/system/wecom-message-templates/:id/test","type":0,"val":"api","end":""},{"old":"/api/v1/system/wecom-message-templates/:id/test","type":0,"val":"v1","end":""},{"old":"/api/v1/system/wecom-message-templates/:id/test","type":0,"val":"system","end":""},{"old":"/api/v1/system/wecom-message-templates/:id/test","type":0,"val":"wecom-message-templates","end":""},{"old":"/api/v1/system/wecom-message-templates/:id/test","type":1,"val":"id","end":""},{"old":"/api/v1/system/wecom-message-templates/:id/test","type":0,"val":"test","end":""}],
     types: placeholder as Registry['wecom_message_templates.test_send']['types'],
+  },
+  'system.wecom.messages.send': {
+    methods: ["POST"],
+    pattern: '/api/v1/system/wecom-messages/:id/send',
+    tokens: [{"old":"/api/v1/system/wecom-messages/:id/send","type":0,"val":"api","end":""},{"old":"/api/v1/system/wecom-messages/:id/send","type":0,"val":"v1","end":""},{"old":"/api/v1/system/wecom-messages/:id/send","type":0,"val":"system","end":""},{"old":"/api/v1/system/wecom-messages/:id/send","type":0,"val":"wecom-messages","end":""},{"old":"/api/v1/system/wecom-messages/:id/send","type":1,"val":"id","end":""},{"old":"/api/v1/system/wecom-messages/:id/send","type":0,"val":"send","end":""}],
+    types: placeholder as Registry['system.wecom.messages.send']['types'],
   },
   'wecom_message_templates.upload_media': {
     methods: ["POST"],

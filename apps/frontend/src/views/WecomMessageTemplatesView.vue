@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { json } from '@codemirror/lang-json'
-import { Pencil, Plus, RefreshCw, Send, Trash2 } from '@lucide/vue'
+import { Copy, Pencil, Plus, RefreshCw, Send, Trash2 } from '@lucide/vue'
 import type { ColumnDef } from '@tanstack/vue-table'
 import { toast } from 'vue-sonner'
 
@@ -24,6 +24,7 @@ import { usePermission } from '@/lib/permission'
 import { useDelayedDialog } from '@/lib/use-delayed-dialog'
 import type { WecomMessageTemplate, WecomTemplateInput } from '@/lib/wecom-message-template-api'
 import {
+  buildWecomTemplateCurl,
   createWecomTemplate,
   deleteWecomTemplate,
   listWecomTemplates,
@@ -107,6 +108,19 @@ const columns = computed<ColumnDef<WecomMessageTemplate>[]>(() => [
     meta: { label: t('common.actions') },
     cell: ({ row }) =>
       h('div', { class: 'flex justify-end gap-1' }, [
+        can('wecom-templates:read')
+          ? h(
+              Button,
+              {
+                variant: 'ghost',
+                size: 'icon',
+                title: t('wecom_templates.copy_curl'),
+                'aria-label': t('wecom_templates.copy_curl'),
+                onClick: () => void copyCurl(row.original),
+              },
+              () => h(Copy, { class: 'size-4' })
+            )
+          : null,
         can('wecom-templates:test')
           ? h(
               Button,
@@ -185,6 +199,14 @@ function openTest(template: WecomMessageTemplate) {
   mentionedList.value = []
   mentionedMobileList.value = []
   testOpen.value = true
+}
+async function copyCurl(template: WecomMessageTemplate) {
+  try {
+    await navigator.clipboard.writeText(buildWecomTemplateCurl(template))
+    toast.success(t('wecom_templates.curl_copied'))
+  } catch {
+    toast.error(t('wecom_templates.curl_copy_failed'))
+  }
 }
 async function save(input: WecomTemplateInput) {
   saving.value = true

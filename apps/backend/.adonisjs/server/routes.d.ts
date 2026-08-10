@@ -4,6 +4,7 @@ type ParamValue = string | number | bigint | boolean
 
 export type ScannedRoutes = {
   ALL: {
+    'wecom.messages.send': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'openapi.html': { paramsTuple?: []; params?: {} }
     'openapi.json': { paramsTuple?: []; params?: {} }
     'openapi.yaml': { paramsTuple?: []; params?: {} }
@@ -29,6 +30,7 @@ export type ScannedRoutes = {
     'wecom_message_templates.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'wecom_message_templates.test_draft': { paramsTuple?: []; params?: {} }
     'wecom_message_templates.test_send': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'system.wecom.messages.send': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'wecom_message_templates.upload_media': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'knowledge_documents.index': { paramsTuple?: []; params?: {} }
     'knowledge_documents.store': { paramsTuple?: []; params?: {} }
@@ -58,6 +60,33 @@ export type ScannedRoutes = {
     'ai_chat.resume': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'ai_chat.confirm_ai_agent_action': { paramsTuple: [ParamValue,ParamValue]; params: {'id': ParamValue,'confirmationId': ParamValue} }
     'ai_chat.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+  }
+  POST: {
+    'wecom.messages.send': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'auth.signup': { paramsTuple?: []; params?: {} }
+    'auth.login': { paramsTuple?: []; params?: {} }
+    'auth.github.exchange': { paramsTuple?: []; params?: {} }
+    'auth.2fa.verify': { paramsTuple?: []; params?: {} }
+    'profile.2fa.generate': { paramsTuple?: []; params?: {} }
+    'profile.2fa.enable': { paramsTuple?: []; params?: {} }
+    'profile.profile.disable_two_factor': { paramsTuple?: []; params?: {} }
+    'profile.access_tokens.destroy': { paramsTuple?: []; params?: {} }
+    'api_keys.store': { paramsTuple?: []; params?: {} }
+    'wecom_message_templates.store': { paramsTuple?: []; params?: {} }
+    'wecom_message_templates.test_draft': { paramsTuple?: []; params?: {} }
+    'wecom_message_templates.test_send': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'system.wecom.messages.send': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'wecom_message_templates.upload_media': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'knowledge_documents.store': { paramsTuple?: []; params?: {} }
+    'knowledge_documents.reindex': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'users.store': { paramsTuple?: []; params?: {} }
+    'users.reset_password': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'roles.store': { paramsTuple?: []; params?: {} }
+    'permissions.store': { paramsTuple?: []; params?: {} }
+    'ai_chat.store': { paramsTuple?: []; params?: {} }
+    'ai_chat.send_message': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'ai_chat.resume': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'ai_chat.confirm_ai_agent_action': { paramsTuple: [ParamValue,ParamValue]; params: {'id': ParamValue,'confirmationId': ParamValue} }
   }
   GET: {
     'openapi.html': { paramsTuple?: []; params?: {} }
@@ -96,31 +125,6 @@ export type ScannedRoutes = {
     'audit_logs.index': { paramsTuple?: []; params?: {} }
     'ai_chat.index': { paramsTuple?: []; params?: {} }
     'ai_chat.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
-  }
-  POST: {
-    'auth.signup': { paramsTuple?: []; params?: {} }
-    'auth.login': { paramsTuple?: []; params?: {} }
-    'auth.github.exchange': { paramsTuple?: []; params?: {} }
-    'auth.2fa.verify': { paramsTuple?: []; params?: {} }
-    'profile.2fa.generate': { paramsTuple?: []; params?: {} }
-    'profile.2fa.enable': { paramsTuple?: []; params?: {} }
-    'profile.profile.disable_two_factor': { paramsTuple?: []; params?: {} }
-    'profile.access_tokens.destroy': { paramsTuple?: []; params?: {} }
-    'api_keys.store': { paramsTuple?: []; params?: {} }
-    'wecom_message_templates.store': { paramsTuple?: []; params?: {} }
-    'wecom_message_templates.test_draft': { paramsTuple?: []; params?: {} }
-    'wecom_message_templates.test_send': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
-    'wecom_message_templates.upload_media': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
-    'knowledge_documents.store': { paramsTuple?: []; params?: {} }
-    'knowledge_documents.reindex': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
-    'users.store': { paramsTuple?: []; params?: {} }
-    'users.reset_password': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
-    'roles.store': { paramsTuple?: []; params?: {} }
-    'permissions.store': { paramsTuple?: []; params?: {} }
-    'ai_chat.store': { paramsTuple?: []; params?: {} }
-    'ai_chat.send_message': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
-    'ai_chat.resume': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
-    'ai_chat.confirm_ai_agent_action': { paramsTuple: [ParamValue,ParamValue]; params: {'id': ParamValue,'confirmationId': ParamValue} }
   }
   PUT: {
     'profile.profile.change_password': { paramsTuple?: []; params?: {} }

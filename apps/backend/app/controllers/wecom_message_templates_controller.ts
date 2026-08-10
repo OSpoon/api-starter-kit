@@ -179,6 +179,45 @@ export default class WecomMessageTemplatesController {
     }
   }
 
+  @ApiOperation({ summary: '发送企业微信消息模板' })
+  @ApiResponse({ status: 200, description: '消息发送结果' })
+  @ApiResponse({ status: 422, description: '模板或参数校验失败' })
+  @ApiResponse({ status: 429, description: '超过企业微信发送频率限制' })
+  async send(ctx: HttpContext) {
+    const { params, request, response, serialize } = ctx
+    const template = await WecomMessageTemplate.findOrFail(params.id)
+    await request.validateUsing(wecomTemplateParamsValidator)
+    const runtimeParams = request.input('params', {}) as Record<string, string>
+    const mentions = {
+      mentionedList: request.input('mentioned_list') as string[] | undefined,
+      mentionedMobileList: request.input('mentioned_mobile_list') as string[] | undefined,
+    }
+    try {
+      const result = await sendWecomMessageTemplate(template, runtimeParams, mentions)
+      return serialize({ sent: true, result })
+    } catch (error) {
+      if (error instanceof Error && error.name === 'WecomTemplateRateLimitError') {
+        const retryAfter = (error as { retryAfter?: number }).retryAfter ?? 60
+        response.header('Retry-After', String(retryAfter))
+        return response.tooManyRequests({
+          code: 'E_WECOM_TEMPLATE_RATE_LIMIT',
+          message: error.message,
+          retryAfter,
+        })
+      }
+      if (error instanceof Error && error.name === 'WecomTemplateValidationError') {
+        return response.unprocessableEntity({
+          code: 'E_WECOM_TEMPLATE_VALIDATION',
+          message: error.message,
+        })
+      }
+      return response.badGateway({
+        code: 'E_WECOM_PROVIDER_ERROR',
+        message: '企业微信消息发送失败',
+      })
+    }
+  }
+
   @ApiOperation({ summary: '测试未保存的企业微信消息模板' })
   @ApiResponse({ status: 200, description: '测试发送结果' })
   async testDraft(ctx: HttpContext) {

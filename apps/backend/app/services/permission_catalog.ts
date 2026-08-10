@@ -23,6 +23,7 @@ export const permissionCodes = [
   'wecom-templates:create',
   'wecom-templates:update',
   'wecom-templates:delete',
+  'wecom-templates:send',
   'wecom-templates:test',
   'wecom-templates:upload',
 ] as const

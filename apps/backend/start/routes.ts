@@ -17,6 +17,12 @@ const UsersController = () => import('#controllers/users_controller')
 const WecomMessageTemplatesController = () =>
   import('#controllers/wecom_message_templates_controller')
 
+router
+  .post('/api/v1/wecom-messages/:id/send', [WecomMessageTemplatesController, 'send'])
+  .as('wecom.messages.send')
+  .use(middleware.apiKey())
+  .use(middleware.throttle({ max: 20, windowSeconds: 60, key: 'ip' }))
+
 router.get('/api/v1/health', () => {
   return { status: 'ok' }
 })
@@ -114,6 +120,11 @@ router
         router
           .post('wecom-message-templates/:id/test', [WecomMessageTemplatesController, 'testSend'])
           .use(middleware.permission(['wecom-templates:test']))
+          .use(middleware.throttle({ max: 20, windowSeconds: 60, key: 'user' }))
+        router
+          .post('wecom-messages/:id/send', [WecomMessageTemplatesController, 'send'])
+          .as('system.wecom.messages.send')
+          .use(middleware.permission(['wecom-templates:send']))
           .use(middleware.throttle({ max: 20, windowSeconds: 60, key: 'user' }))
         router
           .post('wecom-message-templates/:id/media', [

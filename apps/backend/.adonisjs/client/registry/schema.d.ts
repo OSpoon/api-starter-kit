@@ -7,6 +7,18 @@ import type { InferInput, SimpleError } from '@vinejs/vine/types'
 export type ParamValue = string | number | bigint | boolean
 
 export interface Registry {
+  'wecom.messages.send': {
+    methods: ["POST"]
+    pattern: '/api/v1/wecom-messages/:id/send'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/wecom_message_template').wecomTemplateParamsValidator)>>
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/wecom_message_template').wecomTemplateParamsValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/wecom_message_templates_controller').default['send']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/wecom_message_templates_controller').default['send']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
   'openapi.html': {
     methods: ["GET","HEAD"]
     pattern: '/api-docs'
@@ -305,6 +317,18 @@ export interface Registry {
       query: ExtractQuery<InferInput<(typeof import('#validators/wecom_message_template').wecomTemplateParamsValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/wecom_message_templates_controller').default['testSend']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/wecom_message_templates_controller').default['testSend']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'system.wecom.messages.send': {
+    methods: ["POST"]
+    pattern: '/api/v1/system/wecom-messages/:id/send'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/wecom_message_template').wecomTemplateParamsValidator)>>
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/wecom_message_template').wecomTemplateParamsValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/wecom_message_templates_controller').default['send']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/wecom_message_templates_controller').default['send']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
   'wecom_message_templates.upload_media': {

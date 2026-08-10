@@ -2,6 +2,11 @@
 import type { routes } from './index.ts'
 
 export interface ApiDefinition {
+  wecom: {
+    messages: {
+      send: typeof routes['wecom.messages.send']
+    }
+  }
   openapi: {
     html: typeof routes['openapi.html']
     json: typeof routes['openapi.json']
@@ -47,6 +52,13 @@ export interface ApiDefinition {
     testDraft: typeof routes['wecom_message_templates.test_draft']
     testSend: typeof routes['wecom_message_templates.test_send']
     uploadMedia: typeof routes['wecom_message_templates.upload_media']
+  }
+  system: {
+    wecom: {
+      messages: {
+        send: typeof routes['system.wecom.messages.send']
+      }
+    }
   }
   knowledgeDocuments: {
     index: typeof routes['knowledge_documents.index']
