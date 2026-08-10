@@ -33,7 +33,7 @@
 | 账户     | `/account/profile`、`/account/password`、2FA 操作、`/account/logout`                                         |
 | API Key  | `/api-keys`、`/api-keys/:id`                                                                                 |
 | 系统管理 | `/system/users`、`/system/roles`、`/system/permissions`、`/system/audit-logs`、`/system/knowledge-documents` |
-| AI 会话  | `/ai-chat/conversations` 及嵌套消息、确认操作                                                                |
+| AI 会话  | `/ai-chat/conversations` 及嵌套消息、确认操作、`POST /ai-chat/conversations/:id/resume` 恢复操作             |
 
 表内路径均相对 `/api/v1`。系统管理与 API Key 操作需要对应的命名权限，详见[安全与治理](security.md)。
 

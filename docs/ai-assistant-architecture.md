@@ -43,6 +43,7 @@ flowchart TB
 
 - `AiChatConversation`、`AiChatMessage`：保存完整用户可见历史和引用，作为前端历史 API 的稳定数据源。
 - LangGraph checkpoint：保存 Agent 跨请求运行状态、压缩后的上下文、rolling summary 和最近一次已提交的工具调用状态，thread key 为 `ai-chat:{userId}:{conversationId}`。checkpoint 存在时，后续请求只提交最新用户消息；缺失时才从消息表恢复完整历史。
+- Agent 图通过 `ai_agent_run_state` middleware 节点记录 `model_running`、`tool_pending`、`running` 和 `completed` 运行阶段；`ai_agent_summary_boundary` 节点在摘要成功后记录 `aiSummaryCoveredThroughMessageId`。这些状态随 checkpoint 保存，中断时保留最近阶段供下一轮恢复判断。
 - `AiAgentPendingQuery`：保存多轮查询的缺参状态，不保存原始查询结果。
 - `AiAgentConfirmation`：保存待确认提议及安全摘要，不向普通消息暴露 payload 或密钥。
 - `ai_conversation_state.ts`：统一清理 checkpoint 和 pending query；重新生成和会话删除通过此入口处理，不可恢复失败也使用该入口。

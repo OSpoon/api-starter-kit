@@ -1,22 +1,21 @@
 import crypto from 'node:crypto'
 
-import { AIMessage, createAgent, HumanMessage, SystemMessage } from 'langchain'
-
 import {
   getAiAgentCheckpointConfig,
   getAiAgentCheckpointer,
   hasAiAgentCheckpoint,
 } from '#services/ai_agent_checkpoint'
 import {
-  type AiAgentPageContext,
-  createAiAgentSystemPrompt,
-} from '#services/ai_agent_prompt_policy'
+  type AiAgentGraphMessage,
+  createAiAgentGraph,
+  toAiAgentGraphMessages,
+} from '#services/ai_agent_graph'
+import type { AiAgentPageContext } from '#services/ai_agent_prompt_policy'
 import { getPendingAiQueryContext } from '#services/ai_agent_query_registry'
-import { createAiAgentMiddleware, createAiAgentModel } from '#services/ai_agent_runtime'
-import type { AiAgentToolContext, AiAgentToolRequestContext } from '#services/ai_agent_tool_context'
-import { createAiAgentTools } from '#services/ai_agent_tool_registry'
+import type { AiAgentToolRequestContext } from '#services/ai_agent_tool_context'
 import { createLangfuseCallback } from '#services/langfuse'
 
+export type { AiAgentGraphMessage as AiAgentMessage } from '#services/ai_agent_graph'
 export {
   type AiAgentPageContext,
   createAiAgentSystemPrompt,
@@ -28,28 +27,6 @@ export {
   getAiRequestTimeout,
 } from '#services/ai_agent_runtime'
 
-export interface AiAgentMessage {
-  role: 'user' | 'assistant' | 'system'
-  content: string
-}
-
-function createAiAgent(
-  input: AiAgentToolContext & {
-    context?: AiAgentPageContext
-    liveSessionContext?: string
-  }
-) {
-  const model = createAiAgentModel()
-
-  return createAgent({
-    model,
-    tools: createAiAgentTools(input),
-    checkpointer: getAiAgentCheckpointer(),
-    middleware: createAiAgentMiddleware(),
-    systemPrompt: createAiAgentSystemPrompt(input.context, input.liveSessionContext),
-  })
-}
-
 async function buildLiveSessionContext(conversationId: number, userId: number) {
   try {
     const pendingQueryContext = await getPendingAiQueryContext({ conversationId, userId })
@@ -60,7 +37,7 @@ async function buildLiveSessionContext(conversationId: number, userId: number) {
 }
 
 export function selectAiAgentInvocationMessages(input: {
-  messages: AiAgentMessage[]
+  messages: AiAgentGraphMessage[]
   hasCheckpoint: boolean
 }) {
   if (!input.hasCheckpoint) return input.messages
@@ -71,8 +48,10 @@ export function selectAiAgentInvocationMessages(input: {
 
 export async function createAiAgentStream(
   input: AiAgentToolRequestContext & {
-    messages: AiAgentMessage[]
+    messages: AiAgentGraphMessage[]
     context?: AiAgentPageContext
+    resume?: boolean
+    aiSummaryCandidateBoundaryId?: number
   }
 ) {
   const agentRunId = crypto.randomUUID()
@@ -83,29 +62,29 @@ export async function createAiAgentStream(
   })
   const liveSessionContext = await buildLiveSessionContext(input.conversationId, input.userId)
   const checkpointInput = { conversationId: input.conversationId, userId: input.userId }
-  const messages = selectAiAgentInvocationMessages({
-    messages: input.messages,
-    hasCheckpoint: await hasAiAgentCheckpoint(checkpointInput),
-  })
-  const agent = createAiAgent({
+  const hasCheckpoint = await hasAiAgentCheckpoint(checkpointInput)
+  if (input.resume && !hasCheckpoint) {
+    throw new Error('没有可恢复的 AI 运行状态')
+  }
+  const messages = input.resume
+    ? []
+    : selectAiAgentInvocationMessages({
+        messages: input.messages,
+        hasCheckpoint,
+      })
+  const { agent } = createAiAgentGraph({
     ...input,
     agentRunId,
     liveSessionContext,
+    checkpointer: getAiAgentCheckpointer(),
   })
 
   const stream = await agent.streamEvents(
-    {
-      messages: messages.map((message) => {
-        switch (message.role) {
-          case 'user':
-            return new HumanMessage({ content: message.content })
-          case 'assistant':
-            return new AIMessage({ content: message.content })
-          case 'system':
-            return new SystemMessage({ content: message.content })
-        }
-      }),
-    },
+    input.resume
+      ? null
+      : {
+          messages: toAiAgentGraphMessages(messages),
+        },
     {
       version: 'v3',
       signal: input.signal,

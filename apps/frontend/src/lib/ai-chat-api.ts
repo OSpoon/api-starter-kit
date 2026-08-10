@@ -74,6 +74,7 @@ export interface AiChatStreamOptions {
   signal?: AbortSignal
   context?: AiChatPageContext
   regenerateAssistantMessageId?: number
+  resume?: boolean
 }
 
 // The backend limits a complete AI run to five minutes at most. Keep a small
@@ -220,16 +221,23 @@ export async function streamAiChatMessage(
   }
 
   try {
-    const response = await fetch(`/api/v1/ai-chat/conversations/${id}/messages`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        content,
-        context: options.context,
-        regenerateAssistantMessageId: options.regenerateAssistantMessageId,
-      }),
-      signal: requestController.signal,
-    })
+    const response = await fetch(
+      `/api/v1/ai-chat/conversations/${id}/${options.resume ? 'resume' : 'messages'}`,
+      {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(
+          options.resume
+            ? {}
+            : {
+                content,
+                context: options.context,
+                regenerateAssistantMessageId: options.regenerateAssistantMessageId,
+              }
+        ),
+        signal: requestController.signal,
+      }
+    )
 
     if (!response.ok || !response.body) {
       const payload = await response.json().catch(() => null)
@@ -282,6 +290,15 @@ export async function streamAiChatMessage(
     clearTimeout(timeout)
     options.signal?.removeEventListener('abort', abortFromCaller)
   }
+}
+
+export function resumeAiChatMessage(
+  token: string | null,
+  id: number,
+  onEvent: (event: AiChatStreamEvent) => void,
+  options: Omit<AiChatStreamOptions, 'resume' | 'context' | 'regenerateAssistantMessageId'> = {}
+) {
+  return streamAiChatMessage(token, id, '', onEvent, { ...options, resume: true })
 }
 
 export async function deleteAiChatConversation(token: string | null, id: number) {

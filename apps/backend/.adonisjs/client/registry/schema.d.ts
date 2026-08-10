@@ -535,6 +535,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['sendMessage']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
+  'ai_chat.resume': {
+    methods: ["POST"]
+    pattern: '/api/v1/ai-chat/conversations/:id/resume'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/ai_chat').resumeAiChatValidator)>>
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/ai_chat').resumeAiChatValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['resume']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['resume']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
   'ai_chat.confirm_ai_agent_action': {
     methods: ["POST"]
     pattern: '/api/v1/ai-chat/conversations/:id/confirmations/:confirmationId/confirm'

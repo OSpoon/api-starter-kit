@@ -8,6 +8,7 @@ import {
   attachAgentRunConfirmations,
   failUnattachedAgentRunConfirmations,
 } from '#services/ai_agent_confirmation'
+import { getAiAgentSummarizationOptions } from '#services/ai_agent_runtime'
 import { type AiAgentPageContext, createAiAgentStream } from '#services/ai_agent_service'
 import type { AiChatResolvedRegeneration } from '#services/ai_chat_regeneration'
 import {
@@ -130,6 +131,7 @@ export async function runAiChatAssistantTurn(input: {
   userId: number
   userMessage: AiChatMessage
   regeneration: AiChatResolvedRegeneration<AiChatMessage> | null
+  resume?: boolean
   context?: AiAgentPageContext
   signal: AbortSignal
   response: HttpContext['response']
@@ -170,10 +172,12 @@ export async function runAiChatAssistantTurn(input: {
 
   try {
     stopKeepalive = startAiChatSseKeepalive(response)
-    writeAiChatSse(response, 'user', {
-      conversation: serializeAiChatConversation(conversation),
-      message: serializeAiChatMessage(userMessage),
-    })
+    if (!input.resume) {
+      writeAiChatSse(response, 'user', {
+        conversation: serializeAiChatConversation(conversation),
+        message: serializeAiChatMessage(userMessage),
+      })
+    }
 
     const regenerate = regeneration !== null
     const hasCheckpoint = await hasAiAgentCheckpoint({
@@ -184,28 +188,46 @@ export async function runAiChatAssistantTurn(input: {
       await conversation.load('messages', (query) => query.orderBy('created_at', 'asc'))
     }
 
-    const history = regenerate
-      ? regeneration.messages.map((message) => ({
-          role: message.role,
-          content: message.content,
-        }))
-      : hasCheckpoint
-        ? [{ role: userMessage.role, content: userMessage.content }]
-        : [
-            ...conversation.messages
-              .filter((message) => message.id !== userMessage.id)
-              .map((message) => ({
-                role: message.role,
-                content: message.content,
-              })),
-            { role: userMessage.role, content: userMessage.content },
-          ]
+    const history = input.resume
+      ? []
+      : regenerate
+        ? regeneration.messages.map((message) => ({
+            role: message.role,
+            content: message.content,
+            id: message.id,
+          }))
+        : hasCheckpoint
+          ? [{ role: userMessage.role, content: userMessage.content, id: userMessage.id }]
+          : [
+              ...conversation.messages
+                .filter((message) => message.id !== userMessage.id)
+                .map((message) => ({
+                  role: message.role,
+                  content: message.content,
+                  id: message.id,
+                })),
+              { role: userMessage.role, content: userMessage.content, id: userMessage.id },
+            ]
+    const summarization = getAiAgentSummarizationOptions()
+    const aiSummaryCandidateBoundaryId =
+      !input.resume &&
+      !hasCheckpoint &&
+      summarization.enabled &&
+      history.length > summarization.recentMessageCount
+        ? history.at(-(summarization.recentMessageCount + 1))?.id
+        : undefined
     aiFailureStage = 'agent_stream'
     const run = await createAiAgentStream({
       conversationId: conversation.id,
       userId,
-      messages: history,
+      messages: history.map((message, index) =>
+        index === history.length - 1 && aiSummaryCandidateBoundaryId
+          ? { ...message, summaryCandidateBoundaryId: aiSummaryCandidateBoundaryId }
+          : message
+      ),
       context: input.context,
+      resume: input.resume,
+      aiSummaryCandidateBoundaryId,
       signal: input.signal,
       onKnowledgeSources: (sources) => {
         for (const source of sources) {

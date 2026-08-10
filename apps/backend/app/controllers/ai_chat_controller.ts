@@ -3,6 +3,7 @@ import { ApiOperation, ApiResponse, ApiSecurity } from '@foadonis/openapi/decora
 
 import AiChatConversation from '#models/ai_chat_conversation'
 import AiChatMessage from '#models/ai_chat_message'
+import { getAiAgentCheckpointRunStage, hasAiAgentCheckpoint } from '#services/ai_agent_checkpoint'
 import {
   AiAgentConfirmationError,
   confirmAiAgentAction as executeAiAgentAction,
@@ -16,7 +17,11 @@ import {
   serializeAiChatConversation,
   serializeAiChatConversationWithMessages,
 } from '#transformers/ai_chat_transformer'
-import { createConversationValidator, sendAiChatMessageValidator } from '#validators/ai_chat'
+import {
+  createConversationValidator,
+  resumeAiChatValidator,
+  sendAiChatMessageValidator,
+} from '#validators/ai_chat'
 
 function createTitle(content: string) {
   const title = content.replace(/\s+/g, ' ').trim()
@@ -144,6 +149,63 @@ export default class AiChatController {
         userMessage,
         regeneration,
         context: payload.context,
+        signal: abortController.signal,
+        response,
+        ctx,
+      })
+    } finally {
+      clearTimeout(requestTimeout)
+      response.response.off('close', abortOnDisconnect)
+      response.response.end()
+    }
+  }
+
+  @ApiOperation({
+    summary: '恢复 AI 会话运行',
+    description: '使用当前会话最近一次已提交的 LangGraph checkpoint 恢复中断的 Agent 运行。',
+  })
+  @ApiResponse({ status: 200, description: '流式恢复响应' })
+  async resume(ctx: HttpContext) {
+    const { auth, params, request, response } = ctx
+    const user = auth.getUserOrFail()
+    await request.validateUsing(resumeAiChatValidator)
+    const conversation = await AiChatConversation.query()
+      .where('id', params.id)
+      .where('user_id', user.id)
+      .firstOrFail()
+    const checkpointInput = {
+      conversationId: conversation.id,
+      userId: user.id,
+    }
+    const hasCheckpoint = await hasAiAgentCheckpoint(checkpointInput)
+    const runStage = hasCheckpoint ? await getAiAgentCheckpointRunStage(checkpointInput) : undefined
+    if (!hasCheckpoint || !runStage || runStage === 'completed') {
+      return response.conflict({ message: '当前会话没有可恢复的 AI 运行状态' })
+    }
+
+    const userMessage = await AiChatMessage.query()
+      .where('conversation_id', conversation.id)
+      .where('role', 'user')
+      .orderBy('created_at', 'desc')
+      .firstOrFail()
+
+    response.header('Content-Type', 'text/event-stream; charset=utf-8')
+    response.header('Cache-Control', 'no-cache, no-transform')
+    response.header('Connection', 'keep-alive')
+    response.header('X-Accel-Buffering', 'no')
+    response.writeHead(200)
+    const abortController = new AbortController()
+    const abortOnDisconnect = () => abortController.abort()
+    response.response.once('close', abortOnDisconnect)
+    const requestTimeout = setTimeout(() => abortController.abort(), getAiRequestTimeout())
+
+    try {
+      await runAiChatAssistantTurn({
+        conversation,
+        userId: user.id,
+        userMessage,
+        regeneration: null,
+        resume: true,
         signal: abortController.signal,
         response,
         ctx,

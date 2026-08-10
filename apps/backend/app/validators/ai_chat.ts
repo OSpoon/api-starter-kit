@@ -18,3 +18,5 @@ export const sendAiChatMessageValidator = vine.compile(
       .optional(),
   })
 )
+
+export const resumeAiChatValidator = vine.compile(vine.object({}))

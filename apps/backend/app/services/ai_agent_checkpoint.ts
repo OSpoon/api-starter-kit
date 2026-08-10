@@ -4,6 +4,8 @@ import env from '#start/env'
 
 let checkpointer: PostgresSaver | null = null
 
+export type AiAgentRunStage = 'running' | 'model_running' | 'tool_pending' | 'completed'
+
 function getConnectionString() {
   const url = new URL('postgresql://localhost')
   url.username = env.get('DB_USER')
@@ -31,6 +33,20 @@ export function getAiAgentCheckpointer() {
 
 export async function hasAiAgentCheckpoint(input: { conversationId: number; userId: number }) {
   return Boolean(await getAiAgentCheckpointer().getTuple(getAiAgentCheckpointConfig(input)))
+}
+
+export async function getAiAgentCheckpointRunStage(input: {
+  conversationId: number
+  userId: number
+}) {
+  const tuple = await getAiAgentCheckpointer().getTuple(getAiAgentCheckpointConfig(input))
+  const stage = tuple?.checkpoint.channel_values.aiRunStage
+  return stage === 'running' ||
+    stage === 'model_running' ||
+    stage === 'tool_pending' ||
+    stage === 'completed'
+    ? stage
+    : undefined
 }
 
 export async function clearAiAgentCheckpoint(input: { conversationId: number; userId: number }) {

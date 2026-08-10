@@ -270,6 +270,12 @@ const routes = {
     tokens: [{"old":"/api/v1/ai-chat/conversations/:id/messages","type":0,"val":"api","end":""},{"old":"/api/v1/ai-chat/conversations/:id/messages","type":0,"val":"v1","end":""},{"old":"/api/v1/ai-chat/conversations/:id/messages","type":0,"val":"ai-chat","end":""},{"old":"/api/v1/ai-chat/conversations/:id/messages","type":0,"val":"conversations","end":""},{"old":"/api/v1/ai-chat/conversations/:id/messages","type":1,"val":"id","end":""},{"old":"/api/v1/ai-chat/conversations/:id/messages","type":0,"val":"messages","end":""}],
     types: placeholder as Registry['ai_chat.send_message']['types'],
   },
+  'ai_chat.resume': {
+    methods: ["POST"],
+    pattern: '/api/v1/ai-chat/conversations/:id/resume',
+    tokens: [{"old":"/api/v1/ai-chat/conversations/:id/resume","type":0,"val":"api","end":""},{"old":"/api/v1/ai-chat/conversations/:id/resume","type":0,"val":"v1","end":""},{"old":"/api/v1/ai-chat/conversations/:id/resume","type":0,"val":"ai-chat","end":""},{"old":"/api/v1/ai-chat/conversations/:id/resume","type":0,"val":"conversations","end":""},{"old":"/api/v1/ai-chat/conversations/:id/resume","type":1,"val":"id","end":""},{"old":"/api/v1/ai-chat/conversations/:id/resume","type":0,"val":"resume","end":""}],
+    types: placeholder as Registry['ai_chat.resume']['types'],
+  },
   'ai_chat.confirm_ai_agent_action': {
     methods: ["POST"],
     pattern: '/api/v1/ai-chat/conversations/:id/confirmations/:confirmationId/confirm',
