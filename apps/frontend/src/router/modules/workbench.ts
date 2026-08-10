@@ -116,7 +116,7 @@ export const workbenchRoutes: RouteRecordRaw[] = [
       {
         path: 'system/wecom-message-templates',
         name: 'wecom-message-templates',
-        component: () => import('@/views/WecomMessageTemplatesView.vue'),
+        component: () => import('@/features/wecom-message-templates/WecomMessageTemplatesPage.vue'),
         meta: {
           title: 'sidebar.wecom_message_templates',
           pageKind: 'list',

@@ -15,7 +15,8 @@ import {
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import type { WecomMessageType } from '@/lib/wecom-message-template-api'
+
+import type { WecomMessageType } from '../types'
 
 const props = defineProps<{ msgtype: WecomMessageType; modelValue: Record<string, unknown> }>()
 const emit = defineEmits<{ 'update:modelValue': [value: Record<string, unknown>] }>()

@@ -447,6 +447,7 @@
     "create": "New template",
     "edit": "Edit message template",
     "form_desc": "The message template must match the WeCom message webhook format.",
+    "wecom_docs_link": "View the official WeCom message webhook documentation",
     "search": "Search by name or type",
     "empty": "No WeCom message templates yet.",
     "save_success": "Message template saved",

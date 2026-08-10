@@ -19,10 +19,10 @@ import {
   TagsInputItemDelete,
   TagsInputItemText,
 } from '@/components/ui/tags-input'
-import WecomMessageTemplateForm from '@/components/workbench/WecomMessageTemplateForm.vue'
 import { usePermission } from '@/lib/permission'
 import { useDelayedDialog } from '@/lib/use-delayed-dialog'
-import type { WecomMessageTemplate, WecomTemplateInput } from '@/lib/wecom-message-template-api'
+import { useAuthStore } from '@/stores/auth'
+
 import {
   buildWecomTemplateCurl,
   createWecomTemplate,
@@ -30,8 +30,9 @@ import {
   listWecomTemplates,
   testWecomTemplate,
   updateWecomTemplate,
-} from '@/lib/wecom-message-template-api'
-import { useAuthStore } from '@/stores/auth'
+} from './api'
+import WecomMessageTemplateForm from './components/WecomMessageTemplateForm.vue'
+import type { WecomMessageTemplate, WecomTemplateInput } from './types'
 
 const { t } = useI18n()
 const auth = useAuthStore()

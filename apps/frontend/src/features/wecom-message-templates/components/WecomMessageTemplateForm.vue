@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ExternalLink } from '@lucide/vue'
 import { toTypedSchema } from '@vee-validate/zod'
 import { useForm } from 'vee-validate'
 import type { Composer } from 'vue-i18n'
@@ -23,14 +24,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import WecomMessageVisualEditor from '@/components/workbench/WecomMessageVisualEditor.vue'
 import { firstFormError } from '@/lib/form-validation'
+
 import type {
   WecomMessageTemplate,
   WecomMessageType,
   WecomTemplateInput,
   WecomTemplateParameter,
-} from '@/lib/wecom-message-template-api'
+} from '../types'
+import WecomMessageVisualEditor from './WecomMessageVisualEditor.vue'
 
 const props = defineProps<{
   open?: boolean
@@ -42,6 +44,7 @@ const emit = defineEmits<{
   cancel: []
 }>()
 const { t } = useI18n()
+const wecomMessageDocsUrl = 'https://developer.work.weixin.qq.com/document/path/99110'
 const msgtype = ref<WecomMessageType>('text')
 const enabled = ref(true)
 const payloadText = ref('')
@@ -299,6 +302,15 @@ async function submit() {
 <template>
   <form class="flex min-h-0 flex-1 flex-col overflow-hidden" novalidate @submit.prevent="submit">
     <div class="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-6 pb-6">
+      <a
+        :href="wecomMessageDocsUrl"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="mb-4 inline-flex items-center gap-1 text-sm text-primary underline-offset-4 hover:underline"
+      >
+        {{ t('wecom_templates.wecom_docs_link') }}
+        <ExternalLink class="size-3.5" aria-hidden="true" />
+      </a>
       <div class="grid gap-4 sm:grid-cols-4 sm:[&>div:nth-child(n+5)]:col-span-4">
         <div class="sm:col-span-3">
           <FormField v-slot="{ componentField }" name="name" :validate-on-blur="false">
