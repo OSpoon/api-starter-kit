@@ -174,5 +174,27 @@ export function createAiAgentTools(input: AiAgentToolContext) {
         responseFormat: 'content_and_artifact',
       }
     ),
+    tool(
+      async ({ templateId, params, mentionedList, mentionedMobileList }) => {
+        return proposeManagedChange('send_wecom_message', {
+          templateId,
+          params,
+          mentionedList,
+          mentionedMobileList,
+        })
+      },
+      {
+        name: 'propose_wecom_message_send',
+        description:
+          'Prepare a proposal to send an enabled WeCom message template. Use the template ID and every required business parameter exactly as returned by run_registered_query with wecom_message_templates or wecom_message_template_profile. Runtime mentionedList and mentionedMobileList are optional and apply only to text messages. Never send directly: a structured confirmation card is required. Never ask for or use a Webhook URL or API Key.',
+        schema: z.object({
+          templateId: z.coerce.number().int().positive(),
+          params: z.record(z.unknown()).default({}),
+          mentionedList: z.array(z.string().trim().min(1).max(120)).max(100).optional(),
+          mentionedMobileList: z.array(z.string().trim().min(1).max(32)).max(100).optional(),
+        }),
+        responseFormat: 'content_and_artifact',
+      }
+    ),
   ]
 }

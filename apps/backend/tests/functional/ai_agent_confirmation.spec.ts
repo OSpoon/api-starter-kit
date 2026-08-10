@@ -12,6 +12,7 @@ import AuditLog from '#models/audit_log'
 import Permission from '#models/permission'
 import Role from '#models/role'
 import User from '#models/user'
+import WecomMessageTemplate from '#models/wecom_message_template'
 import { getAiAgentAction } from '#services/ai_agent_action_registry'
 import { proposeAiAgentAction } from '#services/ai_agent_confirmation'
 import { createAiAgentTools } from '#services/ai_agent_tool_registry'
@@ -547,5 +548,77 @@ test.group('AI agent confirmations', (group) => {
         .where('target_id', String(apiKey.id))
         .first()
     )
+  })
+
+  test('requires send permission and confirmation for WeCom message delivery', async ({
+    assert,
+  }) => {
+    const template = await WecomMessageTemplate.create({
+      name: `AI send template ${Date.now()}`,
+      description: 'AI send test template',
+      msgtype: 'text',
+      webhookUrl: 'https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=secret',
+      payload: {
+        msgtype: 'text',
+        text: { content: '{{content}}' },
+      },
+      parameters: [{ name: 'content', type: 'string', required: true }],
+      enabled: true,
+    })
+    const readerPermission = await Permission.findByOrFail('code', 'wecom-templates:read')
+    const readerRole = await Role.create({
+      code: `wecom-reader-${Date.now()}`,
+      name: 'WeCom reader',
+    })
+    await readerRole.related('permissions').sync([readerPermission.id])
+    const reader = await User.create({
+      fullName: 'WeCom reader',
+      email: `wecom-reader-${Date.now()}@example.com`,
+      password: generateInitialPassword(),
+    })
+    await reader.related('roles').sync([readerRole.id])
+    const deniedTool = createAiAgentTools({
+      userId: reader.id,
+      conversationId: 1,
+      agentRunId: crypto.randomUUID(),
+    }).find((tool) => tool.name === 'propose_wecom_message_send')
+    const denied = await deniedTool!.invoke({
+      templateId: template.id,
+      params: { content: '不应发送' },
+    })
+    assert.deepEqual(JSON.parse(String(denied)), {
+      kind: 'action_error',
+      code: 'permission_denied',
+      message: '当前账号没有执行此操作的权限',
+    })
+
+    const adminRole = await Role.findByOrFail('code', 'super-admin')
+    const admin = await User.create({
+      fullName: 'WeCom sender',
+      email: `wecom-sender-${Date.now()}@example.com`,
+      password: generateInitialPassword(),
+    })
+    await admin.related('roles').sync([adminRole.id])
+    const conversation = await AiChatConversation.create({ userId: admin.id, title: 'WeCom send' })
+    const proposalTool = createAiAgentTools({
+      userId: admin.id,
+      conversationId: conversation.id,
+      agentRunId: crypto.randomUUID(),
+    }).find((tool) => tool.name === 'propose_wecom_message_send')
+    const proposal = JSON.parse(
+      String(
+        await proposalTool!.invoke({
+          templateId: template.id,
+          params: { content: '业务内容' },
+          mentionedList: ['zhangsan'],
+        })
+      )
+    )
+    assert.equal(proposal.kind, 'confirmation')
+    assert.notInclude(JSON.stringify(proposal), '业务内容')
+    assert.include(JSON.stringify(proposal), 'content')
+    const stored = await AiAgentConfirmation.findOrFail(proposal.confirmation.id)
+    assert.equal(stored.status, 'pending')
+    assert.notInclude(JSON.stringify(stored.payload), '业务内容')
   })
 })

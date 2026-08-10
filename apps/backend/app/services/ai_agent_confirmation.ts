@@ -103,6 +103,7 @@ const actionTitles: Record<string, string> = {
   create_permission: '确认创建权限',
   update_permission: '确认更新权限',
   delete_permission: '确认删除权限',
+  send_wecom_message: '确认发送企业微信消息',
 }
 
 function getActionTitle(action: string) {
@@ -127,6 +128,7 @@ function getChangeLabel(field: string) {
         description: '说明',
         permission_ids: '权限',
         group: '分组',
+        parameter_names: '参数',
       } as Record<string, string>
     )[field] ?? field
   )

@@ -7,8 +7,15 @@ import AuditLog from '#models/audit_log'
 import Permission from '#models/permission'
 import Role from '#models/role'
 import User from '#models/user'
+import WecomMessageTemplate from '#models/wecom_message_template'
 import { ensureAiAgentPermission } from '#services/ai_agent_authorization'
 import type { PermissionCode } from '#services/permission_catalog'
+import {
+  applyWecomRuntimeMentions,
+  renderWecomPayload,
+  validateTemplateParameters,
+  validateWecomTemplatePayload,
+} from '#services/wecom_message_template_service'
 
 export type AiQueryParameter = {
   description: string
@@ -42,10 +49,14 @@ type AiQueryTemplate = {
     | 'permission_catalog'
     | 'permission_usage'
     | 'recent_access_control_changes'
+    | 'wecom_message_templates'
+    | 'wecom_message_template_profile'
+    | 'wecom_message_preview'
   version: number
   description: string
   permission: PermissionCode
   parameters: Record<string, AiQueryParameter>
+  persistParameters?: boolean
   execute: (params: Record<string, unknown>) => Promise<Record<string, unknown>>
 }
 
@@ -62,6 +73,115 @@ function maskName(name: string) {
 }
 
 const queryTemplates: readonly AiQueryTemplate[] = [
+  {
+    code: 'wecom_message_templates',
+    version: 1,
+    description: 'List available WeCom message templates without Webhook addresses.',
+    permission: 'wecom-templates:read',
+    parameters: {},
+    async execute() {
+      const templates = await WecomMessageTemplate.query()
+        .where('enabled', true)
+        .orderBy('name')
+        .limit(queryResultLimit)
+      return {
+        rows: templates.map((template) => ({
+          id: template.id,
+          name: template.name,
+          description: template.description,
+          msgtype: template.msgtype,
+          parameters: template.parameters ?? [],
+        })),
+      }
+    },
+  },
+  {
+    code: 'wecom_message_template_profile',
+    version: 1,
+    description:
+      'Look up one enabled WeCom message template by ID, including its safe payload template and required parameters, but never its Webhook address.',
+    permission: 'wecom-templates:read',
+    parameters: {
+      templateId: {
+        description: 'Required positive WeCom message template ID.',
+        required: true,
+        schema: z.coerce.number().int().positive(),
+      },
+    },
+    async execute(params) {
+      const template = await WecomMessageTemplate.query()
+        .where('id', params.templateId as number)
+        .where('enabled', true)
+        .first()
+      if (!template)
+        return { rows: [], message: 'No enabled WeCom message template matched that ID.' }
+      return {
+        rows: [
+          {
+            id: template.id,
+            name: template.name,
+            description: template.description,
+            msgtype: template.msgtype,
+            payload: template.payload,
+            parameters: template.parameters ?? [],
+          },
+        ],
+      }
+    },
+  },
+  {
+    code: 'wecom_message_preview',
+    version: 1,
+    description:
+      'Render one enabled WeCom message template using structured parameters and optional runtime mention lists. This is side-effect free and never sends a message or returns a Webhook address.',
+    permission: 'wecom-templates:read',
+    persistParameters: false,
+    parameters: {
+      templateId: {
+        description: 'Required positive WeCom message template ID.',
+        required: true,
+        schema: z.coerce.number().int().positive(),
+      },
+      params: {
+        description: 'Template business parameters keyed by placeholder name.',
+        schema: z.record(z.unknown()).default({}),
+      },
+      mentionedList: {
+        description: 'Optional WeCom user IDs to mention for text messages.',
+        schema: z.array(z.string().trim().min(1).max(120)).max(100).optional(),
+      },
+      mentionedMobileList: {
+        description: 'Optional mobile numbers to mention for text messages.',
+        schema: z.array(z.string().trim().min(1).max(32)).max(100).optional(),
+      },
+    },
+    async execute(params) {
+      const template = await WecomMessageTemplate.query()
+        .where('id', params.templateId as number)
+        .where('enabled', true)
+        .first()
+      if (!template)
+        return { rows: [], message: 'No enabled WeCom message template matched that ID.' }
+      const values = (params.params ?? {}) as Record<string, unknown>
+      validateTemplateParameters(template.payload, template.parameters ?? [], values)
+      const rendered = renderWecomPayload(template.payload, values) as Record<string, unknown>
+      const payload = applyWecomRuntimeMentions(template.msgtype, rendered, {
+        mentionedList: params.mentionedList as string[] | undefined,
+        mentionedMobileList: params.mentionedMobileList as string[] | undefined,
+      })
+      validateWecomTemplatePayload(template.msgtype, payload)
+      return {
+        rows: [
+          {
+            templateId: template.id,
+            name: template.name,
+            msgtype: template.msgtype,
+            payload,
+          },
+        ],
+      }
+    },
+  },
   {
     code: 'active_api_keys',
     version: 1,
@@ -542,6 +662,16 @@ export async function runRegisteredAiQuery(input: {
   const missingFields = getMissingFields(template, mergedParams)
 
   if (missingFields.length) {
+    if (template.persistParameters === false) {
+      return {
+        kind: 'missing_parameters',
+        templateCode: template.code,
+        missingFields: missingFields.map((name) => ({
+          name,
+          description: template.parameters[name].description,
+        })),
+      }
+    }
     const pending =
       active?.templateCode === template.code
         ? active

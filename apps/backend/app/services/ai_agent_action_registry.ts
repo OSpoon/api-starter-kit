@@ -1,4 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http'
+import encryption from '@adonisjs/core/services/encryption'
 import { DateTime } from 'luxon'
 import { z } from 'zod'
 
@@ -7,6 +8,7 @@ import ApiKey from '#models/api_key'
 import Permission from '#models/permission'
 import Role from '#models/role'
 import User from '#models/user'
+import WecomMessageTemplate from '#models/wecom_message_template'
 import { ensureAiAgentPermission } from '#services/ai_agent_authorization'
 import { createApiKey } from '#services/api_key_service'
 import { recordAuditEvent } from '#services/audit_log'
@@ -17,6 +19,13 @@ import {
   isSuperAdmin,
 } from '#services/super_admin_access'
 import { generateInitialPassword } from '#services/user_credentials'
+import {
+  applyWecomRuntimeMentions,
+  renderWecomPayload,
+  sendWecomMessageTemplate,
+  validateTemplateParameters,
+  validateWecomTemplatePayload,
+} from '#services/wecom_message_template_service'
 
 export type AiAgentActionName =
   | 'revoke_api_key'
@@ -33,6 +42,7 @@ export type AiAgentActionName =
   | 'create_permission'
   | 'update_permission'
   | 'delete_permission'
+  | 'send_wecom_message'
 
 export type AiAgentActionPreparation = {
   targetType: string
@@ -72,6 +82,7 @@ export const aiAgentActionNames = [
   'create_permission',
   'update_permission',
   'delete_permission',
+  'send_wecom_message',
 ] as const
 
 // API Key revocation and deletion are exposed to the model as two dedicated
@@ -216,6 +227,27 @@ function permissionIds(input: Record<string, unknown>) {
     throw new Error('permissionIds 无效')
   }
   return value
+}
+
+function record(input: Record<string, unknown>, name: string) {
+  const value = input[name]
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error(`${name} 无效`)
+  }
+  return value as Record<string, unknown>
+}
+
+function stringList(input: Record<string, unknown>, name: string) {
+  const value = input[name]
+  if (value === undefined) return undefined
+  if (
+    !Array.isArray(value) ||
+    value.length > 100 ||
+    value.some((item) => typeof item !== 'string' || !item.trim() || item.length > 120)
+  ) {
+    throw new Error(`${name} 无效`)
+  }
+  return value.map((item) => item.trim())
 }
 
 async function ensurePermissionIds(ids: number[]) {
@@ -708,6 +740,83 @@ const deletePermissionAction: AiAgentActionImplementation = {
   },
 }
 
+const sendWecomMessageAction: AiAgentActionImplementation = {
+  permission: 'wecom-templates:send',
+  async prepare(input) {
+    const templateId = integer(input, 'templateId', ['id'])
+    const template = await WecomMessageTemplate.find(templateId)
+    if (!template) throw new Error('消息模板不存在')
+    if (!template.enabled) throw new Error('消息模板已停用')
+
+    const params = record(input, 'params')
+    const mentionedList = stringList(input, 'mentionedList')
+    const mentionedMobileList = stringList(input, 'mentionedMobileList')
+    validateTemplateParameters(template.payload, template.parameters ?? [], params)
+    const rendered = renderWecomPayload(template.payload, params) as Record<string, unknown>
+    const payload = applyWecomRuntimeMentions(template.msgtype, rendered, {
+      mentionedList,
+      mentionedMobileList,
+    })
+    validateWecomTemplatePayload(template.msgtype, payload)
+
+    return {
+      targetType: 'wecom_message_template',
+      targetId: String(template.id),
+      targetSummary: {
+        name: template.name,
+        msgtype: template.msgtype,
+        parameterNames: Object.keys(params),
+        mentionedCount: mentionedList?.length ?? 0,
+        mentionedMobileCount: mentionedMobileList?.length ?? 0,
+      },
+      payload: {
+        templateId: template.id,
+        parameterNames: Object.keys(params),
+        encryptedInput: encryption.encrypt(
+          JSON.stringify({ params, mentionedList, mentionedMobileList })
+        ),
+      },
+    }
+  },
+  async execute({ confirmation, ctx }) {
+    const actor = await ensurePermission(ctx, 'wecom-templates:send')
+    const template = await WecomMessageTemplate.find(integer(confirmation.payload, 'templateId'))
+    if (!template || !template.enabled) throw new Error('消息模板不存在或已停用')
+    const encryptedInput = string(confirmation.payload, 'encryptedInput', 100_000)
+    let input: {
+      params: Record<string, unknown>
+      mentionedList?: string[]
+      mentionedMobileList?: string[]
+    }
+    try {
+      const decrypted = encryption.decrypt<string>(encryptedInput)
+      if (!decrypted) throw new Error('empty encrypted input')
+      input = JSON.parse(decrypted)
+    } catch {
+      throw new Error('消息参数已失效，请重新发起发送')
+    }
+    await sendWecomMessageTemplate(template, input.params, {
+      mentionedList: input.mentionedList,
+      mentionedMobileList: input.mentionedMobileList,
+    })
+    await recordAuditEvent(ctx, {
+      actorUserId: actor.id,
+      action: 'agent.wecom_message_sent',
+      targetType: 'wecom_message_template',
+      targetId: template.id,
+      metadata: {
+        name: template.name,
+        msgtype: template.msgtype,
+        parameterNames: Object.keys(input.params),
+        mentionedCount: input.mentionedList?.length ?? 0,
+        mentionedMobileCount: input.mentionedMobileList?.length ?? 0,
+        source: 'ai_agent',
+      },
+    })
+    return { sent: true, templateId: template.id }
+  },
+}
+
 function defineAction(
   name: AiAgentActionName,
   definition: AiAgentActionImplementation
@@ -733,6 +842,7 @@ const aiAgentActions: Record<AiAgentActionName, AiAgentActionDefinition> = {
   create_permission: defineAction('create_permission', createPermissionAction),
   update_permission: defineAction('update_permission', updatePermissionAction),
   delete_permission: defineAction('delete_permission', deletePermissionAction),
+  send_wecom_message: defineAction('send_wecom_message', sendWecomMessageAction),
 }
 
 export function getAiAgentAction(action: string) {
@@ -800,6 +910,11 @@ export function getAiAgentActionChangeSummary(action: string, payload: Record<st
       ]
     case 'delete_permission':
       return [{ field: 'result', value: 'permanently_deleted' }]
+    case 'send_wecom_message':
+      return [
+        { field: 'result', value: 'send_wecom_message' },
+        { field: 'parameter_names', value: summaryValue(payload, 'parameterNames') },
+      ]
   }
 
   return []
