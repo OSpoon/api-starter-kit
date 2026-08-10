@@ -114,10 +114,6 @@ router
           .delete('wecom-message-templates/:id', [WecomMessageTemplatesController, 'destroy'])
           .use(middleware.permission(['wecom-templates:delete']))
         router
-          .post('wecom-message-templates/test', [WecomMessageTemplatesController, 'testDraft'])
-          .use(middleware.permission(['wecom-templates:test']))
-          .use(middleware.throttle({ max: 20, windowSeconds: 60, key: 'user' }))
-        router
           .post('wecom-message-templates/:id/test', [WecomMessageTemplatesController, 'testSend'])
           .use(middleware.permission(['wecom-templates:test']))
           .use(middleware.throttle({ max: 20, windowSeconds: 60, key: 'user' }))
@@ -125,13 +121,6 @@ router
           .post('wecom-messages/:id/send', [WecomMessageTemplatesController, 'send'])
           .as('system.wecom.messages.send')
           .use(middleware.permission(['wecom-templates:send']))
-          .use(middleware.throttle({ max: 20, windowSeconds: 60, key: 'user' }))
-        router
-          .post('wecom-message-templates/:id/media', [
-            WecomMessageTemplatesController,
-            'uploadMedia',
-          ])
-          .use(middleware.permission(['wecom-templates:upload']))
           .use(middleware.throttle({ max: 20, windowSeconds: 60, key: 'user' }))
       })
       .prefix('system')

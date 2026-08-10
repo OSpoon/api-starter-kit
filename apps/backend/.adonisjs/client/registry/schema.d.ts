@@ -295,18 +295,6 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/wecom_message_templates_controller').default['destroy']>>>
     }
   }
-  'wecom_message_templates.test_draft': {
-    methods: ["POST"]
-    pattern: '/api/v1/system/wecom-message-templates/test'
-    types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/wecom_message_template').wecomTemplateDraftTestValidator)>>
-      paramsTuple: []
-      params: {}
-      query: ExtractQuery<InferInput<(typeof import('#validators/wecom_message_template').wecomTemplateDraftTestValidator)>>
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/wecom_message_templates_controller').default['testDraft']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/wecom_message_templates_controller').default['testDraft']>>> | { status: 422; response: { errors: SimpleError[] } }
-    }
-  }
   'wecom_message_templates.test_send': {
     methods: ["POST"]
     pattern: '/api/v1/system/wecom-message-templates/:id/test'
@@ -329,18 +317,6 @@ export interface Registry {
       query: ExtractQuery<InferInput<(typeof import('#validators/wecom_message_template').wecomTemplateParamsValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/wecom_message_templates_controller').default['send']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/wecom_message_templates_controller').default['send']>>> | { status: 422; response: { errors: SimpleError[] } }
-    }
-  }
-  'wecom_message_templates.upload_media': {
-    methods: ["POST"]
-    pattern: '/api/v1/system/wecom-message-templates/:id/media'
-    types: {
-      body: {}
-      paramsTuple: [ParamValue]
-      params: { id: ParamValue }
-      query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/wecom_message_templates_controller').default['uploadMedia']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/wecom_message_templates_controller').default['uploadMedia']>>>
     }
   }
   'knowledge_documents.index': {

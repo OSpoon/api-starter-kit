@@ -49,9 +49,7 @@ export interface ApiDefinition {
     store: typeof routes['wecom_message_templates.store']
     update: typeof routes['wecom_message_templates.update']
     destroy: typeof routes['wecom_message_templates.destroy']
-    testDraft: typeof routes['wecom_message_templates.test_draft']
     testSend: typeof routes['wecom_message_templates.test_send']
-    uploadMedia: typeof routes['wecom_message_templates.upload_media']
   }
   system: {
     wecom: {

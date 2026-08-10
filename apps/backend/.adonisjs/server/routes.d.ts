@@ -28,10 +28,8 @@ export type ScannedRoutes = {
     'wecom_message_templates.store': { paramsTuple?: []; params?: {} }
     'wecom_message_templates.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'wecom_message_templates.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
-    'wecom_message_templates.test_draft': { paramsTuple?: []; params?: {} }
     'wecom_message_templates.test_send': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'system.wecom.messages.send': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
-    'wecom_message_templates.upload_media': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'knowledge_documents.index': { paramsTuple?: []; params?: {} }
     'knowledge_documents.store': { paramsTuple?: []; params?: {} }
     'knowledge_documents.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
@@ -73,10 +71,8 @@ export type ScannedRoutes = {
     'profile.access_tokens.destroy': { paramsTuple?: []; params?: {} }
     'api_keys.store': { paramsTuple?: []; params?: {} }
     'wecom_message_templates.store': { paramsTuple?: []; params?: {} }
-    'wecom_message_templates.test_draft': { paramsTuple?: []; params?: {} }
     'wecom_message_templates.test_send': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'system.wecom.messages.send': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
-    'wecom_message_templates.upload_media': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'knowledge_documents.store': { paramsTuple?: []; params?: {} }
     'knowledge_documents.reindex': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'users.store': { paramsTuple?: []; params?: {} }

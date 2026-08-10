@@ -3,7 +3,6 @@ import { readItem } from '@/lib/api-types'
 
 import type {
   WecomMessageTemplate,
-  WecomMessageType,
   WecomRuntimeMentions,
   WecomTemplateInput,
   WecomTemplatePage,
@@ -96,20 +95,4 @@ export function buildWecomTemplateCurl(
     "  --header 'X-API-Key: YOUR_API_KEY' \\",
     `  --data-raw '${JSON.stringify(body, null, 2)}'`,
   ].join('\n')
-}
-
-export async function testWecomTemplateDraft(
-  token: string | null,
-  msgtype: WecomMessageType,
-  payload: Record<string, unknown>,
-  params: Record<string, unknown>,
-  mentions: WecomRuntimeMentions = {}
-) {
-  return readItem(
-    await apiRequest<{ sent: boolean }>('/api/v1/system/wecom-message-templates/test', {
-      ...auth(token),
-      method: 'POST',
-      body: JSON.stringify({ msgtype, payload, params, ...mentions }),
-    })
-  )
 }

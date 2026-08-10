@@ -150,12 +150,6 @@ const routes = {
     tokens: [{"old":"/api/v1/system/wecom-message-templates/:id","type":0,"val":"api","end":""},{"old":"/api/v1/system/wecom-message-templates/:id","type":0,"val":"v1","end":""},{"old":"/api/v1/system/wecom-message-templates/:id","type":0,"val":"system","end":""},{"old":"/api/v1/system/wecom-message-templates/:id","type":0,"val":"wecom-message-templates","end":""},{"old":"/api/v1/system/wecom-message-templates/:id","type":1,"val":"id","end":""}],
     types: placeholder as Registry['wecom_message_templates.destroy']['types'],
   },
-  'wecom_message_templates.test_draft': {
-    methods: ["POST"],
-    pattern: '/api/v1/system/wecom-message-templates/test',
-    tokens: [{"old":"/api/v1/system/wecom-message-templates/test","type":0,"val":"api","end":""},{"old":"/api/v1/system/wecom-message-templates/test","type":0,"val":"v1","end":""},{"old":"/api/v1/system/wecom-message-templates/test","type":0,"val":"system","end":""},{"old":"/api/v1/system/wecom-message-templates/test","type":0,"val":"wecom-message-templates","end":""},{"old":"/api/v1/system/wecom-message-templates/test","type":0,"val":"test","end":""}],
-    types: placeholder as Registry['wecom_message_templates.test_draft']['types'],
-  },
   'wecom_message_templates.test_send': {
     methods: ["POST"],
     pattern: '/api/v1/system/wecom-message-templates/:id/test',
@@ -167,12 +161,6 @@ const routes = {
     pattern: '/api/v1/system/wecom-messages/:id/send',
     tokens: [{"old":"/api/v1/system/wecom-messages/:id/send","type":0,"val":"api","end":""},{"old":"/api/v1/system/wecom-messages/:id/send","type":0,"val":"v1","end":""},{"old":"/api/v1/system/wecom-messages/:id/send","type":0,"val":"system","end":""},{"old":"/api/v1/system/wecom-messages/:id/send","type":0,"val":"wecom-messages","end":""},{"old":"/api/v1/system/wecom-messages/:id/send","type":1,"val":"id","end":""},{"old":"/api/v1/system/wecom-messages/:id/send","type":0,"val":"send","end":""}],
     types: placeholder as Registry['system.wecom.messages.send']['types'],
-  },
-  'wecom_message_templates.upload_media': {
-    methods: ["POST"],
-    pattern: '/api/v1/system/wecom-message-templates/:id/media',
-    tokens: [{"old":"/api/v1/system/wecom-message-templates/:id/media","type":0,"val":"api","end":""},{"old":"/api/v1/system/wecom-message-templates/:id/media","type":0,"val":"v1","end":""},{"old":"/api/v1/system/wecom-message-templates/:id/media","type":0,"val":"system","end":""},{"old":"/api/v1/system/wecom-message-templates/:id/media","type":0,"val":"wecom-message-templates","end":""},{"old":"/api/v1/system/wecom-message-templates/:id/media","type":1,"val":"id","end":""},{"old":"/api/v1/system/wecom-message-templates/:id/media","type":0,"val":"media","end":""}],
-    types: placeholder as Registry['wecom_message_templates.upload_media']['types'],
   },
   'knowledge_documents.index': {
     methods: ["GET","HEAD"],

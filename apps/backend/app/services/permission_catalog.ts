@@ -25,7 +25,6 @@ export const permissionCodes = [
   'wecom-templates:delete',
   'wecom-templates:send',
   'wecom-templates:test',
-  'wecom-templates:upload',
 ] as const
 
 export type PermissionCode = (typeof permissionCodes)[number]

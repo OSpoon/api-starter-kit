@@ -44,14 +44,3 @@ export const wecomTemplateParamsValidator = vine.compile(
     mentioned_mobile_list: vine.array(vine.string().trim()).maxLength(100).optional(),
   })
 )
-
-export const wecomTemplateDraftTestValidator = vine.compile(
-  vine.object({
-    msgtype: vine.enum(messageTypes),
-    payload: vine.record(vine.any()),
-    parameters: vine.array(parameterValidator).maxLength(100).optional(),
-    params: vine.record(vine.string().trim()).optional(),
-    mentioned_list: vine.array(vine.string().trim()).maxLength(100).optional(),
-    mentioned_mobile_list: vine.array(vine.string().trim()).maxLength(100).optional(),
-  })
-)

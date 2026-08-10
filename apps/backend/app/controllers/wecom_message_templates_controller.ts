@@ -1,5 +1,3 @@
-import { readFile } from 'node:fs/promises'
-
 import type { HttpContext } from '@adonisjs/core/http'
 import { ApiOperation, ApiResponse, ApiSecurity } from '@foadonis/openapi/decorators'
 
@@ -11,7 +9,6 @@ import {
   encryptWebhookUrl,
   getWecomTestWebhookUrl,
   inferTemplateParameters,
-  sendWecomMessagePayload,
   sendWecomMessageTemplate,
   serializeWecomMessageTemplate,
   validateTemplateDefinition,
@@ -22,7 +19,6 @@ import {
 import {
   createWecomMessageTemplateValidator,
   updateWecomMessageTemplateValidator,
-  wecomTemplateDraftTestValidator,
   wecomTemplateParamsValidator,
 } from '#validators/wecom_message_template'
 
@@ -216,90 +212,5 @@ export default class WecomMessageTemplatesController {
         message: '企业微信消息发送失败',
       })
     }
-  }
-
-  @ApiOperation({ summary: '测试未保存的企业微信消息模板' })
-  @ApiResponse({ status: 200, description: '测试发送结果' })
-  async testDraft(ctx: HttpContext) {
-    const { request, response, serialize } = ctx
-    const input = await request.validateUsing(wecomTemplateDraftTestValidator)
-    const parameters = inferTemplateParameters(input.payload)
-    const runtimeParams = request.input('params', {}) as Record<string, string>
-    const mentions = {
-      mentionedList: request.input('mentioned_list') as string[] | undefined,
-      mentionedMobileList: request.input('mentioned_mobile_list') as string[] | undefined,
-    }
-    try {
-      validateWecomTemplatePayload(input.msgtype, input.payload)
-      validateTemplateStoragePayload(input.payload)
-      validateTemplateDefinition(input.payload, parameters)
-      const result = await sendWecomMessagePayload(
-        input.msgtype,
-        input.payload,
-        parameters,
-        runtimeParams,
-        getWecomTestWebhookUrl(),
-        mentions
-      )
-      return serialize({ sent: true, result })
-    } catch (error) {
-      if (error instanceof Error && error.name === 'WecomTemplateRateLimitError') {
-        const retryAfter = (error as { retryAfter?: number }).retryAfter ?? 60
-        response.header('Retry-After', String(retryAfter))
-        return response.tooManyRequests({
-          code: 'E_WECOM_TEMPLATE_RATE_LIMIT',
-          message: error.message,
-          retryAfter,
-        })
-      }
-      if (error instanceof Error && error.name === 'WecomTemplateValidationError') {
-        return response.unprocessableEntity({
-          code: 'E_WECOM_TEMPLATE_VALIDATION',
-          message: error.message,
-        })
-      }
-      return response.badGateway({
-        code: 'E_WECOM_PROVIDER_ERROR',
-        message: '企业微信消息发送失败',
-      })
-    }
-  }
-
-  @ApiOperation({ summary: '上传企业微信媒体文件' })
-  @ApiResponse({ status: 200, description: '企业微信媒体上传结果' })
-  @ApiResponse({ status: 422, description: '媒体类型或文件无效' })
-  async uploadMedia(ctx: HttpContext) {
-    const { params, request, response, serialize } = ctx
-    const template = await WecomMessageTemplate.findOrFail(params.id)
-    const type = request.input('type')
-    if (type !== 'file' && type !== 'voice') {
-      return response.unprocessableEntity({ message: '媒体类型必须为 file 或 voice' })
-    }
-    const file = request.file('media', {
-      size: type === 'file' ? '20mb' : '2mb',
-      extnames: type === 'voice' ? ['amr'] : undefined,
-    })
-    if (!file || !file.isValid || !file.tmpPath) {
-      return response.unprocessableEntity({ message: '媒体文件无效或超过大小限制' })
-    }
-    const webhookUrl = decryptWebhookUrl(template.webhookUrl)
-    if (!webhookUrl) return response.unprocessableEntity({ message: 'Webhook 地址不可用' })
-    const url = new URL('https://qyapi.weixin.qq.com/cgi-bin/webhook/upload_media')
-    url.searchParams.set('key', new URL(webhookUrl).searchParams.get('key') ?? '')
-    url.searchParams.set('type', type)
-    const form = new FormData()
-    form.append('media', new Blob([await readFile(file.tmpPath)]), file.clientName)
-    const result = (await fetch(url, {
-      method: 'POST',
-      body: form,
-      signal: AbortSignal.timeout(30_000),
-    }).then((res) => res.json())) as Record<string, unknown>
-    if (result.errcode) {
-      return response.badGateway({
-        code: 'E_WECOM_PROVIDER_ERROR',
-        message: String(result.errmsg ?? '企业微信媒体上传失败'),
-      })
-    }
-    return serialize(result)
   }
 }
