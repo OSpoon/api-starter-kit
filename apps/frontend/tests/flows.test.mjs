@@ -117,6 +117,7 @@ test('AI suggestions use effective permissions and prioritize the current page',
     pickRandomAiChatSuggestions(['a', 'b', 'c', 'd'], () => 0),
     ['b', 'c', 'd']
   )
+  assert.equal(pickRandomAiChatSuggestions(['a', 'b', 'c', 'd', 'e'], () => 0).length, 3)
 })
 
 test('AI chat Markdown export preserves selected messages in conversation order', () => {

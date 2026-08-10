@@ -137,13 +137,14 @@ const displayMessages = computed(() => {
 
 const assistantTitle = computed(() => props.title || t('ai_chat.title'))
 const inputPlaceholder = computed(() => props.placeholder || t('ai_chat.input_placeholder'))
-const promptSuggestions = computed(
-  () =>
+const promptSuggestions = computed(() =>
+  (
     props.suggestions ?? [
       t('ai_chat.suggestions.api_keys'),
       t('ai_chat.suggestions.openapi'),
       t('ai_chat.suggestions.schema'),
     ]
+  ).slice(0, 3)
 )
 
 function getMessageKey(message: DisplayAiChatMessage, index: number) {
@@ -551,6 +552,44 @@ onUnmounted(() => {
                 (selectedMessage, selected) => selectMessage(selectedMessage, index, selected)
               "
             />
+            <div
+              v-if="displayMessages.length <= 1"
+              class="inline-flex max-w-full flex-col items-start space-y-2 overflow-hidden pl-11"
+            >
+              <div
+                v-for="(suggestion, suggestionIndex) in promptSuggestions"
+                :key="suggestion"
+                class="flex max-w-full items-center gap-2"
+              >
+                <Button
+                  type="button"
+                  variant="link"
+                  size="sm"
+                  class="h-auto w-fit max-w-full min-w-0 justify-start overflow-hidden rounded-md px-2 py-1 text-left text-sm font-normal text-muted-foreground shadow-none hover:bg-muted/60 hover:text-foreground"
+                  :disabled="loading || disabled"
+                  :title="suggestion"
+                  @click="sendMessage(suggestion)"
+                >
+                  <span class="mr-1 shrink-0 text-xs text-muted-foreground/70">
+                    {{ suggestionIndex + 1 }}.
+                  </span>
+                  <span class="block max-w-full truncate text-left">{{ suggestion }}</span>
+                </Button>
+                <Button
+                  v-if="canRefreshSuggestions && suggestionIndex === promptSuggestions.length - 1"
+                  type="button"
+                  variant="link"
+                  size="icon-sm"
+                  class="size-7 shrink-0 rounded-md p-0 text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                  :title="t('ai_chat.refresh_suggestions')"
+                  :aria-label="t('ai_chat.refresh_suggestions')"
+                  :disabled="loading || disabled"
+                  @click="emit('refreshSuggestions')"
+                >
+                  <RefreshCw class="size-3.5" />
+                </Button>
+              </div>
+            </div>
           </div>
         </ScrollArea>
         <Button
@@ -567,34 +606,6 @@ onUnmounted(() => {
       </div>
 
       <div class="p-3 pt-0">
-        <div v-if="displayMessages.length <= 1" class="mb-3 grid max-w-full grid-cols-4 gap-2">
-          <Button
-            v-for="suggestion in promptSuggestions"
-            :key="suggestion"
-            type="button"
-            variant="outline"
-            size="sm"
-            class="h-auto min-w-0 rounded-lg px-3 py-2 font-normal shadow-none"
-            :disabled="loading || disabled"
-            :title="suggestion"
-            @click="sendMessage(suggestion)"
-          >
-            <span class="block truncate">{{ suggestion }}</span>
-          </Button>
-          <Button
-            v-if="canRefreshSuggestions"
-            type="button"
-            variant="outline"
-            size="icon"
-            class="rounded-lg shadow-none"
-            :title="t('ai_chat.refresh_suggestions')"
-            :aria-label="t('ai_chat.refresh_suggestions')"
-            :disabled="loading || disabled"
-            @click="emit('refreshSuggestions')"
-          >
-            <RefreshCw class="size-3.5" />
-          </Button>
-        </div>
         <AiChatCredentialCard
           v-if="credentialDisclosure"
           :credential="credentialDisclosure"
