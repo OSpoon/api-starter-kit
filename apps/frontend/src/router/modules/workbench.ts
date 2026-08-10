@@ -64,7 +64,7 @@ export const workbenchRoutes: RouteRecordRaw[] = [
           title: 'sidebar.users',
           pageKind: 'list',
           permission: 'users:read',
-          nav: { group: 'sidebar.system', icon: UsersRound, order: 20 },
+          nav: { group: 'sidebar.system', icon: UsersRound, order: 40 },
         },
       },
       {
@@ -76,7 +76,7 @@ export const workbenchRoutes: RouteRecordRaw[] = [
           title: 'sidebar.roles',
           pageKind: 'list',
           permission: 'roles:read',
-          nav: { group: 'sidebar.system', icon: ShieldCheck, order: 30 },
+          nav: { group: 'sidebar.system', icon: ShieldCheck, order: 50 },
         },
       },
       {
@@ -88,7 +88,7 @@ export const workbenchRoutes: RouteRecordRaw[] = [
           title: 'sidebar.permissions',
           pageKind: 'list',
           permission: 'permissions:read',
-          nav: { group: 'sidebar.system', icon: Key, order: 40 },
+          nav: { group: 'sidebar.system', icon: Key, order: 60 },
         },
       },
       {
@@ -99,7 +99,7 @@ export const workbenchRoutes: RouteRecordRaw[] = [
           title: 'sidebar.audit_logs',
           pageKind: 'list',
           permission: 'audit-logs:read',
-          nav: { group: 'sidebar.system', icon: FileClock, order: 50 },
+          nav: { group: 'sidebar.system', icon: FileClock, order: 70 },
         },
       },
       {
@@ -110,7 +110,7 @@ export const workbenchRoutes: RouteRecordRaw[] = [
           title: 'sidebar.knowledge_documents',
           pageKind: 'list',
           permission: 'knowledge:manage',
-          nav: { group: 'sidebar.system', icon: BookOpen, order: 60 },
+          nav: { group: 'sidebar.system', icon: BookOpen, order: 30 },
         },
       },
       {
@@ -121,7 +121,7 @@ export const workbenchRoutes: RouteRecordRaw[] = [
           title: 'sidebar.wecom_message_templates',
           pageKind: 'list',
           permission: 'wecom-templates:read',
-          nav: { group: 'sidebar.system', icon: MessageSquare, order: 70 },
+          nav: { group: 'sidebar.system', icon: MessageSquare, order: 20 },
         },
       },
       {
