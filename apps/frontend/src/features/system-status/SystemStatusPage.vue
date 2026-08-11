@@ -28,9 +28,7 @@ const cards = computed(() => [
   {
     label: t('system_status.memory'),
     value: `${status.value?.memory.usedPercent ?? 0}%`,
-    detail: status.value
-      ? `${status.value.memory.usedGb} / ${status.value.memory.totalGb} GB · ${status.value.memory.availableGb} GB`
-      : '',
+    detail: status.value ? `${status.value.memory.usedGb} / ${status.value.memory.totalGb} GB` : '',
     icon: MemoryStick,
   },
   {
