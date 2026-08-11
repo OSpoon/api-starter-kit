@@ -65,6 +65,9 @@ export interface ApiDefinition {
     reindex: typeof routes['knowledge_documents.reindex']
     destroy: typeof routes['knowledge_documents.destroy']
   }
+  systemStatus: {
+    show: typeof routes['system_status.show']
+  }
   users: {
     index: typeof routes['users.index']
     store: typeof routes['users.store']

@@ -33,6 +33,7 @@ const { t } = useI18n()
 
 interface NavMeta {
   group: string
+  groupOrder?: number
   icon?: Component
   order?: number
 }
@@ -75,11 +76,11 @@ const navGroups = computed(() => {
 
     const group = groups.get(nav.group) ?? {
       title: t(nav.group),
-      order: nav.order ?? 0,
+      order: nav.groupOrder ?? nav.order ?? 0,
       items: [],
     }
 
-    group.order = Math.min(group.order, nav.order ?? group.order)
+    group.order = nav.groupOrder ?? group.order
     group.items.push({
       title: t(title),
       url: route.path,

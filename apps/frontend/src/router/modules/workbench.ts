@@ -7,6 +7,7 @@ import {
   ListTodo,
   MessageSquare,
   Route,
+  Server,
   ShieldCheck,
   Sparkles,
   UsersRound,
@@ -35,6 +36,7 @@ export const workbenchRoutes: RouteRecordRaw[] = [
           permission: 'dashboard:view',
           nav: {
             group: 'sidebar.workbench',
+            groupOrder: 10,
             icon: Gauge,
             order: 10,
           },
@@ -50,9 +52,21 @@ export const workbenchRoutes: RouteRecordRaw[] = [
           permission: 'api-keys:read',
           nav: {
             group: 'sidebar.system',
+            groupOrder: 30,
             icon: Key,
             order: 10,
           },
+        },
+      },
+      {
+        path: 'system/status',
+        name: 'system-status',
+        component: () => import('@/features/system-status/SystemStatusPage.vue'),
+        meta: {
+          title: 'sidebar.system_status',
+          pageKind: 'dashboard',
+          permission: 'system-status:read',
+          nav: { group: 'sidebar.system', groupOrder: 30, icon: Server, order: 5 },
         },
       },
       {
@@ -64,7 +78,7 @@ export const workbenchRoutes: RouteRecordRaw[] = [
           title: 'sidebar.users',
           pageKind: 'list',
           permission: 'users:read',
-          nav: { group: 'sidebar.system', icon: UsersRound, order: 40 },
+          nav: { group: 'sidebar.system', groupOrder: 30, icon: UsersRound, order: 40 },
         },
       },
       {
@@ -76,7 +90,7 @@ export const workbenchRoutes: RouteRecordRaw[] = [
           title: 'sidebar.roles',
           pageKind: 'list',
           permission: 'roles:read',
-          nav: { group: 'sidebar.system', icon: ShieldCheck, order: 50 },
+          nav: { group: 'sidebar.system', groupOrder: 30, icon: ShieldCheck, order: 50 },
         },
       },
       {
@@ -88,7 +102,7 @@ export const workbenchRoutes: RouteRecordRaw[] = [
           title: 'sidebar.permissions',
           pageKind: 'list',
           permission: 'permissions:read',
-          nav: { group: 'sidebar.system', icon: Key, order: 60 },
+          nav: { group: 'sidebar.system', groupOrder: 30, icon: Key, order: 60 },
         },
       },
       {
@@ -99,7 +113,7 @@ export const workbenchRoutes: RouteRecordRaw[] = [
           title: 'sidebar.audit_logs',
           pageKind: 'list',
           permission: 'audit-logs:read',
-          nav: { group: 'sidebar.system', icon: FileClock, order: 70 },
+          nav: { group: 'sidebar.system', groupOrder: 30, icon: FileClock, order: 70 },
         },
       },
       {
@@ -110,7 +124,7 @@ export const workbenchRoutes: RouteRecordRaw[] = [
           title: 'sidebar.knowledge_documents',
           pageKind: 'list',
           permission: 'knowledge:manage',
-          nav: { group: 'sidebar.system', icon: BookOpen, order: 30 },
+          nav: { group: 'sidebar.system', groupOrder: 30, icon: BookOpen, order: 30 },
         },
       },
       {
@@ -121,7 +135,7 @@ export const workbenchRoutes: RouteRecordRaw[] = [
           title: 'sidebar.wecom_message_templates',
           pageKind: 'list',
           permission: 'wecom-templates:read',
-          nav: { group: 'sidebar.system', icon: MessageSquare, order: 20 },
+          nav: { group: 'sidebar.system', groupOrder: 30, icon: MessageSquare, order: 20 },
         },
       },
       {
@@ -131,7 +145,7 @@ export const workbenchRoutes: RouteRecordRaw[] = [
         meta: {
           title: 'sidebar.workflow_template',
           pageKind: 'workflow',
-          nav: { group: 'sidebar.templates', icon: ListTodo, order: 10 },
+          nav: { group: 'sidebar.templates', groupOrder: 20, icon: ListTodo, order: 10 },
         },
       },
       {
@@ -141,7 +155,7 @@ export const workbenchRoutes: RouteRecordRaw[] = [
         meta: {
           title: 'sidebar.analytics_template',
           pageKind: 'analytics',
-          nav: { group: 'sidebar.templates', icon: ChartNoAxesCombined, order: 20 },
+          nav: { group: 'sidebar.templates', groupOrder: 20, icon: ChartNoAxesCombined, order: 20 },
         },
       },
       {
@@ -151,7 +165,7 @@ export const workbenchRoutes: RouteRecordRaw[] = [
         meta: {
           title: 'sidebar.wizard_template',
           pageKind: 'wizard',
-          nav: { group: 'sidebar.templates', icon: Route, order: 30 },
+          nav: { group: 'sidebar.templates', groupOrder: 20, icon: Route, order: 30 },
         },
       },
       {
@@ -161,7 +175,7 @@ export const workbenchRoutes: RouteRecordRaw[] = [
         meta: {
           title: 'sidebar.operations_template',
           pageKind: 'utility',
-          nav: { group: 'sidebar.templates', icon: Sparkles, order: 40 },
+          nav: { group: 'sidebar.templates', groupOrder: 20, icon: Sparkles, order: 40 },
         },
       },
       {

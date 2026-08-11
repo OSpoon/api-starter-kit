@@ -14,6 +14,7 @@ export const controllers = {
   Permissions: () => import('#controllers/permissions_controller'),
   Profile: () => import('#controllers/profile_controller'),
   Roles: () => import('#controllers/roles_controller'),
+  SystemStatus: () => import('#controllers/system_status_controller'),
   TwoFactorAuth: () => import('#controllers/two_factor_auth_controller'),
   Users: () => import('#controllers/users_controller'),
   WecomMessageTemplates: () => import('#controllers/wecom_message_templates_controller'),

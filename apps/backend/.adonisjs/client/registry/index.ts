@@ -192,6 +192,12 @@ const routes = {
     tokens: [{"old":"/api/v1/system/knowledge-documents/:id","type":0,"val":"api","end":""},{"old":"/api/v1/system/knowledge-documents/:id","type":0,"val":"v1","end":""},{"old":"/api/v1/system/knowledge-documents/:id","type":0,"val":"system","end":""},{"old":"/api/v1/system/knowledge-documents/:id","type":0,"val":"knowledge-documents","end":""},{"old":"/api/v1/system/knowledge-documents/:id","type":1,"val":"id","end":""}],
     types: placeholder as Registry['knowledge_documents.destroy']['types'],
   },
+  'system_status.show': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/v1/system/status',
+    tokens: [{"old":"/api/v1/system/status","type":0,"val":"api","end":""},{"old":"/api/v1/system/status","type":0,"val":"v1","end":""},{"old":"/api/v1/system/status","type":0,"val":"system","end":""},{"old":"/api/v1/system/status","type":0,"val":"status","end":""}],
+    types: placeholder as Registry['system_status.show']['types'],
+  },
   'users.index': {
     methods: ["GET","HEAD"],
     pattern: '/api/v1/system/users',

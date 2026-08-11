@@ -45,6 +45,46 @@ test.group('rbac', (group) => {
     assert.isFalse(await bouncer.allows('access', 'api-keys:delete'))
   })
 
+  test('protects the service status endpoint with its dedicated read permission', async ({
+    client,
+  }) => {
+    const statusPermission = await Permission.findByOrFail('code', 'system-status:read')
+    const statusRole = await Role.create({ code: `status-${Date.now()}`, name: 'Status reader' })
+    await statusRole.related('permissions').sync([statusPermission.id])
+
+    const reader = await User.create({
+      fullName: 'Status reader',
+      email: `status-reader-${Date.now()}@example.com`,
+      password: generateInitialPassword(),
+    })
+    await reader.related('roles').sync([statusRole.id])
+    const readerToken = await User.accessTokens.create(reader)
+
+    const allowedResponse = await client
+      .get('/api/v1/system/status')
+      .bearerToken(readerToken.value!.release())
+    allowedResponse.assertStatus(200)
+
+    const dashboardPermission = await Permission.findByOrFail('code', 'dashboard:view')
+    const dashboardRole = await Role.create({
+      code: `dashboard-${Date.now()}`,
+      name: 'Dashboard reader',
+    })
+    await dashboardRole.related('permissions').sync([dashboardPermission.id])
+    const dashboardReader = await User.create({
+      fullName: 'Dashboard reader',
+      email: `dashboard-reader-${Date.now()}@example.com`,
+      password: generateInitialPassword(),
+    })
+    await dashboardReader.related('roles').sync([dashboardRole.id])
+    const dashboardToken = await User.accessTokens.create(dashboardReader)
+
+    const deniedResponse = await client
+      .get('/api/v1/system/status')
+      .bearerToken(dashboardToken.value!.release())
+    deniedResponse.assertStatus(403)
+  })
+
   test('generates a 15-character password that satisfies the strength requirements', async ({
     assert,
   }) => {

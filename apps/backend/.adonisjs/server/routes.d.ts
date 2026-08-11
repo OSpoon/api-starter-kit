@@ -35,6 +35,7 @@ export type ScannedRoutes = {
     'knowledge_documents.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'knowledge_documents.reindex': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'knowledge_documents.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'system_status.show': { paramsTuple?: []; params?: {} }
     'users.index': { paramsTuple?: []; params?: {} }
     'users.store': { paramsTuple?: []; params?: {} }
     'users.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
@@ -94,6 +95,7 @@ export type ScannedRoutes = {
     'api_keys.index': { paramsTuple?: []; params?: {} }
     'wecom_message_templates.index': { paramsTuple?: []; params?: {} }
     'knowledge_documents.index': { paramsTuple?: []; params?: {} }
+    'system_status.show': { paramsTuple?: []; params?: {} }
     'users.index': { paramsTuple?: []; params?: {} }
     'roles.catalog': { paramsTuple?: []; params?: {} }
     'roles.index': { paramsTuple?: []; params?: {} }
@@ -113,6 +115,7 @@ export type ScannedRoutes = {
     'api_keys.index': { paramsTuple?: []; params?: {} }
     'wecom_message_templates.index': { paramsTuple?: []; params?: {} }
     'knowledge_documents.index': { paramsTuple?: []; params?: {} }
+    'system_status.show': { paramsTuple?: []; params?: {} }
     'users.index': { paramsTuple?: []; params?: {} }
     'roles.catalog': { paramsTuple?: []; params?: {} }
     'roles.index': { paramsTuple?: []; params?: {} }

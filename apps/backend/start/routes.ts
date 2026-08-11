@@ -16,6 +16,7 @@ const TwoFactorAuthController = () => import('#controllers/two_factor_auth_contr
 const UsersController = () => import('#controllers/users_controller')
 const WecomMessageTemplatesController = () =>
   import('#controllers/wecom_message_templates_controller')
+const SystemStatusController = () => import('#controllers/system_status_controller')
 
 router
   .post('/api/v1/wecom-messages/:id/send', [WecomMessageTemplatesController, 'send'])
@@ -140,6 +141,9 @@ router
 
     router
       .group(() => {
+        router
+          .get('status', [SystemStatusController, 'show'])
+          .use(middleware.permission(['system-status:read']))
         router.get('users', [UsersController, 'index']).use(middleware.permission(['users:read']))
         router
           .post('users', [UsersController, 'store'])

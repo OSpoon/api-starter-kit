@@ -76,6 +76,7 @@
   "sidebar": {
     "workbench": "工作台",
     "dashboard": "仪表盘",
+    "system_status": "服务状态",
     "templates": "模板",
     "workflow_template": "任务流转",
     "analytics_template": "数据分析",
@@ -340,6 +341,32 @@
       "openapi": "帮助菜单直达 OpenAPI 文档",
       "schema_builder": "Schema 构建器作为工作台示例工具"
     }
+  },
+  "system_status": {
+    "title": "服务状态",
+    "description": "实时查看当前服务所在服务器的资源与运行时状态。",
+    "cpu_average": "CPU 平均",
+    "memory": "内存",
+    "available": "可用",
+    "disk_highest": "磁盘 / 最高",
+    "active_handles": "活动句柄",
+    "cpu_cores": "CPU 每核负载",
+    "logical_cores": "逻辑核",
+    "core": "核心 {number}",
+    "disks": "磁盘",
+    "mounts": "个挂载点",
+    "no_disks": "暂无可读取的磁盘信息",
+    "auto_refresh": "{seconds} 秒自动刷新",
+    "last_updated": "最近更新 {time}",
+    "process_memory": "进程内存",
+    "process_uptime": "运行时长",
+    "platform": "平台",
+    "runtime": "运行时",
+    "os_version": "OS 版本",
+    "node": "Node",
+    "heap": "堆",
+    "pid": "PID",
+    "load_error": "服务器状态暂时无法获取，请稍后重试。"
   },
   "api_keys": {
     "title": "API 密钥",

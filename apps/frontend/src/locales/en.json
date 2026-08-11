@@ -76,6 +76,7 @@
   "sidebar": {
     "workbench": "Workbench",
     "dashboard": "Dashboard",
+    "system_status": "Service status",
     "templates": "Templates",
     "workflow_template": "Task workflow",
     "analytics_template": "Analytics",
@@ -340,6 +341,32 @@
       "openapi": "Help menu links directly to OpenAPI docs",
       "schema_builder": "Schema Builder acts as a sample workbench tool"
     }
+  },
+  "system_status": {
+    "title": "Service status",
+    "description": "Monitor resource and runtime health for the server running this service.",
+    "cpu_average": "CPU average",
+    "memory": "Memory",
+    "available": "available",
+    "disk_highest": "Disk / highest",
+    "active_handles": "Active handles",
+    "cpu_cores": "CPU core load",
+    "logical_cores": "logical cores",
+    "core": "core {number}",
+    "disks": "Disks",
+    "mounts": "mounts",
+    "no_disks": "No disk information available",
+    "auto_refresh": "Auto-refreshes every {seconds}s",
+    "last_updated": "Last updated {time}",
+    "process_memory": "Process memory",
+    "process_uptime": "Uptime",
+    "platform": "Platform",
+    "runtime": "Runtime",
+    "os_version": "OS version",
+    "node": "Node",
+    "heap": "Heap",
+    "pid": "PID",
+    "load_error": "Server status is temporarily unavailable. Try again shortly."
   },
   "api_keys": {
     "title": "API Access",

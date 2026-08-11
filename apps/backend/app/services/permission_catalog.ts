@@ -1,5 +1,6 @@
 export const permissionCodes = [
   'dashboard:view',
+  'system-status:read',
   'api-keys:read',
   'api-keys:create',
   'api-keys:update',
