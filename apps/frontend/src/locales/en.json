@@ -42,6 +42,8 @@
     "logging_in": "Signing in...",
     "login_success": "Login successful",
     "login_failed": "Login failed",
+    "complete_security_check": "Please complete the security check",
+    "security_check_failed": "Security verification failed. Please try again.",
     "logout_success": "Logged out successfully",
     "desc_2fa": "Enter the 6-digit code from your authenticator app",
     "2fa_code": "Verification code",

@@ -34,10 +34,14 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.removeItem(tokenKey)
   }
 
-  async function login(payload: { email: string; password: string }): Promise<LoginResult> {
+  async function login(payload: {
+    email: string
+    password: string
+    turnstileToken?: string
+  }): Promise<LoginResult> {
     loading.value = true
     try {
-      const result = await loginRequest(payload.email, payload.password)
+      const result = await loginRequest(payload.email, payload.password, payload.turnstileToken)
       if (result.kind === 'success') {
         setSession({ user: result.user, token: result.token })
       }

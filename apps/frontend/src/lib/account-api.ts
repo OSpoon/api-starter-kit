@@ -53,12 +53,16 @@ function authOptions(token: string | null) {
   return { token }
 }
 
-export async function login(email: string, password: string): Promise<LoginResult> {
+export async function login(
+  email: string,
+  password: string,
+  turnstileToken?: string
+): Promise<LoginResult> {
   const response = await apiRequest<ApiEnvelope<AuthResponse | LoginChallengeResponse>>(
     '/api/v1/auth/login',
     {
       method: 'POST',
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, turnstileToken }),
     }
   )
 

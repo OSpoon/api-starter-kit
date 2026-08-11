@@ -3,6 +3,7 @@ import { ApiOperation, ApiResponse, ApiSecurity } from '@foadonis/openapi/decora
 import { DateTime } from 'luxon'
 
 import User from '#models/user'
+import { isTurnstileEnabled, verifyTurnstileToken } from '#services/turnstile'
 import { createTwoFactorTempToken } from '#services/two_factor_token'
 import { loadUserAccess } from '#services/user_access'
 import UserTransformer from '#transformers/user_transformer'
@@ -21,7 +22,11 @@ export default class AccessTokensController {
   @ApiResponse({ status: 200, description: '登录结果、访问 token 或 2FA 临时 token' })
   @ApiResponse({ status: 401, description: '账号或密码错误，或账号处于锁定期' })
   async store({ request, serialize }: HttpContext) {
-    const { email, password } = await request.validateUsing(loginValidator)
+    const { email, password, turnstileToken } = await request.validateUsing(loginValidator)
+
+    if (isTurnstileEnabled() && !(await verifyTurnstileToken(turnstileToken ?? '', request.ip()))) {
+      throw { code: 'E_TURNSTILE_FAILED', status: 403 }
+    }
 
     const userRecord = await User.findBy('email', email)
 

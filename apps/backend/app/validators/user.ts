@@ -35,6 +35,7 @@ const strongPassword = () =>
 export const loginValidator = vine.create({
   email: email(),
   password: vine.string(),
+  turnstileToken: vine.string().trim().optional(),
 })
 
 export const changePasswordValidator = vine.create({

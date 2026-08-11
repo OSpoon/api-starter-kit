@@ -48,6 +48,10 @@ export default await Env.create(new URL('../', import.meta.url), {
   GITHUB_CLIENT_SECRET: Env.schema.secret.optional(),
   GITHUB_OAUTH_FRONTEND_URL: Env.schema.string.optional({ format: 'url', tld: false }),
 
+  // Cloudflare Turnstile
+  TURNSTILE_ENABLED: Env.schema.boolean.optional(),
+  TURNSTILE_SECRET_KEY: Env.schema.secret.optional(),
+
   // OpenAPI docs
   OPENAPI_DOCS_ENABLED: Env.schema.boolean.optional(),
 

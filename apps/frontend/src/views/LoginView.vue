@@ -4,9 +4,11 @@ import { toast } from 'vue-sonner'
 
 import CardPageShell from '@/components/common/CardPageShell.vue'
 import SegmentedCodeInput from '@/components/common/SegmentedCodeInput.vue'
+import TurnstileWidget from '@/components/common/TurnstileWidget.vue'
 import { Button } from '@/components/ui/button'
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
+import { ApiError } from '@/lib/api'
 import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
@@ -21,6 +23,9 @@ const isTwoFactorStep = ref(false)
 const twoFactorCode = ref('')
 const tempToken = ref('')
 const pendingPasswordChange = ref(false)
+const turnstileToken = ref('')
+const turnstileWidget = ref<InstanceType<typeof TurnstileWidget> | null>(null)
+const turnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY ?? ''
 
 function githubLoginUrl() {
   return `${import.meta.env.VITE_API_URL ?? ''}/api/v1/auth/github`
@@ -86,10 +91,16 @@ async function handleSubmit() {
     return
   }
 
+  if (turnstileSiteKey && !turnstileToken.value) {
+    toast.error(t('auth.complete_security_check'))
+    return
+  }
+
   try {
     const result = await auth.login({
       email: email.value,
       password: password.value,
+      turnstileToken: turnstileToken.value || undefined,
     })
 
     if (result.kind === 'two_factor') {
@@ -110,7 +121,14 @@ async function handleSubmit() {
     const redirect = (route.query.redirect as string) || '/dashboard'
     await router.push(redirect)
   } catch (cause) {
-    toast.error(cause instanceof Error ? cause.message : t('auth.login_failed'))
+    turnstileWidget.value?.reset()
+    toast.error(
+      cause instanceof ApiError && cause.status === 403
+        ? t('auth.security_check_failed')
+        : cause instanceof Error
+          ? cause.message
+          : t('auth.login_failed')
+    )
   }
 }
 
@@ -119,6 +137,8 @@ function backToLogin() {
   twoFactorCode.value = ''
   tempToken.value = ''
   pendingPasswordChange.value = false
+  turnstileToken.value = ''
+  turnstileWidget.value?.reset()
 }
 </script>
 
@@ -169,6 +189,14 @@ function backToLogin() {
             </Button>
           </div>
         </Field>
+        <TurnstileWidget
+          v-if="turnstileSiteKey"
+          ref="turnstileWidget"
+          :site-key="turnstileSiteKey"
+          @token="turnstileToken = $event"
+          @expired="turnstileToken = ''"
+          @error="turnstileToken = ''"
+        />
       </FieldGroup>
 
       <FieldGroup v-else>

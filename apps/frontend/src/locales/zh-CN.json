@@ -42,6 +42,8 @@
     "logging_in": "登录中...",
     "login_success": "登录成功",
     "login_failed": "登录失败",
+    "complete_security_check": "请先完成安全验证",
+    "security_check_failed": "安全验证失败，请重试",
     "logout_success": "已退出登录",
     "desc_2fa": "请输入身份验证器中的 6 位验证码",
     "2fa_code": "验证码",

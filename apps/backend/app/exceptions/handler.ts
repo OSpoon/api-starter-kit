@@ -16,6 +16,11 @@ const ERROR_CODE_MAP: Record<string, { status: number; code: string; message: st
     code: 'E_AUTH_UNAUTHORIZED',
     message: 'Insufficient permissions',
   },
+  E_TURNSTILE_FAILED: {
+    status: 403,
+    code: 'E_AUTH_SECURITY_CHECK_FAILED',
+    message: 'Security verification failed',
+  },
   E_RATE_LIMIT_EXCEEDED: {
     status: 429,
     code: 'E_RATE_LIMIT_EXCEEDED',
