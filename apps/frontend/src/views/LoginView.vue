@@ -148,8 +148,12 @@ function backToLogin() {
     :description="isTwoFactorStep ? t('auth.desc_2fa') : t('auth.desc_default')"
     max-width-class="max-w-sm"
   >
-    <form @submit.prevent="handleSubmit">
-      <FieldGroup v-if="!isTwoFactorStep">
+    <form
+      class="login-form mx-auto w-full min-w-0"
+      style="width: min(100%, 600px)"
+      @submit.prevent="handleSubmit"
+    >
+      <FieldGroup v-if="!isTwoFactorStep" class="w-full min-w-0">
         <Field>
           <FieldLabel for="email">{{ t('auth.email') }}</FieldLabel>
           <Input
@@ -189,14 +193,15 @@ function backToLogin() {
             </Button>
           </div>
         </Field>
-        <TurnstileWidget
-          v-if="turnstileSiteKey"
-          ref="turnstileWidget"
-          :site-key="turnstileSiteKey"
-          @token="turnstileToken = $event"
-          @expired="turnstileToken = ''"
-          @error="turnstileToken = ''"
-        />
+        <Field v-if="turnstileSiteKey" class="w-full min-w-0">
+          <TurnstileWidget
+            ref="turnstileWidget"
+            :site-key="turnstileSiteKey"
+            @token="turnstileToken = $event"
+            @expired="turnstileToken = ''"
+            @error="turnstileToken = ''"
+          />
+        </Field>
       </FieldGroup>
 
       <FieldGroup v-else>
@@ -206,7 +211,11 @@ function backToLogin() {
       </FieldGroup>
 
       <div class="mt-4">
-        <Button type="submit" class="w-full" :disabled="auth.loading">
+        <Button
+          type="submit"
+          class="w-full"
+          :disabled="auth.loading || Boolean(turnstileSiteKey && !turnstileToken)"
+        >
           {{
             auth.loading
               ? t('auth.logging_in')

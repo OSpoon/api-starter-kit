@@ -9,6 +9,7 @@ interface TurnstileInstance {
       callback: (token: string) => void
       'expired-callback': () => void
       'error-callback': () => void
+      size: 'flexible' | 'compact'
     }
   ) => string
   reset: (widgetId?: string) => void
@@ -73,6 +74,7 @@ async function renderWidget() {
 
     widgetId = window.turnstile.render(container.value, {
       sitekey: props.siteKey,
+      size: window.matchMedia('(max-width: 380px)').matches ? 'compact' : 'flexible',
       callback: (token) => emit('token', token),
       'expired-callback': () => emit('expired'),
       'error-callback': () => emit('error'),
@@ -99,5 +101,30 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div ref="container" class="flex min-h-16 justify-center" aria-live="polite" />
+  <div
+    ref="container"
+    class="turnstile-container flex min-h-16 w-full justify-center overflow-hidden"
+    aria-live="polite"
+  />
 </template>
+
+<style scoped>
+.turnstile-container :deep(> div),
+.turnstile-container :deep(> iframe),
+.turnstile-container :deep(iframe) {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+.turnstile-container {
+  min-width: 0;
+}
+
+@media (max-width: 380px) {
+  .turnstile-container :deep(> div),
+  .turnstile-container :deep(> iframe),
+  .turnstile-container :deep(iframe) {
+    width: 150px !important;
+  }
+}
+</style>
