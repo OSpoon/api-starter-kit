@@ -49,7 +49,7 @@ This repository is a pnpm workspace and Turborepo monorepo:
 
 ## 3. Standard Development Workflow
 
-### 3.0 Greenfield Project Boundary
+### 3.0 Greenfield Product Replacement Boundary
 
 Treat every new project built from this repository as a greenfield product unless
 the user explicitly says it is an existing product. This repository supplies
@@ -57,13 +57,34 @@ system capabilities—authentication, authorization, audit, API contracts,
 knowledge, observability, and controlled AI—not a default business domain.
 
 - Start from the user's product idea, domain entities, workflows, and success
-  criteria. Do not assume the existing dashboard, template pages, demos, or
-  optional integrations are part of the new product.
+  criteria. The starter's dashboard, template pages, demo routes, demo
+  navigation groups, sample content, and optional integrations are scaffolding,
+  not product features.
+- When implementing a new product, replace the starter dashboard with the
+  product's actual default landing experience in the same change. Update the
+  root redirect, post-authentication destinations, route names, permissions,
+  navigation, breadcrumbs, locale keys, and tests that still assume the demo
+  dashboard. Never keep the demo dashboard as a parallel user-facing page or
+  add a second dashboard with similar placeholder metrics unless the user
+  explicitly requests both.
+- Remove the starter's user-facing template/demo routes and navigation entries
+  from the product shell unless the user explicitly asks to retain a showcase.
+  Reusable page primitives and example source files may remain as non-routed
+  implementation references when useful; their presence must not expose demo
+  product experiences to end users.
+- Design the navigation from the product's domain and primary user tasks.
+  Business capabilities must use intentional product-level groups and ordering;
+  never place them in, beneath, or after a `Templates`, `Examples`, or demo
+  group merely because that group exists in the starter. Keep retained system
+  administration capabilities in a separate system/settings area.
 - Do not plan iterations around generic dashboard, analytics, workflow, wizard,
   or template capabilities unless the user explicitly requests them.
 - Keep business implementation in user-defined feature modules. Treat existing
   example views and reusable page primitives as references to adapt or remove,
   not as requirements to preserve.
+- A new-product implementation is incomplete while the authenticated product
+  shell still presents starter dashboard content, template/demo navigation, or
+  a default route that leads to a starter experience.
 - When asking the AI agent to extend a new project, state whether the request is
   for a system capability or a user-defined business capability before proposing
   files, routes, permissions, or data models.
