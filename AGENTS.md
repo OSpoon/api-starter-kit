@@ -49,6 +49,25 @@ This repository is a pnpm workspace and Turborepo monorepo:
 
 ## 3. Standard Development Workflow
 
+### 3.0 Greenfield Project Boundary
+
+Treat every new project built from this repository as a greenfield product unless
+the user explicitly says it is an existing product. This repository supplies
+system capabilities—authentication, authorization, audit, API contracts,
+knowledge, observability, and controlled AI—not a default business domain.
+
+- Start from the user's product idea, domain entities, workflows, and success
+  criteria. Do not assume the existing dashboard, template pages, demos, or
+  optional integrations are part of the new product.
+- Do not plan iterations around generic dashboard, analytics, workflow, wizard,
+  or template capabilities unless the user explicitly requests them.
+- Keep business implementation in user-defined feature modules. Treat existing
+  example views and reusable page primitives as references to adapt or remove,
+  not as requirements to preserve.
+- When asking the AI agent to extend a new project, state whether the request is
+  for a system capability or a user-defined business capability before proposing
+  files, routes, permissions, or data models.
+
 ### 3.1 Before Editing
 
 Before editing, you must:
