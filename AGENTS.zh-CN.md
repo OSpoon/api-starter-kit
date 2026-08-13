@@ -116,6 +116,13 @@
 
 - 所有前端表单必须使用共享的 `vee-validate` + `Zod` 模式：带类型的 `toTypedSchema`、`useForm`、`FormField`/`FormControl`、`FormMessage` 和 `firstFormError`。
 - 不得使用原生 `required`、临时 `if` 校验或页面级校验库。后端 Vine 校验仍是安全与持久化的权威。
+- 标准创建和编辑 dialog 必须匹配 `apps/frontend/src/features/wecom-message-templates/components/WecomMessageTemplateForm.vue` 中已经验证的表单行为和布局，并满足以下要求：
+  - 使用 `FormDialogContent`，表单采用 `flex min-h-0 flex-1 flex-col overflow-hidden`，包含独立的 `min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto` 滚动 body 和可安全收缩的 `FormDialogFooter`。滚动 body 与字段 grid 必须是独立元素。
+  - 使用普通的 `FormMessage`，不得设置固定高度、最小高度、占位内容或预留空间。字段没有错误时，校验消息不得占据可见布局空间；提交错误应自然撑高当前 grid 行，使后续行作为整体向下移动。
+  - 每个多列字段 grid 必须使用 `items-start`。需要显式列跨度的字段必须使用 wrapper；`FormItem` 必须保持顶部对齐，绝不能被包含更长校验消息的兄弟字段拉伸。
+  - 使用响应式列布局。紧凑控件可以在桌面端共用一行；描述、凭据字段、编辑器、JSON payload 和其他长内容控件必须占据完整行。窄屏时多列布局必须折叠为单列。
+  - 每个 `FormField` 都必须设置 `:validate-on-blur="false"`。提交必须使用 `form.handleSubmit` 创建的处理器；无效提交回调必须展示 `firstFormError`。保留标准的 change 和 model-update 校验，使提交失败后修改字段能够立即刷新错误。不得引入预留消息变体，也不得关闭所有 change 或 model-update 校验。
+  - 使用共享的 `Select`、`SelectTrigger` 和 `SelectContent`，不得使用页面级定位或 portal 覆盖。居中或经过 transform 的 dialog 中的 Select overlay 必须留在共享的页面级 portal 坐标系统中，绝不能挂载到经过 transform 的 dialog 容器内。
 - 所有用户可见文案使用 locale key。每个 input、textarea、select 和 combobox 都必须有独立的可见 label。
 - 图标控件使用 Lucide，并必须有可访问名称及 tooltip 或 title。
 - 新增或修改的交互必须覆盖 loading、empty、error、disabled 和 permission 状态，并且在桌面和移动端不能溢出或重叠。
@@ -133,6 +140,60 @@
 | 设置与安全状态                   | `apps/frontend/src/views/ProfileView.vue`                         |
 | 知识库 feature 组织方式          | `apps/frontend/src/features/knowledge/KnowledgeDocumentsPage.vue` |
 | 分析、工作流和向导模板           | 对应的 `*TemplateView.vue`                                        |
+
+### 4.4 基于参考实现的 UI 一致性契约
+
+前端参考页面和共享原语共同构成产品 UI 契约。新项目在已有能力板块中新增页面时，必须先对齐最接近的参考实现的可观察结构和交互行为，再添加领域特有内容。不得通过复制整页解决不一致，必须复用负责该行为的共享原语，只保留新的领域内容。
+
+#### 页面规划与职责归属
+
+- 写页面 markup 前，必须确定路由的 `meta.pageKind`、唯一根页面原语、路由权限和最接近的参考页面，并在实现总结中记录。
+- 路由级编排放在 view 中；共享布局、列表、表格、表单 dialog、确认、空状态、loading 和 error 行为放在已有共享原语或可复用 feature 组件中。
+- 如果新页面需要第二个页面头部、工具栏、列表容器、dialog host 或分页实现，必须停止添加页面级 markup，改为扩展负责该行为的共享组件。
+
+#### 管理列表结构
+
+管理列表必须使用 `ListPage` 和 `DataTable`，职责如下：
+
+- `ListPage` 负责页面标题和描述、右上角刷新操作、受权限控制的主要创建操作、带边框的内容区域以及 dialog 挂载位置。
+- `DataTable` 负责搜索输入、可选筛选控件、列可见性控制、表格容器、空状态和分页。不得在 view 中新增第二个搜索框、筛选工具栏、表格容器或分页区块。
+- 使用 `DataTable` 的 `filters` slot 放置收窄当前表格行的筛选条件；只有不属于表格筛选行的页面级查询区域才使用 `ListPage` 的 `query` slot；作用于当前列表的次要或批量操作使用 `ListPage` 的 `operations` slot。全局页面操作仍放在 `ListPage` 头部。
+- 页面支持时，紧凑筛选控件和搜索控件应使用单行响应式布局（`filters-layout="inline"`）；否则允许共享筛选行换行。不得添加页面级定位或 portal 覆盖。
+- 行操作放在表格最右侧的 actions 列。图标按钮只能使用 Lucide 图标，并且必须有可访问名称和 tooltip 或 title。每个操作都必须通过 `usePermission()` 控制；破坏性或安全敏感操作必须使用 `ConfirmDialog` 确认。
+- 当某个菜单需要导入、导出等额外领域操作时，必须将它们放在页面操作区域，并置于刷新操作和主要创建/主操作之后。所有页面都必须保持这一顺序，不得将这些操作移动到搜索区或表格区域。
+- 当页面操作区域超过 3 个操作按钮时，必须使用共享的 `ButtonGroup` 搭配 `DropdownMenu` 承载溢出操作，遵循既定的分组按钮/溢出菜单模式。最常用或主要操作保持直接可见，其余操作放入下拉菜单，并提供 locale 文案、权限校验、disabled/loading 状态和可访问名称。必要时应扩展共享页面操作 slot，不得创建页面级的溢出菜单实现。
+- 可能无界的管理数据必须使用服务端分页。刷新、创建、筛选、行操作、分页和无权限状态都必须保持共享布局，并提供 loading、empty、error 和 disabled 反馈，且不能发生内容重叠。
+
+标准管理列表示例：
+
+- `apps/frontend/src/views/ApiKeysView.vue`：简单列表、创建、吊销、安全的一次性披露和分页；
+- `apps/frontend/src/views/AccessControlView.vue`：列表变体、筛选、权限控制操作和多个管理 dialog。
+
+#### 表单 dialog 结构与校验
+
+标准创建和编辑 dialog 必须遵循以下实现的结构和行为：
+
+- `apps/frontend/src/components/workbench/ApiKeyForm.vue`
+- `apps/frontend/src/features/wecom-message-templates/components/WecomMessageTemplateForm.vue`
+
+具体要求：
+
+- `FormDialogContent` 负责 dialog 外壳。表单使用可安全收缩的 flex 列布局，拥有独立的滚动 body 和 `FormDialogFooter`。body 与字段 grid 必须分离，以便校验错误自然撑高所在行。
+- 每个控件都必须有独立的可见 label 和 locale 文案。placeholder 不能替代 label。长描述、编辑器、凭据和 JSON payload 必须占据完整响应式行；紧凑控件只有在每个字段保持顶部对齐时才可共用一行。
+- 使用带类型的 `vee-validate` 与 Zod schema、`useForm`、`FormField`、`FormControl`、`FormMessage` 和 `firstFormError`。不得使用原生 `required`、页面级校验、预留错误信息空间或第二套表单库。
+- 每个 `FormField` 都必须设置 `:validate-on-blur="false"`。必须通过 `form.handleSubmit` 提交；无效提交回调必须展示 `firstFormError`。提交失败后保留 change 和 model-update 校验，使用户修正字段后错误立即更新。
+- 使用共享 Select 原语和页面级 portal 行为。绝不能把 Select 内容挂载到经过 transform 或居中的 dialog 容器内部。
+- 表单提交必须覆盖保存中、控件 disabled、后端校验错误、取消和成功反馈。敏感值遵循既有的一次性披露规则，不得进入浏览器状态或日志。
+
+#### 必须进行的对齐检查
+
+新页面完成前，必须在桌面端和窄屏端与选定参考实现进行对照，并确认：
+
+1. 页面类型、根页面原语、头部操作和权限可见性符合路由契约；
+2. 搜索、筛选、表格操作、分页、dialog 和确认入口出现在共享区域，而不是自定义区域；
+3. loading、empty、error、disabled、unauthorized 和校验错误状态保持与参考实现一致的布局行为；
+4. 所有可见文案、label、图标、tooltip 和错误信息遵循共享的 locale 与无障碍模式；
+5. 按下方验证矩阵运行适用的前端 typecheck、lint check、build 和针对性测试。
 
 ## 5. 后端模块与命名
 

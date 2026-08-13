@@ -27,6 +27,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import {
   Table,
   TableBody,
@@ -50,6 +51,7 @@ const props = defineProps<{
   getSearchableText?: (row: TData) => string
   emptyMessage?: string
   storageKey?: string
+  searchId?: string
   serverPagination?: ServerPagination
   filtersLayout?: 'wrap' | 'inline'
 }>()
@@ -68,7 +70,8 @@ const columnFilters = ref<ColumnFiltersState>([])
 const rowSelection = ref({})
 const persistedPreferences = props.storageKey ? useTablePreferences(props.storageKey) : null
 const columnVisibility = persistedPreferences?.columnVisibility ?? ref<VisibilityState>({})
-const pagination = persistedPreferences?.pagination ?? ref<PaginationState>({ pageIndex: 0, pageSize: 10 })
+const pagination =
+  persistedPreferences?.pagination ?? ref<PaginationState>({ pageIndex: 0, pageSize: 10 })
 
 const showSearch = computed(() => Boolean(props.searchKeys?.length || props.getSearchableText))
 
@@ -197,10 +200,7 @@ function nextPage() {
 
 <template>
   <div class="space-y-4">
-    <div class="
-      flex flex-col gap-3
-      md:flex-row md:items-center md:justify-between
-    ">
+    <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
       <div
         :class="
           filtersLayout === 'inline'
@@ -209,8 +209,12 @@ function nextPage() {
         "
       >
         <slot name="filters" />
+        <Label v-if="showSearch" :for="searchId ?? 'data-table-search'">{{
+          t('common.search')
+        }}</Label>
         <Input
           v-if="showSearch"
+          :id="searchId ?? 'data-table-search'"
           :class="filtersLayout === 'inline' ? 'shrink-0' : 'max-w-sm min-w-55'"
           :style="filtersLayout === 'inline' ? { width: '14rem' } : undefined"
           :placeholder="searchPlaceholderText()"
@@ -256,10 +260,7 @@ function nextPage() {
               v-for="row in table.getRowModel().rows"
               :key="row.id"
               :data-state="row.getIsSelected() ? 'selected' : undefined"
-              class="
-                cursor-pointer
-                hover:bg-muted/50
-              "
+              class="cursor-pointer hover:bg-muted/50"
               @click="emit('rowClick', row.original)"
             >
               <TableCell v-for="cell in row.getVisibleCells()" :key="cell.id">
@@ -274,10 +275,7 @@ function nextPage() {
                 class="h-24 p-0 whitespace-normal"
               >
                 <div
-                  class="
-                    flex h-24 w-full items-center justify-center text-center
-                    text-muted-foreground
-                  "
+                  class="flex h-24 w-full items-center justify-center text-center text-muted-foreground"
                 >
                   {{ emptyMessage || t('common.no_data') }}
                 </div>
@@ -300,7 +298,11 @@ function nextPage() {
         <Button
           variant="outline"
           size="sm"
-          :disabled="serverPagination ? serverPagination.page >= serverPagination.pageCount : !table.getCanNextPage()"
+          :disabled="
+            serverPagination
+              ? serverPagination.page >= serverPagination.pageCount
+              : !table.getCanNextPage()
+          "
           @click="nextPage"
         >
           {{ t('common.next') }}

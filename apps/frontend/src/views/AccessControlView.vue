@@ -17,6 +17,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { Label } from '@/components/ui/label'
 import {
   Select,
   SelectContent,
@@ -125,17 +126,20 @@ const { userColumns, roleColumns, permissionColumns } = useAccessControlColumns(
       @page-change="management.page = $event"
     >
       <template #filters>
-        <Select v-model="management.permissionGroupFilter">
-          <SelectTrigger class="w-44"
-            ><SelectValue :placeholder="t('rbac.permissions.group')"
-          /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="__all__">{{ t('rbac.permissions.all_groups') }}</SelectItem>
-            <SelectItem v-for="group in management.permissionGroups" :key="group" :value="group">{{
-              group
-            }}</SelectItem>
-          </SelectContent>
-        </Select>
+        <div class="flex items-center gap-2">
+          <Label for="permission-group-filter">{{ t('rbac.permissions.group') }}</Label>
+          <Select v-model="management.permissionGroupFilter">
+            <SelectTrigger id="permission-group-filter" class="w-44">
+              <SelectValue :placeholder="t('rbac.permissions.group')" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">{{ t('rbac.permissions.all_groups') }}</SelectItem>
+              <SelectItem v-for="group in management.permissionGroups" :key="group" :value="group">
+                {{ group }}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </template>
     </DataTable>
 

@@ -172,6 +172,116 @@ Start with the comparable implementation and reuse its shared primitives rather 
 | Knowledge-base feature organization           | `apps/frontend/src/features/knowledge/KnowledgeDocumentsPage.vue` |
 | Analytics, workflow, and wizard templates     | The corresponding `*TemplateView.vue`                             |
 
+### 4.4 Reference-Derived UI Consistency Contract
+
+The frontend reference pages and shared primitives are the product UI contract.
+When a new project adds a page in an existing capability area, match the
+observable structure and interaction behavior of the closest reference before
+adding domain-specific markup. Do not solve a mismatch by copying a whole
+reference view; reuse the primitive that owns the behavior and keep only the
+new domain content.
+
+#### Page planning and ownership
+
+- Before writing page markup, identify the route `meta.pageKind`, its one root
+  page primitive, the route permission, and the closest reference page. Record
+  these decisions in the implementation summary.
+- Route-level orchestration belongs in the view. Shared layout, list, table,
+  form-dialog, confirmation, empty, loading, and error behavior belongs in the
+  existing shared primitive or a reusable feature component.
+- If a new page needs a second page header, toolbar, list surface, dialog host,
+  or pagination implementation, stop and extend the owning shared component
+  instead of adding page-local markup.
+
+#### Management-list anatomy
+
+Management lists must use `ListPage` and `DataTable` with the following
+responsibilities:
+
+- `ListPage` owns the page title and description, the top-right refresh action,
+  the permission-gated primary create action, the framed content surface, and
+  dialog placement.
+- `DataTable` owns the search input, optional filter controls, column-visibility
+  control, table surface, empty state, and pagination. Do not add a second
+  search box, filter toolbar, table wrapper, or pagination block in the view.
+- Use `DataTable`'s `filters` slot for filters that narrow the displayed rows.
+  Use `ListPage`'s `query` slot only for a page-level query area that is not
+  part of the table filter row. Use `ListPage`'s `operations` slot for
+  secondary or bulk operations that act on the current list; global page
+  actions remain in the `ListPage` header.
+- Keep compact filters and search controls on one responsive row when the
+  page supports it (`filters-layout="inline"`); otherwise allow the shared
+  filter row to wrap. Do not add page-local positioning or portal overrides.
+- Put row actions in the table's rightmost actions column. Use icon-only
+  controls only with Lucide icons, an accessible name, and a tooltip or title.
+  Gate each action with `usePermission()` and confirm destructive or
+  security-sensitive actions with `ConfirmDialog`.
+- When a menu needs additional domain actions such as import or export, place
+  them in the page action area after the refresh action and the primary
+  create/action control. Keep this order consistent across pages; do not move
+  these actions into the search or table area.
+- When the page action area contains more than three action buttons, use the
+  shared `ButtonGroup` together with `DropdownMenu` for the overflow actions,
+  following the established split-button/overflow pattern. Keep the most
+  frequent or primary actions visible and place the remaining actions in the
+  dropdown with locale labels, permission checks, disabled/loading states, and
+  accessible names. Extend the shared page action slot when necessary instead
+  of creating a page-local overflow implementation.
+- Potentially unbounded management data must use server pagination. Refresh,
+  create, filter, row-action, pagination, and permission-denied states must
+  preserve the shared layout and provide loading, empty, error, and disabled
+  feedback without overlapping content.
+
+The canonical management-list examples are
+`apps/frontend/src/views/ApiKeysView.vue` for a simple list with create,
+revoke, secure one-time disclosure, and pagination, and
+`apps/frontend/src/views/AccessControlView.vue` for list variants, filters,
+permission-gated actions, and multiple management dialogs.
+
+#### Form-dialog anatomy and validation
+
+Standard create and edit dialogs must follow the structure and behavior of
+`apps/frontend/src/components/workbench/ApiKeyForm.vue` and
+`apps/frontend/src/features/wecom-message-templates/components/WecomMessageTemplateForm.vue`:
+
+- `FormDialogContent` owns the dialog shell. The form uses a shrink-safe
+  flex-column layout with a separate scrolling body and `FormDialogFooter`.
+  The body and field grid must remain separate so validation errors can grow
+  their own row naturally.
+- Every control has its own visible label and locale-backed text. A placeholder
+  is never a substitute for a label. Long descriptions, editors, credentials,
+  and JSON payloads occupy a full responsive row; compact controls may share a
+  row only when every field remains top-aligned.
+- Use the typed `vee-validate` plus Zod schema, `useForm`, `FormField`,
+  `FormControl`, `FormMessage`, and `firstFormError` pattern. Do not use native
+  `required`, page-local validation, reserved error-message space, or a second
+  form library.
+- Set `:validate-on-blur="false"` on every `FormField`. Submit through
+  `form.handleSubmit`; the invalid-submit callback must surface
+  `firstFormError`. Preserve change and model-update validation after a failed
+  submit so correcting a field updates its error immediately.
+- Use the shared `Select` primitives and page-level portal behavior. Never
+  mount select content inside a transformed or centered dialog container.
+- Form submission must cover saving, disabled controls, backend validation
+  errors, cancellation, and success feedback. Sensitive values follow the
+  existing one-time disclosure rules and must not enter browser state or logs.
+
+#### Required alignment review
+
+Before considering a new page complete, compare it with the selected reference
+at desktop and narrow widths and verify:
+
+1. The page kind, root primitive, header actions, and permission visibility
+   match the route contract.
+2. Search, filters, table actions, pagination, dialogs, and confirmation
+   affordances appear in their shared regions rather than custom regions.
+3. Loading, empty, error, disabled, unauthorized, and validation-error states
+   retain the same layout behavior as the reference.
+4. All visible text, labels, icons, tooltips, and error messages use the shared
+   locale and accessibility patterns.
+5. The applicable frontend typecheck, lint check, build, and focused tests are
+   run according to the verification matrix below.
+
 ## 5. Backend Modules and Naming
 
 - Name files after reusable responsibilities, not temporary organizational or page-specific context. Avoid barrel files unless the local package already establishes that convention.

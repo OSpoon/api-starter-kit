@@ -116,10 +116,6 @@ const form = useForm({
     webhookUrl: '',
   },
 })
-const name = computed(() => form.values.name ?? '')
-const description = computed(() => form.values.description ?? '')
-const webhookUrl = computed(() => form.values.webhookUrl ?? '')
-
 const examples: Record<WecomMessageType, Record<string, unknown>> = {
   text: {
     msgtype: 'text',
@@ -268,27 +264,26 @@ function templatePayload(value: Record<string, unknown>) {
   }
   return payload
 }
-async function validateForm() {
-  const result = await form.validate()
-  if (!result.valid) {
-    toast.error(firstFormError(form.errors.value, t('common.form_check_errors')))
-    return false
-  }
-  return true
+function onInvalidSubmit({ errors }: { errors: Record<string, string | undefined> }) {
+  toast.error(firstFormError(errors, t('common.form_check_errors')))
 }
 
-async function submit() {
+function submitValues(values: {
+  name: string
+  description: string
+  msgtype: WecomMessageType
+  webhookUrl: string
+}) {
   try {
     const payload = JSON.parse(payloadText.value) as Record<string, unknown>
-    if (payload.msgtype !== msgtype.value)
+    if (payload.msgtype !== values.msgtype)
       throw new Error(t('wecom_templates.validation.msgtype_match'))
-    if (!(await validateForm())) return
     jsonError.value = ''
     emit('save', {
-      name: name.value.trim(),
-      description: description.value.trim() || null,
-      msgtype: msgtype.value,
-      webhookUrl: webhookUrl.value.trim() || undefined,
+      name: values.name.trim(),
+      description: values.description.trim() || null,
+      msgtype: values.msgtype,
+      webhookUrl: values.webhookUrl.trim() || undefined,
       payload: templatePayload(payload),
       parameters: parameters.value,
       enabled: enabled.value,
@@ -297,10 +292,12 @@ async function submit() {
     jsonError.value = error instanceof Error ? error.message : t('wecom_templates.validation.json')
   }
 }
+
+const onSubmit = form.handleSubmit(submitValues, onInvalidSubmit)
 </script>
 
 <template>
-  <form class="flex min-h-0 flex-1 flex-col overflow-hidden" novalidate @submit.prevent="submit">
+  <form class="flex min-h-0 flex-1 flex-col overflow-hidden" novalidate @submit.prevent="onSubmit">
     <div class="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-6 pb-6">
       <a
         :href="wecomMessageDocsUrl"
