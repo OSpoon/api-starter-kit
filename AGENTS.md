@@ -266,6 +266,32 @@ Standard create and edit dialogs must follow the structure and behavior of
   errors, cancellation, and success feedback. Sensitive values follow the
   existing one-time disclosure rules and must not enter browser state or logs.
 
+### 4.5 shadcn-vue Component Governance
+
+`apps/frontend/src/components/ui` is the single owned UI primitive layer. Before
+adding any visual control, interaction, or overlay, developers must check this
+directory and the official shadcn-vue catalog first, then reuse the closest
+installed primitive. Do not introduce a page-local copy of a component that
+already exists under `components/ui`, and do not replace an installed primitive
+with a native control or third-party equivalent without documenting the
+exception.
+
+The baseline includes the core shadcn-vue catalog plus Calendar, Carousel,
+Drawer, Attachment, Bubble, Marker, and Message. Composite patterns
+must use their shared primitives: date pickers use Popover plus Calendar (or
+Range Calendar), management tables use ListPage plus DataTable, and
+notifications use Sonner. The deprecated shadcn-vue Toast must not be added or
+used because this project standardizes on `vue-sonner`.
+
+When a needed component is not installed, add it through the configured
+shadcn-vue registry (`pnpm dlx shadcn-vue@latest add <component>` from
+`apps/frontend`) and commit all generated source and direct dependencies. Use
+`--overwrite` only when intentionally synchronizing an existing primitive and
+verify that its public props and existing consumers remain compatible. New
+shared behavior belongs in `components/ui` or an appropriate common/feature
+component; it must not be implemented inline in a view. Any exception requires
+the technical reason, affected scope, and removal path in the final summary.
+
 #### Required alignment review
 
 Before considering a new page complete, compare it with the selected reference

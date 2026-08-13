@@ -70,3 +70,18 @@ only the domain-specific content required by the new route.
 ## Extension Rule
 
 Before adding page-local layout or control markup, extend the relevant shared component when the behavior is reusable. A page-specific implementation is acceptable only for genuinely domain-specific content and must not duplicate an existing shared component's responsibilities.
+
+## shadcn-vue Component Baseline
+
+Treat `src/components/ui` as the frontend's owned shadcn-vue primitive layer.
+Check it and the official shadcn-vue catalog before writing any control,
+overlay, feedback, navigation, or data-display primitive. Reuse the installed
+component first; do not create a page-local equivalent or silently substitute a
+native/third-party control. Install missing primitives with the configured
+shadcn-vue CLI and preserve the generated component contract.
+
+Use Popover + Calendar/Range Calendar for date pickers, ListPage + DataTable
+for management tables, and Sonner (`vue-sonner`) for notifications. Do not add
+the deprecated Toast component. New reusable variants belong under
+`src/components/ui` or the owning common/feature component, with an explicit
+exception documented when shadcn-vue cannot satisfy the requirement.
