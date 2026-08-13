@@ -19,9 +19,9 @@ const options = computed(() =>
 
 <template>
   <NativeSelect
-    :value="modelValue"
+    :model-value="modelValue"
     :disabled="readOnly"
-    @change="emit('update:modelValue', ($event.target as HTMLSelectElement).value as SchemaType)"
+    @update:model-value="emit('update:modelValue', $event as SchemaType)"
     :class="
       cn(
         `
