@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Maximize2Icon, Minimize2Icon } from '@lucide/vue'
+import { LockIcon, Maximize2Icon, Minimize2Icon, UnlockIcon } from '@lucide/vue'
 
 import {
   createSchemaStore,
@@ -66,7 +66,10 @@ watch(
 )
 
 const isFullscreen = ref(false)
+const isReadOnly = ref(props.readOnly)
 const leftPanelWidth = ref(50)
+const leftPanelMinWidth = 600
+const rightPanelMinWidth = 360
 const containerRef = ref<HTMLDivElement | null>(null)
 const isDragging = ref(false)
 const activeTab = ref('visual')
@@ -74,6 +77,17 @@ const activeTab = ref('visual')
 const toggleFullscreen = () => {
   isFullscreen.value = !isFullscreen.value
 }
+
+const toggleReadOnly = () => {
+  isReadOnly.value = !isReadOnly.value
+}
+
+watch(
+  () => props.readOnly,
+  (value) => {
+    isReadOnly.value = value
+  }
+)
 
 const handleMouseDown = (e: MouseEvent) => {
   e.preventDefault()
@@ -85,8 +99,10 @@ const handleMouseDown = (e: MouseEvent) => {
 const handleMouseMove = (e: MouseEvent) => {
   if (!isDragging.value || !containerRef.value) return
   const rect = containerRef.value.getBoundingClientRect()
+  const minLeftWidth = (leftPanelMinWidth / rect.width) * 100
+  const maxLeftWidth = 100 - (rightPanelMinWidth / rect.width) * 100
   const newWidth = ((e.clientX - rect.left) / rect.width) * 100
-  if (newWidth >= 20 && newWidth <= 80) leftPanelWidth.value = newWidth
+  leftPanelWidth.value = Math.min(Math.max(newWidth, minLeftWidth), maxLeftWidth)
 }
 
 const handleMouseUp = () => {
@@ -111,20 +127,35 @@ const handleMouseUp = () => {
       <div :class="cn('flex w-full flex-col', isFullscreen ? 'h-full' : `h-125`)">
         <div class="flex w-full shrink-0 items-center justify-between border-b px-4 py-3">
           <h3 class="font-medium">{{ t.schemaEditorTitle }}</h3>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            v-if="showFullscreen"
-            type="button"
-            @click="toggleFullscreen"
-            class="p-1.5"
-          >
-            <Maximize2Icon v-if="!isFullscreen" class="size-4" />
-            <Minimize2Icon v-else class="size-4" />
-          </Button>
+          <div class="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              type="button"
+              :title="t.schemaEditorToggleReadOnly"
+              :aria-label="t.schemaEditorToggleReadOnly"
+              :aria-pressed="isReadOnly"
+              @click="toggleReadOnly"
+              class="p-1.5"
+            >
+              <LockIcon v-if="isReadOnly" class="size-4" />
+              <UnlockIcon v-else class="size-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              v-if="showFullscreen"
+              type="button"
+              @click="toggleFullscreen"
+              class="p-1.5"
+            >
+              <Maximize2Icon v-if="!isFullscreen" class="size-4" />
+              <Minimize2Icon v-else class="size-4" />
+            </Button>
+          </div>
         </div>
         <div class="min-h-0 grow">
-          <SchemaVisualEditor :read-only="readOnly" />
+          <SchemaVisualEditor :read-only="isReadOnly" />
         </div>
       </div>
     </template>
@@ -138,17 +169,32 @@ const handleMouseUp = () => {
               <TabsTrigger value="visual">{{ t.schemaEditorEditModeVisual }}</TabsTrigger>
               <TabsTrigger value="json">{{ t.schemaEditorEditModeJson }}</TabsTrigger>
             </TabsList>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              v-if="showFullscreen"
-              type="button"
-              @click="toggleFullscreen"
-              class="p-1.5"
-            >
-              <Maximize2Icon v-if="!isFullscreen" class="size-4" />
-              <Minimize2Icon v-else class="size-4" />
-            </Button>
+            <div class="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                type="button"
+                :title="t.schemaEditorToggleReadOnly"
+                :aria-label="t.schemaEditorToggleReadOnly"
+                :aria-pressed="isReadOnly"
+                @click="toggleReadOnly"
+                class="p-1.5"
+              >
+                <LockIcon v-if="isReadOnly" class="size-4" />
+                <UnlockIcon v-else class="size-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                v-if="showFullscreen"
+                type="button"
+                @click="toggleFullscreen"
+                class="p-1.5"
+              >
+                <Maximize2Icon v-if="!isFullscreen" class="size-4" />
+                <Minimize2Icon v-else class="size-4" />
+              </Button>
+            </div>
           </div>
           <TabsContent
             value="visual"
@@ -162,7 +208,7 @@ const handleMouseUp = () => {
               )
             "
           >
-            <SchemaVisualEditor :read-only="readOnly" />
+            <SchemaVisualEditor :read-only="isReadOnly" />
           </TabsContent>
           <TabsContent
             value="json"
@@ -176,7 +222,7 @@ const handleMouseUp = () => {
               )
             "
           >
-            <JsonSchemaVisualizer />
+            <JsonSchemaVisualizer :read-only="isReadOnly" />
           </TabsContent>
         </Tabs>
       </div>
@@ -195,28 +241,52 @@ const handleMouseUp = () => {
       >
         <div class="flex w-full shrink-0 items-center justify-between border-b px-4 py-3">
           <h3 class="font-medium">{{ t.schemaEditorTitle }}</h3>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            v-if="showFullscreen"
-            type="button"
-            @click="toggleFullscreen"
-            class="p-1.5"
-          >
-            <Maximize2Icon v-if="!isFullscreen" class="size-4" />
-            <Minimize2Icon v-else class="size-4" />
-          </Button>
+          <div class="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              type="button"
+              :title="t.schemaEditorToggleReadOnly"
+              :aria-label="t.schemaEditorToggleReadOnly"
+              :aria-pressed="isReadOnly"
+              @click="toggleReadOnly"
+              class="p-1.5"
+            >
+              <LockIcon v-if="isReadOnly" class="size-4" />
+              <UnlockIcon v-else class="size-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              v-if="showFullscreen"
+              type="button"
+              @click="toggleFullscreen"
+              class="p-1.5"
+            >
+              <Maximize2Icon v-if="!isFullscreen" class="size-4" />
+              <Minimize2Icon v-else class="size-4" />
+            </Button>
+          </div>
         </div>
         <div class="flex min-h-0 w-full grow flex-row">
-          <div class="h-full min-h-0 overflow-auto" :style="{ width: `${leftPanelWidth}%` }">
-            <SchemaVisualEditor :read-only="readOnly" />
+          <div
+            class="h-full min-h-0 shrink-0 overflow-auto"
+            :style="{ width: `${leftPanelWidth}%`, minWidth: `${leftPanelMinWidth}px` }"
+          >
+            <SchemaVisualEditor :read-only="isReadOnly" />
           </div>
           <div
             class="w-1 shrink-0 cursor-col-resize bg-border hover:bg-primary"
             @mousedown="handleMouseDown"
           />
-          <div class="h-full min-h-0" :style="{ width: `${100 - leftPanelWidth}%` }">
-            <JsonSchemaVisualizer />
+          <div
+            class="h-full min-h-0 min-w-0"
+            :style="{
+              width: `${100 - leftPanelWidth}%`,
+              minWidth: `${rightPanelMinWidth}px`,
+            }"
+          >
+            <JsonSchemaVisualizer :read-only="isReadOnly" />
           </div>
         </div>
       </div>

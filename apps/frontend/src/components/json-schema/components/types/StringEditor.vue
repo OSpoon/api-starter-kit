@@ -134,14 +134,9 @@ const needsDetail = computed(
         <Input
           :id="minLengthId"
           type="number"
-          :value="minLength ?? ''"
-          @input="
-            handleValidationChange(
-              'minLength',
-              ($event.target as HTMLInputElement).value
-                ? Number(($event.target as HTMLInputElement).value)
-                : undefined
-            )
+          :model-value="minLength ?? ''"
+          @update:model-value="
+            handleValidationChange('minLength', $event !== '' ? Number($event) : undefined)
           "
           :placeholder="t.stringMinimumLengthPlaceholder"
           :min="0"
@@ -165,14 +160,9 @@ const needsDetail = computed(
         <Input
           :id="maxLengthId"
           type="number"
-          :value="maxLength ?? ''"
-          @input="
-            handleValidationChange(
-              'maxLength',
-              ($event.target as HTMLInputElement).value
-                ? Number(($event.target as HTMLInputElement).value)
-                : undefined
-            )
+          :model-value="maxLength ?? ''"
+          @update:model-value="
+            handleValidationChange('maxLength', $event !== '' ? Number($event) : undefined)
           "
           :placeholder="t.stringMaximumLengthPlaceholder"
           :min="0"
@@ -204,10 +194,8 @@ const needsDetail = computed(
       <Input
         :id="patternId"
         type="text"
-        :value="pattern ?? ''"
-        @input="
-          handleValidationChange('pattern', ($event.target as HTMLInputElement).value || undefined)
-        "
+        :model-value="pattern ?? ''"
+        @update:model-value="handleValidationChange('pattern', $event || undefined)"
         :placeholder="t.stringPatternPlaceholder"
         :disabled="readOnly"
         class="h-8 text-sm"
@@ -228,15 +216,10 @@ const needsDetail = computed(
       >
       <NativeSelect
         :id="formatId"
-        :value="format || 'none'"
+        :model-value="format || 'none'"
         size="sm"
-        @change="
-          handleValidationChange(
-            'format',
-            ($event.target as HTMLSelectElement).value === 'none'
-              ? undefined
-              : ($event.target as HTMLSelectElement).value
-          )
+        @update:model-value="
+          handleValidationChange('format', $event === 'none' ? undefined : $event)
         "
         :disabled="readOnly"
       >

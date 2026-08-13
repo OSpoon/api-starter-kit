@@ -783,6 +783,7 @@
     "propertyDelete": "删除字段",
     "schemaEditorTitle": "JSON Schema 编辑器",
     "schemaEditorToggleFullscreen": "切换全屏",
+    "schemaEditorToggleReadOnly": "切换只读模式",
     "schemaEditorEditModeVisual": "可视化",
     "schemaEditorEditModeJson": "JSON",
     "schemaEditorLoading": "编辑器加载中...",

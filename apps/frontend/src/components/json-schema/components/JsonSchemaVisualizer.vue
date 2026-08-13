@@ -6,7 +6,7 @@ import { useTranslation } from '@/components/json-schema/hooks/useTranslation.ts
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 
-defineProps<{ class?: string }>()
+withDefaults(defineProps<{ class?: string; readOnly?: boolean }>(), { readOnly: false })
 
 const store = useSchemaStore()
 const schema = computed(() => store.schema.value)
@@ -57,7 +57,7 @@ const handleDownload = () => {
     >
       <div class="flex items-center gap-2">
         <FileJsonIcon class="size-4.5" />
-        <span class="text-sm font-medium">{{ t.visualizerSource }}</span>
+        <span class="shrink-0 text-sm font-medium whitespace-nowrap">{{ t.visualizerSource }}</span>
       </div>
       <Button
         variant="ghost"
@@ -74,6 +74,7 @@ const handleDownload = () => {
       <Textarea
         v-model="editorText"
         @input="handleEditorUpdate"
+        :readonly="readOnly"
         class="size-full resize-none border-0 p-4 font-mono text-sm text-foreground"
         spellcheck="false"
       />

@@ -65,14 +65,12 @@ const buildValidationProps = (
   return filtered as ObjectJSONSchema
 }
 
-const handleMinItemsInput = (e: Event) => {
-  const el = e.target as HTMLInputElement
-  minItems.value = el.value ? Number(el.value) : null
+const handleMinItemsInput = (value: string | number) => {
+  minItems.value = value !== '' ? Number(value) : null
   handleValidationChange()
 }
-const handleMaxItemsInput = (e: Event) => {
-  const el = e.target as HTMLInputElement
-  maxItems.value = el.value ? Number(el.value) : null
+const handleMaxItemsInput = (value: string | number) => {
+  maxItems.value = value !== '' ? Number(value) : null
   handleValidationChange()
 }
 const handleUniqueItemsChange = (checked: boolean) => {
@@ -121,8 +119,8 @@ const maxItemsError = computed(
         <Input
           :id="minItemsId"
           type="number"
-          :value="minItems ?? ''"
-          @input="handleMinItemsInput"
+          :model-value="minItems ?? ''"
+          @update:model-value="handleMinItemsInput"
           :placeholder="t.arrayMinimumPlaceholder"
           :min="0"
           :disabled="readOnly"
@@ -144,8 +142,8 @@ const maxItemsError = computed(
         <Input
           :id="maxItemsId"
           type="number"
-          :value="maxItems ?? ''"
-          @input="handleMaxItemsInput"
+          :model-value="maxItems ?? ''"
+          @update:model-value="handleMaxItemsInput"
           :placeholder="t.arrayMaximumPlaceholder"
           :min="0"
           :disabled="readOnly"

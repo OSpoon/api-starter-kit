@@ -20,6 +20,7 @@ const options = computed(() =>
 <template>
   <NativeSelect
     :model-value="modelValue"
+    size="sm"
     :disabled="readOnly"
     @update:model-value="emit('update:modelValue', $event as SchemaType)"
     :class="

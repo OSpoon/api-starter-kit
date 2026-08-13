@@ -156,14 +156,9 @@ const numInputClass = 'h-8 text-sm'
         <Input
           :id="minimumId"
           type="number"
-          :value="minimum ?? ''"
-          @input="
-            handleValidationChange(
-              'minimum',
-              ($event.target as HTMLInputElement).value
-                ? Number(($event.target as HTMLInputElement).value)
-                : undefined
-            )
+          :model-value="minimum ?? ''"
+          @update:model-value="
+            handleValidationChange('minimum', $event !== '' ? Number($event) : undefined)
           "
           :step="integer ? 1 : undefined"
           :placeholder="t.numberMinimumPlaceholder"
@@ -188,14 +183,9 @@ const numInputClass = 'h-8 text-sm'
         <Input
           :id="maximumId"
           type="number"
-          :value="maximum ?? ''"
-          @input="
-            handleValidationChange(
-              'maximum',
-              ($event.target as HTMLInputElement).value
-                ? Number(($event.target as HTMLInputElement).value)
-                : undefined
-            )
+          :model-value="maximum ?? ''"
+          @update:model-value="
+            handleValidationChange('maximum', $event !== '' ? Number($event) : undefined)
           "
           :step="integer ? 1 : undefined"
           :placeholder="t.numberMaximumPlaceholder"
@@ -216,14 +206,9 @@ const numInputClass = 'h-8 text-sm'
         <Input
           :id="exclusiveMinimumId"
           type="number"
-          :value="exclusiveMinimum ?? ''"
-          @input="
-            handleValidationChange(
-              'exclusiveMinimum',
-              ($event.target as HTMLInputElement).value
-                ? Number(($event.target as HTMLInputElement).value)
-                : undefined
-            )
+          :model-value="exclusiveMinimum ?? ''"
+          @update:model-value="
+            handleValidationChange('exclusiveMinimum', $event !== '' ? Number($event) : undefined)
           "
           :step="integer ? 1 : undefined"
           :placeholder="t.numberExclusiveMinimumPlaceholder"
@@ -238,14 +223,9 @@ const numInputClass = 'h-8 text-sm'
         <Input
           :id="exclusiveMaximumId"
           type="number"
-          :value="exclusiveMaximum ?? ''"
-          @input="
-            handleValidationChange(
-              'exclusiveMaximum',
-              ($event.target as HTMLInputElement).value
-                ? Number(($event.target as HTMLInputElement).value)
-                : undefined
-            )
+          :model-value="exclusiveMaximum ?? ''"
+          @update:model-value="
+            handleValidationChange('exclusiveMaximum', $event !== '' ? Number($event) : undefined)
           "
           :step="integer ? 1 : undefined"
           :placeholder="t.numberExclusiveMaximumPlaceholder"
@@ -264,14 +244,9 @@ const numInputClass = 'h-8 text-sm'
       <Input
         :id="multipleOfId"
         type="number"
-        :value="multipleOf ?? ''"
-        @input="
-          handleValidationChange(
-            'multipleOf',
-            ($event.target as HTMLInputElement).value
-              ? Number(($event.target as HTMLInputElement).value)
-              : undefined
-          )
+        :model-value="multipleOf ?? ''"
+        @update:model-value="
+          handleValidationChange('multipleOf', $event !== '' ? Number($event) : undefined)
         "
         :min="0"
         :step="integer ? 1 : undefined"
@@ -315,8 +290,8 @@ const numInputClass = 'h-8 text-sm'
       <div v-if="!readOnly" class="flex items-center gap-2">
         <Input
           type="number"
-          :value="enumValue ? Number(enumValue) : ''"
-          @input="enumValue = ($event.target as HTMLInputElement).value"
+          :model-value="enumValue"
+          @update:model-value="enumValue = String($event)"
           :placeholder="t.numberAllowedValuesEnumAddPlaceholder"
           :step="integer ? 1 : undefined"
           :class="[numInputClass, 'flex-1']"

@@ -1,10 +1,6 @@
 <script setup lang="ts">
 import PageShell from '@/components/common/PageShell.vue'
 import JsonSchemaEditor from '@/components/json-schema/components/JsonSchemaEditor.vue'
-import {
-  createSchemaStore,
-  provideSchemaStore,
-} from '@/components/json-schema/hooks/useSchemaStore.ts'
 import { useTranslation } from '@/components/json-schema/hooks/useTranslation.ts'
 import type { JSONSchema } from '@/components/json-schema/types/jsonSchema.ts'
 
@@ -54,16 +50,12 @@ const initialSchema: JSONSchema = {
   },
   required: ['name', 'email'],
 }
-
-onBeforeMount(() => {
-  provideSchemaStore(createSchemaStore(initialSchema))
-})
 </script>
 
 <template>
   <PageShell :title="t.schemaDemoTitle ?? ''" :description="t.schemaDemoDescription" class="gap-4">
     <div class="min-h-0 flex-1">
-      <JsonSchemaEditor />
+      <JsonSchemaEditor :schema="initialSchema" />
     </div>
   </PageShell>
 </template>

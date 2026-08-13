@@ -783,6 +783,7 @@
     "propertyDelete": "Delete field",
     "schemaEditorTitle": "JSON Schema Editor",
     "schemaEditorToggleFullscreen": "Toggle fullscreen",
+    "schemaEditorToggleReadOnly": "Toggle read-only mode",
     "schemaEditorEditModeVisual": "Visual",
     "schemaEditorEditModeJson": "JSON",
     "schemaEditorLoading": "Loading editor...",

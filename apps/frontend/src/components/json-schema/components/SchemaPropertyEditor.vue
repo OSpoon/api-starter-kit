@@ -37,25 +37,14 @@ const props = withDefaults(
 const store = useSchemaStore()
 const t = useTranslation()
 const expanded = ref(false)
-const isEditingName = ref(false)
-const isEditingDesc = ref(false)
 
 const displayName = computed(() => props.name)
 const displayDesc = computed(() => getSchemaDescription(props.schema))
-const tempName = ref('')
-const tempDesc = ref('')
+const tempName = ref(props.name)
+const tempDesc = ref(displayDesc.value)
 
 const type = () =>
   withObjectSchema(props.schema, (s) => (s.type || 'object') as SchemaType, 'object' as SchemaType)
-
-const startEditingName = () => {
-  tempName.value = props.name
-  isEditingName.value = true
-}
-const startEditingDesc = () => {
-  tempDesc.value = getSchemaDescription(props.schema)
-  isEditingDesc.value = true
-}
 
 const handleNameSubmit = () => {
   const trimmedName = tempName.value.trim()
@@ -64,8 +53,14 @@ const handleNameSubmit = () => {
   } else {
     tempName.value = props.name
   }
-  isEditingName.value = false
 }
+
+watch(
+  () => props.name,
+  (newName) => {
+    tempName.value = newName
+  }
+)
 
 const handleDescSubmit = () => {
   const trimmedDesc = tempDesc.value.trim()
@@ -77,8 +72,11 @@ const handleDescSubmit = () => {
   } else {
     tempDesc.value = getSchemaDescription(props.schema)
   }
-  isEditingDesc.value = false
 }
+
+watch(displayDesc, (newDescription) => {
+  tempDesc.value = newDescription
+})
 
 const handleSchemaUpdate = (updatedSchema: ObjectJSONSchema) => {
   const description = getSchemaDescription(props.schema)
@@ -137,58 +135,38 @@ const inputClass = 'h-8 text-sm'
         <div class="flex min-w-0 grow items-center gap-2 overflow-visible">
           <div class="flex min-w-0 grow items-center gap-2 overflow-visible">
             <Input
-              v-if="!readOnly && isEditingName"
+              v-if="!readOnly"
               v-model="tempName"
               @blur="handleNameSubmit()"
-              @keydown.enter="handleNameSubmit()"
-              :class="[inputClass, 'z-10 h-8 max-w-full min-w-30 text-sm font-medium']"
-              ref="nameInput"
-              @focus="($event.target as HTMLInputElement)?.select()"
+              @keydown.enter.prevent="handleNameSubmit()"
+              :aria-label="t.fieldNameLabel"
+              :class="[inputClass, 'z-10 max-w-[25%] min-w-30 flex-[1_1_0%] text-sm font-medium']"
             />
-            <Button
-              variant="ghost"
-              size="sm"
+            <span
               v-else
-              type="button"
-              @click="startEditingName()"
-              @keydown.enter="startEditingName()"
-              class="-mx-0.5 max-w-[50%] min-w-20 cursor-text truncate rounded-sm px-2 py-0.5 text-left text-foreground hover:bg-secondary/30 hover:shadow-xs hover:ring-1 hover:ring-ring/20"
+              class="-mx-0.5 max-w-[25%] min-w-20 flex-[1_1_0%] truncate px-2 py-0.5 text-left text-foreground"
             >
               {{ displayName }}
-            </Button>
+            </span>
 
             <Input
-              v-if="!readOnly && isEditingDesc"
+              v-if="!readOnly"
               v-model="tempDesc"
               @blur="handleDescSubmit()"
-              @keydown.enter="handleDescSubmit()"
+              @keydown.enter.prevent="handleDescSubmit()"
               :placeholder="t.propertyDescriptionPlaceholder"
+              :aria-label="t.propertyDescriptionPlaceholder"
               :class="[
                 inputClass,
-                'z-10 h-8 min-w-37.5 flex-1 text-xs text-muted-foreground italic',
+                'z-10 max-w-[75%] min-w-37.5 flex-[3_1_0%] text-xs text-muted-foreground italic',
               ]"
-              @focus="($event.target as HTMLInputElement)?.select()"
             />
-            <Button
-              variant="ghost"
-              size="sm"
+            <span
               v-else-if="displayDesc"
-              type="button"
-              @click="startEditingDesc()"
-              class="-mx-0.5 mr-2 max-w-[40%] flex-1 cursor-text truncate rounded-sm px-2 py-0.5 text-left text-xs text-muted-foreground italic hover:bg-secondary/30 hover:shadow-xs hover:ring-1 hover:ring-ring/20"
+              class="mr-2 max-w-[75%] min-w-37.5 flex-[3_1_0%] truncate px-2 py-0.5 text-xs text-muted-foreground italic"
             >
               {{ displayDesc }}
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              v-else
-              type="button"
-              @click="startEditingDesc()"
-              class="-mx-0.5 mr-2 max-w-[40%] flex-1 cursor-text truncate rounded-sm px-2 py-0.5 text-left text-xs text-muted-foreground/50 italic opacity-0 group-hover:opacity-100 hover:bg-secondary/30 hover:shadow-xs hover:ring-1 hover:ring-ring/20"
-            >
-              {{ t.propertyDescriptionButton }}
-            </Button>
+            </span>
           </div>
 
           <div class="flex shrink-0 items-center justify-end gap-2">
@@ -224,7 +202,7 @@ const inputClass = 'h-8 text-sm'
           size="icon-sm"
           type="button"
           @click="handleDelete"
-          class="p-1 opacity-0 group-hover:opacity-100 hover:text-destructive"
+          class="p-1 hover:text-destructive"
           :aria-label="t.propertyDelete"
         >
           <XIcon class="size-4" />
