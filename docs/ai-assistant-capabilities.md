@@ -9,15 +9,15 @@ AI 助手是受后端治理的管理控制台助手。它可以回答产品问�
 | 产品与流程问答 | `search_knowledge` 检索已索引文档                                                                                                  | 只使用授权文档；文档摘录不是授权依据。                                                                                       |
 | 权限诊断       | `diagnose_my_access`                                                                                                               | 只针对当前登录用户。                                                                                                         |
 | 实时系统查询   | `run_registered_query`                                                                                                             | 只使用注册模板；固定最多 20 条；不支持自由 SQL、任意字段、分页或继续查询。更多数据请前往 API Key、用户、访问控制或审计模块。 |
-| 管理变更       | `propose_system_management_change` + 确认 API；API Key 吊销/删除使用专用 `propose_api_key_revocation` / `propose_api_key_deletion` | AI 只能生成提案，不能直接执行；确认时再次校验权限和目标状态。吊销与删除为独立工具，互不混淆。                                |
-| 多轮对话       | LangGraph checkpoint、完整消息历史和 pending query                                                                                 | 上下文压缩只影响模型请求，不截断持久化历史。                                                                                 |
+| 管理变更       | 专用 Pi `AgentTool` + 确认 API；API Key 创建、吊销、删除分别使用专用工具 | AI 只能生成提案，不能直接执行；确认时再次校验权限和目标状态。不同 API Key 操作彼此独立，避免模型混淆。                                |
+| 多轮对话       | Pi Agent、完整消息历史和 pending query                                                                                             | 上下文压缩只影响模型请求，不截断持久化历史。                                                                                 |
 
 ## 请求流程
 
 ```mermaid
 flowchart TB
   A["用户消息"] --> B["保存用户消息"]
-  B --> C["LangGraph Agent"]
+  B --> C["Pi Agent"]
   C --> D["知识检索 / 注册查询 / 权限诊断"]
   D --> C
   C --> E["助手流式回复"]
@@ -40,7 +40,7 @@ flowchart TB
 
 模型通过 `AI_OPENAI_*` 接入 OpenAI 兼容服务；知识检索使用 `AI_EMBEDDING_*`。上下文压缩由 `AI_CONTEXT_COMPRESSION_ENABLED` 控制（触发阈值 `AI_CONTEXT_COMPRESSION_THRESHOLD_TOKENS`，保留消息数 `AI_CONTEXT_COMPRESSION_RECENT_MESSAGES`），Agent 请求超时由 `AI_REQUEST_TIMEOUT_MS` 控制。
 
-Langfuse 通过 `LANGFUSE_PUBLIC_KEY`、`LANGFUSE_SECRET_KEY`、`LANGFUSE_BASE_URL`（以及启用开关）提供模型运行观测。项目不再维护独立的 AI 请求计时指标。
+AI 请求运行状态由 Pi Agent、现有审计日志和对话消息记录维护。
 
 评估命令：
 

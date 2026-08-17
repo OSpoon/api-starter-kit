@@ -18,6 +18,8 @@ API Starter Kit 为团队构建可运营业务系统提供统一的治理基础�
 
 助手可检索有权限的知识、读取已批准的非敏感系统信息、执行注册查询模板，并创建待确认的管理操作提议。它不能执行自由 SQL，不能将聊天文本视为批准，也无法绕过后端校验、鉴权、脱敏与审计策略。
 
+AI 助手当前基于 Pi Agent 运行。工具参数和调用契约由 Pi 的工具 schema、工具描述及服务端注册表维护；系统提示词只负责身份、安全边界、授权和事实可信度，不承载具体工具参数。管理类工具只创建持久化提议，必须经过结构化确认后才能执行。
+
 ### 可持续扩展的全栈基础
 
 仓库集成 AdonisJS API、Vue 3 工作台、OpenAPI、Docker、pnpm/Turborepo Monorepo、共享 UI 原语、页面模板、类型检查与格式化约定，适合在既有架构中持续扩展。
@@ -31,7 +33,7 @@ API Starter Kit 为团队构建可运营业务系统提供统一的治理基础�
 | API Key          | 创建、更新、吊销、删除、过期管理、哈希校验和仅一次明文展示                         |
 | 审计日志         | 关键管理操作与已确认 AI 操作的可检索记录                                           |
 | 知识库           | 审查后的文档管理、角色访问控制、向量检索和结构化检索元数据                         |
-| AI 工作台        | 流式对话、历史持久化、知识问答、受工具约束的系统查询和管理操作提议                 |
+| AI 工作台        | Pi Agent 流式对话、历史持久化、知识问答、注册查询和需确认的管理操作提议                 |
 | UI 模板          | 管理列表、详情、设置、流程、分析、向导与操作模式示例                               |
 | 交付基础         | OpenAPI/Scalar、Docker、pgvector PostgreSQL、国际化与自动化检查                    |
 
@@ -57,6 +59,16 @@ pnpm docker:up
 pnpm --dir apps/backend exec node ace migration:run
 pnpm dev
 ```
+
+AI 助手当前使用 Pi Agent 运行时，并通过会话消息重建可恢复状态。修改工具、Pi runtime、提示词或确认流程后，至少运行：
+
+```bash
+pnpm --dir apps/backend typecheck
+pnpm --dir apps/backend exec node ace test
+```
+
+本地模型通过 OpenAI-compatible 配置接入：`AI_OPENAI_API_KEY`、`AI_OPENAI_BASE_URL`
+和 `AI_OPENAI_MODEL`。默认示例配置指向本机模型服务，使用前请确认对应端口已启动。
 
 ## 许可证
 

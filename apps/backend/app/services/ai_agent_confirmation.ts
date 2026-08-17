@@ -24,8 +24,8 @@ export type AiAgentActionToolArtifact =
 
 export function createAiAgentActionToolResult(
   artifact: AiAgentActionToolArtifact
-): [string, AiAgentActionToolArtifact] {
-  return [JSON.stringify(artifact), artifact]
+): AiAgentActionToolArtifact {
+  return artifact
 }
 
 export type AiAgentConfirmationSummary = {

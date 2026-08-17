@@ -49,6 +49,7 @@ export function startAiChatSseKeepalive(response: HttpContext['response']) {
 }
 
 const PROPOSAL_TOOL_ACTIONS: Record<string, string> = {
+  propose_api_key_creation: 'create_api_key',
   propose_api_key_revocation: 'revoke_api_key',
   propose_api_key_deletion: 'delete_api_key',
 }
@@ -56,6 +57,7 @@ const PROPOSAL_TOOL_ACTIONS: Record<string, string> = {
 function isProposalTool(name: string) {
   return (
     name === 'propose_system_management_change' ||
+    name === 'propose_api_key_creation' ||
     name === 'propose_api_key_revocation' ||
     name === 'propose_api_key_deletion'
   )

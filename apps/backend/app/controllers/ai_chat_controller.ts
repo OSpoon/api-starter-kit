@@ -3,13 +3,13 @@ import { ApiOperation, ApiResponse, ApiSecurity } from '@foadonis/openapi/decora
 
 import AiChatConversation from '#models/ai_chat_conversation'
 import AiChatMessage from '#models/ai_chat_message'
-import { getAiAgentCheckpointRunStage, hasAiAgentCheckpoint } from '#services/ai_agent_checkpoint'
+import { getAiRequestTimeout } from '#services/ai_agent_config'
 import {
   AiAgentConfirmationError,
   confirmAiAgentAction as executeAiAgentAction,
   listConversationConfirmations,
 } from '#services/ai_agent_confirmation'
-import { getAiRequestTimeout } from '#services/ai_agent_service'
+import { getAiAgentResumeRunStage, hasAiAgentResumeState } from '#services/ai_agent_resume_state'
 import { resolveAiChatRegeneration } from '#services/ai_chat_regeneration'
 import { runAiChatAssistantTurn } from '#services/ai_chat_turn_service'
 import { resetAiConversationState } from '#services/ai_conversation_state'
@@ -162,7 +162,7 @@ export default class AiChatController {
 
   @ApiOperation({
     summary: '恢复 AI 会话运行',
-    description: '使用当前会话最近一次已提交的 LangGraph checkpoint 恢复中断的 Agent 运行。',
+    description: '恢复当前会话最近一次中断的 Agent 运行。',
   })
   @ApiResponse({ status: 200, description: '流式恢复响应' })
   async resume(ctx: HttpContext) {
@@ -173,13 +173,13 @@ export default class AiChatController {
       .where('id', params.id)
       .where('user_id', user.id)
       .firstOrFail()
-    const checkpointInput = {
+    const resumeInput = {
       conversationId: conversation.id,
       userId: user.id,
     }
-    const hasCheckpoint = await hasAiAgentCheckpoint(checkpointInput)
-    const runStage = hasCheckpoint ? await getAiAgentCheckpointRunStage(checkpointInput) : undefined
-    if (!hasCheckpoint || !runStage || runStage === 'completed') {
+    const hasResumeState = await hasAiAgentResumeState(resumeInput)
+    const runStage = hasResumeState ? await getAiAgentResumeRunStage(resumeInput) : undefined
+    if (!hasResumeState || !runStage) {
       return response.conflict({ message: '当前会话没有可恢复的 AI 运行状态' })
     }
 

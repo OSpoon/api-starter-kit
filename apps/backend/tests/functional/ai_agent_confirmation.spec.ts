@@ -1,6 +1,7 @@
 import crypto from 'node:crypto'
 
 import testUtils from '@adonisjs/core/services/test_utils'
+import type { AgentTool } from '@earendil-works/pi-agent-core'
 import { test } from '@japa/runner'
 import { DateTime } from 'luxon'
 
@@ -17,6 +18,11 @@ import { getAiAgentAction } from '#services/ai_agent_action_registry'
 import { proposeAiAgentAction } from '#services/ai_agent_confirmation'
 import { createAiAgentTools } from '#services/ai_agent_tool_registry'
 import { generateInitialPassword } from '#services/user_credentials'
+
+async function executeTool(tool: AgentTool, input: unknown) {
+  const result = await tool.execute('test-call', input)
+  return JSON.stringify(result.details)
+}
 
 async function createConfirmation(user: User) {
   const conversation = await AiChatConversation.create({ userId: user.id, title: 'Revoke key' })
@@ -54,6 +60,34 @@ test.group('AI agent confirmations', (group) => {
     assert.equal(getAiAgentAction('revoke_api_key')?.impact, 'destructive')
     assert.equal(getAiAgentAction('delete_api_key')?.impact, 'destructive')
     assert.equal(getAiAgentAction('create_api_key')?.impact, 'standard')
+  })
+
+  test('prepares API Key creation through direct fields and one confirmation', async ({
+    assert,
+  }) => {
+    const superAdminRole = await Role.findByOrFail('code', 'super-admin')
+    const user = await User.create({
+      fullName: 'API Key creation admin',
+      email: `api-key-create-${Date.now()}@example.com`,
+      password: generateInitialPassword(),
+    })
+    await user.related('roles').sync([superAdminRole.id])
+    const conversation = await AiChatConversation.create({ userId: user.id, title: 'Create API Key' })
+    const tool = createAiAgentTools({
+      userId: user.id,
+      conversationId: conversation.id,
+      agentRunId: crypto.randomUUID(),
+    }).find((registeredTool) => registeredTool.name === 'propose_api_key_creation')
+
+    const output = JSON.parse(
+      await executeTool(tool!, { name: 'default-api-key', expiresIn: 'long' })
+    )
+
+    assert.equal(output.kind, 'confirmation')
+    assert.equal(output.confirmation.action, 'create_api_key')
+    assert.equal(output.confirmation.targetSummary.name, 'default-api-key')
+    assert.equal(output.confirmation.changeSummary[0].value, 'default-api-key')
+    assert.isUndefined(output.confirmation.payload)
   })
 
   test('reuses a pending proposal when the same agent run retries an action', async ({
@@ -205,7 +239,7 @@ test.group('AI agent confirmations', (group) => {
       agentRunId: crypto.randomUUID(),
     }).find((tool) => tool.name === 'propose_api_key_revocation')
 
-    const output = await proposalTool!.invoke({
+    const output = await executeTool(proposalTool!, {
       apiKeyId: 999_999_999,
     })
 
@@ -239,7 +273,7 @@ test.group('AI agent confirmations', (group) => {
       agentRunId: crypto.randomUUID(),
     }).find((tool) => tool.name === 'propose_api_key_revocation')
 
-    const output = await proposalTool!.invoke({
+    const output = await executeTool(proposalTool!, {
       name: apiKey.name,
     })
 
@@ -298,7 +332,7 @@ test.group('AI agent confirmations', (group) => {
       agentRunId: crypto.randomUUID(),
     }).find((tool) => tool.name === 'propose_api_key_deletion')
 
-    const output = await proposalTool!.invoke({
+    const output = await executeTool(proposalTool!, {
       apiKeyId: apiKey.id,
     })
 
@@ -327,7 +361,7 @@ test.group('AI agent confirmations', (group) => {
       agentRunId: crypto.randomUUID(),
     }).find((tool) => tool.name === 'propose_api_key_deletion')
 
-    const output = await proposalTool!.invoke({
+    const output = await executeTool(proposalTool!, {
       apiKeyId: apiKey.id,
     })
 
@@ -356,7 +390,7 @@ test.group('AI agent confirmations', (group) => {
       agentRunId: crypto.randomUUID(),
     }).find((tool) => tool.name === 'propose_api_key_deletion')
 
-    const output = await proposalTool!.invoke({
+    const output = await executeTool(proposalTool!, {
       apiKeyId: apiKey.id,
     })
 
@@ -446,7 +480,7 @@ test.group('AI agent confirmations', (group) => {
       agentRunId: crypto.randomUUID(),
     }).find((tool) => tool.name === 'propose_api_key_revocation')
 
-    const output = await proposalTool!.invoke({
+    const output = await executeTool(proposalTool!, {
       apiKeyId: apiKey.id,
     })
 
@@ -582,7 +616,7 @@ test.group('AI agent confirmations', (group) => {
       conversationId: 1,
       agentRunId: crypto.randomUUID(),
     }).find((tool) => tool.name === 'propose_wecom_message_send')
-    const denied = await deniedTool!.invoke({
+    const denied = await executeTool(deniedTool!, {
       templateId: template.id,
       params: { content: '不应发送' },
     })
@@ -607,7 +641,7 @@ test.group('AI agent confirmations', (group) => {
     }).find((tool) => tool.name === 'propose_wecom_message_send')
     const proposal = JSON.parse(
       String(
-        await proposalTool!.invoke({
+        await executeTool(proposalTool!, {
           templateId: template.id,
           params: { content: '业务内容' },
           mentionedList: ['zhangsan'],

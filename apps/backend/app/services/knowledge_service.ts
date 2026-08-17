@@ -2,7 +2,7 @@ import crypto from 'node:crypto'
 
 import { Bouncer } from '@adonisjs/bouncer'
 import db from '@adonisjs/lucid/services/db'
-import { OpenAIEmbeddings } from '@langchain/openai'
+import OpenAI from 'openai'
 
 import { access } from '#abilities/main'
 import KnowledgeDocument from '#models/knowledge_document'
@@ -246,11 +246,10 @@ function embeddingConfig() {
 
 function createEmbeddings() {
   const config = embeddingConfig()
-  return new OpenAIEmbeddings({
+  return new OpenAI({
     apiKey: config.apiKey,
-    model: config.model,
     timeout: Math.min(Math.max(env.get('AI_REQUEST_TIMEOUT_MS') ?? 60_000, 5_000), 300_000),
-    configuration: { baseURL: config.baseURL },
+    ...(config.baseURL ? { baseURL: config.baseURL } : {}),
   })
 }
 
@@ -269,7 +268,11 @@ async function embedVectors(texts: string[]) {
   const embeddings: number[][] = []
   const client = createEmbeddings()
   for (let start = 0; start < texts.length; start += EMBEDDING_BATCH_SIZE) {
-    const batch = await client.embedDocuments(texts.slice(start, start + EMBEDDING_BATCH_SIZE))
+    const response = await client.embeddings.create({
+      model: embeddingConfig().model,
+      input: texts.slice(start, start + EMBEDDING_BATCH_SIZE),
+    })
+    const batch = response.data.sort((left, right) => left.index - right.index).map((item) => item.embedding)
     batch.forEach(vectorLiteral)
     embeddings.push(...batch)
   }
@@ -282,7 +285,11 @@ async function embedTexts(texts: string[]) {
 }
 
 async function embedQuery(query: string) {
-  return vectorLiteral(await createEmbeddings().embedQuery(query))
+  const response = await createEmbeddings().embeddings.create({
+    model: embeddingConfig().model,
+    input: query,
+  })
+  return vectorLiteral(response.data[0]?.embedding ?? [])
 }
 
 async function splitKnowledgeContentSemantically(content: string) {
