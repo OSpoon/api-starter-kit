@@ -133,6 +133,14 @@ function getAgentStatusPhase(name: string, state: 'running' | 'done' | 'error') 
 }
 
 function readAgentToolArtifact(output: unknown): AiAgentActionToolArtifact | null {
+  if (
+    output &&
+    typeof output === 'object' &&
+    'kind' in output &&
+    (output.kind === 'confirmation' || output.kind === 'action_error')
+  ) {
+    return output as AiAgentActionToolArtifact
+  }
   const artifact =
     output && typeof output === 'object' && 'artifact' in output ? output.artifact : null
   if (

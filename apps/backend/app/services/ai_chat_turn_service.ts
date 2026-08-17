@@ -104,6 +104,8 @@ function getTerminalToolAssistantContent(output: unknown) {
     if (artifact && typeof artifact === 'object') {
       payload = artifact as { kind?: unknown; message?: unknown }
     }
+  } else if (output && typeof output === 'object' && 'kind' in output) {
+    payload = output as { kind?: unknown; message?: unknown }
   }
   if (!payload) return null
   if (payload.kind === 'confirmation') return '已准备好管理操作提案，请在确认卡片中确认后执行。'

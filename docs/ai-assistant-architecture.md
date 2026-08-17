@@ -22,6 +22,8 @@ flowchart TB
 - `ai_chat_sse_adapter.ts` 负责 SSE 写出、keepalive、工具状态详情、阶段和确认事件。
 - `ai_agent_service.ts` 创建 Pi Agent，配置模型、上下文和工具事件流。
 - `ai_agent_tool_registry.ts` 直接返回 Pi `AgentTool[]`；工具 schema、执行逻辑和业务服务调用在同一注册边界内维护。
+- Pi 生命周期钩子在工具调用前校验输入，在调用后识别错误和终止结果；确认提议及终止性业务错误使用原生 `terminate` 结束本轮。
+- 只读诊断、注册查询和知识检索工具允许并行执行；变更提议保持顺序执行，避免并行产生多个需要确认的状态。
 
 ## 工具边界
 

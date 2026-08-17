@@ -43,6 +43,7 @@ function toolResultText(result: unknown) {
 export function shouldStopAfterPiToolTurn(toolResults: unknown[]) {
   return toolResults.some((result) => {
     if (!result || typeof result !== 'object') return false
+    if ((result as { terminate?: unknown }).terminate === true) return true
     if ((result as { isError?: unknown }).isError === true) return true
     const text = toolResultText(result)
     if (!text) return false
@@ -148,8 +149,17 @@ export function createPiAgent(input: {
       thinkingLevel: 'off',
     },
     streamFn: models.streamSimple.bind(models),
-    transformContext: async (messages) => messages,
-    toolExecution: 'sequential',
+    toolExecution: 'parallel',
+    beforeToolCall: async ({ args }) => {
+      if (!args || typeof args !== 'object' || Array.isArray(args)) {
+        return { block: true, terminate: true, reason: '工具参数必须是对象' }
+      }
+      return undefined
+    },
+    afterToolCall: async ({ result, isError }) => ({
+      isError,
+      terminate: isError || result.terminate === true,
+    }),
     shouldStopAfterTurn: ({ toolResults }) => shouldStopAfterPiToolTurn(toolResults),
   })
 
