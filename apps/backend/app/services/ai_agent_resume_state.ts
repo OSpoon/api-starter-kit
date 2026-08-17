@@ -10,16 +10,10 @@ export async function hasAiAgentResumeState(input: { conversationId: number; use
   return latest?.role === 'user' || (latest?.role === 'assistant' && previous?.role === 'user')
 }
 
-export async function getAiAgentResumeRunStage(input: {
-  conversationId: number
-  userId: number
-}) {
+export async function getAiAgentResumeRunStage(input: { conversationId: number; userId: number }) {
   return (await hasAiAgentResumeState(input)) ? ('running' as const) : undefined
 }
 
-export async function clearAiAgentResumeState(_input: {
-  conversationId: number
-  userId: number
-}) {
+export async function clearAiAgentResumeState(_input: { conversationId: number; userId: number }) {
   // Pi state is reconstructed from persisted conversation messages.
 }

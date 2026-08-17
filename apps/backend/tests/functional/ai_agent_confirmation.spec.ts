@@ -72,7 +72,10 @@ test.group('AI agent confirmations', (group) => {
       password: generateInitialPassword(),
     })
     await user.related('roles').sync([superAdminRole.id])
-    const conversation = await AiChatConversation.create({ userId: user.id, title: 'Create API Key' })
+    const conversation = await AiChatConversation.create({
+      userId: user.id,
+      title: 'Create API Key',
+    })
     const tool = createAiAgentTools({
       userId: user.id,
       conversationId: conversation.id,

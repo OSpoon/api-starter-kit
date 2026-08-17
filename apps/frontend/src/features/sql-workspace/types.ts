@@ -1,7 +1,4 @@
-export type SqlDialect =
-  | 'GenericSQL'
-  | 'MySQL'
-  | 'PostgreSQL'
+export type SqlDialect = 'GenericSQL' | 'MySQL' | 'PostgreSQL'
 
 export type DialectSelection = 'auto' | Exclude<SqlDialect, 'GenericSQL'>
 

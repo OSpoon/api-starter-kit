@@ -65,13 +65,17 @@ const preferences = useLocalStorage<BrowserPreferences>(storageKey, migrateLegac
   mergeDefaults: true,
 })
 
-function updateTablePreference(tableKey: string, update: (current: TablePreference) => TablePreference) {
+function updateTablePreference(
+  tableKey: string,
+  update: (current: TablePreference) => TablePreference
+) {
   const nextTables = { ...preferences.value.tables }
   const next = update(nextTables[tableKey] ?? {})
   const hasVisibility = Boolean(next.columnVisibility && Object.keys(next.columnVisibility).length)
   const hasPagination = Boolean(
     next.pagination &&
-      (next.pagination.pageIndex !== defaultPagination.pageIndex || next.pagination.pageSize !== defaultPagination.pageSize)
+    (next.pagination.pageIndex !== defaultPagination.pageIndex ||
+      next.pagination.pageSize !== defaultPagination.pageSize)
   )
 
   if (!hasVisibility && !hasPagination) {

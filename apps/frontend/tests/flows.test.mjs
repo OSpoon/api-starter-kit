@@ -15,9 +15,7 @@ const { streamAiChatMessage } = await jiti.import(`${root}/src/lib/ai-chat-api.t
 const { getAiChatSuggestions, pickRandomAiChatSuggestions } = await jiti.import(
   `${root}/src/lib/ai-chat-suggestions.ts`
 )
-const { formatAiChatMessagesAsMarkdown } = await jiti.import(
-  `${root}/src/lib/ai-chat-markdown.ts`
-)
+const { formatAiChatMessagesAsMarkdown } = await jiti.import(`${root}/src/lib/ai-chat-markdown.ts`)
 const { hasAiChatConversationContent } = await jiti.import(
   `${root}/src/lib/ai-chat-conversation-state.ts`
 )
@@ -94,14 +92,11 @@ test('AI suggestions use effective permissions and prioritize the current page',
     translate,
   })
 
-  assert.deepEqual(
-    superAdminSuggestions.slice(0, 3),
-    [
-      'ai_chat.tasks.api_keys.list',
-      'ai_chat.tasks.api_keys.create',
-      'ai_chat.tasks.access.check',
-    ]
-  )
+  assert.deepEqual(superAdminSuggestions.slice(0, 3), [
+    'ai_chat.tasks.api_keys.list',
+    'ai_chat.tasks.api_keys.create',
+    'ai_chat.tasks.access.check',
+  ])
   assert.ok(superAdminSuggestions.includes('ai_chat.tasks.audit_logs.recent'))
 
   assert.deepEqual(

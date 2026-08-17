@@ -272,7 +272,9 @@ async function embedVectors(texts: string[]) {
       model: embeddingConfig().model,
       input: texts.slice(start, start + EMBEDDING_BATCH_SIZE),
     })
-    const batch = response.data.sort((left, right) => left.index - right.index).map((item) => item.embedding)
+    const batch = response.data
+      .sort((left, right) => left.index - right.index)
+      .map((item) => item.embedding)
     batch.forEach(vectorLiteral)
     embeddings.push(...batch)
   }

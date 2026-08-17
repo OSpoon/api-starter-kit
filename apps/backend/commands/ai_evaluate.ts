@@ -2,12 +2,17 @@ import { BaseCommand } from '@adonisjs/core/ace'
 import type { AgentTool } from '@earendil-works/pi-agent-core'
 import { Type } from '@earendil-works/pi-ai'
 
-import { aiQueryTemplateInstructions } from '#services/ai_agent_query_registry'
 import { createPiAgent } from '#services/ai_agent_pi_runtime'
+import { aiQueryTemplateInstructions } from '#services/ai_agent_query_registry'
 import { createAiAgentSystemPrompt } from '#services/ai_agent_service'
 import { aiAssistantEvaluationCases, evaluateAiAssistantTurn } from '#services/ai_evaluation'
 
-function evaluationTool(name: string, description: string, output: () => unknown, onCall: () => void): AgentTool {
+function evaluationTool(
+  name: string,
+  description: string,
+  output: () => unknown,
+  onCall: () => void
+): AgentTool {
   return {
     name,
     label: name,
@@ -36,14 +41,47 @@ export default class AiEvaluate extends BaseCommand {
       return toolOutputs[name] ?? fallback
     }
     const { agent } = createPiAgent({
-      systemPrompt: createAiAgentSystemPrompt(undefined, ' <live-session-state>{"pendingConfirmations":[]}</live-session-state>'),
+      systemPrompt: createAiAgentSystemPrompt(
+        undefined,
+        ' <live-session-state>{"pendingConfirmations":[]}</live-session-state>'
+      ),
       tools: [
-        evaluationTool('diagnose_my_access', 'Diagnose current user access.', () => ({ allowed: true }), () => calledTools.push('diagnose_my_access')),
-        evaluationTool('search_knowledge', 'Search product documentation.', remember('search_knowledge', { sources: [] }), () => {}),
-        evaluationTool('run_registered_query', `Run a registered query. Templates: ${aiQueryTemplateInstructions}.`, remember('run_registered_query', { kind: 'query_result', rows: [] }), () => {}),
-        evaluationTool('propose_system_management_change', 'Prepare a management proposal.', remember('propose_system_management_change', { kind: 'confirmation' }), () => {}),
-        evaluationTool('propose_api_key_revocation', 'Prepare an API key revocation proposal.', remember('propose_api_key_revocation', { kind: 'confirmation' }), () => {}),
-        evaluationTool('propose_api_key_deletion', 'Prepare an API key deletion proposal.', remember('propose_api_key_deletion', { kind: 'confirmation' }), () => {}),
+        evaluationTool(
+          'diagnose_my_access',
+          'Diagnose current user access.',
+          () => ({ allowed: true }),
+          () => calledTools.push('diagnose_my_access')
+        ),
+        evaluationTool(
+          'search_knowledge',
+          'Search product documentation.',
+          remember('search_knowledge', { sources: [] }),
+          () => {}
+        ),
+        evaluationTool(
+          'run_registered_query',
+          `Run a registered query. Templates: ${aiQueryTemplateInstructions}.`,
+          remember('run_registered_query', { kind: 'query_result', rows: [] }),
+          () => {}
+        ),
+        evaluationTool(
+          'propose_system_management_change',
+          'Prepare a management proposal.',
+          remember('propose_system_management_change', { kind: 'confirmation' }),
+          () => {}
+        ),
+        evaluationTool(
+          'propose_api_key_revocation',
+          'Prepare an API key revocation proposal.',
+          remember('propose_api_key_revocation', { kind: 'confirmation' }),
+          () => {}
+        ),
+        evaluationTool(
+          'propose_api_key_deletion',
+          'Prepare an API key deletion proposal.',
+          remember('propose_api_key_deletion', { kind: 'confirmation' }),
+          () => {}
+        ),
       ],
     })
 
@@ -57,7 +95,10 @@ export default class AiEvaluate extends BaseCommand {
           await agent.prompt(turn.question)
           const turnTools = calledTools.slice(calledBeforeTurn)
           const result = evaluateAiAssistantTurn({ evaluation: turn, calledTools: turnTools })
-          if (!result.passed) failures.push(`${label}: expected ${turn.expectedTools.join(', ') || 'no tool call'}, got ${turnTools.join(', ') || 'no tool call'}`)
+          if (!result.passed)
+            failures.push(
+              `${label}: expected ${turn.expectedTools.join(', ') || 'no tool call'}, got ${turnTools.join(', ') || 'no tool call'}`
+            )
           else this.logger.success(`PASS ${label}: ${turn.expectedTools.join(', ') || 'no tool'}`)
         } catch (error) {
           const failure = `${label}: ${error instanceof Error ? error.message : 'model call failed'}`
