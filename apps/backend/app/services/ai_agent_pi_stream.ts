@@ -1,14 +1,14 @@
 import type { AgentEvent } from '@earendil-works/pi-agent-core'
 import type { AssistantMessage, Usage } from '@earendil-works/pi-ai'
 
-import { createAiAgentTools } from '#services/ai_agent_tool_registry'
+import { createPiAgent, type PiAgentMessage } from '#services/ai_agent_pi_runtime'
 import {
-  createPiAgent,
-  type PiAgentMessage,
-} from '#services/ai_agent_pi_runtime'
-import { createAiAgentSystemPrompt, type AiAgentPageContext } from '#services/ai_agent_prompt_policy'
-import type { AiAgentMessage } from '#services/ai_agent_types'
+  type AiAgentPageContext,
+  createAiAgentSystemPrompt,
+} from '#services/ai_agent_prompt_policy'
 import type { AiAgentToolRequestContext } from '#services/ai_agent_tool_context'
+import { createAiAgentTools } from '#services/ai_agent_tool_registry'
+import type { AiAgentMessage } from '#services/ai_agent_types'
 
 type Deferred<T> = {
   promise: Promise<T>
@@ -97,12 +97,14 @@ function toPiMessages(messages: AiAgentMessage[]): PiAgentMessage[] {
   })
 }
 
-export function createAiAgentPiStream(input: AiAgentToolRequestContext & {
-  messages: AiAgentMessage[]
-  context?: AiAgentPageContext
-  liveSessionContext?: string
-  agentRunId: string
-}) {
+export function createAiAgentPiStream(
+  input: AiAgentToolRequestContext & {
+    messages: AiAgentMessage[]
+    context?: AiAgentPageContext
+    liveSessionContext?: string
+    agentRunId: string
+  }
+) {
   const messageQueue = new AsyncQueue<{
     text: AsyncIterable<string>
     output: Promise<PiModelOutput>
@@ -114,15 +116,21 @@ export function createAiAgentPiStream(input: AiAgentToolRequestContext & {
     status: Promise<'finished' | 'error'>
     output: Promise<unknown>
   }>()
-  const activeMessages = new Map<string, {
-    text: AsyncQueue<string>
-    output: Deferred<PiModelOutput>
-    streamedText: string
-  }>()
-  const activeTools = new Map<string, {
-    status: Deferred<'finished' | 'error'>
-    output: Deferred<unknown>
-  }>()
+  const activeMessages = new Map<
+    string,
+    {
+      text: AsyncQueue<string>
+      output: Deferred<PiModelOutput>
+      streamedText: string
+    }
+  >()
+  const activeTools = new Map<
+    string,
+    {
+      status: Deferred<'finished' | 'error'>
+      output: Deferred<unknown>
+    }
+  >()
 
   const lastMessage = input.messages.at(-1)
   const initialMessages =
@@ -212,10 +220,7 @@ export function createAiAgentPiStream(input: AiAgentToolRequestContext & {
   // `continue()` is for retrying an existing Pi run. A persisted user
   // message is not automatically submitted to the model, so start a fresh
   // prompt with the latest user content after restoring the prior history.
-  const run =
-    lastMessage?.role === 'user'
-      ? agent.prompt(lastMessage.content)
-      : Promise.resolve()
+  const run = lastMessage?.role === 'user' ? agent.prompt(lastMessage.content) : Promise.resolve()
   void run.catch((error) => {
     for (const active of activeMessages.values()) {
       active.text.end()
