@@ -4,7 +4,7 @@
 
 - Node.js `>= 24.12.0`
 - pnpm `11.9.0`
-- Docker Desktop（本地 PostgreSQL），或可访问的 PostgreSQL 15+ 实例
+- Docker Desktop（Compose 内的 PostgreSQL），或可访问的 PostgreSQL 15+ 实例
 
 ## 安装与配置
 
@@ -29,11 +29,12 @@ pnpm --dir apps/backend exec node ace migration:run
 pnpm dev
 ```
 
+开发命令 `pnpm docker:up` 会启动 PostgreSQL，并映射 PostgreSQL `5432`，以便宿主机运行的后端连接。
+
 | 服务       | 默认地址                          |
 | ---------- | --------------------------------- |
 | 前端       | `http://localhost:18080`          |
 | 后端 API   | `http://localhost:13333`          |
-| PostgreSQL | `localhost:5432`                  |
 | OpenAPI UI | `http://localhost:13333/api-docs` |
 
 OpenAPI UI 需要后端环境变量 `OPENAPI_DOCS_ENABLED=true`。

@@ -5,19 +5,20 @@
 构建并启动生产栈：
 
 ```bash
-docker compose build
-docker compose up -d
+docker compose --env-file apps/backend/.env build
+docker compose --env-file apps/backend/.env up -d
 ```
 
-Compose 会启动支持 pgvector 的 PostgreSQL、AdonisJS 后端与 Nginx 托管的前端。后端等待 PostgreSQL 就绪，在 `MIGRATE=true` 时运行迁移，并通过 `/api/v1/health/ready` 暴露就绪检查。
+生产部署使用上述命令；不要使用开发命令 `pnpm docker:up`，因为开发模式会映射 PostgreSQL 的 `5432` 端口。
 
-| 服务       | 默认地址                 |
-| ---------- | ------------------------ |
-| 前端       | `http://localhost:18080` |
-| 后端       | `http://localhost:13333` |
-| PostgreSQL | `localhost:5432`         |
+Compose 会启动支持 pgvector 的 PostgreSQL、AdonisJS 后端与 Nginx 托管的前端。PostgreSQL 只加入 Compose 内部网络，不映射宿主机端口；后端等待 PostgreSQL 就绪，在 `MIGRATE=true` 时运行迁移，并通过 `/api/v1/health/ready` 暴露就绪检查。
 
-按需通过 `FRONTEND_PORT`、`BACKEND_PORT` 和 `OLLAMA_PORT` 覆盖端口。
+| 服务 | 默认地址                 |
+| ---- | ------------------------ |
+| 前端 | `http://localhost:18080` |
+| 后端 | `http://localhost:13333` |
+
+按需通过 `FRONTEND_PORT`、`BACKEND_PORT` 和 `OLLAMA_PORT` 覆盖端口。生产环境的 PostgreSQL 仅加入 Compose 内部网络，不映射宿主机端口；开发环境通过 `docker-compose.dev.yml` 单独映射 `5432`，供宿主机后端连接。
 
 ## 环境配置
 
@@ -44,6 +45,6 @@ AI 助手通过 `AI_OPENAI_API_KEY`、`AI_OPENAI_BASE_URL` 和 `AI_OPENAI_MODEL`
 - 使用 `docker compose ps` 检查容器健康状态。
 - 访问部署地址的 `/api/v1/health/ready` 检查后端就绪状态。
 - 使用 `pnpm --dir apps/backend exec node ace migration:status` 对目标数据库核对迁移。
-- 根据网络策略限制后端和 OpenAPI 端口的暴露范围。
+- 根据网络策略限制前端和后端端口的暴露范围；不要重新为 PostgreSQL 添加宿主机端口映射。
 
 生产上线前阅读[安全与治理](security.md)。

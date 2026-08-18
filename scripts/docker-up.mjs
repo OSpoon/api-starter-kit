@@ -64,6 +64,12 @@ async function main() {
   console.log('Ensuring the PostgreSQL container is healthy...')
   const result = run('docker', [
     'compose',
+    '--env-file',
+    'apps/backend/.env',
+    '-f',
+    'docker-compose.yml',
+    '-f',
+    'docker-compose.dev.yml',
     'up',
     '-d',
     '--wait',
