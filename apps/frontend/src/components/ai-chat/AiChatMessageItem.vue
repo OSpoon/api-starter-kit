@@ -206,10 +206,6 @@ function getTimelineSections(timeline: AiChatTimelineItem[]) {
     },
   ].filter((section) => section.items.length > 0)
 }
-
-function getConfirmation(timeline: AiChatTimelineItem[]) {
-  return [...timeline].reverse().find((item) => item.kind === 'confirmation')
-}
 </script>
 
 <template>
@@ -295,27 +291,6 @@ function getConfirmation(timeline: AiChatTimelineItem[]) {
           </div>
         </div>
       </details>
-      <div
-        v-if="message.role === 'assistant' && message.timeline && getConfirmation(message.timeline)"
-        class="my-3 flex items-center gap-2 text-xs text-muted-foreground"
-      >
-        <div class="h-px flex-1 bg-border/70" />
-        <CircleCheck class="size-3.5 text-emerald-600" />
-        <span>
-          {{
-            t('ai_chat.confirmation_separator', {
-              action: localizedOrFallback(
-                `ai_chat.actions.${getConfirmation(message.timeline)?.action}`,
-                t('ai_chat.actions.generic')
-              ),
-              status: t(
-                `ai_chat.confirmation_status.${getConfirmation(message.timeline)?.status ?? 'confirmed'}`
-              ),
-            })
-          }}
-        </span>
-        <div class="h-px flex-1 bg-border/70" />
-      </div>
       <div
         v-if="showMessageActions && message.id !== 'welcome' && message.content.trim().length > 0"
         class="flex h-6 items-center gap-1 opacity-0 transition-opacity group-hover/message:opacity-100 focus-within:opacity-100"

@@ -2,6 +2,7 @@
 import {
   Bot,
   ChevronDown,
+  CircleCheck,
   History,
   ListChecks,
   MessageCircle,
@@ -29,7 +30,11 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Textarea } from '@/components/ui/textarea'
 import type { DisplayAiChatMessage } from '@/composables/useAiChat'
-import type { AiChatConfirmation, AiChatCredentialDisclosure } from '@/features/ai/api'
+import type {
+  AiChatConfirmation,
+  AiChatCredentialDisclosure,
+  AiChatTimelineItem,
+} from '@/features/ai/api'
 
 interface ChatConversation {
   id: string | number
@@ -92,7 +97,7 @@ const emit = defineEmits<{
   copyCredential: [credential: AiChatCredentialDisclosure]
 }>()
 
-const { t } = useI18n()
+const { t, te } = useI18n()
 
 const internalOpen = ref(false)
 const input = ref('')
@@ -149,6 +154,20 @@ const promptSuggestions = computed(() =>
 
 function getMessageKey(message: DisplayAiChatMessage, index: number) {
   return `${message.id ?? 'message'}-${index}`
+}
+
+function getConfirmation(timeline?: AiChatTimelineItem[]) {
+  return [...(timeline ?? [])].reverse().find((item) => item.kind === 'confirmation')
+}
+
+function getConversationBoundaryLabel(message: DisplayAiChatMessage) {
+  const confirmation = getConfirmation(message.timeline)
+  if (!confirmation || confirmation.kind !== 'confirmation') return ''
+  const actionKey = `ai_chat.actions.${confirmation.action}`
+  return t('ai_chat.confirmation_separator', {
+    action: te(actionKey) ? t(actionKey) : t('ai_chat.actions.generic'),
+    status: t(`ai_chat.confirmation_status.${confirmation.status}`),
+  })
 }
 
 const selectableMessageCount = computed(
@@ -536,22 +555,32 @@ onUnmounted(() => {
       <div class="relative min-h-0 flex-1 p-4">
         <ScrollArea ref="scrollAreaRef" class="h-full">
           <div class="space-y-3 pr-3">
-            <AiChatMessageItem
-              v-for="(message, index) in displayMessages"
-              :key="message.id ?? index"
-              :message="message"
-              :all-messages="displayMessages"
-              :streaming-message-id="streamingMessageId"
-              :loading="loading"
-              :show-message-actions="showMessageActions && !isSelectingMessages"
-              :selectable="isSelectingMessages"
-              :selected="selectedMessageKeys.has(getMessageKey(message, index))"
-              @copy="emit('copyMessage', $event)"
-              @retry="emit('retryMessage', $event)"
-              @select="
-                (selectedMessage, selected) => selectMessage(selectedMessage, index, selected)
-              "
-            />
+            <template v-for="(message, index) in displayMessages" :key="message.id ?? index">
+              <AiChatMessageItem
+                :message="message"
+                :all-messages="displayMessages"
+                :streaming-message-id="streamingMessageId"
+                :loading="loading"
+                :show-message-actions="showMessageActions && !isSelectingMessages"
+                :selectable="isSelectingMessages"
+                :selected="selectedMessageKeys.has(getMessageKey(message, index))"
+                @copy="emit('copyMessage', $event)"
+                @retry="emit('retryMessage', $event)"
+                @select="
+                  (selectedMessage, selected) => selectMessage(selectedMessage, index, selected)
+                "
+              />
+              <div
+                v-if="getConversationBoundaryLabel(message)"
+                class="my-4 flex w-full items-center gap-3 px-2 text-xs text-muted-foreground"
+                role="status"
+              >
+                <div class="h-px flex-1 bg-border/70" />
+                <CircleCheck class="size-3.5 shrink-0 text-emerald-600" aria-hidden="true" />
+                <span class="shrink-0">{{ getConversationBoundaryLabel(message) }}</span>
+                <div class="h-px flex-1 bg-border/70" />
+              </div>
+            </template>
             <div
               v-if="displayMessages.length <= 1"
               class="inline-flex max-w-full flex-col items-start space-y-2 overflow-hidden pl-11"
