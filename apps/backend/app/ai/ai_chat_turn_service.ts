@@ -1,23 +1,24 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import logger from '@adonisjs/core/services/logger'
 
-import type AiChatConversation from '#models/ai_chat_conversation'
-import AiChatMessage, { type AiChatCitation } from '#models/ai_chat_message'
-import { hasAiAgentCheckpoint } from '#services/ai_agent_checkpoint'
 import {
   attachAgentRunConfirmations,
   failUnattachedAgentRunConfirmations,
-} from '#services/ai_agent_confirmation'
-import { getAiAgentSummarizationOptions } from '#services/ai_agent_runtime'
-import { type AiAgentPageContext, createAiAgentStream } from '#services/ai_agent_service'
-import type { AiChatResolvedRegeneration } from '#services/ai_chat_regeneration'
+} from '#ai/ai_agent_confirmation'
+import { releaseAiAgentRun } from '#ai/ai_agent_run_registry'
+import { type AiAgentPageContext, createAiAgentStream } from '#ai/ai_agent_service'
+import type { AiChatResolvedRegeneration } from '#ai/ai_chat_regeneration'
 import {
-  type AiAgentToolFrame,
   startAiChatSseKeepalive,
-  streamAiAgentToolFrames,
+  streamAiAgentTurnEvents,
   writeAiChatSse,
-} from '#services/ai_chat_sse_adapter'
-import { resetAiConversationState } from '#services/ai_conversation_state'
+} from '#ai/ai_chat_sse_adapter'
+import { resetAiConversationState } from '#ai/ai_conversation_state'
+import type AiChatConversation from '#models/ai_chat_conversation'
+import AiChatMessage, {
+  type AiChatCitation,
+  type AiChatRuntimeDetail,
+} from '#models/ai_chat_message'
 import {
   serializeAiChatConversation,
   serializeAiChatConversationWithMessages,
@@ -31,68 +32,22 @@ function isAbortError(error: unknown) {
   return error instanceof DOMException && error.name === 'AbortError'
 }
 
-type AiAgentRun = Awaited<ReturnType<typeof createAiAgentStream>>
-
-async function* resilientAiAgentToolFrames(
-  run: AiAgentRun,
-  signal: AbortSignal
-): AsyncGenerator<AiAgentToolFrame> {
-  try {
-    yield* streamAiAgentToolFrames(run, signal)
-  } catch (error) {
-    if (isAbortError(error)) throw error
-    logger.error({ err: error }, 'AI tool status stream failed; continuing with message stream')
-  }
-}
-
-async function* mergeTurnSources<TMessage, TFrame>(
-  messageSource: AsyncIterable<TMessage>,
-  frameSource: AsyncIterable<TFrame>
-): AsyncGenerator<{ source: 'message'; value: TMessage } | { source: 'frame'; value: TFrame }> {
-  const messageIterator = messageSource[Symbol.asyncIterator]()
-  const frameIterator = frameSource[Symbol.asyncIterator]()
-  const pending = new Map<
-    AsyncIterator<unknown>,
-    Promise<{ iterator: AsyncIterator<unknown>; result: IteratorResult<unknown> }>
-  >()
-  const pull = (iterator: AsyncIterator<unknown>) => {
-    const promise = iterator.next().then(
-      (result) => ({ iterator, result }),
-      (error) => {
-        pending.delete(iterator)
-        throw error
-      }
-    )
-    pending.set(iterator, promise)
-    return promise
-  }
-  pull(messageIterator)
-  pull(frameIterator)
-  try {
-    while (pending.size > 0) {
-      const { iterator, result } = await Promise.race(pending.values())
-      pending.delete(iterator)
-      if (result.done) continue
-      if (iterator === messageIterator) {
-        yield { source: 'message', value: result.value as TMessage }
-      } else {
-        yield { source: 'frame', value: result.value as TFrame }
-      }
-      pull(iterator)
-    }
-  } finally {
-    for (const iterator of [messageIterator, frameIterator]) {
-      await iterator.return?.()
-    }
-  }
-}
-
 function getSafeAiErrorMessage(error: unknown) {
   if (isAbortError(error)) return '已停止生成本次回复。'
   return '本次 AI 请求未完成，请稍后重试。'
 }
 
-export function shouldPreserveAiAgentCheckpoint(error: unknown) {
+function getTerminalToolAssistantContent(output: unknown) {
+  if (!output || typeof output !== 'object' || !('kind' in output)) return null
+  const payload = output as { kind?: unknown; message?: unknown }
+  if (payload.kind === 'confirmation') return '已准备好管理操作提案，请在确认卡片中确认后执行。'
+  if (payload.kind === 'action_error' || payload.kind === 'query_error') {
+    return typeof payload.message === 'string' ? `操作未完成：${payload.message}` : '操作未完成。'
+  }
+  return null
+}
+
+export function shouldPreserveInterruptedRun(error: unknown) {
   return isAbortError(error)
 }
 
@@ -131,7 +86,6 @@ export async function runAiChatAssistantTurn(input: {
   userId: number
   userMessage: AiChatMessage
   regeneration: AiChatResolvedRegeneration<AiChatMessage> | null
-  resume?: boolean
   context?: AiAgentPageContext
   signal: AbortSignal
   response: HttpContext['response']
@@ -143,6 +97,7 @@ export async function runAiChatAssistantTurn(input: {
   let persistedAssistantMessage: AiChatMessage | null = null
   let lastPersistedContentLength = 0
   const knowledgeCitations = new Map<string, AiChatCitation>()
+  const runtimeDetails: AiChatRuntimeDetail[] = []
   let aiFailureStage = 'initialization'
 
   const persistAssistantMessage = async () => {
@@ -151,6 +106,7 @@ export async function runAiChatAssistantTurn(input: {
     const attributes = {
       content: assistantContent,
       citations: [...knowledgeCitations.values()],
+      runtimeDetails,
     }
     if (persistedAssistantMessage) {
       persistedAssistantMessage.merge(attributes)
@@ -172,62 +128,38 @@ export async function runAiChatAssistantTurn(input: {
 
   try {
     stopKeepalive = startAiChatSseKeepalive(response)
-    if (!input.resume) {
-      writeAiChatSse(response, 'user', {
-        conversation: serializeAiChatConversation(conversation),
-        message: serializeAiChatMessage(userMessage),
-      })
-    }
+    writeAiChatSse(response, 'user', {
+      conversation: serializeAiChatConversation(conversation),
+      message: serializeAiChatMessage(userMessage),
+    })
 
     const regenerate = regeneration !== null
-    const hasCheckpoint = await hasAiAgentCheckpoint({
-      conversationId: conversation.id,
-      userId,
-    })
-    if (!regenerate && !hasCheckpoint) {
+    if (!regenerate) {
       await conversation.load('messages', (query) => query.orderBy('created_at', 'asc'))
     }
 
-    const history = input.resume
-      ? []
-      : regenerate
-        ? regeneration.messages.map((message) => ({
-            role: message.role,
-            content: message.content,
-            id: message.id,
-          }))
-        : hasCheckpoint
-          ? [{ role: userMessage.role, content: userMessage.content, id: userMessage.id }]
-          : [
-              ...conversation.messages
-                .filter((message) => message.id !== userMessage.id)
-                .map((message) => ({
-                  role: message.role,
-                  content: message.content,
-                  id: message.id,
-                })),
-              { role: userMessage.role, content: userMessage.content, id: userMessage.id },
-            ]
-    const summarization = getAiAgentSummarizationOptions()
-    const aiSummaryCandidateBoundaryId =
-      !input.resume &&
-      !hasCheckpoint &&
-      summarization.enabled &&
-      history.length > summarization.recentMessageCount
-        ? history.at(-(summarization.recentMessageCount + 1))?.id
-        : undefined
+    const history = regenerate
+      ? regeneration.messages.map((message) => ({
+          role: message.role,
+          content: message.content,
+          id: message.id,
+        }))
+      : [
+          ...conversation.messages
+            .filter((message) => message.id !== userMessage.id)
+            .map((message) => ({
+              role: message.role,
+              content: message.content,
+              id: message.id,
+            })),
+          { role: userMessage.role, content: userMessage.content, id: userMessage.id },
+        ]
     aiFailureStage = 'agent_stream'
     const run = await createAiAgentStream({
       conversationId: conversation.id,
       userId,
-      messages: history.map((message, index) =>
-        index === history.length - 1 && aiSummaryCandidateBoundaryId
-          ? { ...message, summaryCandidateBoundaryId: aiSummaryCandidateBoundaryId }
-          : message
-      ),
+      messages: history,
       context: input.context,
-      resume: input.resume,
-      aiSummaryCandidateBoundaryId,
       signal: input.signal,
       onKnowledgeSources: (sources) => {
         for (const source of sources) {
@@ -241,59 +173,77 @@ export async function runAiChatAssistantTurn(input: {
     agentRunId = run.agentRunId
     const streamStartedAt = Date.now()
     const usage = { inputTokens: 0, outputTokens: 0, totalTokens: 0, modelCalls: 0 }
-    const frameSource = resilientAiAgentToolFrames(run, input.signal)
-
-    // Single relay over the two projections of the same Agent run stream.
-    // Consuming messages and tool frames in arrival order keeps the UI and
-    // persistence steps deterministic without two concurrent iterators over
-    // one event log. A tool-status failure only ends the auxiliary status
-    // stream; message deltas and citations still complete the turn.
     aiFailureStage = 'message_stream'
-    for await (const event of mergeTurnSources(run.stream.messages, frameSource)) {
+    for await (const event of streamAiAgentTurnEvents(run, input.signal)) {
       if (input.signal.aborted) {
         throw new DOMException('AI request was cancelled', 'AbortError')
       }
       if (event.source === 'frame') {
+        if (event.value.event === 'agent_status') {
+          const status = event.value.data
+          const detail: AiChatRuntimeDetail = {
+            kind: 'tool',
+            name: status.name,
+            state: status.state,
+            ...(status.callId ? { callId: status.callId } : {}),
+            ...(status.durationMs !== undefined ? { durationMs: status.durationMs } : {}),
+            ...(status.phase ? { phase: status.phase } : {}),
+            ...(status.errorCode ? { errorCode: status.errorCode } : {}),
+            ...(status.detail ? { detail: status.detail } : {}),
+          }
+          const existingIndex = runtimeDetails.findIndex(
+            (item) => item.kind === 'tool' && item.callId === detail.callId
+          )
+          if (existingIndex >= 0) runtimeDetails[existingIndex] = detail
+          else runtimeDetails.push(detail)
+        }
+        if (event.value.event === 'agent_plan') {
+          const planDetail: AiChatRuntimeDetail = {
+            kind: 'plan',
+            steps: event.value.data.steps.map((step) => ({ ...step })),
+          }
+          const existingIndex = runtimeDetails.findIndex((item) => item.kind === 'plan')
+          if (existingIndex >= 0) runtimeDetails[existingIndex] = planDetail
+          else runtimeDetails.push(planDetail)
+        }
         if (event.value.event === 'tool_completed') {
+          const terminalContent = getTerminalToolAssistantContent(event.value.data.output)
+          if (terminalContent) {
+            const visibleContent = assistantContent.trim()
+              ? `\n\n${terminalContent}`
+              : terminalContent
+            assistantContent += visibleContent
+            writeAiChatSse(response, 'delta', { content: visibleContent })
+            await persistAssistantMessage()
+          }
           continue
         }
         writeAiChatSse(response, event.value.event, event.value.data)
         continue
       }
-      const message = event.value
-      usage.modelCalls += 1
-      for await (const delta of message.text) {
-        if (!delta) {
-          continue
-        }
-
-        assistantContent += delta
-        // Create the assistant record as soon as content starts arriving,
-        // then checkpoint substantial progress. This keeps history durable
-        // when an upstream streaming connection closes before completion.
+      if (event.source === 'message_start') {
+        usage.modelCalls += 1
+        continue
+      }
+      if (event.source === 'message_delta') {
+        if (!event.value) continue
+        assistantContent += event.value
         if (
           !persistedAssistantMessage ||
           assistantContent.length - lastPersistedContentLength >= 500
         ) {
           await persistAssistantMessage()
         }
-        writeAiChatSse(response, 'delta', { content: delta })
+        writeAiChatSse(response, 'delta', { content: event.value })
+        continue
       }
-      try {
-        const modelOutput = await message.output
-        const messageUsage = modelOutput.usage_metadata
-        if (messageUsage) {
-          usage.inputTokens += messageUsage.input_tokens ?? 0
-          usage.outputTokens += messageUsage.output_tokens ?? 0
-          usage.totalTokens += messageUsage.total_tokens ?? 0
-        }
-      } catch {
-        // A provider that fails to assemble the message must not abort the run.
+      if (event.source === 'message_end') {
+        if (event.value.error) throw event.value.error
+        usage.inputTokens += event.value.inputTokens
+        usage.outputTokens += event.value.outputTokens
+        usage.totalTokens += event.value.totalTokens
+        await persistAssistantMessage()
       }
-      // The text stream can finish before the tool-status stream. Persist it
-      // now so a later status-stream failure cannot leave only the user's
-      // question in conversation history.
-      await persistAssistantMessage()
     }
     aiFailureStage = 'assistant_message_persistence'
     const assistantMessage = await persistAssistantMessage()
@@ -327,6 +277,12 @@ export async function runAiChatAssistantTurn(input: {
       usage,
       durationMs: Date.now() - streamStartedAt,
     })
+    runtimeDetails.push({
+      kind: 'run',
+      durationMs: Date.now() - streamStartedAt,
+      usage,
+    })
+    await persistAssistantMessage()
     writeAiChatSse(response, 'done', {
       conversation: serializeAiChatConversationWithMessages(conversation),
       message: serializeAiChatMessage(assistantMessage),
@@ -370,13 +326,13 @@ export async function runAiChatAssistantTurn(input: {
         message: serializeAiChatMessage(failedAssistantMessage),
         confirmations,
       })
-      if (!shouldPreserveAiAgentCheckpoint(error)) {
+      if (!shouldPreserveInterruptedRun(error)) {
         try {
           await resetAiConversationState({ conversationId: conversation.id, userId })
         } catch (stateError) {
           logger.error(
             { err: stateError, conversationId: conversation.id, agentRunId },
-            'AI recovered checkpoint cleanup failed'
+            'AI interrupted-run cleanup failed'
           )
         }
       }
@@ -393,7 +349,7 @@ export async function runAiChatAssistantTurn(input: {
         ctx: input.ctx,
       })
     }
-    if (!shouldPreserveAiAgentCheckpoint(error)) {
+    if (!shouldPreserveInterruptedRun(error)) {
       await resetAiConversationState({ conversationId: conversation.id, userId })
     }
     writeAiChatSse(response, 'error', {
@@ -401,6 +357,9 @@ export async function runAiChatAssistantTurn(input: {
       assistantMessage: serializeAiChatMessage(failedAssistantMessage),
     })
   } finally {
+    if (agentRunId) {
+      releaseAiAgentRun(conversation.id, userId, agentRunId)
+    }
     stopKeepalive?.()
   }
 }

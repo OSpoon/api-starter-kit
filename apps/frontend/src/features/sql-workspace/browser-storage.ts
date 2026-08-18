@@ -18,7 +18,8 @@ function openDatabase() {
     const request = indexedDB.open(DATABASE_NAME, DATABASE_VERSION)
     request.onerror = () => reject(request.error)
     request.onupgradeneeded = () => {
-      if (!request.result.objectStoreNames.contains(STORE_NAME)) request.result.createObjectStore(STORE_NAME)
+      if (!request.result.objectStoreNames.contains(STORE_NAME))
+        request.result.createObjectStore(STORE_NAME)
     }
     request.onsuccess = () => resolve(request.result)
   })
@@ -28,7 +29,10 @@ export async function loadStoredSqlWorkspace() {
   const database = await openDatabase()
   try {
     return await new Promise<StoredSqlWorkspace | undefined>((resolve, reject) => {
-      const request = database.transaction(STORE_NAME, 'readonly').objectStore(STORE_NAME).get(WORKSPACE_KEY)
+      const request = database
+        .transaction(STORE_NAME, 'readonly')
+        .objectStore(STORE_NAME)
+        .get(WORKSPACE_KEY)
       request.onerror = () => reject(request.error)
       request.onsuccess = () => resolve(request.result as StoredSqlWorkspace | undefined)
     })
@@ -41,7 +45,10 @@ export async function saveStoredSqlWorkspace(workspace: StoredSqlWorkspace) {
   const database = await openDatabase()
   try {
     await new Promise<void>((resolve, reject) => {
-      const request = database.transaction(STORE_NAME, 'readwrite').objectStore(STORE_NAME).put(workspace, WORKSPACE_KEY)
+      const request = database
+        .transaction(STORE_NAME, 'readwrite')
+        .objectStore(STORE_NAME)
+        .put(workspace, WORKSPACE_KEY)
       request.onerror = () => reject(request.error)
       request.onsuccess = () => resolve()
     })
@@ -54,7 +61,10 @@ export async function clearStoredSqlWorkspace() {
   const database = await openDatabase()
   try {
     await new Promise<void>((resolve, reject) => {
-      const request = database.transaction(STORE_NAME, 'readwrite').objectStore(STORE_NAME).delete(WORKSPACE_KEY)
+      const request = database
+        .transaction(STORE_NAME, 'readwrite')
+        .objectStore(STORE_NAME)
+        .delete(WORKSPACE_KEY)
       request.onerror = () => reject(request.error)
       request.onsuccess = () => resolve()
     })

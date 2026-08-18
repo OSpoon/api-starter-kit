@@ -1,9 +1,26 @@
 <script setup lang="ts">
-import { Bot, Copy, RotateCcw, User } from '@lucide/vue'
+import {
+  Activity,
+  BookOpen,
+  Bot,
+  Check,
+  ChevronRight,
+  CircleAlert,
+  CircleCheck,
+  Copy,
+  FileCheck2,
+  Gauge,
+  ListChecks,
+  LoaderCircle,
+  RotateCcw,
+  Search,
+  ShieldCheck,
+  User,
+} from '@lucide/vue'
 
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
-import type { AiChatAgentActivity, AiChatPlanStep } from '@/lib/ai-chat-api'
+import type { AiChatAgentActivity, AiChatPlanStep, AiChatTimelineItem } from '@/features/ai/api'
 
 import AiMessageContent from './AiMessageContent.vue'
 
@@ -16,6 +33,7 @@ export interface AiChatMessageItemData {
   status?: AiChatMessageItemStatus
   activity?: AiChatAgentActivity
   plan?: AiChatPlanStep[]
+  timeline?: AiChatTimelineItem[]
 }
 
 const props = withDefaults(
@@ -48,30 +66,12 @@ const { t, te } = useI18n()
 
 const actionMarker = /\[\[action:([A-Za-z0-9_-]+)\]\]/g
 
-function getMessageContent(content: string) {
-  return content.replace(actionMarker, '').trim()
+function localizedOrFallback(key: string, fallback: string) {
+  return te(key) ? t(key) : fallback
 }
 
-function getActivityLabel(activity: AiChatAgentActivity) {
-  const detail =
-    activity.detail?.action ??
-    activity.detail?.templateCode ??
-    activity.detail?.permissionCode ??
-    (activity.detail?.targetType && activity.detail?.targetId
-      ? `${activity.detail.targetType} ${activity.detail.targetId}`
-      : undefined)
-  const countSuffix =
-    typeof activity.detail?.resultCount === 'number' ? `（${activity.detail.resultCount} 条）` : ''
-  const suffix = detail ? `：${detail}${countSuffix}` : countSuffix
-  if (activity.state === 'error' && activity.message) {
-    return `${activity.message}${suffix}`
-  }
-  if (activity.state === 'error' && activity.errorCode) {
-    return `${t(`ai_chat.errors.${activity.errorCode}`)}${suffix}`
-  }
-  const key = `ai_chat.activities.${activity.name}.${activity.state}`
-  const label = te(key) ? t(key) : t(`ai_chat.activities.generic.${activity.state}`)
-  return `${label}${suffix}`
+function getMessageContent(content: string) {
+  return content.replace(actionMarker, '').trim()
 }
 
 function canRetryMessage(message: AiChatMessageItemData) {
@@ -88,58 +88,123 @@ function canRetryMessage(message: AiChatMessageItemData) {
   )
 }
 
-function getPlanStatusLabel(step: AiChatPlanStep) {
-  return t(`ai_chat.plan.${step.key}.${step.state}`)
-}
-
-function getCurrentPlanStep(plan: AiChatPlanStep[]) {
-  return (
-    [...plan].reverse().find((step) => step.state === 'running') ??
-    [...plan].reverse().find((step) => step.state === 'done') ??
-    plan[0]!
-  )
-}
-
 function getActivityTarget(activity?: AiChatAgentActivity) {
   if (!activity?.detail) return ''
   if (activity.detail.templateCode) {
     const key = `ai_chat.query_templates.${activity.detail.templateCode}`
-    return te(key) ? t(key) : activity.detail.templateCode
+    return localizedOrFallback(key, t('ai_chat.query_templates.generic'))
   }
   if (activity.detail.action) {
     const key = `ai_chat.actions.${activity.detail.action}`
-    const action = te(key) ? t(key) : activity.detail.action
+    const action = localizedOrFallback(key, t('ai_chat.actions.generic'))
     const target =
       activity.detail.targetLabel ??
       (activity.detail.targetType && activity.detail.targetId
-        ? `${activity.detail.targetType} ${activity.detail.targetId}`
+        ? `${localizedOrFallback(
+            `ai_chat.target_types.${activity.detail.targetType}`,
+            t('ai_chat.target_types.generic')
+          )} ${activity.detail.targetId}`
         : '')
     return target ? `${action}：${target}` : action
   }
-  if (activity.detail.permissionCode) return activity.detail.permissionCode
+  if (activity.detail.permissionCode) {
+    const key = `ai_chat.permissions.${activity.detail.permissionCode}`
+    return localizedOrFallback(key, t('ai_chat.permissions.generic'))
+  }
   if (activity.detail.targetType && activity.detail.targetId) {
-    return `${activity.detail.targetType} ${activity.detail.targetId}`
+    const key = `ai_chat.target_types.${activity.detail.targetType}`
+    return `${localizedOrFallback(key, t('ai_chat.target_types.generic'))} ${activity.detail.targetId}`
   }
   return ''
 }
 
-function getStatusLabel(message: AiChatMessageItemData) {
-  const activity = message.activity
-  if (!activity) return ''
-  const target = getActivityTarget(activity)
-  if (activity.name === 'run_registered_query') {
-    const key = `ai_chat.query_status.${activity.state}`
-    return `${t(key)}${target ? `：${target}` : ''}`
+function getTimelineLabel(item: AiChatTimelineItem) {
+  if (item.kind === 'plan') return t('ai_chat.timeline.plan')
+  if (item.kind === 'confirmation') return ''
+  if (item.kind === 'run') {
+    return t('ai_chat.timeline.run', { duration: Math.round(item.durationMs / 1000) })
   }
-  if (activity.name === 'search_knowledge') {
-    const key = `ai_chat.knowledge_status.${activity.state}`
-    return t(key)
+  const activity = item
+  const toolKey = `ai_chat.timeline.tools.${activity.name}`
+  const toolLabel = localizedOrFallback(toolKey, t('ai_chat.timeline.tools.generic'))
+  const stateKey = `ai_chat.timeline.states.${activity.state}`
+  const stateLabel = t(stateKey)
+  const target = activity.name === 'run_registered_query' ? getActivityTarget(activity) : ''
+  const resultCount =
+    typeof activity.detail?.resultCount === 'number'
+      ? t('ai_chat.timeline.returned', { count: activity.detail.resultCount })
+      : ''
+  const detail = target ? `：${target}` : resultCount ? ` · ${resultCount}` : ''
+  if (activity.state === 'error' && activity.message) {
+    return `${activity.message}${detail}`
   }
-  if (message.plan?.length) {
-    const planStep = getCurrentPlanStep(message.plan)
-    return `${getPlanStatusLabel(planStep)}${target ? `：${target}` : ''}`
-  }
-  return getActivityLabel(activity)
+  return `${stateLabel}${toolLabel}${detail}`
+}
+
+function getTimelineIcon(item: AiChatTimelineItem) {
+  if (item.kind === 'plan') return ListChecks
+  if (item.kind === 'confirmation') return CircleCheck
+  if (item.kind === 'run') return Gauge
+  if (item.name === 'run_registered_query') return Search
+  if (item.name === 'search_knowledge') return BookOpen
+  if (item.name === 'diagnose_my_access') return ShieldCheck
+  if (item.name.startsWith('propose_')) return FileCheck2
+  if (item.state === 'error') return CircleAlert
+  if (item.state === 'running') return LoaderCircle
+  return Check
+}
+
+function isTimelineActive(item: AiChatTimelineItem) {
+  return item.kind === 'tool' && item.state === 'running'
+}
+
+function getTimelineSummary(timeline: AiChatTimelineItem[]) {
+  const toolCount = timeline.filter((item) => item.kind === 'tool').length
+  const planCount = timeline.filter((item) => item.kind === 'plan').length
+  const resultCount = timeline.reduce(
+    (total, item) =>
+      total +
+      (item.kind === 'tool' && typeof item.detail?.resultCount === 'number'
+        ? item.detail.resultCount
+        : 0),
+    0
+  )
+  const parts = []
+  if (toolCount > 0) parts.push(t('ai_chat.timeline.tools_count', { count: toolCount }))
+  if (planCount > 0) parts.push(t('ai_chat.timeline.steps_count', { count: planCount }))
+  if (resultCount > 0) parts.push(t('ai_chat.timeline.results_count', { count: resultCount }))
+  return parts.join(' · ')
+}
+
+function shouldOpenTimeline(message: AiChatMessageItemData) {
+  if (message.status === 'streaming') return true
+  return Boolean(
+    message.timeline?.some(
+      (item) =>
+        (item.kind === 'tool' && (item.state === 'running' || item.state === 'error')) ||
+        (item.kind === 'tool' && item.name.startsWith('propose_'))
+    )
+  )
+}
+
+function getTimelineSections(timeline: AiChatTimelineItem[]) {
+  return [
+    {
+      key: 'tools',
+      label: t('ai_chat.timeline.tools_section'),
+      items: timeline.filter((item) => item.kind === 'tool'),
+    },
+    {
+      key: 'plan',
+      label: t('ai_chat.timeline.plan_section'),
+      items: timeline.filter((item) => item.kind === 'plan'),
+    },
+    {
+      key: 'run',
+      label: t('ai_chat.timeline.run_section'),
+      items: timeline.filter((item) => item.kind === 'run'),
+    },
+  ].filter((section) => section.items.length > 0)
 }
 </script>
 
@@ -182,22 +247,50 @@ function getStatusLabel(message: AiChatMessageItemData) {
           {{ message.content }}
         </template>
       </div>
-      <div
-        v-if="message.role === 'assistant' && message.activity && !message.plan?.length"
-        class="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground"
+      <details
+        v-if="message.role === 'assistant' && message.timeline?.length"
+        class="group/timeline mt-1 overflow-hidden rounded-md border border-border/70 bg-muted/20 text-xs"
+        :open="shouldOpenTimeline(message)"
       >
-        <span v-if="getActivityLabel(message.activity)">
-          {{ getActivityLabel(message.activity) }}
-        </span>
-      </div>
-      <div
-        v-if="message.role === 'assistant' && message.plan?.length"
-        class="flex flex-wrap gap-x-2 gap-y-1 text-xs text-muted-foreground"
-      >
-        <span v-if="getStatusLabel(message)" class="font-medium text-foreground">
-          {{ getStatusLabel(message) }}
-        </span>
-      </div>
+        <summary
+          class="flex cursor-pointer list-none items-center gap-2 px-2.5 py-2 text-muted-foreground transition-colors hover:bg-muted/50 [&::-webkit-details-marker]:hidden"
+        >
+          <ChevronRight class="size-3.5 transition-transform group-open/timeline:rotate-90" />
+          <Activity class="size-3.5" />
+          <span class="font-medium">{{ t('ai_chat.timeline.title') }}</span>
+          <span class="ml-auto">{{ getTimelineSummary(message.timeline) }}</span>
+        </summary>
+        <div class="space-y-3 border-t border-border/60 px-2.5 py-2">
+          <div v-for="section in getTimelineSections(message.timeline)" :key="section.key">
+            <div
+              class="mb-1 px-1.5 text-[11px] font-medium tracking-wide text-muted-foreground/70 uppercase"
+            >
+              {{ section.label }}
+            </div>
+            <div
+              v-for="(item, index) in section.items"
+              :key="`${item.kind}-${item.kind === 'tool' ? (item.callId ?? item.name) : index}`"
+              class="flex items-start gap-2 rounded p-1.5"
+              :class="
+                isTimelineActive(item) ? 'bg-primary/5 text-foreground' : 'text-muted-foreground'
+              "
+            >
+              <component
+                :is="getTimelineIcon(item)"
+                class="mt-0.5 size-3.5 shrink-0"
+                :class="isTimelineActive(item) ? 'animate-spin text-primary' : ''"
+              />
+              <span class="min-w-0 flex-1">{{ getTimelineLabel(item) }}</span>
+              <span
+                v-if="item.kind === 'tool' && item.durationMs"
+                class="shrink-0 text-[11px] text-muted-foreground/60 tabular-nums"
+              >
+                {{ item.durationMs }}ms
+              </span>
+            </div>
+          </div>
+        </div>
+      </details>
       <div
         v-if="showMessageActions && message.id !== 'welcome' && message.content.trim().length > 0"
         class="flex h-6 items-center gap-1 opacity-0 transition-opacity group-hover/message:opacity-100 focus-within:opacity-100"

@@ -1,8 +1,8 @@
 import { Bouncer } from '@adonisjs/bouncer'
 
 import { access } from '#abilities/main'
+import type { PermissionCode } from '#authorization/permission_catalog'
 import User from '#models/user'
-import type { PermissionCode } from '#services/permission_catalog'
 
 export async function ensureAiAgentPermission(
   userId: number,

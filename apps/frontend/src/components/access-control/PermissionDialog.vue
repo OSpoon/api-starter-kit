@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import type { SystemPermission } from '@/lib/rbac-api'
+import type { SystemPermission } from '@/features/access-control/api'
 
 const props = defineProps<{ permission: SystemPermission | null; saving: boolean }>()
 const open = defineModel<boolean>('open', { required: true })

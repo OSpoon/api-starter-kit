@@ -2,12 +2,12 @@ import testUtils from '@adonisjs/core/services/test_utils'
 import { test } from '@japa/runner'
 import { DateTime } from 'luxon'
 
+import { resetAiConversationState } from '#ai/ai_conversation_state'
 import AiAgentPendingQuery from '#models/ai_agent_pending_query'
 import AiChatConversation from '#models/ai_chat_conversation'
 import Role from '#models/role'
 import User from '#models/user'
-import { resetAiConversationState } from '#services/ai_conversation_state'
-import { generateInitialPassword } from '#services/user_credentials'
+import { generateInitialPassword } from '#security/user_credentials'
 
 async function createAdminConversation() {
   const role = await Role.findByOrFail('code', 'super-admin')

@@ -10,16 +10,14 @@ const jiti = createJiti(import.meta.url, {
   },
 })
 
-const { validatePasswordChange } = await jiti.import(`${root}/src/lib/change-password-form.ts`)
-const { streamAiChatMessage } = await jiti.import(`${root}/src/lib/ai-chat-api.ts`)
+const { validatePasswordChange } = await jiti.import(`${root}/src/features/account/change-password-form.ts`)
+const { streamAiChatMessage } = await jiti.import(`${root}/src/features/ai/api.ts`)
 const { getAiChatSuggestions, pickRandomAiChatSuggestions } = await jiti.import(
-  `${root}/src/lib/ai-chat-suggestions.ts`
+  `${root}/src/features/ai/suggestions.ts`
 )
-const { formatAiChatMessagesAsMarkdown } = await jiti.import(
-  `${root}/src/lib/ai-chat-markdown.ts`
-)
+const { formatAiChatMessagesAsMarkdown } = await jiti.import(`${root}/src/features/ai/markdown.ts`)
 const { hasAiChatConversationContent } = await jiti.import(
-  `${root}/src/lib/ai-chat-conversation-state.ts`
+  `${root}/src/features/ai/conversation-state.ts`
 )
 
 test('password change validation covers required fields, mismatch, and strength', () => {
@@ -94,14 +92,11 @@ test('AI suggestions use effective permissions and prioritize the current page',
     translate,
   })
 
-  assert.deepEqual(
-    superAdminSuggestions.slice(0, 3),
-    [
-      'ai_chat.tasks.api_keys.list',
-      'ai_chat.tasks.api_keys.create',
-      'ai_chat.tasks.access.check',
-    ]
-  )
+  assert.deepEqual(superAdminSuggestions.slice(0, 3), [
+    'ai_chat.tasks.api_keys.list',
+    'ai_chat.tasks.api_keys.create',
+    'ai_chat.tasks.access.check',
+  ])
   assert.ok(superAdminSuggestions.includes('ai_chat.tasks.audit_logs.recent'))
 
   assert.deepEqual(

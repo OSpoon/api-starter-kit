@@ -1,8 +1,8 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import { test } from '@japa/runner'
 
-import type { createAiAgentStream } from '#services/ai_agent_service'
-import { streamAiAgentToolStatuses, writeAiChatSse } from '#services/ai_chat_sse_adapter'
+import type { createAiAgentStream } from '#ai/ai_agent_service'
+import { streamAiAgentToolStatuses, writeAiChatSse } from '#ai/ai_chat_sse_adapter'
 
 type FakeToolCall = {
   name: string
@@ -10,17 +10,40 @@ type FakeToolCall = {
   input: unknown
   status: Promise<'finished' | 'error'>
   output: Promise<unknown>
+  updates?: unknown[]
 }
 
 function createFakeRun(toolCalls: FakeToolCall[]) {
   async function* generate() {
     for (const toolCall of toolCalls) {
-      yield toolCall
+      yield {
+        type: 'tool_execution_start',
+        toolCallId: toolCall.callId,
+        toolName: toolCall.name,
+        args: toolCall.input,
+      }
+      const state = await toolCall.status
+      for (const partialResult of toolCall.updates ?? []) {
+        yield {
+          type: 'tool_execution_update',
+          toolCallId: toolCall.callId,
+          toolName: toolCall.name,
+          args: toolCall.input,
+          partialResult,
+        }
+      }
+      yield {
+        type: 'tool_execution_end',
+        toolCallId: toolCall.callId,
+        toolName: toolCall.name,
+        result: state === 'finished' ? { details: await toolCall.output } : null,
+        isError: state === 'error',
+      }
     }
   }
   return {
     agentRunId: 'agent-run-1',
-    stream: { toolCalls: generate() },
+    stream: { events: generate() },
   } as unknown as Awaited<ReturnType<typeof createAiAgentStream>>
 }
 
@@ -113,6 +136,29 @@ test.group('AI chat SSE adapter', () => {
     assert.isTrue(result.has('run_registered_query'))
   })
 
+  test('maps Pi tool progress to bounded agent_status details', async ({ assert }) => {
+    const { writes, response } = createFakeResponse()
+    const run = createFakeRun([
+      {
+        name: 'search_knowledge',
+        callId: 'call-progress',
+        input: { query: 'status' },
+        updates: [{ message: 'reading documents', progress: 42, secret: 'omit' }],
+        status: Promise.resolve('finished'),
+        output: Promise.resolve({ kind: 'query_result', rows: [] }),
+      },
+    ])
+
+    await streamAiAgentToolStatuses(run, response, new AbortController().signal)
+    const frames = parseSse(writes)
+    assert.equal(frames.length, 3)
+    assert.equal((frames[1].data as Record<string, unknown>).state, 'running')
+    assert.deepEqual((frames[1].data as Record<string, unknown>).detail, {
+      message: 'reading documents',
+      progress: 42,
+    })
+  })
+
   test('emits confirmation and completes the plan for a management proposal', async ({
     assert,
   }) => {
@@ -133,9 +179,7 @@ test.group('AI chat SSE adapter', () => {
         callId: 'call-2',
         input: { action: 'reset_two_factor' },
         status: Promise.resolve('finished'),
-        output: Promise.resolve({
-          artifact: { kind: 'confirmation', confirmation },
-        }),
+        output: Promise.resolve({ kind: 'confirmation', confirmation }),
       },
     ])
 
@@ -183,9 +227,7 @@ test.group('AI chat SSE adapter', () => {
         callId: 'call-5',
         input: { apiKeyId: 19 },
         status: Promise.resolve('finished'),
-        output: Promise.resolve({
-          artifact: { kind: 'confirmation', confirmation },
-        }),
+        output: Promise.resolve({ kind: 'confirmation', confirmation }),
       },
     ])
 
@@ -226,11 +268,9 @@ test.group('AI chat SSE adapter', () => {
         input: { action: 'reset_two_factor' },
         status: Promise.resolve('finished'),
         output: Promise.resolve({
-          artifact: {
-            kind: 'action_error',
-            code: 'permission_denied',
-            message: 'You are not allowed to change two-factor settings',
-          },
+          kind: 'action_error',
+          code: 'permission_denied',
+          message: 'You are not allowed to change two-factor settings',
         }),
       },
     ])

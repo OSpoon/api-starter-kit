@@ -4,7 +4,7 @@ import { DateTime } from 'luxon'
 
 import ApiKey from '#models/api_key'
 import { createApiKey, resolveExpiresAt, serializeApiKey } from '#services/api_key_service'
-import { clampLimit } from '#services/pagination'
+import { clampLimit } from '#support/pagination'
 import { apiKeyValidator } from '#validators/api_key'
 
 @ApiSecurity('bearerAuth')

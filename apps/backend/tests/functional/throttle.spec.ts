@@ -4,7 +4,7 @@ import { test } from '@japa/runner'
 import { resetThrottleBuckets, setThrottleEnabled } from '#middleware/throttle_middleware'
 import Role from '#models/role'
 import User from '#models/user'
-import { generateInitialPassword } from '#services/user_credentials'
+import { generateInitialPassword } from '#security/user_credentials'
 
 test.group('throttle middleware', (group) => {
   group.each.setup(() => testUtils.db().wrapInGlobalTransaction())

@@ -7,7 +7,7 @@ import { ApiOperation, ApiResponse, ApiSecurity } from '@foadonis/openapi/decora
 import KnowledgeDocument from '#models/knowledge_document'
 import Role from '#models/role'
 import { createKnowledgeDocument, indexKnowledgeDocument } from '#services/knowledge_service'
-import { clampLimit } from '#services/pagination'
+import { clampLimit } from '#support/pagination'
 import { serializeKnowledgeDocument } from '#transformers/knowledge_document_transformer'
 
 function parseRoleIds(value: unknown) {

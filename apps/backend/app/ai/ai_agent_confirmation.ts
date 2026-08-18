@@ -3,13 +3,14 @@ import crypto from 'node:crypto'
 import type { HttpContext } from '@adonisjs/core/http'
 import { DateTime } from 'luxon'
 
-import AiAgentConfirmation from '#models/ai_agent_confirmation'
 import {
   AiAgentActionAuthorizationError,
   type AiAgentActionImpact,
   getAiAgentAction,
   getAiAgentActionChangeSummary,
-} from '#services/ai_agent_action_registry'
+} from '#ai/ai_agent_action_registry'
+import AiAgentConfirmation from '#models/ai_agent_confirmation'
+import AiChatMessage from '#models/ai_chat_message'
 import { recordAuditEvent } from '#services/audit_log'
 
 const confirmationLifetimeMinutes = 5
@@ -24,8 +25,8 @@ export type AiAgentActionToolArtifact =
 
 export function createAiAgentActionToolResult(
   artifact: AiAgentActionToolArtifact
-): [string, AiAgentActionToolArtifact] {
-  return [JSON.stringify(artifact), artifact]
+): AiAgentActionToolArtifact {
+  return artifact
 }
 
 export type AiAgentConfirmationSummary = {
@@ -86,6 +87,29 @@ function serializeConfirmation(confirmation: AiAgentConfirmation): AiAgentConfir
       cancelLabel: '取消',
     },
   }
+}
+
+async function appendConfirmationRuntimeDetail(
+  confirmation: AiAgentConfirmation,
+  status: 'confirmed' | 'failed' | 'expired'
+) {
+  if (!confirmation.assistantMessageId) return
+  const message = await AiChatMessage.find(confirmation.assistantMessageId)
+  if (!message || message.role !== 'assistant') return
+  message.runtimeDetails = [
+    ...message.runtimeDetails,
+    {
+      kind: 'confirmation',
+      action: confirmation.action,
+      targetLabel: getTargetLabel(
+        confirmation.targetId ?? String(confirmation.id),
+        confirmation.targetSummary ?? {}
+      ),
+      status,
+      completedAt: DateTime.now().toISO() ?? new Date().toISOString(),
+    },
+  ]
+  await message.save()
 }
 
 const actionTitles: Record<string, string> = {
@@ -312,6 +336,7 @@ export async function confirmAiAgentAction(
   if (confirmation.expiresAt <= now) {
     confirmation.status = 'expired'
     await confirmation.save()
+    await appendConfirmationRuntimeDetail(confirmation, 'expired')
     await recordAuditEvent(ctx, {
       actorUserId: input.userId,
       action: 'agent.proposal_expired',
@@ -347,6 +372,7 @@ export async function confirmAiAgentAction(
   if (!action) {
     confirmation.status = 'failed'
     await confirmation.save()
+    await appendConfirmationRuntimeDetail(confirmation, 'failed')
     throw new AiAgentConfirmationError('不支持的确认操作', 422)
   }
 
@@ -363,6 +389,7 @@ export async function confirmAiAgentAction(
     }
     confirmation.status = 'failed'
     await confirmation.save()
+    await appendConfirmationRuntimeDetail(confirmation, 'failed')
     throw new AiAgentConfirmationError(
       error instanceof Error ? error.message : '受控操作执行失败',
       409
@@ -373,6 +400,7 @@ export async function confirmAiAgentAction(
   confirmation.confirmedAt = DateTime.now()
   confirmation.confirmedByUserId = input.userId
   await confirmation.save()
+  await appendConfirmationRuntimeDetail(confirmation, 'confirmed')
 
   await recordAuditEvent(ctx, {
     actorUserId: input.userId,

@@ -4,7 +4,7 @@ import { generateSync } from 'otplib'
 
 import Role from '#models/role'
 import User from '#models/user'
-import { generateInitialPassword } from '#services/user_credentials'
+import { generateInitialPassword } from '#security/user_credentials'
 
 test.group('two-factor auth', (group) => {
   group.each.setup(() => testUtils.db().wrapInGlobalTransaction())

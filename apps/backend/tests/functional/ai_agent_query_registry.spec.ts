@@ -2,6 +2,8 @@ import testUtils from '@adonisjs/core/services/test_utils'
 import { test } from '@japa/runner'
 import { DateTime } from 'luxon'
 
+import { getPendingAiQueryContext, runRegisteredAiQuery } from '#ai/ai_agent_query_registry'
+import { createAiAgentTools } from '#ai/ai_agent_tool_registry'
 import AiAgentPendingQuery from '#models/ai_agent_pending_query'
 import AiChatConversation from '#models/ai_chat_conversation'
 import ApiKey from '#models/api_key'
@@ -10,9 +12,7 @@ import Permission from '#models/permission'
 import Role from '#models/role'
 import User from '#models/user'
 import WecomMessageTemplate from '#models/wecom_message_template'
-import { getPendingAiQueryContext, runRegisteredAiQuery } from '#services/ai_agent_query_registry'
-import { createAiAgentTools } from '#services/ai_agent_tool_registry'
-import { generateInitialPassword } from '#services/user_credentials'
+import { generateInitialPassword } from '#security/user_credentials'
 
 async function createAdminConversation() {
   const role = await Role.findByOrFail('code', 'super-admin')
@@ -188,8 +188,26 @@ test.group('AI agent registered queries', (group) => {
     assert.deepEqual(missing, {
       kind: 'missing_parameters',
       templateCode: 'api_key_profile',
-      missingFields: [{ name: 'apiKeyId', description: 'Required positive API Key ID.' }],
+      missingFields: [
+        { name: 'apiKeyIdOrName', description: 'Required positive API Key ID or exact name.' },
+      ],
     })
+    const byName = await runRegisteredAiQuery({
+      conversationId: conversation.id,
+      userId: user.id,
+      templateCode: 'api_key_profile',
+      params: { name: revoked.name },
+    })
+    assert.equal(byName.kind, 'query_result')
+    assert.equal((byName as { rows: Array<{ id: number }> }).rows[0]?.id, revoked.id)
+    const byIdAlias = await runRegisteredAiQuery({
+      conversationId: conversation.id,
+      userId: user.id,
+      templateCode: 'api_key_profile',
+      params: { id: revoked.id },
+    })
+    assert.equal(byIdAlias.kind, 'query_result')
+    assert.equal((byIdAlias as { rows: Array<{ id: number }> }).rows[0]?.id, revoked.id)
     const completed = await runRegisteredAiQuery({
       conversationId: conversation.id,
       userId: user.id,

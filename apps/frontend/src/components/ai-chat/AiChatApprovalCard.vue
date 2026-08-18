@@ -2,10 +2,10 @@
 import { ShieldCheck } from '@lucide/vue'
 
 import { Button } from '@/components/ui/button'
-import type { AiChatConfirmation } from '@/lib/ai-chat-api'
+import type { AiChatConfirmation } from '@/features/ai/api'
 import { formatDateTime } from '@/lib/format'
 
-defineProps<{
+const props = defineProps<{
   approval: AiChatConfirmation
   loading?: boolean
   disabled?: boolean
@@ -16,16 +16,23 @@ const emit = defineEmits<{
   dismiss: []
 }>()
 
-const { t } = useI18n()
+const { t, te } = useI18n()
+const sourceLabel = computed(() => {
+  const key = `ai_chat.actions.${props.approval.action}`
+  return te(key) ? t(key) : props.approval.presentation.title
+})
 </script>
 
 <template>
-  <div class="mb-2 rounded-md border bg-muted/60 px-2.5 py-2 text-xs">
+  <div class="mb-2 rounded-md border bg-muted/60 px-3 py-2.5 text-xs">
     <div class="flex items-start gap-2">
       <ShieldCheck class="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
       <div class="min-w-0 flex-1 space-y-1">
         <p class="font-medium text-foreground">
           {{ approval.presentation.title }}
+        </p>
+        <p class="text-muted-foreground">
+          {{ t('ai_chat.approval.source', { source: sourceLabel }) }}
         </p>
         <p class="wrap-break-word text-muted-foreground">
           {{ approval.presentation.summary }} {{ approval.presentation.targetLabel }}
@@ -52,11 +59,12 @@ const { t } = useI18n()
         </p>
       </div>
     </div>
-    <div class="mt-2 flex justify-end gap-2">
+    <div class="mt-3 flex flex-col-reverse gap-2 border-t pt-3 sm:flex-row sm:justify-end">
       <Button
         type="button"
         size="sm"
         variant="ghost"
+        class="sm:min-w-24"
         :disabled="loading || disabled"
         @click="emit('dismiss')"
       >
@@ -66,6 +74,7 @@ const { t } = useI18n()
         type="button"
         size="sm"
         variant="outline"
+        class="sm:min-w-28"
         :disabled="loading || disabled"
         @click="emit('approve')"
       >

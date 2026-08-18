@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import AiChatAssistant from '@/components/AiChatAssistant.vue'
+import AiChatAssistant from '@/components/ai-chat/AiChatAssistant.vue'
 import AppSidebar from '@/components/AppSidebar.vue'
 import SiteHeader from '@/components/SiteHeader.vue'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'

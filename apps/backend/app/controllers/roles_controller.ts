@@ -3,7 +3,7 @@ import type { HttpContext } from '@adonisjs/core/http'
 import Permission from '#models/permission'
 import Role from '#models/role'
 import { recordAuditEvent } from '#services/audit_log'
-import { clampLimit } from '#services/pagination'
+import { clampLimit } from '#support/pagination'
 import { createRoleValidator, updateRoleValidator } from '#validators/rbac'
 
 function serializeRole(role: Role) {

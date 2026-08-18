@@ -8,6 +8,7 @@ export function serializeAiChatMessage(message: AiChatMessage) {
     role: message.role,
     content: message.content,
     citations: message.citations ?? [],
+    ...(message.runtimeDetails?.length ? { timeline: message.runtimeDetails } : {}),
     createdAt: message.createdAt.toISO(),
     updatedAt: message.updatedAt.toISO(),
   }

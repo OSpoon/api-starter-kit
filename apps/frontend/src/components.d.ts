@@ -13,7 +13,7 @@ declare module 'vue' {
   export interface GlobalComponents {
     AddFieldButton: typeof import('./components/json-schema/components/AddFieldButton.vue')['default']
     AiChatApprovalCard: typeof import('./components/ai-chat/AiChatApprovalCard.vue')['default']
-    AiChatAssistant: typeof import('./components/AiChatAssistant.vue')['default']
+    AiChatAssistant: typeof import('./components/ai-chat/AiChatAssistant.vue')['default']
     AiChatCredentialCard: typeof import('./components/ai-chat/AiChatCredentialCard.vue')['default']
     AiChatMessageItem: typeof import('./components/ai-chat/AiChatMessageItem.vue')['default']
     AiMessageContent: typeof import('./components/ai-chat/AiMessageContent.vue')['default']

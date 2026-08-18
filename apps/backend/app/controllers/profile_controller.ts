@@ -3,8 +3,8 @@ import { ApiOperation, ApiResponse, ApiSecurity } from '@foadonis/openapi/decora
 import { DateTime } from 'luxon'
 
 import User from '#models/user'
+import { isStrongPassword, passwordContext } from '#security/password_strength'
 import { recordAuditEvent } from '#services/audit_log'
-import { isStrongPassword, passwordContext } from '#services/password_strength'
 import { loadUserAccess } from '#services/user_access'
 import UserTransformer from '#transformers/user_transformer'
 import { changePasswordValidator, twoFactorValidator } from '#validators/user'

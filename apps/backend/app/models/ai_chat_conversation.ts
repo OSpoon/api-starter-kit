@@ -16,6 +16,9 @@ export default class AiChatConversation extends BaseModel {
   @column()
   declare title: string
 
+  @column()
+  declare contextSummary: string | null
+
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
 

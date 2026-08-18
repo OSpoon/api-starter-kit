@@ -37,7 +37,7 @@ docker compose --profile ollama up -d ollama
 
 Compose 后端访问该服务时设置 `AI_OPENAI_BASE_URL=http://ollama:11434/v1`。其他 OpenAI 兼容提供方使用 `AI_OPENAI_*`，知识检索使用 `AI_EMBEDDING_*` 配置。
 
-Langfuse 默认关闭。仅在配置 `LANGFUSE_PUBLIC_KEY`、`LANGFUSE_SECRET_KEY` 与 `LANGFUSE_BASE_URL` 后启用；关闭时应用不会调用 Langfuse 网络服务。
+AI 助手通过 `AI_OPENAI_API_KEY`、`AI_OPENAI_BASE_URL` 和 `AI_OPENAI_MODEL` 接入 OpenAI-compatible provider。部署前确认 provider 地址可从 backend 容器或宿主机访问。
 
 ## 运维检查
 

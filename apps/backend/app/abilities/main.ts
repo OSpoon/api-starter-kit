@@ -14,8 +14,8 @@
 
 import { Bouncer } from '@adonisjs/bouncer'
 
+import type { PermissionCode } from '#authorization/permission_catalog'
 import type User from '#models/user'
-import type { PermissionCode } from '#services/permission_catalog'
 
 export const access = Bouncer.ability(async (user: User, permission: PermissionCode) => {
   const roles = await user.related('roles').query().preload('permissions')

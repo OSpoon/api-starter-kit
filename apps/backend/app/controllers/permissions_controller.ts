@@ -2,7 +2,7 @@ import type { HttpContext } from '@adonisjs/core/http'
 
 import Permission from '#models/permission'
 import { recordAuditEvent } from '#services/audit_log'
-import { clampLimit } from '#services/pagination'
+import { clampLimit } from '#support/pagination'
 import { createPermissionValidator, updatePermissionValidator } from '#validators/rbac'
 
 function serializePermission(permission: Permission) {

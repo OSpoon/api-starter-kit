@@ -1,25 +1,26 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import { ApiOperation, ApiResponse, ApiSecurity } from '@foadonis/openapi/decorators'
 
-import AiChatConversation from '#models/ai_chat_conversation'
-import AiChatMessage from '#models/ai_chat_message'
-import { getAiAgentCheckpointRunStage, hasAiAgentCheckpoint } from '#services/ai_agent_checkpoint'
+import { getAiRequestTimeout } from '#ai/ai_agent_config'
 import {
   AiAgentConfirmationError,
   confirmAiAgentAction as executeAiAgentAction,
   listConversationConfirmations,
-} from '#services/ai_agent_confirmation'
-import { getAiRequestTimeout } from '#services/ai_agent_service'
-import { resolveAiChatRegeneration } from '#services/ai_chat_regeneration'
-import { runAiChatAssistantTurn } from '#services/ai_chat_turn_service'
-import { resetAiConversationState } from '#services/ai_conversation_state'
+} from '#ai/ai_agent_confirmation'
+import { getAiAgentRun } from '#ai/ai_agent_run_registry'
+import { resolveAiChatRegeneration } from '#ai/ai_chat_regeneration'
+import { runAiChatAssistantTurn } from '#ai/ai_chat_turn_service'
+import { resetAiConversationState } from '#ai/ai_conversation_state'
+import AiChatConversation from '#models/ai_chat_conversation'
+import AiChatMessage from '#models/ai_chat_message'
 import {
   serializeAiChatConversation,
   serializeAiChatConversationWithMessages,
+  serializeAiChatMessage,
 } from '#transformers/ai_chat_transformer'
 import {
   createConversationValidator,
-  resumeAiChatValidator,
+  queueAiChatMessageValidator,
   sendAiChatMessageValidator,
 } from '#validators/ai_chat'
 
@@ -161,60 +162,49 @@ export default class AiChatController {
   }
 
   @ApiOperation({
-    summary: '恢复 AI 会话运行',
-    description: '使用当前会话最近一次已提交的 LangGraph checkpoint 恢复中断的 Agent 运行。',
+    summary: '向运行中的 AI Agent 注入指令',
+    description: '使用 Pi 原生 steer 队列，将人工指令注入当前运行。',
   })
-  @ApiResponse({ status: 200, description: '流式恢复响应' })
-  async resume(ctx: HttpContext) {
-    const { auth, params, request, response } = ctx
+  @ApiResponse({ status: 200, description: '指令已排队' })
+  async steer(ctx: HttpContext) {
+    return this.queueAgentMessage(ctx, 'steer')
+  }
+
+  @ApiOperation({
+    summary: '向 AI Agent 排队后续指令',
+    description: '使用 Pi 原生 follow-up 队列，在当前运行结束后处理人工指令。',
+  })
+  @ApiResponse({ status: 200, description: '后续指令已排队' })
+  async followUp(ctx: HttpContext) {
+    return this.queueAgentMessage(ctx, 'followUp')
+  }
+
+  private async queueAgentMessage(ctx: HttpContext, mode: 'steer' | 'followUp') {
+    const { auth, params, request, response, serialize } = ctx
     const user = auth.getUserOrFail()
-    await request.validateUsing(resumeAiChatValidator)
+    const payload = await request.validateUsing(queueAiChatMessageValidator)
     const conversation = await AiChatConversation.query()
       .where('id', params.id)
       .where('user_id', user.id)
       .firstOrFail()
-    const checkpointInput = {
+
+    const run = getAiAgentRun(conversation.id, user.id)
+    if (!run) {
+      return response.conflict({ message: '当前会话没有正在运行的 AI Agent' })
+    }
+
+    const userMessage = await AiChatMessage.create({
       conversationId: conversation.id,
-      userId: user.id,
-    }
-    const hasCheckpoint = await hasAiAgentCheckpoint(checkpointInput)
-    const runStage = hasCheckpoint ? await getAiAgentCheckpointRunStage(checkpointInput) : undefined
-    if (!hasCheckpoint || !runStage || runStage === 'completed') {
-      return response.conflict({ message: '当前会话没有可恢复的 AI 运行状态' })
-    }
-
-    const userMessage = await AiChatMessage.query()
-      .where('conversation_id', conversation.id)
-      .where('role', 'user')
-      .orderBy('created_at', 'desc')
-      .firstOrFail()
-
-    response.header('Content-Type', 'text/event-stream; charset=utf-8')
-    response.header('Cache-Control', 'no-cache, no-transform')
-    response.header('Connection', 'keep-alive')
-    response.header('X-Accel-Buffering', 'no')
-    response.writeHead(200)
-    const abortController = new AbortController()
-    const abortOnDisconnect = () => abortController.abort()
-    response.response.once('close', abortOnDisconnect)
-    const requestTimeout = setTimeout(() => abortController.abort(), getAiRequestTimeout())
-
-    try {
-      await runAiChatAssistantTurn({
-        conversation,
-        userId: user.id,
-        userMessage,
-        regeneration: null,
-        resume: true,
-        signal: abortController.signal,
-        response,
-        ctx,
-      })
-    } finally {
-      clearTimeout(requestTimeout)
-      response.response.off('close', abortOnDisconnect)
-      response.response.end()
-    }
+      role: 'user',
+      content: payload.content,
+    })
+    run.control[mode](payload.content)
+    return serialize({
+      queued: true,
+      mode,
+      agentRunId: run.agentRunId,
+      message: serializeAiChatMessage(userMessage),
+    })
   }
 
   @ApiOperation({

@@ -4,8 +4,8 @@ import { test } from '@japa/runner'
 import ApiKey from '#models/api_key'
 import Role from '#models/role'
 import User from '#models/user'
+import { generateInitialPassword } from '#security/user_credentials'
 import { hashApiKey } from '#services/api_key_service'
-import { generateInitialPassword } from '#services/user_credentials'
 
 test.group('api keys', (group) => {
   group.each.setup(() => testUtils.db().wrapInGlobalTransaction())

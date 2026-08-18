@@ -3,22 +3,22 @@ import encryption from '@adonisjs/core/services/encryption'
 import { DateTime } from 'luxon'
 import { z } from 'zod'
 
+import { ensureAiAgentPermission } from '#ai/ai_agent_authorization'
+import type { PermissionCode } from '#authorization/permission_catalog'
 import type AiAgentConfirmation from '#models/ai_agent_confirmation'
 import ApiKey from '#models/api_key'
 import Permission from '#models/permission'
 import Role from '#models/role'
 import User from '#models/user'
 import WecomMessageTemplate from '#models/wecom_message_template'
-import { ensureAiAgentPermission } from '#services/ai_agent_authorization'
+import { generateInitialPassword } from '#security/user_credentials'
 import { createApiKey } from '#services/api_key_service'
 import { recordAuditEvent } from '#services/audit_log'
-import type { PermissionCode } from '#services/permission_catalog'
 import {
   countSuperAdminUsers,
   includesSuperAdminRole,
   isSuperAdmin,
 } from '#services/super_admin_access'
-import { generateInitialPassword } from '#services/user_credentials'
 import {
   applyWecomRuntimeMentions,
   renderWecomPayload,
@@ -118,16 +118,37 @@ const destructiveActionNames = new Set<AiAgentActionName>([
 // target lookup, and conflict condition before a proposal is persisted.
 export const aiAgentChangeSchema = z.object({
   action: z.enum(genericProposalActionNames),
-  input: z.record(z.unknown()),
+  input: z
+    .record(z.unknown())
+    .refine((value) => Object.keys(value).length > 0, '受控操作缺少必要参数'),
 })
 
 // Shared schema for the dedicated API Key revocation and deletion tools. The
 // preparation function still resolves the target and validates its state.
-export const aiApiKeyChangeSchema = z.object({
-  apiKeyId: z.coerce.number().int().positive().optional(),
-  id: z.coerce.number().int().positive().optional(),
-  name: z.string().trim().max(120).optional(),
-})
+export const aiApiKeyChangeSchema = z.preprocess(
+  (value) => {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return value
+    const directInput = value as Record<string, unknown>
+    const nested =
+      directInput.input &&
+      typeof directInput.input === 'object' &&
+      !Array.isArray(directInput.input)
+        ? (directInput.input as Record<string, unknown>)
+        : {}
+    return { ...nested, ...directInput }
+  },
+  z
+    .object({
+      apiKeyId: z.coerce.number().int().positive().optional(),
+      id: z.coerce.number().int().positive().optional(),
+      name: z.string().trim().min(1).max(120).optional(),
+    })
+    .refine(
+      (input) =>
+        [input.apiKeyId, input.id, input.name].filter((value) => value !== undefined).length === 1,
+      '请将 API Key 的正整数 ID 或精确名称作为工具参数传入（二选一）'
+    )
+)
 
 async function ensurePermission(ctx: HttpContext, permission: PermissionCode) {
   const user = ctx.auth.getUserOrFail()
@@ -158,6 +179,9 @@ function integer(input: Record<string, unknown>, name: string, aliases: string[]
 async function resolveApiKeyId(input: Record<string, unknown>) {
   const value = [input.apiKeyId, input.id].find((candidate) => candidate !== undefined)
   if (value !== undefined) return integer({ apiKeyId: value }, 'apiKeyId')
+  if (input.name === undefined) {
+    throw new Error('请提供 API Key 的精确名称或正整数 ID')
+  }
   const name = string(input, 'name', 120)
   const matches = await ApiKey.query().where('name', name).limit(2)
   if (matches.length === 0) throw new Error('API Key 不存在')

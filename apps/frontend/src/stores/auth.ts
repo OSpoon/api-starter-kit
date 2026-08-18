@@ -9,7 +9,7 @@ import {
   type LoginResult,
   logout as logoutRequest,
   verify2fa as verify2faRequest,
-} from '@/lib/account-api'
+} from '@/features/account/api'
 
 export type { ApiUser, LoginResult }
 

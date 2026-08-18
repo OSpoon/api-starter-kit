@@ -107,7 +107,7 @@ export class AiAgentPendingQuerySchema extends BaseModel {
 }
 
 export class AiChatConversationSchema extends BaseModel {
-  static $columns = ['createdAt', 'id', 'title', 'updatedAt', 'userId'] as const
+  static $columns = ['contextSummary', 'createdAt', 'id', 'title', 'updatedAt', 'userId'] as const
   $columns = AiChatConversationSchema.$columns
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
@@ -115,6 +115,8 @@ export class AiChatConversationSchema extends BaseModel {
   declare id: number
   @column()
   declare title: string
+  @column()
+  declare contextSummary: string | null
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime
   @column()
@@ -129,6 +131,7 @@ export class AiChatMessageSchema extends BaseModel {
     'createdAt',
     'id',
     'role',
+    'runtimeDetails',
     'updatedAt',
   ] as const
   $columns = AiChatMessageSchema.$columns
@@ -144,6 +147,8 @@ export class AiChatMessageSchema extends BaseModel {
   declare id: number
   @column()
   declare role: string
+  @column()
+  declare runtimeDetails: unknown
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime
 }

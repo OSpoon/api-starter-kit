@@ -4,7 +4,7 @@ import { test } from '@japa/runner'
 import AiChatConversation from '#models/ai_chat_conversation'
 import AiChatMessage from '#models/ai_chat_message'
 import User from '#models/user'
-import { generateInitialPassword } from '#services/user_credentials'
+import { generateInitialPassword } from '#security/user_credentials'
 
 test.group('AI chat messages', (group) => {
   group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
@@ -37,5 +37,37 @@ test.group('AI chat messages', (group) => {
     const persistedMessage = await AiChatMessage.findOrFail(message.id)
 
     assert.deepEqual(persistedMessage.citations, citations)
+  })
+
+  test('stores sanitized runtime details for historical assistant messages', async ({ assert }) => {
+    const user = await User.create({
+      fullName: 'AI Runtime User',
+      email: `ai-runtime-${Date.now()}@example.com`,
+      password: generateInitialPassword(),
+    })
+    const conversation = await AiChatConversation.create({
+      userId: user.id,
+      title: 'Runtime details',
+    })
+    const runtimeDetails = [
+      {
+        kind: 'tool' as const,
+        name: 'run_registered_query',
+        state: 'done' as const,
+        callId: 'call-1',
+        durationMs: 23,
+        detail: { resultCount: 1 },
+      },
+    ]
+
+    const message = await AiChatMessage.create({
+      conversationId: conversation.id,
+      role: 'assistant',
+      content: '查询完成。',
+      runtimeDetails,
+    })
+    const persistedMessage = await AiChatMessage.findOrFail(message.id)
+
+    assert.deepEqual(persistedMessage.runtimeDetails, runtimeDetails)
   })
 })

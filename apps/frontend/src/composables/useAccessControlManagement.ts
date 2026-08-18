@@ -1,7 +1,6 @@
 import type { Ref } from 'vue'
 import { toast } from 'vue-sonner'
 
-import { copyText } from '@/lib/clipboard'
 import {
   createSystemPermission,
   createSystemRole,
@@ -23,7 +22,8 @@ import {
   updateSystemPermission,
   updateSystemRole,
   updateSystemUser,
-} from '@/lib/rbac-api'
+} from '@/features/access-control/api'
+import { copyText } from '@/lib/clipboard'
 import { useAuthStore } from '@/stores/auth'
 
 export type AccessControlMode = 'users' | 'roles' | 'permissions'

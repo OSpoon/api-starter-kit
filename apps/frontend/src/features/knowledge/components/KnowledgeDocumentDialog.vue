@@ -6,8 +6,8 @@ import FormDialogFooter from '@/components/common/FormDialogFooter.vue'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
+import type { SystemRoleOption } from '@/features/access-control/api'
 import type { KnowledgeDocument, KnowledgeDocumentInput } from '@/features/knowledge/api'
-import type { SystemRoleOption } from '@/lib/rbac-api'
 
 const props = defineProps<{
   document: KnowledgeDocument | null
