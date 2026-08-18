@@ -2,6 +2,8 @@ import testUtils from '@adonisjs/core/services/test_utils'
 import { test } from '@japa/runner'
 import { DateTime } from 'luxon'
 
+import { getPendingAiQueryContext, runRegisteredAiQuery } from '#ai/ai_agent_query_registry'
+import { createAiAgentTools } from '#ai/ai_agent_tool_registry'
 import AiAgentPendingQuery from '#models/ai_agent_pending_query'
 import AiChatConversation from '#models/ai_chat_conversation'
 import ApiKey from '#models/api_key'
@@ -10,9 +12,7 @@ import Permission from '#models/permission'
 import Role from '#models/role'
 import User from '#models/user'
 import WecomMessageTemplate from '#models/wecom_message_template'
-import { getPendingAiQueryContext, runRegisteredAiQuery } from '#services/ai_agent_query_registry'
-import { createAiAgentTools } from '#services/ai_agent_tool_registry'
-import { generateInitialPassword } from '#services/user_credentials'
+import { generateInitialPassword } from '#security/user_credentials'
 
 async function createAdminConversation() {
   const role = await Role.findByOrFail('code', 'super-admin')

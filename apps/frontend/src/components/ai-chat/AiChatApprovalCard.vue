@@ -2,7 +2,7 @@
 import { ShieldCheck } from '@lucide/vue'
 
 import { Button } from '@/components/ui/button'
-import type { AiChatConfirmation } from '@/lib/ai-chat-api'
+import type { AiChatConfirmation } from '@/features/ai/api'
 import { formatDateTime } from '@/lib/format'
 
 defineProps<{

@@ -1,6 +1,6 @@
 import { test } from '@japa/runner'
 
-import { isStrongPassword, passwordContext } from '#services/password_strength'
+import { isStrongPassword, passwordContext } from '#security/password_strength'
 
 test.group('password strength', () => {
   test('rejects common composition passwords', ({ assert }) => {

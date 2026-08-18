@@ -29,7 +29,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Textarea } from '@/components/ui/textarea'
 import type { DisplayAiChatMessage } from '@/composables/useAiChat'
-import type { AiChatConfirmation, AiChatCredentialDisclosure } from '@/lib/ai-chat-api'
+import type { AiChatConfirmation, AiChatCredentialDisclosure } from '@/features/ai/api'
 
 interface ChatConversation {
   id: string | number

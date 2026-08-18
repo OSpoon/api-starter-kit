@@ -1,7 +1,7 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import type { NextFn } from '@adonisjs/core/types/http'
 
-import type { PermissionCode } from '#services/permission_catalog'
+import type { PermissionCode } from '#authorization/permission_catalog'
 
 export default class PermissionMiddleware {
   async handle(ctx: HttpContext, next: NextFn, permissions: PermissionCode[]) {

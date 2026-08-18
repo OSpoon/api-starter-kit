@@ -2,28 +2,28 @@ import type { AgentTool } from '@earendil-works/pi-agent-core'
 import { type TSchema, Type } from '@earendil-works/pi-ai'
 import { z } from 'zod'
 
-import { diagnoseMyAccess } from '#services/ai_access_diagnostic'
+import { diagnoseMyAccess } from '#ai/ai_access_diagnostic'
 import {
   type AiAgentActionName,
   aiAgentChangeSchema,
   aiApiKeyChangeSchema,
   genericProposalActionNames,
   getAiAgentAction,
-} from '#services/ai_agent_action_registry'
-import { ensureAiAgentPermission } from '#services/ai_agent_authorization'
+} from '#ai/ai_agent_action_registry'
+import { ensureAiAgentPermission } from '#ai/ai_agent_authorization'
 import {
   AiAgentConfirmationError,
   createAiAgentActionToolResult,
   proposeAiAgentAction,
-} from '#services/ai_agent_confirmation'
+} from '#ai/ai_agent_confirmation'
 import {
   aiQueryTemplateCodes,
   aiQueryTemplateInstructions,
   runRegisteredAiQuery,
-} from '#services/ai_agent_query_registry'
-import type { AiAgentToolContext } from '#services/ai_agent_tool_context'
+} from '#ai/ai_agent_query_registry'
+import type { AiAgentToolContext } from '#ai/ai_agent_tool_context'
+import { permissionCodes } from '#authorization/permission_catalog'
 import { searchKnowledge } from '#services/knowledge_service'
-import { permissionCodes } from '#services/permission_catalog'
 
 function tool<TZodSchema extends z.ZodTypeAny, TResult>(
   execute: (input: z.infer<TZodSchema>) => Promise<TResult>,

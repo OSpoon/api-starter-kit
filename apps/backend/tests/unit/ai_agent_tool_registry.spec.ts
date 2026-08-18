@@ -1,6 +1,6 @@
 import { test } from '@japa/runner'
 
-import { createAiAgentTools } from '#services/ai_agent_tool_registry'
+import { createAiAgentTools } from '#ai/ai_agent_tool_registry'
 
 test.group('AI agent tool registry', () => {
   test('registers every Pi tool with an explicit name and description', ({ assert }) => {

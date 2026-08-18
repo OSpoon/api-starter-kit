@@ -3,7 +3,6 @@ import { ApiOperation, ApiResponse, ApiSecurity } from '@foadonis/openapi/decora
 
 import WecomMessageTemplate from '#models/wecom_message_template'
 import { recordAuditEvent } from '#services/audit_log'
-import { clampLimit } from '#services/pagination'
 import {
   decryptWebhookUrl,
   encryptWebhookUrl,
@@ -16,6 +15,7 @@ import {
   validateWebhookUrl,
   validateWecomTemplatePayload,
 } from '#services/wecom_message_template_service'
+import { clampLimit } from '#support/pagination'
 import {
   createWecomMessageTemplateValidator,
   updateWecomMessageTemplateValidator,

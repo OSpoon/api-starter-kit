@@ -1,6 +1,8 @@
 import { DateTime } from 'luxon'
 import { z } from 'zod'
 
+import { ensureAiAgentPermission } from '#ai/ai_agent_authorization'
+import type { PermissionCode } from '#authorization/permission_catalog'
 import AiAgentPendingQuery from '#models/ai_agent_pending_query'
 import ApiKey from '#models/api_key'
 import AuditLog from '#models/audit_log'
@@ -8,8 +10,6 @@ import Permission from '#models/permission'
 import Role from '#models/role'
 import User from '#models/user'
 import WecomMessageTemplate from '#models/wecom_message_template'
-import { ensureAiAgentPermission } from '#services/ai_agent_authorization'
-import type { PermissionCode } from '#services/permission_catalog'
 import {
   applyWecomRuntimeMentions,
   renderWecomPayload,

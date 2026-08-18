@@ -3,8 +3,8 @@ import type { HttpContext } from '@adonisjs/core/http'
 import type {
   AiAgentActionToolArtifact,
   AiAgentConfirmationSummary,
-} from '#services/ai_agent_confirmation'
-import type { createAiAgentStream } from '#services/ai_agent_service'
+} from '#ai/ai_agent_confirmation'
+import type { createAiAgentStream } from '#ai/ai_agent_service'
 
 type AiAgentPlanStep = {
   key: 'identify_target' | 'prepare_proposal' | 'await_confirmation'

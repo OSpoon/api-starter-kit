@@ -1,15 +1,15 @@
 import type { HttpContext } from '@adonisjs/core/http'
 
 import User from '#models/user'
+import { generateInitialPassword } from '#security/user_credentials'
 import { recordAuditEvent } from '#services/audit_log'
-import { clampLimit } from '#services/pagination'
 import {
   countSuperAdminUsers,
   includesSuperAdminRole,
   isSuperAdmin,
 } from '#services/super_admin_access'
 import { loadUserAccess } from '#services/user_access'
-import { generateInitialPassword } from '#services/user_credentials'
+import { clampLimit } from '#support/pagination'
 import UserTransformer from '#transformers/user_transformer'
 import { createManagedUserValidator, updateManagedUserValidator } from '#validators/rbac'
 

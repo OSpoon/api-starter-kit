@@ -3,22 +3,22 @@ import encryption from '@adonisjs/core/services/encryption'
 import { DateTime } from 'luxon'
 import { z } from 'zod'
 
+import { ensureAiAgentPermission } from '#ai/ai_agent_authorization'
+import type { PermissionCode } from '#authorization/permission_catalog'
 import type AiAgentConfirmation from '#models/ai_agent_confirmation'
 import ApiKey from '#models/api_key'
 import Permission from '#models/permission'
 import Role from '#models/role'
 import User from '#models/user'
 import WecomMessageTemplate from '#models/wecom_message_template'
-import { ensureAiAgentPermission } from '#services/ai_agent_authorization'
+import { generateInitialPassword } from '#security/user_credentials'
 import { createApiKey } from '#services/api_key_service'
 import { recordAuditEvent } from '#services/audit_log'
-import type { PermissionCode } from '#services/permission_catalog'
 import {
   countSuperAdminUsers,
   includesSuperAdminRole,
   isSuperAdmin,
 } from '#services/super_admin_access'
-import { generateInitialPassword } from '#services/user_credentials'
 import {
   applyWecomRuntimeMentions,
   renderWecomPayload,

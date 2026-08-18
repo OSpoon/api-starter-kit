@@ -1,6 +1,6 @@
 import { test } from '@japa/runner'
 
-import { createAiAgentSystemPrompt } from '#services/ai_agent_service'
+import { createAiAgentSystemPrompt } from '#ai/ai_agent_service'
 
 test.group('AI agent prompt', () => {
   test('keeps system and domain policy separate from tool parameter contracts', ({ assert }) => {

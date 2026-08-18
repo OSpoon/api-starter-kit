@@ -9,7 +9,7 @@ import type {
   AiChatPendingConfirmation,
   AiChatPlanStep,
   AiChatRunMeta,
-} from '@/lib/ai-chat-api'
+} from '@/features/ai/api'
 import {
   type AiChatConversation,
   type AiChatConversationSummary,
@@ -21,10 +21,10 @@ import {
   getAiChatConversation,
   listAiChatConversations,
   streamAiChatMessage,
-} from '@/lib/ai-chat-api'
-import { hasAiChatConversationContent } from '@/lib/ai-chat-conversation-state'
-import { formatAiChatMessagesAsMarkdown } from '@/lib/ai-chat-markdown'
-import { getAiChatSuggestions, pickRandomAiChatSuggestions } from '@/lib/ai-chat-suggestions'
+} from '@/features/ai/api'
+import { hasAiChatConversationContent } from '@/features/ai/conversation-state'
+import { formatAiChatMessagesAsMarkdown } from '@/features/ai/markdown'
+import { getAiChatSuggestions, pickRandomAiChatSuggestions } from '@/features/ai/suggestions'
 import { copyText } from '@/lib/clipboard'
 import { useAuthStore } from '@/stores/auth'
 import { useSettingsStore } from '@/stores/settings'

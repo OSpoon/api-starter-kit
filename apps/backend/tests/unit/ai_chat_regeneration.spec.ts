@@ -1,6 +1,6 @@
 import { test } from '@japa/runner'
 
-import { resolveAiChatRegeneration } from '#services/ai_chat_regeneration'
+import { resolveAiChatRegeneration } from '#ai/ai_chat_regeneration'
 
 const messages = [
   { id: 1, role: 'user' as const, content: 'What can I change?' },

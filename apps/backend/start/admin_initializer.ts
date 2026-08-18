@@ -8,7 +8,7 @@ import {
   isStrongPassword,
   PASSWORD_MAX_LENGTH,
   passwordContext,
-} from '#services/password_strength'
+} from '#security/password_strength'
 import env from '#start/env'
 
 async function ensureAdminUser() {

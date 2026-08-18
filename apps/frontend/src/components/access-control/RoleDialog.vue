@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import type { SystemPermissionOption, SystemRole } from '@/lib/rbac-api'
+import type { SystemPermissionOption, SystemRole } from '@/features/access-control/api'
 
 const props = defineProps<{
   role: SystemRole | null

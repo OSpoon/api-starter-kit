@@ -2,7 +2,7 @@
 import { Copy } from '@lucide/vue'
 
 import { Button } from '@/components/ui/button'
-import type { AiChatCredentialDisclosure } from '@/lib/ai-chat-api'
+import type { AiChatCredentialDisclosure } from '@/features/ai/api'
 
 defineProps<{
   credential: AiChatCredentialDisclosure

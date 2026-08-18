@@ -4,8 +4,8 @@ import type { ComputedRef } from 'vue'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import type { SystemPermission, SystemRole, SystemUser } from '@/features/access-control/api'
 import { usePermission } from '@/lib/permission'
-import type { SystemPermission, SystemRole, SystemUser } from '@/lib/rbac-api'
 
 type AccessControlColumnActions = {
   currentUserId: ComputedRef<number | undefined>

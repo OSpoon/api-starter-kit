@@ -4,7 +4,7 @@ import {
   ADMIN_PASSWORD_MIN_LENGTH,
   isStrongPassword,
   PASSWORD_MAX_LENGTH,
-} from '#services/password_strength'
+} from '#security/password_strength'
 
 /**
  * Shared rules for email and password.

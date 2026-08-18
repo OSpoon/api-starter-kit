@@ -4,7 +4,7 @@ import { test } from '@japa/runner'
 import AiChatConversation from '#models/ai_chat_conversation'
 import AiChatMessage from '#models/ai_chat_message'
 import User from '#models/user'
-import { generateInitialPassword } from '#services/user_credentials'
+import { generateInitialPassword } from '#security/user_credentials'
 
 test.group('AI chat messages', (group) => {
   group.each.setup(() => testUtils.db().wrapInGlobalTransaction())

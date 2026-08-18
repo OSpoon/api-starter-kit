@@ -20,7 +20,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
-import { disable2fa, enable2fa, generate2fa } from '@/lib/account-api'
+import { disable2fa, enable2fa, generate2fa } from '@/features/account/api'
 import { copyText } from '@/lib/clipboard'
 import { PASSWORD_EXPIRY_DAYS, passwordDaysRemaining } from '@/lib/password'
 import { cn } from '@/lib/utils'

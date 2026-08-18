@@ -7,7 +7,7 @@ import AuditLog from '#models/audit_log'
 import Permission from '#models/permission'
 import Role from '#models/role'
 import User from '#models/user'
-import { generateInitialPassword } from '#services/user_credentials'
+import { generateInitialPassword } from '#security/user_credentials'
 
 test.group('rbac', (group) => {
   group.each.setup(() => testUtils.db().wrapInGlobalTransaction())

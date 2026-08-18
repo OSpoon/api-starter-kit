@@ -5,6 +5,9 @@ import type { AgentTool } from '@earendil-works/pi-agent-core'
 import { test } from '@japa/runner'
 import { DateTime } from 'luxon'
 
+import { getAiAgentAction } from '#ai/ai_agent_action_registry'
+import { proposeAiAgentAction } from '#ai/ai_agent_confirmation'
+import { createAiAgentTools } from '#ai/ai_agent_tool_registry'
 import AiAgentConfirmation from '#models/ai_agent_confirmation'
 import AiChatConversation from '#models/ai_chat_conversation'
 import AiChatMessage from '#models/ai_chat_message'
@@ -14,10 +17,7 @@ import Permission from '#models/permission'
 import Role from '#models/role'
 import User from '#models/user'
 import WecomMessageTemplate from '#models/wecom_message_template'
-import { getAiAgentAction } from '#services/ai_agent_action_registry'
-import { proposeAiAgentAction } from '#services/ai_agent_confirmation'
-import { createAiAgentTools } from '#services/ai_agent_tool_registry'
-import { generateInitialPassword } from '#services/user_credentials'
+import { generateInitialPassword } from '#security/user_credentials'
 
 async function executeTool(tool: AgentTool, input: unknown) {
   const result = await tool.execute('test-call', input)
@@ -567,7 +567,7 @@ test.group('AI agent confirmations', (group) => {
     const fakeContext = {
       request: { ip: () => '127.0.0.1', header: () => null },
     } as unknown as import('@adonisjs/core/http').HttpContext
-    const { failUnattachedAgentRunConfirmations } = await import('#services/ai_agent_confirmation')
+    const { failUnattachedAgentRunConfirmations } = await import('#ai/ai_agent_confirmation')
     await failUnattachedAgentRunConfirmations({
       conversationId: conversation.id,
       userId: user.id,

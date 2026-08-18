@@ -1,8 +1,8 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import { test } from '@japa/runner'
 
-import type { createAiAgentStream } from '#services/ai_agent_service'
-import { streamAiAgentToolStatuses, writeAiChatSse } from '#services/ai_chat_sse_adapter'
+import type { createAiAgentStream } from '#ai/ai_agent_service'
+import { streamAiAgentToolStatuses, writeAiChatSse } from '#ai/ai_chat_sse_adapter'
 
 type FakeToolCall = {
   name: string

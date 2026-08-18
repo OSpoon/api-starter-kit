@@ -18,6 +18,7 @@ flowchart TB
   D --> K["Conversation message resume state"]
 ```
 
+- `app/ai` 是独立的 AI 应用模块，包含 Pi runtime、会话编排、SSE 适配、提示词策略和工具注册，不再混入 `app/services`。
 - `ai_chat_controller.ts` 只负责会话归属、输入校验、消息持久化和 HTTP/SSE 生命周期。
 - `ai_chat_sse_adapter.ts` 负责 SSE 写出、keepalive、工具状态详情、阶段和确认事件。
 - `ai_agent_service.ts` 创建 Pi Agent，配置模型、上下文和工具事件流。
@@ -32,8 +33,8 @@ flowchart TB
 | `diagnose_my_access`               | 只诊断当前认证用户的服务端权限。                                                                                                                  |
 | `run_registered_query`             | 只调用 `ai_agent_query_registry` 中的固定模板；禁止自由 SQL。所有列表固定最多返回 20 条，不提供分页或继续查询协议，更多数据需到对应管理模块查看。 |
 | `search_knowledge`                 | 只检索已授权的知识文档，用于产品说明和流程指导，不用于实时系统数据。                                                                              |
-| `propose_system_management_change` | 只创建非 API Key 的持久化变更提议（如用户、角色、权限），不执行破坏性操作。执行必须经过确认 API。                                   |
-| `propose_api_key_creation`        | 只创建 API Key 的持久化变更提议；不执行，必须经过确认 API。                                                                             |
+| `propose_system_management_change` | 只创建非 API Key 的持久化变更提议（如用户、角色、权限），不执行破坏性操作。执行必须经过确认 API。                                                 |
+| `propose_api_key_creation`         | 只创建 API Key 的持久化变更提议；不执行，必须经过确认 API。                                                                                       |
 | `propose_api_key_revocation`       | 只创建吊销活跃 API Key 的持久化提议，与删除工具解耦；不执行。执行必须经过确认 API。                                                               |
 | `propose_api_key_deletion`         | 只创建删除已吊销 API Key 的持久化提议；不执行。执行必须经过确认 API。                                                                             |
 

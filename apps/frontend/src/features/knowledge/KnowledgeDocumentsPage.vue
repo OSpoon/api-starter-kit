@@ -9,6 +9,8 @@ import ListPage from '@/components/common/ListPage.vue'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog } from '@/components/ui/dialog'
+import { listSystemRoleCatalog, type SystemRoleOption } from '@/features/access-control/api'
+import { badgeToneClass } from '@/features/api-keys/api'
 import {
   createKnowledgeDocument,
   deleteKnowledgeDocument,
@@ -19,9 +21,7 @@ import {
   updateKnowledgeDocument,
 } from '@/features/knowledge/api'
 import KnowledgeDocumentDialog from '@/features/knowledge/components/KnowledgeDocumentDialog.vue'
-import { badgeToneClass } from '@/lib/api-key-api'
 import { formatDateTime } from '@/lib/format'
-import { listSystemRoleCatalog, type SystemRoleOption } from '@/lib/rbac-api'
 import { useDelayedDialog } from '@/lib/use-delayed-dialog'
 import { useAuthStore } from '@/stores/auth'
 

@@ -4,6 +4,7 @@ import type { HttpContext } from '@adonisjs/core/http'
 import { ApiOperation, ApiResponse } from '@foadonis/openapi/decorators'
 
 import User from '#models/user'
+import { createTwoFactorTempToken } from '#security/two_factor_token'
 import {
   consumeGithubLoginExchange,
   createGithubLoginExchange,
@@ -14,7 +15,6 @@ import {
   githubOAuthErrors,
   githubOAuthIsConfigured,
 } from '#services/github_oauth'
-import { createTwoFactorTempToken } from '#services/two_factor_token'
 import { loadUserAccess } from '#services/user_access'
 import UserTransformer from '#transformers/user_transformer'
 

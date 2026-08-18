@@ -3,13 +3,13 @@ import crypto from 'node:crypto'
 import type { HttpContext } from '@adonisjs/core/http'
 import { DateTime } from 'luxon'
 
-import AiAgentConfirmation from '#models/ai_agent_confirmation'
 import {
   AiAgentActionAuthorizationError,
   type AiAgentActionImpact,
   getAiAgentAction,
   getAiAgentActionChangeSummary,
-} from '#services/ai_agent_action_registry'
+} from '#ai/ai_agent_action_registry'
+import AiAgentConfirmation from '#models/ai_agent_confirmation'
 import { recordAuditEvent } from '#services/audit_log'
 
 const confirmationLifetimeMinutes = 5

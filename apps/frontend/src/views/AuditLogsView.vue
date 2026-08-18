@@ -6,7 +6,7 @@ import { toast } from 'vue-sonner'
 import DataTable from '@/components/common/DataTable.vue'
 import ListPage from '@/components/common/ListPage.vue'
 import { Badge } from '@/components/ui/badge'
-import { type AuditLogEntry, listAuditLogs } from '@/lib/rbac-api'
+import { type AuditLogEntry, listAuditLogs } from '@/features/access-control/api'
 import { useAuthStore } from '@/stores/auth'
 
 const auth = useAuthStore()

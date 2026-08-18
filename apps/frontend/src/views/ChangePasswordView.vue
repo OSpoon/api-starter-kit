@@ -6,7 +6,7 @@ import PasswordStrength from '@/components/PasswordStrength.vue'
 import { Button } from '@/components/ui/button'
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
-import { validatePasswordChange } from '@/lib/change-password-form'
+import { validatePasswordChange } from '@/features/account/change-password-form'
 import { passwordContext } from '@/lib/password'
 import { useAuthStore } from '@/stores/auth'
 

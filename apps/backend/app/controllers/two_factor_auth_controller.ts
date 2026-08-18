@@ -6,14 +6,14 @@ import { generateSecret, generateURI, verify } from 'otplib'
 import QRCode from 'qrcode'
 
 import User from '#models/user'
-import { recordAuditEvent } from '#services/audit_log'
 import {
   decryptRecoveryCodes,
   decryptTwoFactorSecret,
   encryptRecoveryCodes,
   encryptTwoFactorSecret,
-} from '#services/two_factor_secret_store'
-import { parseTwoFactorTempToken } from '#services/two_factor_token'
+} from '#security/two_factor_secret_store'
+import { parseTwoFactorTempToken } from '#security/two_factor_token'
+import { recordAuditEvent } from '#services/audit_log'
 import { loadUserAccess } from '#services/user_access'
 import UserTransformer from '#transformers/user_transformer'
 import { enableTwoFactorValidator, verifyTwoFactorValidator } from '#validators/user'

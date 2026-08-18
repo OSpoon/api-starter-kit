@@ -2,10 +2,10 @@ import { BaseCommand } from '@adonisjs/core/ace'
 import type { AgentTool } from '@earendil-works/pi-agent-core'
 import { Type } from '@earendil-works/pi-ai'
 
-import { createPiAgent } from '#services/ai_agent_pi_runtime'
-import { aiQueryTemplateInstructions } from '#services/ai_agent_query_registry'
-import { createAiAgentSystemPrompt } from '#services/ai_agent_service'
-import { aiAssistantEvaluationCases, evaluateAiAssistantTurn } from '#services/ai_evaluation'
+import { createPiAgent } from '#ai/ai_agent_pi_runtime'
+import { aiQueryTemplateInstructions } from '#ai/ai_agent_query_registry'
+import { createAiAgentSystemPrompt } from '#ai/ai_agent_service'
+import { aiAssistantEvaluationCases, evaluateAiAssistantTurn } from '#ai/ai_evaluation'
 
 function evaluationTool(
   name: string,

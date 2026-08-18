@@ -3,7 +3,7 @@ import { Bot, Copy, RotateCcw, User } from '@lucide/vue'
 
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
-import type { AiChatAgentActivity, AiChatPlanStep } from '@/lib/ai-chat-api'
+import type { AiChatAgentActivity, AiChatPlanStep } from '@/features/ai/api'
 
 import AiMessageContent from './AiMessageContent.vue'
 

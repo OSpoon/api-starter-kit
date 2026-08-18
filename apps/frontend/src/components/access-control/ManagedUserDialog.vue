@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import type { SystemRoleOption, SystemUser } from '@/lib/rbac-api'
+import type { SystemRoleOption, SystemUser } from '@/features/access-control/api'
 
 const props = defineProps<{
   user: SystemUser | null
