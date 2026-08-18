@@ -199,16 +199,88 @@
     },
     "query_templates": {
       "active_api_keys": "当前有效的 API Key",
+      "api_key_profile": "API Key 详情",
       "managed_users": "用户及其角色",
+      "managed_user_profile": "用户详情",
       "recent_audit_logs": "最近审计记录",
       "roles_with_permissions": "角色及其权限",
+      "role_profile": "角色详情",
       "permission_catalog": "权限目录",
-      "recent_access_control_changes": "访问控制变更记录"
+      "permission_usage": "权限使用情况",
+      "recent_access_control_changes": "访问控制变更记录",
+      "wecom_message_templates": "企业微信消息模板",
+      "wecom_message_template_profile": "企业微信消息模板详情",
+      "wecom_message_preview": "企业微信消息预览",
+      "generic": "查询系统数据"
     },
     "query_status": {
       "running": "正在查询",
       "done": "已完成查询",
       "error": "查询失败"
+    },
+    "timeline": {
+      "title": "运行详情",
+      "tools_section": "工具调用",
+      "plan_section": "执行计划",
+      "run_section": "运行摘要",
+      "plan": "执行计划",
+      "run": "运行完成 · {duration} 秒",
+      "states": {
+        "running": "正在",
+        "done": "已完成",
+        "error": "执行失败："
+      },
+      "tools": {
+        "run_registered_query": "查询数据",
+        "search_knowledge": "检索知识",
+        "diagnose_my_access": "检查权限",
+        "propose_api_key_revocation": "准备吊销提案",
+        "propose_api_key_deletion": "准备删除提案",
+        "propose_api_key_creation": "准备创建提案",
+        "propose_system_management_change": "准备管理提案",
+        "propose_wecom_message_send": "准备发送企业微信消息提案",
+        "generic": "执行工具"
+      },
+      "returned": "返回 {count} 条",
+      "tools_count": "{count} 个工具",
+      "steps_count": "{count} 个步骤",
+      "results_count": "返回 {count} 条"
+    },
+    "permissions": {
+      "api-keys:read": "查看 API Key",
+      "api-keys:create": "创建 API Key",
+      "api-keys:update": "修改 API Key",
+      "api-keys:delete": "删除 API Key",
+      "users:read": "查看用户",
+      "users:create": "创建用户",
+      "users:update": "修改用户",
+      "users:delete": "删除用户",
+      "roles:read": "查看角色",
+      "roles:create": "创建角色",
+      "roles:update": "修改角色",
+      "roles:delete": "删除角色",
+      "permissions:read": "查看权限",
+      "permissions:create": "创建权限",
+      "permissions:update": "修改权限",
+      "permissions:delete": "删除权限",
+      "audit-logs:read": "查看审计日志",
+      "knowledge:read": "检索知识库",
+      "knowledge:manage": "管理知识库",
+      "wecom-templates:read": "查看企业微信模板",
+      "wecom-templates:create": "创建企业微信模板",
+      "wecom-templates:update": "修改企业微信模板",
+      "wecom-templates:delete": "删除企业微信模板",
+      "wecom-templates:send": "发送企业微信消息",
+      "wecom-templates:test": "测试企业微信消息",
+      "generic": "指定权限"
+    },
+    "target_types": {
+      "api_key": "API Key",
+      "user": "用户",
+      "role": "角色",
+      "permission": "权限",
+      "wecom_message_template": "企业微信消息模板",
+      "generic": "目标对象"
     },
     "knowledge_status": {
       "running": "正在检索知识文档",
@@ -229,7 +301,9 @@
       "delete_role": "删除角色",
       "create_permission": "创建权限",
       "update_permission": "更新权限",
-      "delete_permission": "删除权限"
+      "delete_permission": "删除权限",
+      "send_wecom_message": "发送企业微信消息",
+      "generic": "系统管理操作"
     },
     "confirmations": {
       "revoke_api_key": "准备吊销 API Key「{name}」（{prefix}）。确认后，所有使用此密钥的脚本将立即失效。",
@@ -239,6 +313,7 @@
       "success": "API Key 已吊销"
     },
     "approval": {
+      "source": "此确认由“{source}”产生",
       "approve": "批准",
       "cancel": "取消",
       "target": "影响对象：{target}",
@@ -283,6 +358,12 @@
         "delete_permission": "删除权限",
         "generic": "系统变更"
       }
+    },
+    "confirmation_separator": "{action}已{status}",
+    "confirmation_status": {
+      "confirmed": "确认执行",
+      "failed": "执行失败",
+      "expired": "已过期"
     },
     "credential": {
       "copy": "复制",

@@ -43,7 +43,18 @@ function tool<TZodSchema extends z.ZodTypeAny, TResult>(
     executionMode: options.executionMode ?? 'sequential',
     execute: async (_toolCallId, input, signal) => {
       if (signal?.aborted) throw new DOMException('AI request was cancelled', 'AbortError')
-      const details = await execute(options.schema.parse(input))
+      let details: TResult
+      try {
+        details = await execute(options.schema.parse(input))
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') throw error
+        const message = error instanceof Error ? error.message : '工具参数或执行结果无效'
+        details = {
+          kind: 'action_error',
+          code: /权限|permission/i.test(message) ? 'permission_denied' : 'invalid_input',
+          message,
+        } as TResult
+      }
       return {
         content: [{ type: 'text' as const, text: JSON.stringify(details) }],
         details,
@@ -62,11 +73,21 @@ function tool<TZodSchema extends z.ZodTypeAny, TResult>(
 const piToolParameters = {
   diagnoseMyAccess: Type.Object({ permissionCode: Type.Optional(Type.String()) }),
   runRegisteredQuery: Type.Object({
-    templateCode: Type.String(),
+    templateCode: Type.Union(
+      aiQueryTemplateCodes.map((code) => Type.Literal(code)) as unknown as [
+        TSchema,
+        TSchema,
+        ...TSchema[],
+      ]
+    ),
     params: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
   }),
   searchKnowledge: Type.Object({ query: Type.String() }),
-  apiKeyTarget: Type.Record(Type.String(), Type.Unknown()),
+  apiKeyTarget: Type.Union([
+    Type.Object({ apiKeyId: Type.Integer({ minimum: 1 }) }),
+    Type.Object({ id: Type.Integer({ minimum: 1 }) }),
+    Type.Object({ name: Type.String({ minLength: 1, maxLength: 120 }) }),
+  ]),
   systemManagementChange: Type.Object({
     action: Type.Union(
       genericProposalActionNames.map((action) => Type.Literal(action)) as unknown as [
@@ -173,7 +194,7 @@ export function createAiAgentTools(input: AiAgentToolContext): AgentTool[] {
       },
       {
         name: 'run_registered_query',
-        description: `Run one registered query template for current system data only (users, roles, permissions, API Keys, audit logs). Never use it for product documentation, workflows, configuration guidance, or general explanations. Templates: ${aiQueryTemplateInstructions}. Use only these codes; never write SQL or infer schema. On missing_parameters, request only the listed fields, then retry the same template.`,
+        description: `Run one registered query template for current system data only (users, roles, permissions, API Keys, audit logs). Never use it for product documentation, workflows, configuration guidance, or general explanations. Templates: ${aiQueryTemplateInstructions}. Use only these codes; never write SQL or infer schema. For api_key_profile, pass the exact user-provided name when no ID is available. On missing_parameters, request only the listed fields, then retry the same template.`,
         schema: z.object({
           templateCode: z.enum(aiQueryTemplateCodes),
           params: z.record(z.unknown()).default({}),
@@ -217,7 +238,7 @@ export function createAiAgentTools(input: AiAgentToolContext): AgentTool[] {
       {
         name: 'propose_api_key_revocation',
         description:
-          'Prepare a proposal to revoke (invalidate) an active API Key. Never execute it: the structured confirmation card is required. Target the key with apiKeyId, id, or its exact name, reusing the value the user provided or a value returned by run_registered_query; never invent one. The key must still be active; before proposing, verify the key and its status with run_registered_query api_key_profile unless the user already confirmed both this turn. Already-revoked keys must use propose_api_key_deletion instead.',
+          'Prepare a proposal to revoke (invalidate) an active API Key. Never execute it: the structured confirmation card is required. Pass exactly one target field: apiKeyId, id, or name. Reuse the exact name or ID already supplied anywhere in the current conversation; if the latest user message supplies the name, pass it directly and never ask for it again or call this tool without that field. Never invent a target. The key must still be active; verify the key and its status before proposing when an ID is available. Already-revoked keys must use propose_api_key_deletion instead.',
         schema: aiApiKeyChangeSchema,
         parameters: piToolParameters.apiKeyTarget,
       }
@@ -229,7 +250,7 @@ export function createAiAgentTools(input: AiAgentToolContext): AgentTool[] {
       {
         name: 'propose_api_key_deletion',
         description:
-          'Prepare a proposal to permanently delete an API Key that is already revoked. Never execute it: the structured confirmation card is required. Target the key with apiKeyId, id, or its exact name, reusing the value the user provided or a value returned by run_registered_query; never invent one. The key must already be revoked; active keys must use propose_api_key_revocation first.',
+          'Prepare a proposal to permanently delete an API Key that is already revoked. Never execute it: the structured confirmation card is required. Pass exactly one target field: apiKeyId, id, or name. Reuse the exact name or ID already supplied anywhere in the current conversation; if the latest user message supplies the name, pass it directly and never ask for it again or call this tool without that field. Never invent a target. The key must already be revoked; active keys must use propose_api_key_revocation first.',
         schema: aiApiKeyChangeSchema,
         parameters: piToolParameters.apiKeyTarget,
       }
@@ -253,7 +274,7 @@ export function createAiAgentTools(input: AiAgentToolContext): AgentTool[] {
       {
         name: 'propose_api_key_creation',
         description:
-          'When the user requests API Key creation, call this tool before replying; never claim that a proposal or confirmation card exists without a successful tool result. Prepare a proposal to create a new API Key. The name is required and must be exactly the name provided by the user. expiresIn is optional and must be one of 30d, 90d, 180d, or long. Never execute it directly: the structured confirmation card is required. Do not wrap arguments in action or input; pass name and optional expiresIn as direct fields.',
+          'When the user requests API Key creation, call this tool before replying; never claim that a proposal or confirmation card exists without a successful tool result. Prepare a proposal to create a new API Key. The name is required and must be exactly supplied by the user; if the user has not supplied a name, ask for it instead of inventing a default name. If the conversation contains a pending creation proposal and the user wants to replace it, treat the old item as an unexecuted proposal, not an existing API Key. expiresIn is optional and must be one of 30d, 90d, 180d, or long. Never execute it directly: the structured confirmation card is required. Do not wrap arguments in action or input; pass name and optional expiresIn as direct fields.',
         schema: z.object({
           name: z.string().trim().min(1).max(120),
           expiresIn: z.enum(['30d', '90d', '180d', 'long']).optional(),

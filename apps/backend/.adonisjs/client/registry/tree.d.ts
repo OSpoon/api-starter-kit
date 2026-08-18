@@ -97,7 +97,8 @@ export interface ApiDefinition {
     store: typeof routes['ai_chat.store']
     show: typeof routes['ai_chat.show']
     sendMessage: typeof routes['ai_chat.send_message']
-    resume: typeof routes['ai_chat.resume']
+    steer: typeof routes['ai_chat.steer']
+    followUp: typeof routes['ai_chat.follow_up']
     confirmAiAgentAction: typeof routes['ai_chat.confirm_ai_agent_action']
     destroy: typeof routes['ai_chat.destroy']
   }

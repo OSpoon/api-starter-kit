@@ -290,7 +290,7 @@ function clearChat() {
 
 function sendMessage(message = input.value) {
   const content = message.trim()
-  if (!content || props.loading || props.disabled) {
+  if (!content || props.disabled) {
     return
   }
 
@@ -627,7 +627,7 @@ onUnmounted(() => {
               rows="1"
               :placeholder="inputPlaceholder"
               class="max-h-50 min-h-10 w-full resize-none py-3 pr-12"
-              :disabled="loading || disabled"
+              :disabled="disabled"
               @compositionstart="handleCompositionStart"
               @compositionend="handleCompositionEnd"
               @keydown="handleKeydown"

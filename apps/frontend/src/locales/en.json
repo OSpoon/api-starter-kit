@@ -199,16 +199,88 @@
     },
     "query_templates": {
       "active_api_keys": "active API keys",
+      "api_key_profile": "API key details",
       "managed_users": "users and roles",
+      "managed_user_profile": "user details",
       "recent_audit_logs": "recent audit logs",
       "roles_with_permissions": "roles and permissions",
+      "role_profile": "role details",
       "permission_catalog": "permission catalog",
-      "recent_access_control_changes": "access-control changes"
+      "permission_usage": "permission usage",
+      "recent_access_control_changes": "access-control changes",
+      "wecom_message_templates": "WeCom message templates",
+      "wecom_message_template_profile": "WeCom message template details",
+      "wecom_message_preview": "WeCom message preview",
+      "generic": "system data query"
     },
     "query_status": {
       "running": "Querying",
       "done": "Query completed",
       "error": "Query failed"
+    },
+    "timeline": {
+      "title": "Run details",
+      "tools_section": "Tool calls",
+      "plan_section": "Execution plan",
+      "run_section": "Run summary",
+      "plan": "Execution plan",
+      "run": "Run completed · {duration}s",
+      "states": {
+        "running": "Running ",
+        "done": "Completed ",
+        "error": "Failed: "
+      },
+      "tools": {
+        "run_registered_query": "Query data",
+        "search_knowledge": "Search knowledge",
+        "diagnose_my_access": "Check permissions",
+        "propose_api_key_revocation": "Prepare revoke proposal",
+        "propose_api_key_deletion": "Prepare delete proposal",
+        "propose_api_key_creation": "Prepare create proposal",
+        "propose_system_management_change": "Prepare management proposal",
+        "propose_wecom_message_send": "Prepare WeCom send proposal",
+        "generic": "Run tool"
+      },
+      "returned": "returned {count}",
+      "tools_count": "{count} tools",
+      "steps_count": "{count} steps",
+      "results_count": "returned {count}"
+    },
+    "permissions": {
+      "api-keys:read": "view API keys",
+      "api-keys:create": "create API keys",
+      "api-keys:update": "update API keys",
+      "api-keys:delete": "delete API keys",
+      "users:read": "view users",
+      "users:create": "create users",
+      "users:update": "update users",
+      "users:delete": "delete users",
+      "roles:read": "view roles",
+      "roles:create": "create roles",
+      "roles:update": "update roles",
+      "roles:delete": "delete roles",
+      "permissions:read": "view permissions",
+      "permissions:create": "create permissions",
+      "permissions:update": "update permissions",
+      "permissions:delete": "delete permissions",
+      "audit-logs:read": "view audit logs",
+      "knowledge:read": "search the knowledge base",
+      "knowledge:manage": "manage the knowledge base",
+      "wecom-templates:read": "view WeCom templates",
+      "wecom-templates:create": "create WeCom templates",
+      "wecom-templates:update": "update WeCom templates",
+      "wecom-templates:delete": "delete WeCom templates",
+      "wecom-templates:send": "send WeCom messages",
+      "wecom-templates:test": "test WeCom messages",
+      "generic": "the specified permission"
+    },
+    "target_types": {
+      "api_key": "API key",
+      "user": "user",
+      "role": "role",
+      "permission": "permission",
+      "wecom_message_template": "WeCom message template",
+      "generic": "target"
     },
     "knowledge_status": {
       "running": "Searching knowledge",
@@ -229,7 +301,9 @@
       "delete_role": "Delete role",
       "create_permission": "Create permission",
       "update_permission": "Update permission",
-      "delete_permission": "Delete permission"
+      "delete_permission": "Delete permission",
+      "send_wecom_message": "Send WeCom message",
+      "generic": "system management operation"
     },
     "confirmations": {
       "revoke_api_key": "Ready to revoke API key “{name}” ({prefix}). Once confirmed, any script using this key will stop immediately.",
@@ -239,6 +313,7 @@
       "success": "API key revoked"
     },
     "approval": {
+      "source": "This confirmation was created by “{source}”",
       "approve": "Approve",
       "cancel": "Cancel",
       "target": "Affected item: {target}",
@@ -283,6 +358,12 @@
         "delete_permission": "Delete permission",
         "generic": "System change"
       }
+    },
+    "confirmation_separator": "{action} {status}",
+    "confirmation_status": {
+      "confirmed": "confirmed",
+      "failed": "failed",
+      "expired": "expired"
     },
     "credential": {
       "copy": "Copy",

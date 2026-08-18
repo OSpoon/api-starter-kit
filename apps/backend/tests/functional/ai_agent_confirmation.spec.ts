@@ -93,6 +93,35 @@ test.group('AI agent confirmations', (group) => {
     assert.isUndefined(output.confirmation.payload)
   })
 
+  test('normalizes a nested API Key target before preparing revocation', async ({ assert }) => {
+    const superAdminRole = await Role.findByOrFail('code', 'super-admin')
+    const user = await User.create({
+      fullName: 'Nested target admin',
+      email: `nested-target-${Date.now()}@example.com`,
+      password: generateInitialPassword(),
+    })
+    await user.related('roles').sync([superAdminRole.id])
+    const apiKey = await ApiKey.create({
+      name: `Nested target key ${Date.now()}`,
+      prefix: 'nested_target',
+      keyHash: `hash-nested-${Date.now()}`,
+    })
+    const conversation = await AiChatConversation.create({
+      userId: user.id,
+      title: 'Nested target',
+    })
+    const tool = createAiAgentTools({
+      userId: user.id,
+      conversationId: conversation.id,
+      agentRunId: crypto.randomUUID(),
+    }).find((registeredTool) => registeredTool.name === 'propose_api_key_revocation')
+
+    const output = JSON.parse(await executeTool(tool!, { input: { id: apiKey.id } }))
+
+    assert.equal(output.kind, 'confirmation')
+    assert.equal(output.confirmation.targetId, String(apiKey.id))
+  })
+
   test('reuses a pending proposal when the same agent run retries an action', async ({
     assert,
   }) => {
@@ -151,8 +180,14 @@ test.group('AI agent confirmations', (group) => {
     response.assertStatus(200)
     const revokedApiKey = await ApiKey.findOrFail(apiKey.id)
     const confirmedRequest = await AiAgentConfirmation.findOrFail(confirmation.id)
+    const assistantMessage = await AiChatMessage.findOrFail(confirmation.assistantMessageId)
     assert.isNotNull(revokedApiKey.revokedAt)
     assert.equal(confirmedRequest.status, 'confirmed')
+    assert.deepInclude(assistantMessage.runtimeDetails.at(-1), {
+      kind: 'confirmation',
+      action: 'revoke_api_key',
+      status: 'confirmed',
+    })
     assert.exists(
       await AuditLog.query()
         .where('action', 'agent.action_confirmed')
@@ -336,7 +371,7 @@ test.group('AI agent confirmations', (group) => {
     }).find((tool) => tool.name === 'propose_api_key_deletion')
 
     const output = await executeTool(proposalTool!, {
-      apiKeyId: apiKey.id,
+      name: apiKey.name,
     })
 
     const content = JSON.parse(String(output))

@@ -33,7 +33,7 @@ AI 助手当前基于 Pi Agent 运行。工具参数和调用契约由 Pi 的工
 | API Key          | 创建、更新、吊销、删除、过期管理、哈希校验和仅一次明文展示                         |
 | 审计日志         | 关键管理操作与已确认 AI 操作的可检索记录                                           |
 | 知识库           | 审查后的文档管理、角色访问控制、向量检索和结构化检索元数据                         |
-| AI 工作台        | Pi Agent 流式对话、历史持久化、知识问答、注册查询和需确认的管理操作提议                 |
+| AI 工作台        | Pi Agent 流式对话、历史持久化、知识问答、注册查询和需确认的管理操作提议            |
 | UI 模板          | 管理列表、详情、设置、流程、分析、向导与操作模式示例                               |
 | 交付基础         | OpenAPI/Scalar、Docker、pgvector PostgreSQL、国际化与自动化检查                    |
 
@@ -60,7 +60,7 @@ pnpm --dir apps/backend exec node ace migration:run
 pnpm dev
 ```
 
-AI 助手当前使用 Pi Agent 运行时，并通过会话消息重建可恢复状态。修改工具、Pi runtime、提示词或确认流程后，至少运行：
+AI 助手当前使用 Pi Agent 运行时：人工介入通过原生 `steer`/`followUp` 队列，停止生成通过 `abort`，长会话通过 Pi compaction 生成并持久化摘要，工具进度通过 `tool_execution_update` 转为 SSE 状态事件，脱敏后的运行详情会随助手消息持久化并在历史会话中恢复。修改工具、Pi runtime、提示词或确认流程后，至少运行：
 
 ```bash
 pnpm --dir apps/backend typecheck

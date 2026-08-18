@@ -318,11 +318,17 @@ const routes = {
     tokens: [{"old":"/api/v1/ai-chat/conversations/:id/messages","type":0,"val":"api","end":""},{"old":"/api/v1/ai-chat/conversations/:id/messages","type":0,"val":"v1","end":""},{"old":"/api/v1/ai-chat/conversations/:id/messages","type":0,"val":"ai-chat","end":""},{"old":"/api/v1/ai-chat/conversations/:id/messages","type":0,"val":"conversations","end":""},{"old":"/api/v1/ai-chat/conversations/:id/messages","type":1,"val":"id","end":""},{"old":"/api/v1/ai-chat/conversations/:id/messages","type":0,"val":"messages","end":""}],
     types: placeholder as Registry['ai_chat.send_message']['types'],
   },
-  'ai_chat.resume': {
+  'ai_chat.steer': {
     methods: ["POST"],
-    pattern: '/api/v1/ai-chat/conversations/:id/resume',
-    tokens: [{"old":"/api/v1/ai-chat/conversations/:id/resume","type":0,"val":"api","end":""},{"old":"/api/v1/ai-chat/conversations/:id/resume","type":0,"val":"v1","end":""},{"old":"/api/v1/ai-chat/conversations/:id/resume","type":0,"val":"ai-chat","end":""},{"old":"/api/v1/ai-chat/conversations/:id/resume","type":0,"val":"conversations","end":""},{"old":"/api/v1/ai-chat/conversations/:id/resume","type":1,"val":"id","end":""},{"old":"/api/v1/ai-chat/conversations/:id/resume","type":0,"val":"resume","end":""}],
-    types: placeholder as Registry['ai_chat.resume']['types'],
+    pattern: '/api/v1/ai-chat/conversations/:id/steer',
+    tokens: [{"old":"/api/v1/ai-chat/conversations/:id/steer","type":0,"val":"api","end":""},{"old":"/api/v1/ai-chat/conversations/:id/steer","type":0,"val":"v1","end":""},{"old":"/api/v1/ai-chat/conversations/:id/steer","type":0,"val":"ai-chat","end":""},{"old":"/api/v1/ai-chat/conversations/:id/steer","type":0,"val":"conversations","end":""},{"old":"/api/v1/ai-chat/conversations/:id/steer","type":1,"val":"id","end":""},{"old":"/api/v1/ai-chat/conversations/:id/steer","type":0,"val":"steer","end":""}],
+    types: placeholder as Registry['ai_chat.steer']['types'],
+  },
+  'ai_chat.follow_up': {
+    methods: ["POST"],
+    pattern: '/api/v1/ai-chat/conversations/:id/follow-up',
+    tokens: [{"old":"/api/v1/ai-chat/conversations/:id/follow-up","type":0,"val":"api","end":""},{"old":"/api/v1/ai-chat/conversations/:id/follow-up","type":0,"val":"v1","end":""},{"old":"/api/v1/ai-chat/conversations/:id/follow-up","type":0,"val":"ai-chat","end":""},{"old":"/api/v1/ai-chat/conversations/:id/follow-up","type":0,"val":"conversations","end":""},{"old":"/api/v1/ai-chat/conversations/:id/follow-up","type":1,"val":"id","end":""},{"old":"/api/v1/ai-chat/conversations/:id/follow-up","type":0,"val":"follow-up","end":""}],
+    types: placeholder as Registry['ai_chat.follow_up']['types'],
   },
   'ai_chat.confirm_ai_agent_action': {
     methods: ["POST"],

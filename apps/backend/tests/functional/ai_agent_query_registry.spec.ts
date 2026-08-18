@@ -188,8 +188,26 @@ test.group('AI agent registered queries', (group) => {
     assert.deepEqual(missing, {
       kind: 'missing_parameters',
       templateCode: 'api_key_profile',
-      missingFields: [{ name: 'apiKeyId', description: 'Required positive API Key ID.' }],
+      missingFields: [
+        { name: 'apiKeyIdOrName', description: 'Required positive API Key ID or exact name.' },
+      ],
     })
+    const byName = await runRegisteredAiQuery({
+      conversationId: conversation.id,
+      userId: user.id,
+      templateCode: 'api_key_profile',
+      params: { name: revoked.name },
+    })
+    assert.equal(byName.kind, 'query_result')
+    assert.equal((byName as { rows: Array<{ id: number }> }).rows[0]?.id, revoked.id)
+    const byIdAlias = await runRegisteredAiQuery({
+      conversationId: conversation.id,
+      userId: user.id,
+      templateCode: 'api_key_profile',
+      params: { id: revoked.id },
+    })
+    assert.equal(byIdAlias.kind, 'query_result')
+    assert.equal((byIdAlias as { rows: Array<{ id: number }> }).rows[0]?.id, revoked.id)
     const completed = await runRegisteredAiQuery({
       conversationId: conversation.id,
       userId: user.id,

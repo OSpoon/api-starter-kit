@@ -1,4 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http'
+import type { AssistantMessage } from '@earendil-works/pi-ai'
 
 import type {
   AiAgentActionToolArtifact,
@@ -28,6 +29,20 @@ export type AiAgentToolFrame =
     }
   | { event: 'tool_completed'; data: { name: string; output: unknown } }
   | { event: 'agent_confirmation'; data: AiAgentConfirmationSummary }
+
+export type AiAgentTurnEvent =
+  | { source: 'message_start' }
+  | { source: 'message_delta'; value: string }
+  | {
+      source: 'message_end'
+      value: {
+        inputTokens: number
+        outputTokens: number
+        totalTokens: number
+        error?: Error
+      }
+    }
+  | { source: 'frame'; value: AiAgentToolFrame }
 
 export function writeAiChatSse(response: HttpContext['response'], event: string, data: unknown) {
   if (response.response.writableEnded || response.response.destroyed) return
@@ -128,6 +143,23 @@ function getAgentStatusPhase(name: string, state: 'running' | 'done' | 'error') 
   return undefined
 }
 
+function getToolProgressDetail(partialResult: unknown) {
+  if (!partialResult || typeof partialResult !== 'object') return undefined
+  const value = partialResult as Record<string, unknown>
+  const detail: Record<string, unknown> = {}
+  if (typeof value.message === 'string') detail.message = value.message.slice(0, 240)
+  if (typeof value.progress === 'number' && Number.isFinite(value.progress)) {
+    detail.progress = Math.max(0, Math.min(100, value.progress))
+  }
+  if (typeof value.completed === 'number' && Number.isFinite(value.completed)) {
+    detail.completed = Math.max(0, value.completed)
+  }
+  if (typeof value.total === 'number' && Number.isFinite(value.total)) {
+    detail.total = Math.max(0, value.total)
+  }
+  return Object.keys(detail).length > 0 ? detail : undefined
+}
+
 function readAgentToolArtifact(output: unknown): AiAgentActionToolArtifact | null {
   if (
     output &&
@@ -140,10 +172,17 @@ function readAgentToolArtifact(output: unknown): AiAgentActionToolArtifact | nul
   return null
 }
 
-export async function* streamAiAgentToolFrames(
+function assistantText(message: AssistantMessage) {
+  return message.content
+    .filter((part): part is { type: 'text'; text: string } => part.type === 'text')
+    .map((part) => part.text)
+    .join('')
+}
+
+export async function* streamAiAgentTurnEvents(
   run: Awaited<ReturnType<typeof createAiAgentStream>>,
   signal: AbortSignal
-): AsyncGenerator<AiAgentToolFrame> {
+): AsyncGenerator<AiAgentTurnEvent> {
   const plan: AiAgentPlanStep[] = [
     { key: 'identify_target', state: 'pending' },
     { key: 'prepare_proposal', state: 'pending' },
@@ -153,59 +192,137 @@ export async function* streamAiAgentToolFrames(
     event: 'agent_plan',
     data: { steps: plan.map((step) => ({ ...step })) },
   })
-  for await (const toolCall of run.stream.toolCalls) {
+  const toolStartedAt = new Map<string, number>()
+  const toolInputs = new Map<string, unknown>()
+  let streamedAssistantText = ''
+  for await (const event of run.stream.events) {
     if (signal.aborted) throw new DOMException('AI request was cancelled', 'AbortError')
-    const toolStartedAt = Date.now()
-    if (isProposalTool(toolCall.name)) {
-      plan[0].state = 'done'
-      plan[1].state = 'running'
-      yield planFrame()
+    if (event.type === 'message_start' && event.message.role === 'assistant') {
+      streamedAssistantText = ''
+      yield { source: 'message_start' }
+      continue
     }
-    const runningDetail = getAgentStatusDetail(toolCall.name, toolCall.input)
-    const runningPhase = getAgentStatusPhase(toolCall.name, 'running')
-    yield {
-      event: 'agent_status',
-      data: {
-        name: toolCall.name,
-        callId: toolCall.callId,
-        state: 'running',
-        ...(runningDetail ? { detail: runningDetail } : {}),
-        ...(runningPhase ? { phase: runningPhase } : {}),
-      },
+    if (event.type === 'message_update' && event.assistantMessageEvent.type === 'text_delta') {
+      streamedAssistantText += event.assistantMessageEvent.delta
+      yield { source: 'message_delta', value: event.assistantMessageEvent.delta }
+      continue
     }
-    const state = await toolCall.status
-    const output = state === 'finished' ? await toolCall.output : null
-    const toolArtifact = readAgentToolArtifact(output)
-    const toolError = toolArtifact?.kind === 'action_error' ? toolArtifact.message : null
-    const toolErrorCode = toolArtifact?.kind === 'action_error' ? toolArtifact.code : undefined
-    const visibleToolError = toolArtifact?.kind === 'action_error' ? null : toolError
-    const completedDetail = getAgentStatusDetail(toolCall.name, toolCall.input, output)
-    const completedState = state === 'finished' && !visibleToolError ? 'done' : 'error'
-    yield {
-      event: 'agent_status',
-      data: {
-        name: toolCall.name,
-        callId: toolCall.callId,
-        state: completedState,
-        durationMs: Date.now() - toolStartedAt,
-        ...(completedDetail ? { detail: completedDetail } : {}),
-        ...(getAgentStatusPhase(toolCall.name, completedState)
-          ? { phase: getAgentStatusPhase(toolCall.name, completedState) }
-          : {}),
-        ...(visibleToolError ? { message: visibleToolError } : {}),
-        ...(toolErrorCode ? { errorCode: toolErrorCode } : {}),
-      },
-    }
-    if (state === 'finished') {
-      if (isProposalTool(toolCall.name)) {
-        plan[1].state = 'done'
-        plan[2].state = 'running'
-        yield planFrame()
+    if (event.type === 'message_end' && event.message.role === 'assistant') {
+      const finalText = assistantText(event.message)
+      if (finalText.startsWith(streamedAssistantText)) {
+        const remainder = finalText.slice(streamedAssistantText.length)
+        if (remainder) yield { source: 'message_delta', value: remainder }
+      } else if (finalText && !streamedAssistantText) {
+        yield { source: 'message_delta', value: finalText }
       }
-      yield { event: 'tool_completed', data: { name: toolCall.name, output } }
-      if (toolArtifact?.kind === 'confirmation') {
-        yield { event: 'agent_confirmation', data: toolArtifact.confirmation }
+      yield {
+        source: 'message_end',
+        value: {
+          inputTokens: event.message.usage.input,
+          outputTokens: event.message.usage.output,
+          totalTokens: event.message.usage.totalTokens,
+          ...(event.message.stopReason === 'error' || event.message.stopReason === 'aborted'
+            ? {
+                error: new Error(
+                  event.message.errorMessage ?? `AI provider ${event.message.stopReason}`
+                ),
+              }
+            : {}),
+        },
       }
+      continue
+    }
+    if (event.type === 'tool_execution_start') {
+      toolStartedAt.set(event.toolCallId, Date.now())
+      toolInputs.set(event.toolCallId, event.args)
+      if (isProposalTool(event.toolName)) {
+        plan[0].state = 'done'
+        plan[1].state = 'running'
+        yield { source: 'frame', value: planFrame() }
+      }
+      const runningDetail = getAgentStatusDetail(event.toolName, event.args)
+      const runningPhase = getAgentStatusPhase(event.toolName, 'running')
+      yield {
+        source: 'frame',
+        value: {
+          event: 'agent_status',
+          data: {
+            name: event.toolName,
+            callId: event.toolCallId,
+            state: 'running',
+            ...(runningDetail ? { detail: runningDetail } : {}),
+            ...(runningPhase ? { phase: runningPhase } : {}),
+          },
+        },
+      }
+      continue
+    }
+    if (event.type === 'tool_execution_update') {
+      const progressDetail = getToolProgressDetail(event.partialResult)
+      yield {
+        source: 'frame',
+        value: {
+          event: 'agent_status',
+          data: {
+            name: event.toolName,
+            callId: event.toolCallId,
+            state: 'running',
+            ...(progressDetail ? { detail: progressDetail } : {}),
+            phase: getAgentStatusPhase(event.toolName, 'running') ?? 'executing',
+          },
+        },
+      }
+      continue
+    }
+    if (event.type === 'tool_execution_end') {
+      const output = event.result?.details ?? event.result
+      const toolArtifact = readAgentToolArtifact(output)
+      const toolError = toolArtifact?.kind === 'action_error' ? toolArtifact.message : null
+      const toolErrorCode = toolArtifact?.kind === 'action_error' ? toolArtifact.code : undefined
+      const visibleToolError = toolArtifact?.kind === 'action_error' ? null : toolError
+      const completedDetail = getAgentStatusDetail(
+        event.toolName,
+        toolInputs.get(event.toolCallId),
+        output
+      )
+      const completedState = !event.isError && !visibleToolError ? 'done' : 'error'
+      yield {
+        source: 'frame',
+        value: {
+          event: 'agent_status',
+          data: {
+            name: event.toolName,
+            callId: event.toolCallId,
+            state: completedState,
+            durationMs: Date.now() - (toolStartedAt.get(event.toolCallId) ?? Date.now()),
+            ...(completedDetail ? { detail: completedDetail } : {}),
+            ...(getAgentStatusPhase(event.toolName, completedState)
+              ? { phase: getAgentStatusPhase(event.toolName, completedState) }
+              : {}),
+            ...(visibleToolError ? { message: visibleToolError } : {}),
+            ...(toolErrorCode ? { errorCode: toolErrorCode } : {}),
+          },
+        },
+      }
+      if (!event.isError) {
+        if (isProposalTool(event.toolName)) {
+          plan[1].state = 'done'
+          plan[2].state = 'running'
+          yield { source: 'frame', value: planFrame() }
+        }
+        yield {
+          source: 'frame',
+          value: { event: 'tool_completed', data: { name: event.toolName, output } },
+        }
+        if (toolArtifact?.kind === 'confirmation') {
+          yield {
+            source: 'frame',
+            value: { event: 'agent_confirmation', data: toolArtifact.confirmation },
+          }
+        }
+      }
+      toolStartedAt.delete(event.toolCallId)
+      toolInputs.delete(event.toolCallId)
     }
   }
 }
@@ -217,7 +334,9 @@ export async function streamAiAgentToolStatuses(
   onToolCompleted?: (name: string, output: unknown) => void | Promise<void>
 ) {
   const completedToolNames = new Set<string>()
-  for await (const frame of streamAiAgentToolFrames(run, signal)) {
+  for await (const event of streamAiAgentTurnEvents(run, signal)) {
+    if (event.source !== 'frame') continue
+    const frame = event.value
     if (frame.event === 'tool_completed') {
       completedToolNames.add(frame.data.name)
       await onToolCompleted?.(frame.data.name, frame.data.output)

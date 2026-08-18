@@ -10,17 +10,40 @@ type FakeToolCall = {
   input: unknown
   status: Promise<'finished' | 'error'>
   output: Promise<unknown>
+  updates?: unknown[]
 }
 
 function createFakeRun(toolCalls: FakeToolCall[]) {
   async function* generate() {
     for (const toolCall of toolCalls) {
-      yield toolCall
+      yield {
+        type: 'tool_execution_start',
+        toolCallId: toolCall.callId,
+        toolName: toolCall.name,
+        args: toolCall.input,
+      }
+      const state = await toolCall.status
+      for (const partialResult of toolCall.updates ?? []) {
+        yield {
+          type: 'tool_execution_update',
+          toolCallId: toolCall.callId,
+          toolName: toolCall.name,
+          args: toolCall.input,
+          partialResult,
+        }
+      }
+      yield {
+        type: 'tool_execution_end',
+        toolCallId: toolCall.callId,
+        toolName: toolCall.name,
+        result: state === 'finished' ? { details: await toolCall.output } : null,
+        isError: state === 'error',
+      }
     }
   }
   return {
     agentRunId: 'agent-run-1',
-    stream: { toolCalls: generate() },
+    stream: { events: generate() },
   } as unknown as Awaited<ReturnType<typeof createAiAgentStream>>
 }
 
@@ -111,6 +134,29 @@ test.group('AI chat SSE adapter', () => {
 
     assert.deepEqual(completedNames, ['run_registered_query'])
     assert.isTrue(result.has('run_registered_query'))
+  })
+
+  test('maps Pi tool progress to bounded agent_status details', async ({ assert }) => {
+    const { writes, response } = createFakeResponse()
+    const run = createFakeRun([
+      {
+        name: 'search_knowledge',
+        callId: 'call-progress',
+        input: { query: 'status' },
+        updates: [{ message: 'reading documents', progress: 42, secret: 'omit' }],
+        status: Promise.resolve('finished'),
+        output: Promise.resolve({ kind: 'query_result', rows: [] }),
+      },
+    ])
+
+    await streamAiAgentToolStatuses(run, response, new AbortController().signal)
+    const frames = parseSse(writes)
+    assert.equal(frames.length, 3)
+    assert.equal((frames[1].data as Record<string, unknown>).state, 'running')
+    assert.deepEqual((frames[1].data as Record<string, unknown>).detail, {
+      message: 'reading documents',
+      progress: 42,
+    })
   })
 
   test('emits confirmation and completes the plan for a management proposal', async ({

@@ -19,4 +19,8 @@ export const sendAiChatMessageValidator = vine.compile(
   })
 )
 
-export const resumeAiChatValidator = vine.compile(vine.object({}))
+export const queueAiChatMessageValidator = vine.compile(
+  vine.object({
+    content: vine.string().trim().minLength(1).maxLength(8000),
+  })
+)

@@ -9,6 +9,7 @@ import type {
   AiChatPendingConfirmation,
   AiChatPlanStep,
   AiChatRunMeta,
+  AiChatTimelineItem,
 } from '@/features/ai/api'
 import {
   type AiChatConversation,
@@ -20,6 +21,7 @@ import {
   deleteAiChatConversation,
   getAiChatConversation,
   listAiChatConversations,
+  queueAiChatMessage,
   streamAiChatMessage,
 } from '@/features/ai/api'
 import { hasAiChatConversationContent } from '@/features/ai/conversation-state'
@@ -36,6 +38,7 @@ type LocalAiChatMessage = {
   status?: AiMessageContentStatus
   activity?: AiChatAgentActivity
   plan?: AiChatPlanStep[]
+  timeline?: AiChatTimelineItem[]
   citations?: AiChatCitation[]
 }
 
@@ -46,6 +49,7 @@ export type DisplayAiChatMessage = {
   status?: AiMessageContentStatus
   activity?: AiChatAgentActivity
   plan?: AiChatPlanStep[]
+  timeline?: AiChatTimelineItem[]
 }
 
 export function useAiChat() {
@@ -260,6 +264,30 @@ export function useAiChat() {
     aiApprovalDismissed.value = true
   }
 
+  function appendConfirmationTimeline(
+    messageId: number,
+    confirmation: AiChatConfirmation,
+    status: 'confirmed' | 'failed' | 'expired'
+  ) {
+    const item: AiChatTimelineItem = {
+      kind: 'confirmation',
+      action: confirmation.action,
+      targetLabel: confirmation.presentation.targetLabel,
+      status,
+      completedAt: new Date().toISOString(),
+    }
+    if (aiConversation.value) {
+      aiConversation.value = {
+        ...aiConversation.value,
+        messages: aiConversation.value.messages.map((message) =>
+          message.id === messageId
+            ? { ...message, timeline: [...(message.timeline ?? []), item] }
+            : message
+        ),
+      }
+    }
+  }
+
   async function confirmAiConfirmation() {
     const confirmation = pendingAiConfirmation.value
     const conversation = aiConversation.value
@@ -274,6 +302,7 @@ export function useAiChat() {
       aiConfirmations.value = aiConfirmations.value.filter((item) => item.id !== confirmation.id)
       pendingAiConfirmation.value = null
       aiApprovalDismissed.value = false
+      appendConfirmationTimeline(confirmation.messageId, confirmation, 'confirmed')
       toast.success(t('ai_chat.confirmations.success'))
     } catch (error) {
       toast.error(error instanceof Error ? error.message : t('common.error'))
@@ -298,6 +327,28 @@ export function useAiChat() {
   }
 
   async function handleAiSend(message: string, regenerateAssistantMessageId?: number) {
+    if (aiLoading.value && aiConversation.value && !regenerateAssistantMessageId) {
+      try {
+        const queued = await queueAiChatMessage(
+          auth.token,
+          aiConversation.value.id,
+          message,
+          'steer'
+        )
+        aiStreamingMessages.value = [
+          ...aiStreamingMessages.value,
+          {
+            id: String(queued.message.id),
+            role: 'user',
+            content: queued.message.content,
+          },
+        ]
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : t('common.error'))
+      }
+      return
+    }
+
     aiAbortController.value?.abort()
     const abortController = new AbortController()
     aiAbortController.value = abortController
@@ -316,6 +367,7 @@ export function useAiChat() {
       role: 'assistant' as const,
       content: '',
       status: 'pending' as const,
+      timeline: [],
     }
     aiStreamingMessageId.value = assistantMessage.id
     aiStreamingMessages.value = regenerateAssistantMessageId
@@ -326,6 +378,7 @@ export function useAiChat() {
       : [...currentMessages, userMessage!, assistantMessage]
     const newlyCreatedAiConfirmationIds = new Set<number>()
     let completedAssistantMessageId: number | null = null
+    let completedTimeline: AiChatTimelineItem[] | undefined
     let streamedConfirmation: AiChatPendingConfirmation | null = null
 
     try {
@@ -364,6 +417,18 @@ export function useAiChat() {
               phase: event.phase,
               detail: event.detail,
             }
+            const timeline = assistantMessage.timeline ?? []
+            const existingIndex = timeline.findIndex(
+              (item) =>
+                item.kind === 'tool' && item.callId === event.callId && event.callId !== undefined
+            )
+            const activity = { ...assistantMessage.activity }
+            if (existingIndex >= 0) {
+              timeline[existingIndex] = { kind: 'tool', ...activity }
+            } else {
+              timeline.push({ kind: 'tool', ...activity })
+            }
+            assistantMessage.timeline = [...timeline]
             aiStreamingMessages.value = aiStreamingMessages.value.map((item) =>
               item.id === assistantMessage.id ? { ...assistantMessage } : item
             )
@@ -371,6 +436,10 @@ export function useAiChat() {
 
           if (event.type === 'agent_plan') {
             assistantMessage.plan = event.steps
+            assistantMessage.timeline = [
+              ...(assistantMessage.timeline ?? []).filter((item) => item.kind !== 'plan'),
+              { kind: 'plan', steps: event.steps },
+            ]
             aiStreamingMessages.value = aiStreamingMessages.value.map((item) =>
               item.id === assistantMessage.id ? { ...assistantMessage } : item
             )
@@ -389,6 +458,13 @@ export function useAiChat() {
               usage: event.usage,
               durationMs: event.durationMs,
             }
+            assistantMessage.timeline = [
+              ...(assistantMessage.timeline ?? []).filter((item) => item.kind !== 'run'),
+              { kind: 'run', durationMs: event.durationMs, usage: event.usage },
+            ]
+            aiStreamingMessages.value = aiStreamingMessages.value.map((item) =>
+              item.id === assistantMessage.id ? { ...assistantMessage } : item
+            )
           }
 
           if (event.type === 'agent_confirmation') {
@@ -407,6 +483,7 @@ export function useAiChat() {
 
           if (event.type === 'done') {
             completedAssistantMessageId = event.message.id
+            completedTimeline = assistantMessage.timeline
             event.confirmations.forEach((confirmation) => {
               newlyCreatedAiConfirmationIds.add(confirmation.id)
             })
@@ -446,7 +523,14 @@ export function useAiChat() {
         }
       )
       const persistedConversation = await getAiChatConversation(auth.token, conversation.id)
-      aiConversation.value = persistedConversation
+      aiConversation.value = {
+        ...persistedConversation,
+        messages: persistedConversation.messages.map((item) =>
+          item.id === completedAssistantMessageId && completedTimeline
+            ? { ...item, timeline: completedTimeline }
+            : item
+        ),
+      }
       aiConfirmations.value = persistedConversation.confirmations ?? []
       const latestCreatedConfirmation = aiConfirmations.value
         .filter(

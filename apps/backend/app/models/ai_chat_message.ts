@@ -10,6 +10,31 @@ export type AiChatCitation = {
   excerpt: string
 }
 
+export type AiChatRuntimeDetail =
+  | {
+      kind: 'tool'
+      name: string
+      state: 'running' | 'done' | 'error'
+      callId?: string
+      durationMs?: number
+      phase?: string
+      errorCode?: string
+      detail?: Record<string, unknown>
+    }
+  | { kind: 'plan'; steps: Array<Record<string, unknown>> }
+  | {
+      kind: 'run'
+      durationMs: number
+      usage: Record<string, unknown>
+    }
+  | {
+      kind: 'confirmation'
+      action: string
+      targetLabel?: string
+      status: 'confirmed' | 'failed' | 'expired'
+      completedAt: string
+    }
+
 function consumeCitations(value: unknown): AiChatCitation[] {
   if (Array.isArray(value)) return value as AiChatCitation[]
   if (typeof value !== 'string') return []
@@ -17,6 +42,18 @@ function consumeCitations(value: unknown): AiChatCitation[] {
   try {
     const citations = JSON.parse(value)
     return Array.isArray(citations) ? (citations as AiChatCitation[]) : []
+  } catch {
+    return []
+  }
+}
+
+function consumeRuntimeDetails(value: unknown): AiChatRuntimeDetail[] {
+  if (Array.isArray(value)) return value as AiChatRuntimeDetail[]
+  if (typeof value !== 'string') return []
+
+  try {
+    const details = JSON.parse(value)
+    return Array.isArray(details) ? (details as AiChatRuntimeDetail[]) : []
   } catch {
     return []
   }
@@ -42,6 +79,12 @@ export default class AiChatMessage extends BaseModel {
     consume: consumeCitations,
   })
   declare citations: AiChatCitation[]
+
+  @column({
+    prepare: (details: AiChatRuntimeDetail[] | null | undefined) => JSON.stringify(details ?? []),
+    consume: consumeRuntimeDetails,
+  })
+  declare runtimeDetails: AiChatRuntimeDetail[]
 
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime

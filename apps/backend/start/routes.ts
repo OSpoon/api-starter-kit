@@ -198,7 +198,8 @@ router
         router.post('conversations', [AiChatController, 'store'])
         router.get('conversations/:id', [AiChatController, 'show'])
         router.post('conversations/:id/messages', [AiChatController, 'sendMessage'])
-        router.post('conversations/:id/resume', [AiChatController, 'resume'])
+        router.post('conversations/:id/steer', [AiChatController, 'steer'])
+        router.post('conversations/:id/follow-up', [AiChatController, 'followUp'])
         router.post('conversations/:id/confirmations/:confirmationId/confirm', [
           AiChatController,
           'confirmAiAgentAction',

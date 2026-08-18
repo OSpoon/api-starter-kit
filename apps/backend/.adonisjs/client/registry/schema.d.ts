@@ -631,16 +631,28 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['sendMessage']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
-  'ai_chat.resume': {
+  'ai_chat.steer': {
     methods: ["POST"]
-    pattern: '/api/v1/ai-chat/conversations/:id/resume'
+    pattern: '/api/v1/ai-chat/conversations/:id/steer'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/ai_chat').resumeAiChatValidator)>>
+      body: {}
       paramsTuple: [ParamValue]
       params: { id: ParamValue }
-      query: ExtractQuery<InferInput<(typeof import('#validators/ai_chat').resumeAiChatValidator)>>
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['resume']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['resume']>>> | { status: 422; response: { errors: SimpleError[] } }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['steer']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['steer']>>>
+    }
+  }
+  'ai_chat.follow_up': {
+    methods: ["POST"]
+    pattern: '/api/v1/ai-chat/conversations/:id/follow-up'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['followUp']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['followUp']>>>
     }
   }
   'ai_chat.confirm_ai_agent_action': {

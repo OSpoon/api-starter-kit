@@ -11,6 +11,7 @@ export interface AiChatMessage {
   citations: AiChatCitation[]
   createdAt: string
   updatedAt: string
+  timeline?: AiChatTimelineItem[]
 }
 
 export interface AiChatCitation {
@@ -74,7 +75,6 @@ export interface AiChatStreamOptions {
   signal?: AbortSignal
   context?: AiChatPageContext
   regenerateAssistantMessageId?: number
-  resume?: boolean
 }
 
 // The backend limits a complete AI run to five minutes at most. Keep a small
@@ -98,6 +98,10 @@ export interface AiChatAgentActivity {
     targetId?: string | number
     targetLabel?: string
     resultCount?: number
+    message?: string
+    progress?: number
+    completed?: number
+    total?: number
   }
 }
 
@@ -113,6 +117,22 @@ export interface AiChatRunMeta {
   usage: AiChatRunUsage
   durationMs: number
 }
+
+export type AiChatTimelineItem =
+  | { kind: 'plan'; steps: AiChatPlanStep[] }
+  | ({ kind: 'tool' } & AiChatAgentActivity)
+  | {
+      kind: 'run'
+      durationMs: number
+      usage: AiChatRunUsage
+    }
+  | {
+      kind: 'confirmation'
+      action: string
+      targetLabel?: string
+      status: 'confirmed' | 'failed' | 'expired'
+      completedAt: string
+    }
 
 export interface AiChatPlanStep {
   key: 'identify_target' | 'prepare_proposal' | 'await_confirmation'
@@ -221,23 +241,16 @@ export async function streamAiChatMessage(
   }
 
   try {
-    const response = await fetch(
-      `/api/v1/ai-chat/conversations/${id}/${options.resume ? 'resume' : 'messages'}`,
-      {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(
-          options.resume
-            ? {}
-            : {
-                content,
-                context: options.context,
-                regenerateAssistantMessageId: options.regenerateAssistantMessageId,
-              }
-        ),
-        signal: requestController.signal,
-      }
-    )
+    const response = await fetch(`/api/v1/ai-chat/conversations/${id}/messages`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        content,
+        context: options.context,
+        regenerateAssistantMessageId: options.regenerateAssistantMessageId,
+      }),
+      signal: requestController.signal,
+    })
 
     if (!response.ok || !response.body) {
       const payload = await response.json().catch(() => null)
@@ -292,13 +305,23 @@ export async function streamAiChatMessage(
   }
 }
 
-export function resumeAiChatMessage(
+export async function queueAiChatMessage(
   token: string | null,
   id: number,
-  onEvent: (event: AiChatStreamEvent) => void,
-  options: Omit<AiChatStreamOptions, 'resume' | 'context' | 'regenerateAssistantMessageId'> = {}
+  content: string,
+  mode: 'steer' | 'followUp'
 ) {
-  return streamAiChatMessage(token, id, '', onEvent, { ...options, resume: true })
+  const response = await apiRequest<{
+    queued: boolean
+    mode: string
+    agentRunId: string
+    message: AiChatMessage
+  }>(`/api/v1/ai-chat/conversations/${id}/${mode === 'steer' ? 'steer' : 'follow-up'}`, {
+    ...authOptions(token),
+    method: 'POST',
+    body: JSON.stringify({ content }),
+  })
+  return readItem(response)
 }
 
 export async function deleteAiChatConversation(token: string | null, id: number) {

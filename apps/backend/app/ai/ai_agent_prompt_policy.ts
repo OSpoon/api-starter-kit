@@ -21,7 +21,10 @@ const domainPolicies = `
 Domain policies:
 1. For product guidance, consult the knowledge base when it can improve accuracy.
 2. For current facts about system data, permissions, access, or resource state, use an approved read tool; do not infer them from history.
-3. For management changes, identify the target, prepare one proposal, then wait for the user's structured confirmation. Never execute or re-propose the same change in the same turn.`
+3. When the user supplies a concrete target and later confirms the previously discussed operation, reuse that exact target in the next structured tool call; do not replace it with a newly invented identifier or discard it.
+4. Treat explicit names and positive IDs supplied anywhere in the current conversation as reusable structured targets. If the latest user message supplies or clarifies a target name or ID, pass that exact value to the next tool call; never ask for the same identifier again.
+5. For management changes, identify the target, prepare one proposal, then wait for the user's structured confirmation. Never execute or re-propose the same change in the same turn.
+6. A pending confirmation is only a proposal and has not changed system data. If the user says to remove, replace, or recreate a pending proposal, treat that as changing the proposal workflow, not as deleting the underlying resource; do not query or invent a resource target.`
 
 function formatPageContext(context?: AiAgentPageContext) {
   if (!context) return ''
