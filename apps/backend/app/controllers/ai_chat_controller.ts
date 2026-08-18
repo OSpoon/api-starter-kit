@@ -9,8 +9,8 @@ import {
   confirmAiAgentAction as executeAiAgentAction,
   listConversationConfirmations,
 } from '#services/ai_agent_confirmation'
-import { getAiAgentResumeRunStage, hasAiAgentResumeState } from '#services/ai_agent_resume_state'
 import { resolveAiChatRegeneration } from '#services/ai_chat_regeneration'
+import { hasAiChatResumeCandidate } from '#services/ai_chat_resume_service'
 import { runAiChatAssistantTurn } from '#services/ai_chat_turn_service'
 import { resetAiConversationState } from '#services/ai_conversation_state'
 import {
@@ -173,13 +173,7 @@ export default class AiChatController {
       .where('id', params.id)
       .where('user_id', user.id)
       .firstOrFail()
-    const resumeInput = {
-      conversationId: conversation.id,
-      userId: user.id,
-    }
-    const hasResumeState = await hasAiAgentResumeState(resumeInput)
-    const runStage = hasResumeState ? await getAiAgentResumeRunStage(resumeInput) : undefined
-    if (!hasResumeState || !runStage) {
+    if (!(await hasAiChatResumeCandidate(conversation.id))) {
       return response.conflict({ message: '当前会话没有可恢复的 AI 运行状态' })
     }
 

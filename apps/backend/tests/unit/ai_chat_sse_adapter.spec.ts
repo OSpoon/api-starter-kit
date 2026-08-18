@@ -133,9 +133,7 @@ test.group('AI chat SSE adapter', () => {
         callId: 'call-2',
         input: { action: 'reset_two_factor' },
         status: Promise.resolve('finished'),
-        output: Promise.resolve({
-          artifact: { kind: 'confirmation', confirmation },
-        }),
+        output: Promise.resolve({ kind: 'confirmation', confirmation }),
       },
     ])
 
@@ -183,9 +181,7 @@ test.group('AI chat SSE adapter', () => {
         callId: 'call-5',
         input: { apiKeyId: 19 },
         status: Promise.resolve('finished'),
-        output: Promise.resolve({
-          artifact: { kind: 'confirmation', confirmation },
-        }),
+        output: Promise.resolve({ kind: 'confirmation', confirmation }),
       },
     ])
 
@@ -226,11 +222,9 @@ test.group('AI chat SSE adapter', () => {
         input: { action: 'reset_two_factor' },
         status: Promise.resolve('finished'),
         output: Promise.resolve({
-          artifact: {
-            kind: 'action_error',
-            code: 'permission_denied',
-            message: 'You are not allowed to change two-factor settings',
-          },
+          kind: 'action_error',
+          code: 'permission_denied',
+          message: 'You are not allowed to change two-factor settings',
         }),
       },
     ])

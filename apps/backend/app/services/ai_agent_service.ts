@@ -30,8 +30,6 @@ export async function createAiAgentStream(
   input: AiAgentToolRequestContext & {
     messages: AiAgentMessage[]
     context?: AiAgentPageContext
-    resume?: boolean
-    aiSummaryCandidateBoundaryId?: number
   }
 ) {
   const agentRunId = crypto.randomUUID()
@@ -39,7 +37,6 @@ export async function createAiAgentStream(
   return {
     stream: createAiAgentPiStream({
       ...input,
-      messages: input.messages,
       agentRunId,
       liveSessionContext,
     }),

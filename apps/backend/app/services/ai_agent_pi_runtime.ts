@@ -19,46 +19,6 @@ import env from '#start/env'
  * execution. Pi only owns the model/tool loop and its typed event stream.
  */
 export type PiAgentMessage = AgentMessage
-function toolResultText(result: unknown) {
-  if (!result || typeof result !== 'object') return ''
-  const content = (result as { content?: unknown }).content
-  if (!Array.isArray(content)) return ''
-  return content
-    .filter(
-      (part): part is { type: 'text'; text: string } =>
-        Boolean(part) &&
-        typeof part === 'object' &&
-        (part as { type?: unknown }).type === 'text' &&
-        typeof (part as { text?: unknown }).text === 'string'
-    )
-    .map((part) => part.text)
-    .join('')
-}
-
-/**
- * Stop after terminal tool results. Without this guard, small models often
- * retry a proposal after receiving its confirmation/error payload and can
- * enter an unbounded tool-call loop.
- */
-export function shouldStopAfterPiToolTurn(toolResults: unknown[]) {
-  return toolResults.some((result) => {
-    if (!result || typeof result !== 'object') return false
-    if ((result as { terminate?: unknown }).terminate === true) return true
-    if ((result as { isError?: unknown }).isError === true) return true
-    const text = toolResultText(result)
-    if (!text) return false
-    try {
-      const parsed = JSON.parse(text) as { kind?: unknown }
-      return (
-        parsed.kind === 'confirmation' ||
-        parsed.kind === 'action_error' ||
-        parsed.kind === 'query_error'
-      )
-    } catch {
-      return false
-    }
-  })
-}
 
 function getModelName() {
   return env.get('AI_OPENAI_MODEL') ?? 'gpt-4o-mini'
@@ -160,7 +120,6 @@ export function createPiAgent(input: {
       isError,
       terminate: isError || result.terminate === true,
     }),
-    shouldStopAfterTurn: ({ toolResults }) => shouldStopAfterPiToolTurn(toolResults),
   })
 
   if (input.signal) {

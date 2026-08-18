@@ -89,13 +89,9 @@ function getAgentStatusDetail(name: string, input: unknown, output?: unknown) {
   }
   const action = getProposalAction(name, input)
   if (isProposalTool(name) && action) {
-    const artifact =
-      outputRecord?.artifact && typeof outputRecord.artifact === 'object'
-        ? (outputRecord.artifact as Record<string, unknown>)
-        : null
     const confirmation =
-      artifact?.kind === 'confirmation' && typeof artifact.confirmation === 'object'
-        ? (artifact.confirmation as Record<string, unknown>)
+      outputRecord?.kind === 'confirmation' && typeof outputRecord.confirmation === 'object'
+        ? (outputRecord.confirmation as Record<string, unknown>)
         : null
     const targetSummary =
       confirmation?.targetSummary && typeof confirmation.targetSummary === 'object'
@@ -141,32 +137,7 @@ function readAgentToolArtifact(output: unknown): AiAgentActionToolArtifact | nul
   ) {
     return output as AiAgentActionToolArtifact
   }
-  const artifact =
-    output && typeof output === 'object' && 'artifact' in output ? output.artifact : null
-  if (
-    artifact &&
-    typeof artifact === 'object' &&
-    'kind' in artifact &&
-    (artifact.kind === 'confirmation' || artifact.kind === 'action_error')
-  ) {
-    return artifact as AiAgentActionToolArtifact
-  }
-  const content =
-    typeof output === 'string'
-      ? output
-      : output &&
-          typeof output === 'object' &&
-          'content' in output &&
-          typeof output.content === 'string'
-        ? output.content
-        : null
-  if (!content) return null
-  try {
-    const payload = JSON.parse(content) as AiAgentActionToolArtifact
-    return payload.kind === 'confirmation' || payload.kind === 'action_error' ? payload : null
-  } catch {
-    return null
-  }
+  return null
 }
 
 export async function* streamAiAgentToolFrames(

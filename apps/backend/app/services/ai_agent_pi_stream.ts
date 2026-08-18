@@ -226,6 +226,11 @@ export function createAiAgentPiStream(
       active.text.end()
       active.output.reject(error)
     }
+    for (const active of activeTools.values()) {
+      active.status.reject(error)
+      active.output.reject(error)
+    }
+    activeTools.clear()
     messageQueue.end()
     toolQueue.end()
   })

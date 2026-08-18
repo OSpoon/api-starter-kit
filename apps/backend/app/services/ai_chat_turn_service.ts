@@ -3,7 +3,6 @@ import logger from '@adonisjs/core/services/logger'
 
 import type AiChatConversation from '#models/ai_chat_conversation'
 import AiChatMessage, { type AiChatCitation } from '#models/ai_chat_message'
-import { getAiAgentSummarizationOptions } from '#services/ai_agent_config'
 import {
   attachAgentRunConfirmations,
   failUnattachedAgentRunConfirmations,
@@ -92,22 +91,8 @@ function getSafeAiErrorMessage(error: unknown) {
 }
 
 function getTerminalToolAssistantContent(output: unknown) {
-  let payload: { kind?: unknown; message?: unknown } | null = null
-  if (typeof output === 'string') {
-    try {
-      payload = JSON.parse(output) as { kind?: unknown; message?: unknown }
-    } catch {
-      return null
-    }
-  } else if (output && typeof output === 'object' && 'artifact' in output) {
-    const artifact = output.artifact
-    if (artifact && typeof artifact === 'object') {
-      payload = artifact as { kind?: unknown; message?: unknown }
-    }
-  } else if (output && typeof output === 'object' && 'kind' in output) {
-    payload = output as { kind?: unknown; message?: unknown }
-  }
-  if (!payload) return null
+  if (!output || typeof output !== 'object' || !('kind' in output)) return null
+  const payload = output as { kind?: unknown; message?: unknown }
   if (payload.kind === 'confirmation') return '已准备好管理操作提案，请在确认卡片中确认后执行。'
   if (payload.kind === 'action_error' || payload.kind === 'query_error') {
     return typeof payload.message === 'string' ? `操作未完成：${payload.message}` : '操作未完成。'
@@ -226,23 +211,12 @@ export async function runAiChatAssistantTurn(input: {
     if (input.resume && history.at(-1)?.role === 'assistant') {
       history.pop()
     }
-    const summarization = getAiAgentSummarizationOptions()
-    const aiSummaryCandidateBoundaryId =
-      !input.resume && summarization.enabled && history.length > summarization.recentMessageCount
-        ? history.at(-(summarization.recentMessageCount + 1))?.id
-        : undefined
     aiFailureStage = 'agent_stream'
     const run = await createAiAgentStream({
       conversationId: conversation.id,
       userId,
-      messages: history.map((message, index) =>
-        index === history.length - 1 && aiSummaryCandidateBoundaryId
-          ? { ...message, summaryCandidateBoundaryId: aiSummaryCandidateBoundaryId }
-          : message
-      ),
+      messages: history,
       context: input.context,
-      resume: input.resume,
-      aiSummaryCandidateBoundaryId,
       signal: input.signal,
       onKnowledgeSources: (sources) => {
         for (const source of sources) {
