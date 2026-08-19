@@ -39,19 +39,8 @@ pnpm dev
 
 OpenAPI UI 需要后端环境变量 `OPENAPI_DOCS_ENABLED=true`。
 
-## 可选：本地运行 Ollama
+## AI 提供方配置
 
-默认 AI 配置指向 OpenAI 兼容的 Ollama 服务；默认 Compose 不启动它：
-
-```bash
-docker compose --profile ollama up -d ollama
-docker compose exec ollama ollama pull llama3.2:1b
-```
-
-通过 `apps/backend/.env` 中的 `AI_OPENAI_*` 配置 Ollama 或其他 OpenAI 兼容提供方。知识库的 embedding 模型必须与 `AI_EMBEDDING_DIMENSIONS`（默认 1024）一致。Compose 内的后端使用可选 Ollama 服务时设置：
-
-```env
-AI_OPENAI_BASE_URL=http://ollama:11434/v1
-```
+通过 `apps/backend/.env` 中的 `AI_OPENAI_*` 配置部署所使用的 OpenAI-compatible provider。知识库的 embedding 模型必须与 `AI_EMBEDDING_DIMENSIONS`（默认 1024）一致；如使用独立的 embedding provider，可单独配置 `AI_EMBEDDING_*`。
 
 继续阅读 [API 指南](api.md) 和[部署指南](deployment.md)。

@@ -67,8 +67,8 @@ pnpm --dir apps/backend typecheck
 pnpm --dir apps/backend exec node ace test
 ```
 
-本地模型通过 OpenAI-compatible 配置接入：`AI_OPENAI_API_KEY`、`AI_OPENAI_BASE_URL`
-和 `AI_OPENAI_MODEL`。默认示例配置指向本机模型服务，使用前请确认对应端口已启动。
+AI 模型通过 OpenAI-compatible 配置接入：`AI_OPENAI_API_KEY`、`AI_OPENAI_BASE_URL`
+和 `AI_OPENAI_MODEL`。请根据部署环境配置对应的 provider 地址与凭据。
 
 ## 许可证
 

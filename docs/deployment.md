@@ -18,7 +18,7 @@ Compose 会启动支持 pgvector 的 PostgreSQL、AdonisJS 后端与 Nginx 托�
 | 前端 | `http://localhost:18080` |
 | 后端 | `http://localhost:13333` |
 
-按需通过 `FRONTEND_PORT`、`BACKEND_PORT` 和 `OLLAMA_PORT` 覆盖端口。生产环境的 PostgreSQL 仅加入 Compose 内部网络，不映射宿主机端口；开发环境通过 `docker-compose.dev.yml` 单独映射 `5432`，供宿主机后端连接。
+按需通过 `FRONTEND_PORT` 和 `BACKEND_PORT` 覆盖端口。生产环境的 PostgreSQL 仅加入 Compose 内部网络，不映射宿主机端口；开发环境通过 `docker-compose.dev.yml` 单独映射 `5432`，供宿主机后端连接。
 
 ## 环境配置
 
@@ -30,15 +30,9 @@ Compose 会启动支持 pgvector 的 PostgreSQL、AdonisJS 后端与 Nginx 托�
 
 ## AI 与可观测性
 
-Ollama 是可选服务：
+OpenAI-compatible provider 使用 `AI_OPENAI_*` 配置，知识检索使用 `AI_EMBEDDING_*` 配置。部署前确认 provider 地址可从 backend 容器或宿主机访问。
 
-```bash
-docker compose --profile ollama up -d ollama
-```
-
-Compose 后端访问该服务时设置 `AI_OPENAI_BASE_URL=http://ollama:11434/v1`。其他 OpenAI 兼容提供方使用 `AI_OPENAI_*`，知识检索使用 `AI_EMBEDDING_*` 配置。
-
-AI 助手通过 `AI_OPENAI_API_KEY`、`AI_OPENAI_BASE_URL` 和 `AI_OPENAI_MODEL` 接入 OpenAI-compatible provider。部署前确认 provider 地址可从 backend 容器或宿主机访问。
+AI 助手通过 `AI_OPENAI_API_KEY`、`AI_OPENAI_BASE_URL` 和 `AI_OPENAI_MODEL` 接入配置的 provider。
 
 ## 运维检查
 

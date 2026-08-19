@@ -1,17 +1,4 @@
 services:
-  ollama:
-    image: ollama/ollama:latest
-    profiles: ['ollama']
-    ports:
-      - '${OLLAMA_PORT:-11434}:11434'
-    volumes:
-      - ollama-data:/root/.ollama
-    healthcheck:
-      test: ['CMD-SHELL', 'ollama list >/dev/null 2>&1']
-      interval: 5s
-      timeout: 5s
-      retries: 20
-
   postgres:
     image: pgvector/pgvector:pg15
     env_file:
@@ -72,4 +59,3 @@ services:
 
 volumes:
   postgres-data:
-  ollama-data:
