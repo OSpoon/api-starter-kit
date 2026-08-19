@@ -228,7 +228,10 @@ function getTimelineSections(timeline: AiChatTimelineItem[]) {
       <User v-if="message.role === 'user'" class="size-3.5" />
       <Bot v-else class="size-3.5" />
     </div>
-    <div class="group/message flex max-w-[85%] flex-col gap-1">
+    <div
+      class="group/message flex max-w-[85%] min-w-0 flex-col gap-1"
+      :class="message.role === 'assistant' ? 'w-full' : ''"
+    >
       <div
         class="rounded-lg px-3 py-2 text-sm/5 whitespace-pre-wrap"
         :class="
