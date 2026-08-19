@@ -1,13 +1,8 @@
 import { toast } from 'vue-sonner'
 
-import type { AiMessageContentStatus } from '@/components/ai-chat/AiMessageContent.vue'
 import type {
-  AiChatAgentActivity,
-  AiChatCitation,
   AiChatConfirmation,
   AiChatCredentialDisclosure,
-  AiChatPendingConfirmation,
-  AiChatPlanStep,
   AiChatRunMeta,
   AiChatTimelineItem,
 } from '@/features/ai/api'
@@ -15,42 +10,16 @@ import {
   type AiChatConversation,
   type AiChatConversationSummary,
   type AiChatMessage,
-  AiChatStreamIncompleteError,
   confirmAiAgentAction,
-  createAiChatConversation,
-  deleteAiChatConversation,
-  getAiChatConversation,
-  listAiChatConversations,
-  queueAiChatMessage,
-  streamAiChatMessage,
 } from '@/features/ai/api'
-import { hasAiChatConversationContent } from '@/features/ai/conversation-state'
+import { useAiChatConversations } from '@/features/ai/composables/useAiChatConversations'
+import { useAiChatStream } from '@/features/ai/composables/useAiChatStream'
 import { formatAiChatMessagesAsMarkdown } from '@/features/ai/markdown'
 import { getAiChatSuggestions, pickRandomAiChatSuggestions } from '@/features/ai/suggestions'
+import type { DisplayAiChatMessage, LocalAiChatMessage } from '@/features/ai/types'
 import { copyText } from '@/lib/clipboard'
 import { useAuthStore } from '@/stores/auth'
 import { useSettingsStore } from '@/stores/settings'
-
-type LocalAiChatMessage = {
-  id: string
-  role: 'user' | 'assistant'
-  content: string
-  status?: AiMessageContentStatus
-  activity?: AiChatAgentActivity
-  plan?: AiChatPlanStep[]
-  timeline?: AiChatTimelineItem[]
-  citations?: AiChatCitation[]
-}
-
-export type DisplayAiChatMessage = {
-  id?: string | number
-  role: 'user' | 'assistant'
-  content: string
-  status?: AiMessageContentStatus
-  activity?: AiChatAgentActivity
-  plan?: AiChatPlanStep[]
-  timeline?: AiChatTimelineItem[]
-}
 
 export function useAiChat() {
   const route = useRoute()
@@ -71,6 +40,24 @@ export function useAiChat() {
   const aiCredentialDisclosure = ref<AiChatCredentialDisclosure | null>(null)
   const aiSuggestions = ref<string[]>([])
   const aiRunMeta = ref<AiChatRunMeta | null>(null)
+
+  const conversationManager = useAiChatConversations(
+    () => auth.token,
+    (key) => t(key),
+    {
+      loading: aiLoading,
+      conversation: aiConversation,
+      conversations: aiConversations,
+      streamingMessages: aiStreamingMessages,
+      streamingMessageId: aiStreamingMessageId,
+      abortController: aiAbortController,
+      confirmations: aiConfirmations,
+      pendingConfirmation: pendingAiConfirmation,
+      approvalDismissed: aiApprovalDismissed,
+      runMeta: aiRunMeta,
+    },
+    presentLatestAiConfirmation
+  )
 
   const displayedAiChatMessages = computed<DisplayAiChatMessage[]>(() => {
     const messages = aiStreamingMessages.value.length
@@ -108,89 +95,6 @@ export function useAiChat() {
     },
     { immediate: true }
   )
-
-  async function refreshAiConversations() {
-    aiConversations.value = await listAiChatConversations(auth.token)
-  }
-
-  async function ensureAiConversation() {
-    if (aiConversation.value) {
-      return aiConversation.value
-    }
-
-    const conversation = await createAiChatConversation(auth.token)
-    aiConversation.value = conversation
-    await refreshAiConversations()
-    return conversation
-  }
-
-  async function handleAiNewChat() {
-    const shouldReuseEmptyConversation =
-      aiConversation.value &&
-      !hasAiChatConversationContent(aiConversation.value.messages) &&
-      !hasAiChatConversationContent(aiStreamingMessages.value)
-
-    aiAbortController.value?.abort()
-    aiAbortController.value = null
-    aiStreamingMessages.value = []
-    aiStreamingMessageId.value = null
-    aiConfirmations.value = []
-    pendingAiConfirmation.value = null
-    aiApprovalDismissed.value = false
-    aiRunMeta.value = null
-    if (shouldReuseEmptyConversation) {
-      return
-    }
-    aiConversation.value = await createAiChatConversation(auth.token)
-    await refreshAiConversations()
-  }
-
-  async function handleAiSelectConversation(id: string | number) {
-    aiLoading.value = true
-    try {
-      aiAbortController.value?.abort()
-      aiAbortController.value = null
-      aiStreamingMessages.value = []
-      aiStreamingMessageId.value = null
-      aiConfirmations.value = []
-      pendingAiConfirmation.value = null
-      aiApprovalDismissed.value = false
-      aiRunMeta.value = null
-      aiConversation.value = await getAiChatConversation(auth.token, Number(id))
-      aiConfirmations.value = aiConversation.value.confirmations ?? []
-      presentLatestAiConfirmation(aiConfirmations.value)
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : t('common.error'))
-    } finally {
-      aiLoading.value = false
-    }
-  }
-
-  async function handleAiDeleteConversation(id: string | number) {
-    aiLoading.value = true
-    try {
-      if (aiConversation.value?.id === Number(id)) {
-        aiAbortController.value?.abort()
-        aiAbortController.value = null
-      }
-      await deleteAiChatConversation(auth.token, Number(id))
-      if (aiConversation.value?.id === Number(id)) {
-        aiConversation.value = null
-        aiConfirmations.value = []
-        pendingAiConfirmation.value = null
-        aiApprovalDismissed.value = false
-        aiRunMeta.value = null
-        aiStreamingMessages.value = []
-        aiStreamingMessageId.value = null
-      }
-      await refreshAiConversations()
-      toast.success(t('common.success'))
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : t('common.error'))
-    } finally {
-      aiLoading.value = false
-    }
-  }
 
   function getDisplayedAiMessages() {
     return aiStreamingMessages.value.length
@@ -326,300 +230,29 @@ export function useAiChat() {
     await handleAiSend(previousUserMessage.content, Number(message.id))
   }
 
-  async function handleAiSend(message: string, regenerateAssistantMessageId?: number) {
-    if (aiLoading.value && aiConversation.value && !regenerateAssistantMessageId) {
-      try {
-        const queued = await queueAiChatMessage(
-          auth.token,
-          aiConversation.value.id,
-          message,
-          'steer'
-        )
-        aiStreamingMessages.value = [
-          ...aiStreamingMessages.value,
-          {
-            id: String(queued.message.id),
-            role: 'user',
-            content: queued.message.content,
-          },
-        ]
-      } catch (error) {
-        toast.error(error instanceof Error ? error.message : t('common.error'))
-      }
-      return
-    }
-
-    aiAbortController.value?.abort()
-    const abortController = new AbortController()
-    aiAbortController.value = abortController
-    aiLoading.value = true
-    aiRunMeta.value = null
-    const currentMessages = aiConversation.value?.messages ?? []
-    const userMessage = regenerateAssistantMessageId
-      ? null
-      : {
-          id: `local-user-${Date.now()}`,
-          role: 'user' as const,
-          content: message,
-        }
-    const assistantMessage: LocalAiChatMessage = {
-      id: `streaming-assistant-${Date.now()}`,
-      role: 'assistant' as const,
-      content: '',
-      status: 'pending' as const,
-      timeline: [],
-    }
-    aiStreamingMessageId.value = assistantMessage.id
-    aiStreamingMessages.value = regenerateAssistantMessageId
-      ? [
-          ...currentMessages.filter((item) => item.id !== regenerateAssistantMessageId),
-          assistantMessage,
-        ]
-      : [...currentMessages, userMessage!, assistantMessage]
-    const newlyCreatedAiConfirmationIds = new Set<number>()
-    let completedAssistantMessageId: number | null = null
-    let completedTimeline: AiChatTimelineItem[] | undefined
-    let streamedConfirmation: AiChatPendingConfirmation | null = null
-
-    try {
-      const conversation = await ensureAiConversation()
-      await streamAiChatMessage(
-        auth.token,
-        conversation.id,
-        message,
-        (event) => {
-          if (event.type === 'user') {
-            aiConversations.value = [
-              event.conversation,
-              ...aiConversations.value.filter((item) => item.id !== event.conversation.id),
-            ]
-            aiStreamingMessages.value = aiStreamingMessages.value.map((item) =>
-              userMessage && item.id === userMessage.id ? event.message : item
-            )
-          }
-
-          if (event.type === 'delta') {
-            assistantMessage.content += event.content
-            assistantMessage.status = 'streaming'
-            aiStreamingMessages.value = aiStreamingMessages.value.map((item) =>
-              item.id === assistantMessage.id ? { ...assistantMessage } : item
-            )
-          }
-
-          if (event.type === 'agent_status') {
-            assistantMessage.activity = {
-              name: event.name,
-              state: event.state,
-              callId: event.callId,
-              durationMs: event.durationMs,
-              message: event.message,
-              errorCode: event.errorCode,
-              phase: event.phase,
-              detail: event.detail,
-            }
-            const timeline = assistantMessage.timeline ?? []
-            const existingIndex = timeline.findIndex(
-              (item) =>
-                item.kind === 'tool' && item.callId === event.callId && event.callId !== undefined
-            )
-            const activity = { ...assistantMessage.activity }
-            if (existingIndex >= 0) {
-              timeline[existingIndex] = { kind: 'tool', ...activity }
-            } else {
-              timeline.push({ kind: 'tool', ...activity })
-            }
-            assistantMessage.timeline = [...timeline]
-            aiStreamingMessages.value = aiStreamingMessages.value.map((item) =>
-              item.id === assistantMessage.id ? { ...assistantMessage } : item
-            )
-          }
-
-          if (event.type === 'agent_plan') {
-            assistantMessage.plan = event.steps
-            assistantMessage.timeline = [
-              ...(assistantMessage.timeline ?? []).filter((item) => item.kind !== 'plan'),
-              { kind: 'plan', steps: event.steps },
-            ]
-            aiStreamingMessages.value = aiStreamingMessages.value.map((item) =>
-              item.id === assistantMessage.id ? { ...assistantMessage } : item
-            )
-          }
-
-          if (event.type === 'agent_citations') {
-            assistantMessage.citations = event.citations
-            aiStreamingMessages.value = aiStreamingMessages.value.map((item) =>
-              item.id === assistantMessage.id ? { ...assistantMessage } : item
-            )
-          }
-
-          if (event.type === 'run') {
-            aiRunMeta.value = {
-              agentRunId: event.agentRunId,
-              usage: event.usage,
-              durationMs: event.durationMs,
-            }
-            assistantMessage.timeline = [
-              ...(assistantMessage.timeline ?? []).filter((item) => item.kind !== 'run'),
-              { kind: 'run', durationMs: event.durationMs, usage: event.usage },
-            ]
-            aiStreamingMessages.value = aiStreamingMessages.value.map((item) =>
-              item.id === assistantMessage.id ? { ...assistantMessage } : item
-            )
-          }
-
-          if (event.type === 'agent_confirmation') {
-            streamedConfirmation = {
-              id: event.id,
-              action: event.action,
-              impact: event.impact,
-              targetType: event.targetType,
-              targetId: event.targetId,
-              targetSummary: event.targetSummary,
-              changeSummary: event.changeSummary,
-              expiresAt: event.expiresAt,
-              presentation: event.presentation,
-            }
-          }
-
-          if (event.type === 'done') {
-            completedAssistantMessageId = event.message.id
-            completedTimeline = assistantMessage.timeline
-            event.confirmations.forEach((confirmation) => {
-              newlyCreatedAiConfirmationIds.add(confirmation.id)
-            })
-            aiConversation.value = {
-              ...event.conversation,
-              confirmations: [
-                ...aiConfirmations.value,
-                ...event.confirmations.map((confirmation) => ({
-                  ...confirmation,
-                  messageId: event.message.id,
-                })),
-              ],
-            }
-            aiConfirmations.value = aiConversation.value.confirmations ?? []
-            aiStreamingMessageId.value = null
-            aiStreamingMessages.value = []
-            const confirmation = event.confirmations.at(-1) ?? streamedConfirmation
-            if (confirmation) {
-              presentLatestAiConfirmation([{ ...confirmation, messageId: event.message.id }])
-            }
-          }
-
-          if (event.type === 'error') {
-            assistantMessage.content = event.assistantMessage?.content ?? event.message
-            assistantMessage.citations = event.assistantMessage?.citations ?? []
-            assistantMessage.status = 'error'
-            aiStreamingMessages.value = aiStreamingMessages.value.map((item) =>
-              item.id === assistantMessage.id ? { ...assistantMessage } : item
-            )
-            throw new Error(event.message)
-          }
-        },
-        {
-          signal: abortController.signal,
-          context: aiPageContext.value,
-          regenerateAssistantMessageId,
-        }
-      )
-      const persistedConversation = await getAiChatConversation(auth.token, conversation.id)
-      aiConversation.value = {
-        ...persistedConversation,
-        messages: persistedConversation.messages.map((item) =>
-          item.id === completedAssistantMessageId && completedTimeline
-            ? { ...item, timeline: completedTimeline }
-            : item
-        ),
-      }
-      aiConfirmations.value = persistedConversation.confirmations ?? []
-      const latestCreatedConfirmation = aiConfirmations.value
-        .filter(
-          (confirmation) =>
-            newlyCreatedAiConfirmationIds.has(confirmation.id) ||
-            confirmation.messageId === completedAssistantMessageId
-        )
-        .at(-1)
-      if (latestCreatedConfirmation) {
-        presentLatestAiConfirmation([latestCreatedConfirmation])
-      }
-      await refreshAiConversations()
-    } catch (error) {
-      if (error instanceof DOMException && error.name === 'AbortError') {
-        assistantMessage.status = assistantMessage.content.trim() ? 'interrupted' : 'done'
-        aiStreamingMessages.value = aiStreamingMessages.value.map((item) =>
-          item.id === assistantMessage.id ? { ...assistantMessage } : item
-        )
-      } else {
-        // A proxy can close an SSE response after the backend has already saved
-        // the assistant message, but before its terminal `done` event reaches
-        // the browser. Recover the persisted result instead of presenting a
-        // complete visible reply as an error.
-        if (error instanceof AiChatStreamIncompleteError && aiConversation.value) {
-          try {
-            const persistedConversation = await getAiChatConversation(
-              auth.token,
-              aiConversation.value.id
-            )
-            let currentUserMessageIndex = -1
-            for (let index = persistedConversation.messages.length - 1; index >= 0; index -= 1) {
-              const candidate = persistedConversation.messages[index]
-              if (candidate?.role === 'user' && candidate.content === message) {
-                currentUserMessageIndex = index
-                break
-              }
-            }
-            const persistedAssistantMessage =
-              currentUserMessageIndex >= 0
-                ? persistedConversation.messages[currentUserMessageIndex + 1]
-                : undefined
-            if (
-              persistedAssistantMessage?.role === 'assistant' &&
-              persistedAssistantMessage.content.trim()
-            ) {
-              aiConversation.value = persistedConversation
-              aiConfirmations.value = persistedConversation.confirmations ?? []
-              aiStreamingMessageId.value = null
-              aiStreamingMessages.value = []
-              await refreshAiConversations()
-              return
-            }
-          } catch {
-            // Fall through to the rendered-content fallback below.
-          }
-        }
-        if (error instanceof AiChatStreamIncompleteError && assistantMessage.content.trim()) {
-          // The reply is already usable in the UI. A missing terminal frame must
-          // not turn a visible answer into a false failure notification.
-          assistantMessage.status = 'done'
-          aiStreamingMessageId.value = null
-          aiStreamingMessages.value = aiStreamingMessages.value.map((item) =>
-            item.id === assistantMessage.id ? { ...assistantMessage } : item
-          )
-          return
-        }
-        assistantMessage.status = 'error'
-        aiStreamingMessages.value = aiStreamingMessages.value.map((item) =>
-          item.id === assistantMessage.id ? { ...assistantMessage } : item
-        )
-        toast.error(
-          error instanceof AiChatStreamIncompleteError
-            ? t('ai_chat.stream_incomplete')
-            : error instanceof Error
-              ? error.message
-              : t('common.error')
-        )
-      }
-    } finally {
-      if (aiAbortController.value === abortController) {
-        aiAbortController.value = null
-        aiStreamingMessageId.value = null
-        aiLoading.value = false
-      }
-    }
-  }
+  const { send: handleAiSend } = useAiChatStream(
+    () => auth.token,
+    (key) => t(key),
+    aiPageContext,
+    {
+      loading: aiLoading,
+      conversation: aiConversation,
+      conversations: aiConversations,
+      streamingMessages: aiStreamingMessages,
+      streamingMessageId: aiStreamingMessageId,
+      abortController: aiAbortController,
+      confirmations: aiConfirmations,
+      pendingConfirmation: pendingAiConfirmation,
+      approvalDismissed: aiApprovalDismissed,
+      runMeta: aiRunMeta,
+    },
+    conversationManager.ensure,
+    conversationManager.refresh,
+    presentLatestAiConfirmation
+  )
 
   onMounted(() => {
-    void refreshAiConversations().catch(() => undefined)
+    void conversationManager.refresh().catch(() => undefined)
   })
 
   return {
@@ -639,11 +272,11 @@ export function useAiChat() {
     allAiSuggestions,
     aiPageContext,
     refreshAiSuggestions,
-    refreshAiConversations,
-    ensureAiConversation,
-    handleAiNewChat,
-    handleAiSelectConversation,
-    handleAiDeleteConversation,
+    refreshAiConversations: conversationManager.refresh,
+    ensureAiConversation: conversationManager.ensure,
+    handleAiNewChat: conversationManager.createNew,
+    handleAiSelectConversation: conversationManager.select,
+    handleAiDeleteConversation: conversationManager.remove,
     handleAiStop,
     handleAiCopyMessage,
     handleAiCopyMessagesAsMarkdown,

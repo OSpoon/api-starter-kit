@@ -29,12 +29,15 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Textarea } from '@/components/ui/textarea'
-import type { DisplayAiChatMessage } from '@/composables/useAiChat'
 import type {
   AiChatConfirmation,
   AiChatCredentialDisclosure,
   AiChatTimelineItem,
 } from '@/features/ai/api'
+import { useAiChatMessageSelection } from '@/features/ai/composables/useAiChatMessageSelection'
+import { useAiChatResize } from '@/features/ai/composables/useAiChatResize'
+import { useAiChatScroll } from '@/features/ai/composables/useAiChatScroll'
+import type { DisplayAiChatMessage } from '@/features/ai/types'
 
 interface ChatConversation {
   id: string | number
@@ -104,19 +107,6 @@ const input = ref('')
 const isComposingInput = ref(false)
 const compositionEndedAt = ref(0)
 const scrollAreaRef = ref<InstanceType<typeof ScrollArea> | null>(null)
-const autoScrollEnabled = ref(true)
-const isSelectingMessages = ref(false)
-const selectedMessageKeys = ref(new Set<string>())
-
-let scrollViewport: HTMLElement | null = null
-
-const chatHeight = ref(600)
-const chatWidth = ref(520)
-const isResizing = ref(false)
-const resizeStartX = ref(0)
-const resizeStartY = ref(0)
-const resizeStartWidth = ref(0)
-const resizeStartHeight = ref(0)
 
 const isControlled = computed(() => props.modelValue !== undefined)
 const isOpen = computed({
@@ -152,9 +142,20 @@ const promptSuggestions = computed(() =>
   ).slice(0, 3)
 )
 
-function getMessageKey(message: DisplayAiChatMessage, index: number) {
-  return `${message.id ?? 'message'}-${index}`
-}
+const { chatHeight, chatWidth, startResize } = useAiChatResize()
+const { autoScrollEnabled, scrollToBottom } = useAiChatScroll(scrollAreaRef, isOpen)
+const {
+  isSelecting: isSelectingMessages,
+  selectedKeys: selectedMessageKeys,
+  selectableCount: selectableMessageCount,
+  selectedMessages,
+  getMessageKey,
+  start: startMessageSelection,
+  cancel: cancelMessageSelection,
+  select: selectMessage,
+  toggleAll: toggleAllMessages,
+  prune: pruneSelectedMessages,
+} = useAiChatMessageSelection(displayMessages)
 
 function getConfirmation(timeline?: AiChatTimelineItem[]) {
   return [...(timeline ?? [])].reverse().find((item) => item.kind === 'confirmation')
@@ -170,123 +171,9 @@ function getConversationBoundaryLabel(message: DisplayAiChatMessage) {
   })
 }
 
-const selectableMessageCount = computed(
-  () =>
-    displayMessages.value.filter((message) => message.id !== 'welcome' && message.content.trim())
-      .length
-)
-const selectedMessages = computed(() =>
-  displayMessages.value.filter((message, index) =>
-    selectedMessageKeys.value.has(getMessageKey(message, index))
-  )
-)
-
-function startMessageSelection() {
-  isSelectingMessages.value = true
-  selectedMessageKeys.value = new Set()
-}
-
-function cancelMessageSelection() {
-  isSelectingMessages.value = false
-  selectedMessageKeys.value = new Set()
-}
-
-function selectMessage(message: DisplayAiChatMessage, index: number, selected: boolean) {
-  const key = getMessageKey(message, index)
-  const nextSelection = new Set(selectedMessageKeys.value)
-  if (selected) {
-    nextSelection.add(key)
-  } else {
-    nextSelection.delete(key)
-  }
-  selectedMessageKeys.value = nextSelection
-}
-
-function toggleAllMessages(selected: boolean) {
-  selectedMessageKeys.value = selected
-    ? new Set(
-        displayMessages.value.flatMap((message, index) =>
-          message.id !== 'welcome' && message.content.trim() ? [getMessageKey(message, index)] : []
-        )
-      )
-    : new Set()
-}
-
 function copySelectedMessagesAsMarkdown() {
   emit('copyMessagesAsMarkdown', selectedMessages.value)
   cancelMessageSelection()
-}
-
-function startResize(event: MouseEvent) {
-  isResizing.value = true
-  resizeStartX.value = event.clientX
-  resizeStartY.value = event.clientY
-  resizeStartWidth.value = chatWidth.value
-  resizeStartHeight.value = chatHeight.value
-  window.addEventListener('mousemove', onResize)
-  window.addEventListener('mouseup', stopResize)
-  document.body.style.userSelect = 'none'
-}
-
-function onResize(event: MouseEvent) {
-  if (!isResizing.value) return
-
-  const deltaY = resizeStartY.value - event.clientY
-  chatHeight.value = Math.min(
-    Math.max(resizeStartHeight.value + deltaY, 420),
-    window.innerHeight - 32
-  )
-
-  const deltaX = resizeStartX.value - event.clientX
-  chatWidth.value = Math.min(Math.max(resizeStartWidth.value + deltaX, 360), window.innerWidth - 32)
-}
-
-function stopResize() {
-  isResizing.value = false
-  window.removeEventListener('mousemove', onResize)
-  window.removeEventListener('mouseup', stopResize)
-  document.body.style.userSelect = ''
-}
-
-function getScrollViewport() {
-  const root = scrollAreaRef.value?.$el as HTMLElement | undefined
-  return root?.querySelector<HTMLElement>('[data-slot="scroll-area-viewport"]') ?? null
-}
-
-function isNearScrollBottom(viewport: HTMLElement) {
-  return viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight <= 32
-}
-
-function handleConversationScroll() {
-  if (scrollViewport) {
-    autoScrollEnabled.value = isNearScrollBottom(scrollViewport)
-  }
-}
-
-function bindScrollViewport() {
-  const viewport = getScrollViewport()
-  if (viewport === scrollViewport) return viewport
-
-  scrollViewport?.removeEventListener('scroll', handleConversationScroll)
-  scrollViewport = viewport
-  scrollViewport?.addEventListener('scroll', handleConversationScroll, { passive: true })
-  if (scrollViewport) {
-    autoScrollEnabled.value = isNearScrollBottom(scrollViewport)
-  }
-  return scrollViewport
-}
-
-function scrollToBottom(force = false) {
-  if (!force && !autoScrollEnabled.value) return
-  if (force) autoScrollEnabled.value = true
-
-  nextTick(() => {
-    const viewport = bindScrollViewport()
-    if (viewport) {
-      viewport.scrollTop = viewport.scrollHeight
-      autoScrollEnabled.value = true
-    }
-  })
 }
 
 function resumeAutoScroll() {
@@ -389,28 +276,11 @@ function handlePaste(event: ClipboardEvent) {
 watch(
   () => displayMessages.value,
   () => {
-    const availableKeys = new Set(displayMessages.value.map(getMessageKey))
-    selectedMessageKeys.value = new Set(
-      [...selectedMessageKeys.value].filter((key) => availableKeys.has(key))
-    )
+    pruneSelectedMessages()
     scrollToBottom()
   },
   { deep: true }
 )
-
-watch(isOpen, (value) => {
-  if (value) {
-    scrollToBottom(true)
-  } else {
-    scrollViewport?.removeEventListener('scroll', handleConversationScroll)
-    scrollViewport = null
-  }
-})
-
-onUnmounted(() => {
-  stopResize()
-  scrollViewport?.removeEventListener('scroll', handleConversationScroll)
-})
 </script>
 
 <template>
