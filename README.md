@@ -1,5 +1,7 @@
 # API Starter Kit
 
+![HERO](./docs/api-starter-kit-hero.png)
+
 > 面向 AI 管理应用的全栈模板，内置安全、治理、可观测性与受控 AI 能力。
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
