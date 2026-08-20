@@ -55,7 +55,7 @@ const breadcrumbs = computed(() => {
         <div class="min-h-0 flex-1 overflow-auto">
           <RouterView />
         </div>
-        <footer class="shrink-0 py-4 text-center text-sm text-muted-foreground">
+        <footer class="shrink-0 py-2 text-center text-sm text-muted-foreground">
           {{ t('footer.copyright') }}
         </footer>
       </div>

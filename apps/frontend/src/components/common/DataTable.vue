@@ -199,8 +199,8 @@ function nextPage() {
 </script>
 
 <template>
-  <div class="space-y-4">
-    <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+  <div class="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
+    <div class="flex shrink-0 flex-col gap-3 md:flex-row md:items-center md:justify-between">
       <div
         :class="
           filtersLayout === 'inline'
@@ -241,9 +241,9 @@ function nextPage() {
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
-    <div class="rounded-md border">
-      <Table>
-        <TableHeader>
+    <div class="min-h-0 min-w-0 flex-1 overflow-auto rounded-md border">
+      <Table container-class="h-full overflow-visible">
+        <TableHeader class="sticky top-0 z-10 bg-card">
           <TableRow v-for="headerGroup in table.getHeaderGroups()" :key="headerGroup.id">
             <TableHead v-for="header in headerGroup.headers" :key="header.id">
               <FlexRender
@@ -285,7 +285,7 @@ function nextPage() {
         </TableBody>
       </Table>
     </div>
-    <div class="flex items-center justify-end space-x-2 py-4">
+    <div class="flex shrink-0 items-center justify-end space-x-2">
       <div class="space-x-2">
         <Button
           variant="outline"
