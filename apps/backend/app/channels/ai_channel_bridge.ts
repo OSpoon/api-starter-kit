@@ -1,4 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http'
+import logger from '@adonisjs/core/services/logger'
 
 import { runAiChatAssistantTurn } from '#ai/chat/ai_chat_turn_service'
 import {
@@ -35,8 +36,25 @@ function createChannelHttpContext(user: User) {
   } as unknown as HttpContext
 }
 
+function summarizeConfirmation(confirmation: Record<string, unknown> | null) {
+  if (!confirmation) return null
+  return {
+    id: confirmation.id ?? confirmation.confirmationId ?? null,
+    actionCode: confirmation.actionCode ?? confirmation.action ?? null,
+    status: confirmation.status ?? null,
+    keys: Object.keys(confirmation),
+  }
+}
+
 function textReply(content: string): OutboundMessage {
   return { kind: 'text', content }
+}
+
+function removeConfirmationPlaceholder(content: string) {
+  return content
+    .replace(/\[确认卡片\]/g, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
 }
 
 function confirmationReply(value: Record<string, unknown>): OutboundMessage | null {
@@ -70,7 +88,10 @@ function confirmationReply(value: Record<string, unknown>): OutboundMessage | nu
 export class AiChannelBridge {
   constructor(private readonly adapter: ChannelAdapter) {}
 
-  async handleMessage(message: NormalizedInboundMessage): Promise<OutboundMessage> {
+  async handleMessage(
+    message: NormalizedInboundMessage,
+    emit?: (content: string) => Promise<void>
+  ): Promise<OutboundMessage> {
     const identity = await findActiveChannelIdentity({
       channel: message.channel,
       externalTenantId: message.externalTenantId,
@@ -119,10 +140,20 @@ export class AiChannelBridge {
         onEvent: async (event, data) => {
           if (event === 'delta' && data && typeof data === 'object') {
             const content = (data as Record<string, unknown>).content
-            if (typeof content === 'string') assistantContent += content
+            if (typeof content === 'string') {
+              assistantContent += content
+              if (emit) await emit(removeConfirmationPlaceholder(assistantContent))
+            }
           }
           if (event === 'done' && data && typeof data === 'object') {
             const confirmations = (data as Record<string, unknown>).confirmations
+            logger.info(
+              {
+                conversationId: conversation.id,
+                confirmationCount: Array.isArray(confirmations) ? confirmations.length : 0,
+              },
+              'WeCom AI turn completed'
+            )
             if (Array.isArray(confirmations) && confirmations[0]) {
               confirmation = confirmations[0] as Record<string, unknown>
             }
@@ -130,11 +161,26 @@ export class AiChannelBridge {
           if (event === 'agent_confirmation' && data && typeof data === 'object') {
             managedActionResult = 'pending'
             confirmation = data as Record<string, unknown>
+            logger.info(
+              {
+                conversationId: conversation.id,
+                confirmation: summarizeConfirmation(confirmation),
+              },
+              'WeCom agent confirmation event received'
+            )
           }
           if (event === 'tool_completed' && data && typeof data === 'object') {
             const output = (data as Record<string, unknown>).output
             if (output && typeof output === 'object') {
               const artifact = output as Record<string, unknown>
+              logger.info(
+                {
+                  conversationId: conversation.id,
+                  artifactKind: artifact.kind ?? null,
+                  hasConfirmation: Boolean(artifact.confirmation),
+                },
+                'WeCom AI tool completed'
+              )
               if (artifact.kind === 'confirmation' && artifact.confirmation) {
                 managedActionResult = 'pending'
                 confirmation = artifact.confirmation as Record<string, unknown>
@@ -160,17 +206,40 @@ export class AiChannelBridge {
       )
       if (pendingConfirmations[0]) confirmation = pendingConfirmations[0]
     }
+    logger.info(
+      {
+        conversationId: conversation.id,
+        managedActionResult,
+        confirmation: summarizeConfirmation(confirmation),
+      },
+      'WeCom confirmation resolution completed'
+    )
     if (confirmation) {
       const reply = confirmationReply(confirmation)
       if (reply) return reply
+      logger.warn(
+        { conversationId: conversation.id, confirmation: summarizeConfirmation(confirmation) },
+        'WeCom confirmation was found but could not be converted to a card'
+      )
     }
     if (managedActionResult === 'pending') {
+      logger.warn(
+        { conversationId: conversation.id },
+        'WeCom managed action completed without a serializable confirmation'
+      )
       return textReply('操作提案已生成，但确认卡未发送成功，请重新发起操作。')
     }
     if (managedActionResult === 'error') {
       return textReply('操作未完成，请检查权限或参数后重试。')
     }
-    return textReply(assistantContent || 'AI 没有生成可显示的回复。')
+    return textReply(removeConfirmationPlaceholder(assistantContent) || 'AI 没有生成可显示的回复。')
+  }
+
+  async handleMessageStream(
+    message: NormalizedInboundMessage,
+    emit: (content: string) => Promise<void>
+  ) {
+    return this.handleMessage(message, emit)
   }
 
   async start() {

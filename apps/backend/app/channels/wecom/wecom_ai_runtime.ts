@@ -13,6 +13,7 @@ export async function createWecomAiRuntime() {
     tenantId: config.tenantId,
     wsUrl: config.wsUrl,
     onMessage: (message) => bridge.handleMessage(message),
+    onMessageStream: (message, emit) => bridge.handleMessageStream(message, emit),
     onTemplateCardEvent: (event) => bridge.handleTemplateCardEvent(event),
   })
   bridge = new AiChannelBridge(adapter)

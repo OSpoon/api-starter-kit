@@ -76,7 +76,7 @@ LLM 配置在系统管理中的「LLM 配置」页面维护，支持运行时修
 ### 企业微信智能机器人
 
 企业微信 Webhook 继续用于出站通知；双向 AI 对话使用智能机器人 API 的 WebSocket 长连接。
-企业微信智能机器人参数在系统管理中的「LLM 配置」页面维护，Bot Secret 会在后端加密保存，不再通过环境变量配置。保存后重启 bot worker，开发环境运行：
+企业微信智能机器人参数在系统管理中的「LLM 配置」页面维护，Bot Secret 会在后端加密保存，不再通过环境变量配置。开发环境运行 `pnpm dev` 时，bot worker 会在代码变更后自动重启；配置保存后仍需重启 bot worker 以重新建立 WebSocket 连接：
 
 ```bash
 pnpm dev

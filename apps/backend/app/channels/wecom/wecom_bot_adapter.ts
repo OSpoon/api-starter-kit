@@ -21,6 +21,10 @@ export interface WecomBotAdapterOptions {
   secret: string
   wsUrl?: string
   onMessage: (message: NormalizedInboundMessage) => Promise<OutboundMessage | void>
+  onMessageStream?: (
+    message: NormalizedInboundMessage,
+    emit: (content: string) => Promise<void>
+  ) => Promise<OutboundMessage | void>
   onTemplateCardEvent?: (input: {
     externalUserId: string
     conversationKey: string
@@ -41,16 +45,18 @@ export class WecomBotAdapter implements ChannelAdapter {
   readonly channel = 'wecom' as const
   readonly tenantId: string
   private readonly client: InstanceType<typeof AiBot.WSClient>
+  private readonly logger: NonNullable<WSClientOptions['logger']>
   private started = false
 
   constructor(private readonly options: WecomBotAdapterOptions) {
     this.tenantId = options.tenantId
+    this.logger = options.logger ?? new DefaultLogger('wecom-bot')
     this.client = new AiBot.WSClient({
       botId: options.botId,
       secret: options.secret,
       wsUrl: options.wsUrl,
       maxReconnectAttempts: -1,
-      logger: options.logger ?? new DefaultLogger('wecom-bot'),
+      logger: this.logger,
     })
 
     this.client.on('message.text', (frame) => {
@@ -116,7 +122,7 @@ export class WecomBotAdapter implements ChannelAdapter {
     if (!body?.from?.userid || !body.text?.content) return
 
     try {
-      const reply = await this.options.onMessage({
+      const message: NormalizedInboundMessage = {
         channel: this.channel,
         externalTenantId: this.options.tenantId,
         externalUserId: body.from.userid,
@@ -126,7 +132,12 @@ export class WecomBotAdapter implements ChannelAdapter {
         content: body.text.content,
         receivedAt: new Date(),
         raw: frame,
-      })
+      }
+      if (this.options.onMessageStream) {
+        await this.handleStreamingReply(frame, message)
+        return
+      }
+      const reply = await this.options.onMessage(message)
       if (reply) {
         if (reply.kind === 'confirmation') {
           await this.client.replyTemplateCard(frame, this.toTemplateCard(reply))
@@ -151,6 +162,86 @@ export class WecomBotAdapter implements ChannelAdapter {
         },
         { kind: 'text', content: '本次请求处理失败，请稍后重试。' }
       )
+    }
+  }
+
+  private async handleStreamingReply(frame: WsFrame, message: NormalizedInboundMessage) {
+    const streamId = this.createStreamId()
+    let latestContent = '正在输入……'
+    await this.client.replyStream(frame, streamId, latestContent, false)
+
+    try {
+      const reply = await this.options.onMessageStream!(message, async (content) => {
+        latestContent = content || latestContent
+        await this.client.replyStream(frame, streamId, latestContent, false)
+      })
+      this.logger.info(
+        `WeCom stream handler completed: kind=${reply?.kind ?? 'none'}, conversation=${message.conversationKey}`
+      )
+      if (reply?.kind === 'confirmation') {
+        this.logger.info(
+          `Confirmation card prepared: id=${reply.confirmationId}, conversation=${message.conversationKey}`
+        )
+        await this.sendConfirmationCard(
+          frame,
+          streamId,
+          message.conversationKey,
+          latestContent || '请在下方确认卡片中确认操作。',
+          reply
+        )
+        return
+      }
+      await this.client.replyStream(
+        frame,
+        streamId,
+        reply?.kind === 'text' ? reply.content : latestContent,
+        true
+      )
+    } catch (error) {
+      this.logHandlerError(error)
+      await this.client.replyStream(frame, streamId, '本次请求处理失败，请稍后重试。', true)
+    }
+  }
+
+  private async sendConfirmationCard(
+    frame: WsFrame,
+    streamId: string,
+    conversationKey: string,
+    content: string,
+    message: Extract<OutboundMessage, { kind: 'confirmation' }>
+  ) {
+    this.logger.info(
+      `Sending confirmation card: id=${message.confirmationId}, conversation=${conversationKey}, streamId=${streamId}`
+    )
+    try {
+      // Finish the text stream first. Some WeCom clients acknowledge a
+      // template card embedded in the final stream frame but do not render it.
+      await this.client.replyStream(frame, streamId, content, true)
+      await this.client.replyTemplateCard(frame, this.toTemplateCard(message))
+      this.logger.info(
+        `Confirmation card sent as a separate reply: id=${message.confirmationId}, conversation=${conversationKey}`
+      )
+    } catch (error) {
+      this.logger.warn(
+        `Confirmation card stream send failed: id=${message.confirmationId}, conversation=${conversationKey}`
+      )
+      this.logHandlerError(error)
+      try {
+        await this.send(
+          {
+            channel: this.channel,
+            externalTenantId: this.options.tenantId,
+            conversationKey,
+          },
+          message
+        )
+        this.logger.info(
+          `Confirmation card sent proactively: id=${message.confirmationId}, conversation=${conversationKey}`
+        )
+      } catch (fallbackError) {
+        this.logHandlerError(fallbackError)
+        throw new Error(`确认卡片发送失败（confirmationId=${message.confirmationId}）`)
+      }
     }
   }
 
@@ -198,16 +289,9 @@ export class WecomBotAdapter implements ChannelAdapter {
     }
     if (!event.event_key || !event.task_id || !this.options.onTemplateCardEvent) return
 
-    try {
-      await this.client.updateTemplateCard(frame, {
-        card_type: 'text_notice',
-        main_title: { title: '操作处理中' },
-        sub_title_text: '系统正在执行并核验操作结果，请稍候。',
-        task_id: event.task_id,
-      })
-    } catch (error) {
-      this.logHandlerError(error)
-    }
+    this.logger.info(
+      `Template card action received: eventKey=${event.event_key}, taskId=${event.task_id}`
+    )
 
     const reply = await this.options.onTemplateCardEvent({
       externalUserId: body.from.userid,
