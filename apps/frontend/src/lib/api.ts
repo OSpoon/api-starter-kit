@@ -38,6 +38,7 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}) 
 
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
+    credentials: 'include',
     headers,
   })
 

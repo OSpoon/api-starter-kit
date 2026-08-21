@@ -9,7 +9,7 @@ export default class UserTransformer extends BaseTransformer<User> {
       roles.flatMap((role) => role.permissions?.map((permission) => permission.code) ?? [])
     )
 
-    return {
+    const transformed = {
       ...this.pick(this.resource, [
         'id',
         'fullName',
@@ -25,5 +25,11 @@ export default class UserTransformer extends BaseTransformer<User> {
         ? ['*']
         : [...permissions].sort(),
     }
+
+    if (this.resource.githubLinked !== undefined) {
+      return { ...transformed, githubLinked: this.resource.githubLinked }
+    }
+
+    return transformed
   }
 }

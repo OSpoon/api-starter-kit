@@ -4,11 +4,16 @@ import { test } from '@japa/runner'
 import GithubIdentity from '#models/github_identity'
 import User from '#models/user'
 import {
+  consumeGithubLinkState,
+  consumeGithubLoginChallenge,
   consumeGithubLoginExchange,
+  createGithubLinkState,
+  createGithubLoginChallenge,
   createGithubLoginExchange,
   findOrLinkGithubUser,
   githubFrontendLoginUrl,
   githubOAuthErrors,
+  linkGithubIdentity,
 } from '#services/github_oauth'
 
 async function assertGithubError(
@@ -35,24 +40,16 @@ test.group('GitHub OAuth account binding', (group) => {
     assert.equal(url, 'http://localhost:18080/login?github_code=exchange-code')
   })
 
-  test('automatically binds GitHub with an existing user email', async ({ assert }) => {
-    const user = await User.create({
-      email: `github-${Date.now()}@example.com`,
-      password: 'Harbor-Violet-Quartz-9821!',
-    })
-
-    const linkedUser = await findOrLinkGithubUser({
-      githubId: '10001',
-      githubLogin: 'template-admin',
-      email: user.email,
-    })
-
-    assert.equal(linkedUser.id, user.id)
-    const identity = await GithubIdentity.findByOrFail('githubId', '10001')
-    assert.equal(identity.userId, user.id)
+  test('does not automatically bind an existing user email', async ({ assert }) => {
+    await assertGithubError(
+      assert,
+      () => findOrLinkGithubUser({ githubId: '10001' }),
+      githubOAuthErrors.accountNotLinked.code
+    )
+    assert.isNull(await GithubIdentity.findBy('githubId', '10001'))
   })
 
-  test('rejects an unlinked GitHub email and a second identity for the same user', async ({
+  test('rejects an unlinked GitHub account and a second identity for the same user', async ({
     assert,
   }) => {
     await assertGithubError(
@@ -60,8 +57,6 @@ test.group('GitHub OAuth account binding', (group) => {
       () =>
         findOrLinkGithubUser({
           githubId: '10002',
-          githubLogin: 'unknown-user',
-          email: `unknown-${Date.now()}@example.com`,
         }),
       githubOAuthErrors.accountNotLinked.code
     )
@@ -78,17 +73,12 @@ test.group('GitHub OAuth account binding', (group) => {
 
     await assertGithubError(
       assert,
-      () =>
-        findOrLinkGithubUser({
-          githubId: '10004',
-          githubLogin: 'second-account',
-          email: user.email,
-        }),
+      () => linkGithubIdentity(user, { githubId: '10004', githubLogin: 'second-account' }),
       githubOAuthErrors.accountConflict.code
     )
   })
 
-  test('removes a legacy binding when the GitHub email no longer matches', async ({ assert }) => {
+  test('uses the stable GitHub identity for subsequent login', async ({ assert }) => {
     const user = await User.create({
       email: `github-mismatch-${Date.now()}@example.com`,
       password: 'Harbor-Violet-Quartz-9821!',
@@ -99,17 +89,9 @@ test.group('GitHub OAuth account binding', (group) => {
       githubLogin: 'legacy-account',
     })
 
-    await assertGithubError(
-      assert,
-      () =>
-        findOrLinkGithubUser({
-          githubId: '10005',
-          githubLogin: 'legacy-account',
-          email: 'different@example.com',
-        }),
-      githubOAuthErrors.accountNotLinked.code
-    )
-    assert.isNull(await GithubIdentity.findBy('githubId', '10005'))
+    const linkedUser = await findOrLinkGithubUser({ githubId: '10005' })
+    assert.equal(linkedUser.id, user.id)
+    assert.isNotNull(await GithubIdentity.findBy('githubId', '10005'))
   })
 
   test('exchanges a GitHub login code only once', async ({ assert }) => {
@@ -124,6 +106,46 @@ test.group('GitHub OAuth account binding', (group) => {
     await assertGithubError(
       assert,
       () => consumeGithubLoginExchange(code),
+      githubOAuthErrors.invalidExchange.code
+    )
+  })
+
+  test('binds a GitHub account only from an authenticated link state', async ({ assert }) => {
+    const user = await User.create({
+      email: `github-link-${Date.now()}@example.com`,
+      password: 'Harbor-Violet-Quartz-9821!',
+    })
+    const state = await createGithubLinkState(user.id)
+    const consumedUser = await consumeGithubLinkState(state)
+
+    assert.equal(consumedUser.id, user.id)
+    await assertGithubError(
+      assert,
+      () => consumeGithubLinkState(state),
+      githubOAuthErrors.invalidState.code
+    )
+  })
+
+  test('keeps an unlinked GitHub login challenge short-lived and single-use', async ({
+    assert,
+  }) => {
+    const code = await createGithubLoginChallenge({
+      githubId: '10006',
+      githubLogin: 'pending-account',
+      email: 'pending@example.com',
+    })
+    const identity = await consumeGithubLoginChallenge(
+      `${code}?code=stale&iss=https%3A%2F%2Fgithub.com`
+    )
+
+    assert.deepEqual(identity, {
+      githubId: '10006',
+      githubLogin: 'pending-account',
+      email: 'pending@example.com',
+    })
+    await assertGithubError(
+      assert,
+      () => consumeGithubLoginChallenge(code),
       githubOAuthErrors.invalidExchange.code
     )
   })

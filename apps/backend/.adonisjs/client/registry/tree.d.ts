@@ -19,6 +19,7 @@ export interface ApiDefinition {
       redirect: typeof routes['auth.github.redirect']
       callback: typeof routes['auth.github.callback']
       exchange: typeof routes['auth.github.exchange']
+      complete: typeof routes['auth.github.complete']
     }
     2Fa: {
       verify: typeof routes['auth.2fa.verify']
@@ -29,6 +30,10 @@ export interface ApiDefinition {
       show: typeof routes['profile.profile.show']
       changePassword: typeof routes['profile.profile.change_password']
       disableTwoFactor: typeof routes['profile.profile.disable_two_factor']
+    }
+    github: {
+      unlink: typeof routes['profile.github.unlink']
+      link: typeof routes['profile.github.link']
     }
     2Fa: {
       generate: typeof routes['profile.2fa.generate']

@@ -12,6 +12,7 @@ import Role from '#models/role'
 export default class User extends compose(UserSchema, withAuthFinder(hash)) {
   static accessTokens = DbAccessTokensProvider.forModel(User)
   declare currentAccessToken?: AccessToken
+  declare githubLinked?: boolean
 
   @column()
   declare twoFactorEnabled: boolean

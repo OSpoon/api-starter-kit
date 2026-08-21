@@ -60,6 +60,12 @@ const routes = {
     tokens: [{"old":"/api/v1/auth/github/exchange","type":0,"val":"api","end":""},{"old":"/api/v1/auth/github/exchange","type":0,"val":"v1","end":""},{"old":"/api/v1/auth/github/exchange","type":0,"val":"auth","end":""},{"old":"/api/v1/auth/github/exchange","type":0,"val":"github","end":""},{"old":"/api/v1/auth/github/exchange","type":0,"val":"exchange","end":""}],
     types: placeholder as Registry['auth.github.exchange']['types'],
   },
+  'auth.github.complete': {
+    methods: ["POST"],
+    pattern: '/api/v1/auth/github/complete',
+    tokens: [{"old":"/api/v1/auth/github/complete","type":0,"val":"api","end":""},{"old":"/api/v1/auth/github/complete","type":0,"val":"v1","end":""},{"old":"/api/v1/auth/github/complete","type":0,"val":"auth","end":""},{"old":"/api/v1/auth/github/complete","type":0,"val":"github","end":""},{"old":"/api/v1/auth/github/complete","type":0,"val":"complete","end":""}],
+    types: placeholder as Registry['auth.github.complete']['types'],
+  },
   'auth.2fa.verify': {
     methods: ["POST"],
     pattern: '/api/v1/auth/2fa/verify',
@@ -77,6 +83,12 @@ const routes = {
     pattern: '/api/v1/account/password',
     tokens: [{"old":"/api/v1/account/password","type":0,"val":"api","end":""},{"old":"/api/v1/account/password","type":0,"val":"v1","end":""},{"old":"/api/v1/account/password","type":0,"val":"account","end":""},{"old":"/api/v1/account/password","type":0,"val":"password","end":""}],
     types: placeholder as Registry['profile.profile.change_password']['types'],
+  },
+  'profile.github.unlink': {
+    methods: ["POST"],
+    pattern: '/api/v1/account/github/unlink',
+    tokens: [{"old":"/api/v1/account/github/unlink","type":0,"val":"api","end":""},{"old":"/api/v1/account/github/unlink","type":0,"val":"v1","end":""},{"old":"/api/v1/account/github/unlink","type":0,"val":"account","end":""},{"old":"/api/v1/account/github/unlink","type":0,"val":"github","end":""},{"old":"/api/v1/account/github/unlink","type":0,"val":"unlink","end":""}],
+    types: placeholder as Registry['profile.github.unlink']['types'],
   },
   'profile.2fa.generate': {
     methods: ["POST"],
@@ -101,6 +113,12 @@ const routes = {
     pattern: '/api/v1/account/logout',
     tokens: [{"old":"/api/v1/account/logout","type":0,"val":"api","end":""},{"old":"/api/v1/account/logout","type":0,"val":"v1","end":""},{"old":"/api/v1/account/logout","type":0,"val":"account","end":""},{"old":"/api/v1/account/logout","type":0,"val":"logout","end":""}],
     types: placeholder as Registry['profile.access_tokens.destroy']['types'],
+  },
+  'profile.github.link': {
+    methods: ["POST"],
+    pattern: '/api/v1/account/github/link',
+    tokens: [{"old":"/api/v1/account/github/link","type":0,"val":"api","end":""},{"old":"/api/v1/account/github/link","type":0,"val":"v1","end":""},{"old":"/api/v1/account/github/link","type":0,"val":"account","end":""},{"old":"/api/v1/account/github/link","type":0,"val":"github","end":""},{"old":"/api/v1/account/github/link","type":0,"val":"link","end":""}],
+    types: placeholder as Registry['profile.github.link']['types'],
   },
   'api_keys.index': {
     methods: ["GET","HEAD"],

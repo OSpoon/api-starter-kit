@@ -13,13 +13,16 @@ export type ScannedRoutes = {
     'auth.github.redirect': { paramsTuple?: []; params?: {} }
     'auth.github.callback': { paramsTuple?: []; params?: {} }
     'auth.github.exchange': { paramsTuple?: []; params?: {} }
+    'auth.github.complete': { paramsTuple?: []; params?: {} }
     'auth.2fa.verify': { paramsTuple?: []; params?: {} }
     'profile.profile.show': { paramsTuple?: []; params?: {} }
     'profile.profile.change_password': { paramsTuple?: []; params?: {} }
+    'profile.github.unlink': { paramsTuple?: []; params?: {} }
     'profile.2fa.generate': { paramsTuple?: []; params?: {} }
     'profile.2fa.enable': { paramsTuple?: []; params?: {} }
     'profile.profile.disable_two_factor': { paramsTuple?: []; params?: {} }
     'profile.access_tokens.destroy': { paramsTuple?: []; params?: {} }
+    'profile.github.link': { paramsTuple?: []; params?: {} }
     'api_keys.index': { paramsTuple?: []; params?: {} }
     'api_keys.store': { paramsTuple?: []; params?: {} }
     'api_keys.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
@@ -66,11 +69,14 @@ export type ScannedRoutes = {
     'auth.signup': { paramsTuple?: []; params?: {} }
     'auth.login': { paramsTuple?: []; params?: {} }
     'auth.github.exchange': { paramsTuple?: []; params?: {} }
+    'auth.github.complete': { paramsTuple?: []; params?: {} }
     'auth.2fa.verify': { paramsTuple?: []; params?: {} }
+    'profile.github.unlink': { paramsTuple?: []; params?: {} }
     'profile.2fa.generate': { paramsTuple?: []; params?: {} }
     'profile.2fa.enable': { paramsTuple?: []; params?: {} }
     'profile.profile.disable_two_factor': { paramsTuple?: []; params?: {} }
     'profile.access_tokens.destroy': { paramsTuple?: []; params?: {} }
+    'profile.github.link': { paramsTuple?: []; params?: {} }
     'api_keys.store': { paramsTuple?: []; params?: {} }
     'wecom_message_templates.store': { paramsTuple?: []; params?: {} }
     'wecom_message_templates.test_send': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }

@@ -38,6 +38,13 @@ export const loginValidator = vine.create({
   turnstileToken: vine.string().trim().optional(),
 })
 
+export const githubLoginCompletionValidator = vine.create({
+  code: vine.string().trim().minLength(1).optional(),
+  email: email(),
+  password: vine.string(),
+  turnstileToken: vine.string().trim().optional(),
+})
+
 export const changePasswordValidator = vine.create({
   currentPassword: vine.string(),
   password: strongPassword(),

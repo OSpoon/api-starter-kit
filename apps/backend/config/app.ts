@@ -43,7 +43,9 @@ export const http = defineConfig({
      * request's query string parameters to the redirect destination.
      * Use withQs(false) to opt out for a specific redirect.
      */
-    forwardQueryString: true,
+    // Never forward callback query parameters such as OAuth codes or state
+    // values when redirecting to another application route.
+    forwardQueryString: false,
   },
 
   /**

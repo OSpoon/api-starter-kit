@@ -115,6 +115,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/github_oauth_controller').default['exchange']>>>
     }
   }
+  'auth.github.complete': {
+    methods: ["POST"]
+    pattern: '/api/v1/auth/github/complete'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/user').githubLoginCompletionValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/user').githubLoginCompletionValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/github_oauth_controller').default['complete']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/github_oauth_controller').default['complete']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
   'auth.2fa.verify': {
     methods: ["POST"]
     pattern: '/api/v1/auth/2fa/verify'
@@ -149,6 +161,18 @@ export interface Registry {
       query: ExtractQuery<InferInput<(typeof import('#validators/user').changePasswordValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/profile_controller').default['changePassword']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/profile_controller').default['changePassword']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'profile.github.unlink': {
+    methods: ["POST"]
+    pattern: '/api/v1/account/github/unlink'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/user').twoFactorValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/user').twoFactorValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/profile_controller').default['unlinkGithub']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/profile_controller').default['unlinkGithub']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
   'profile.2fa.generate': {
@@ -197,6 +221,18 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/access_tokens_controller').default['destroy']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/access_tokens_controller').default['destroy']>>>
+    }
+  }
+  'profile.github.link': {
+    methods: ["POST"]
+    pattern: '/api/v1/account/github/link'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/github_oauth_controller').default['beginLink']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/github_oauth_controller').default['beginLink']>>>
     }
   }
   'api_keys.index': {

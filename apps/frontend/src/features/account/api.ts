@@ -13,6 +13,7 @@ export interface ApiUser {
   passwordChangedAt?: string | null
   roles: Array<{ id: number; code: string; name: string }>
   permissions: string[]
+  githubLinked?: boolean
 }
 
 interface AuthResponse {
@@ -69,15 +70,48 @@ export async function login(
   return toLoginResult(response.data)
 }
 
-export async function exchangeGithubLogin(code: string): Promise<LoginResult> {
+export async function exchangeGithubLogin(code?: string): Promise<LoginResult> {
   const response = await apiRequest<ApiEnvelope<AuthResponse | LoginChallengeResponse>>(
     '/api/v1/auth/github/exchange',
     {
       method: 'POST',
-      body: JSON.stringify({ code }),
+      body: JSON.stringify(code ? { code } : {}),
     }
   )
   return toLoginResult(response.data)
+}
+
+export async function completeGithubLogin(
+  code: string | undefined,
+  email: string,
+  password: string,
+  turnstileToken?: string
+): Promise<LoginResult> {
+  const response = await apiRequest<ApiEnvelope<AuthResponse | LoginChallengeResponse>>(
+    '/api/v1/auth/github/complete',
+    {
+      method: 'POST',
+      body: JSON.stringify({ code, email, password, turnstileToken }),
+    }
+  )
+  return toLoginResult(response.data)
+}
+
+export async function beginGithubLink(token: string | null) {
+  const response = await apiRequest<ApiEnvelope<{ url: string }>>('/api/v1/account/github/link', {
+    ...authOptions(token),
+    method: 'POST',
+  })
+  return response.data.url
+}
+
+export async function unlinkGithub(token: string | null, password: string) {
+  const response = await apiRequest<ApiEnvelope<ApiUser>>('/api/v1/account/github/unlink', {
+    ...authOptions(token),
+    method: 'POST',
+    body: JSON.stringify({ password }),
+  })
+  return readItem(response)
 }
 
 export async function verify2fa(tempToken: string, code: string) {

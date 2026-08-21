@@ -63,6 +63,7 @@ export default await Env.create(new URL('../', import.meta.url), {
   AI_EMBEDDING_BASE_URL: Env.schema.string.optional({ format: 'url', tld: false }),
   AI_EMBEDDING_MODEL: Env.schema.string.optional(),
   AI_EMBEDDING_DIMENSIONS: Env.schema.number.optional(),
+  KNOWLEDGE_PROVIDER: Env.schema.string.optional(),
   KNOWLEDGE_CHUNK_MAX_CHARACTERS: Env.schema.number.optional(),
   KNOWLEDGE_CHUNK_OVERLAP_CHARACTERS: Env.schema.number.optional(),
   KNOWLEDGE_SEMANTIC_BREAKPOINT_PERCENTILE: Env.schema.number.optional(),

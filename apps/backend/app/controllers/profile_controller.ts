@@ -2,6 +2,7 @@ import type { HttpContext } from '@adonisjs/core/http'
 import { ApiOperation, ApiResponse, ApiSecurity } from '@foadonis/openapi/decorators'
 import { DateTime } from 'luxon'
 
+import GithubIdentity from '#models/github_identity'
 import User from '#models/user'
 import { isStrongPassword, passwordContext } from '#security/password_strength'
 import { recordAuditEvent } from '#services/audit_log'
@@ -17,7 +18,7 @@ export default class ProfileController {
   })
   @ApiResponse({ status: 200, description: '管理员资料' })
   async show({ auth, serialize }: HttpContext) {
-    return serialize(UserTransformer.transform(await loadUserAccess(auth.getUserOrFail())))
+    return serialize(await this.profilePayload(auth.getUserOrFail()))
   }
 
   @ApiOperation({
@@ -64,7 +65,7 @@ export default class ProfileController {
       targetId: user.id,
     })
 
-    return serialize(UserTransformer.transform(await loadUserAccess(user)))
+    return serialize(await this.profilePayload(user))
   }
 
   @ApiOperation({
@@ -96,6 +97,49 @@ export default class ProfileController {
       targetId: user.id,
     })
 
-    return serialize(UserTransformer.transform(await loadUserAccess(user)))
+    return serialize(await this.profilePayload(user))
+  }
+
+  @ApiOperation({
+    summary: '解绑 GitHub 账号',
+    description: '验证当前登录密码后解除当前管理员与 GitHub 账号的绑定。',
+  })
+  @ApiResponse({ status: 200, description: '已解绑 GitHub 的管理员资料' })
+  @ApiResponse({ status: 400, description: '当前密码错误或未绑定 GitHub' })
+  async unlinkGithub(ctx: HttpContext) {
+    const { auth, request, response, serialize } = ctx
+    const user = auth.getUserOrFail()
+    const payload = await request.validateUsing(twoFactorValidator)
+    const verifiedUser = await User.verifyCredentials(user.email, payload.password).catch(
+      () => null
+    )
+
+    if (!verifiedUser) {
+      return response.badRequest({ message: '密码不正确' })
+    }
+
+    const identity = await GithubIdentity.findBy('userId', user.id)
+    if (!identity) {
+      return response.badRequest({ message: '当前账号未绑定 GitHub' })
+    }
+
+    await identity.delete()
+    await recordAuditEvent(ctx, {
+      actorUserId: user.id,
+      action: 'account.github_unlinked',
+      targetType: 'user',
+      targetId: user.id,
+    })
+
+    return serialize(await this.profilePayload(user))
+  }
+
+  private async profilePayload(user: User) {
+    const [profile, githubIdentity] = await Promise.all([
+      loadUserAccess(user),
+      GithubIdentity.findBy('userId', user.id),
+    ])
+    profile.githubLinked = Boolean(githubIdentity)
+    return UserTransformer.transform(profile)
   }
 }

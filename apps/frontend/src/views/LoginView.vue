@@ -23,6 +23,8 @@ const isTwoFactorStep = ref(false)
 const twoFactorCode = ref('')
 const tempToken = ref('')
 const pendingPasswordChange = ref(false)
+const githubBindingCode = ref('')
+const githubBindingPending = ref(false)
 const turnstileToken = ref('')
 const turnstileWidget = ref<InstanceType<typeof TurnstileWidget> | null>(null)
 const turnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY ?? ''
@@ -31,12 +33,29 @@ function githubLoginUrl() {
   return `${import.meta.env.VITE_API_URL ?? ''}/api/v1/auth/github`
 }
 
+function normalizeGithubCode(value: unknown) {
+  return typeof value === 'string' ? value.split('?')[0] : null
+}
+
 async function completeGithubLogin() {
-  const callbackCode = typeof route.query.github_code === 'string' ? route.query.github_code : null
-  const code = callbackCode?.split('?')[0] ?? null
+  const code = normalizeGithubCode(route.query.github_code)
+  const pendingBinding = route.query.github_pending === '1'
+  const pendingCode = pendingBinding ? null : normalizeGithubCode(route.query.github_pending)
+  const exchangeCode = route.query.github_exchange === '1' ? undefined : (code ?? undefined)
+  const githubLinked = route.query.github_linked === '1'
   const error = typeof route.query.github_error === 'string' ? route.query.github_error : null
   const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/dashboard'
-  if (!code && !error) {
+  if (githubLinked) {
+    await router.replace({ name: 'profile', query: { github_linked: '1' } })
+    return
+  }
+  if (pendingBinding || pendingCode) {
+    githubBindingCode.value = pendingCode ?? ''
+    githubBindingPending.value = true
+    toast.info(t('auth.github_bind_prompt'))
+    return
+  }
+  if (!exchangeCode && !error && route.query.github_exchange !== '1') {
     return
   }
 
@@ -51,7 +70,7 @@ async function completeGithubLogin() {
   }
 
   try {
-    const result = await auth.exchangeGithubLogin(code!)
+    const result = await auth.exchangeGithubLogin(exchangeCode)
     if (result.kind === 'two_factor') {
       isTwoFactorStep.value = true
       tempToken.value = result.tempToken
@@ -87,6 +106,39 @@ async function handleSubmit() {
       await router.push(redirect)
     } catch (cause) {
       toast.error(cause instanceof Error ? cause.message : t('auth.login_failed'))
+    }
+    return
+  }
+
+  if (githubBindingPending.value) {
+    if (turnstileSiteKey && !turnstileToken.value) {
+      toast.error(t('auth.complete_security_check'))
+      return
+    }
+    try {
+      const bindingCode =
+        route.query.github_pending === '1'
+          ? undefined
+          : normalizeGithubCode(route.query.github_pending) || githubBindingCode.value || undefined
+      const result = await auth.completeGithubLogin(
+        bindingCode,
+        email.value,
+        password.value,
+        turnstileToken.value || undefined
+      )
+      if (result.kind === 'two_factor') {
+        isTwoFactorStep.value = true
+        githubBindingPending.value = false
+        tempToken.value = result.tempToken
+        pendingPasswordChange.value = Boolean(result.requiresPasswordChange)
+        toast.info(t('auth.enter_code'))
+        return
+      }
+      githubBindingPending.value = false
+      toast.success(t('auth.github_bound_login_success'))
+      await router.push((route.query.redirect as string) || '/dashboard')
+    } catch (cause) {
+      toast.error(cause instanceof Error ? cause.message : t('auth.github_bind_failed'))
     }
     return
   }
@@ -137,15 +189,24 @@ function backToLogin() {
   twoFactorCode.value = ''
   tempToken.value = ''
   pendingPasswordChange.value = false
+  githubBindingCode.value = ''
+  githubBindingPending.value = false
   turnstileToken.value = ''
   turnstileWidget.value?.reset()
+  void router.replace({ name: 'login', query: {} })
 }
 </script>
 
 <template>
   <CardPageShell
     :title="t('auth.title')"
-    :description="isTwoFactorStep ? t('auth.desc_2fa') : t('auth.desc_default')"
+    :description="
+      isTwoFactorStep
+        ? t('auth.desc_2fa')
+        : githubBindingPending
+          ? t('auth.github_bind_desc')
+          : t('auth.desc_default')
+    "
     max-width-class="max-w-sm"
   >
     <form
@@ -221,12 +282,14 @@ function backToLogin() {
               ? t('auth.logging_in')
               : isTwoFactorStep
                 ? t('auth.verify')
-                : t('auth.login')
+                : githubBindingPending
+                  ? t('auth.github_bind_login')
+                  : t('auth.login')
           }}
         </Button>
       </div>
 
-      <template v-if="!isTwoFactorStep">
+      <template v-if="!isTwoFactorStep && !githubBindingPending">
         <div class="my-4 flex items-center gap-3 text-xs text-muted-foreground">
           <span class="h-px flex-1 bg-border" />
           {{ t('auth.or_continue_with') }}

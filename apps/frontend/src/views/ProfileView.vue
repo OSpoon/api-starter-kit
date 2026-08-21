@@ -20,7 +20,13 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
-import { disable2fa, enable2fa, generate2fa } from '@/features/account/api'
+import {
+  beginGithubLink,
+  disable2fa,
+  enable2fa,
+  generate2fa,
+  unlinkGithub,
+} from '@/features/account/api'
 import { copyText } from '@/lib/clipboard'
 import { PASSWORD_EXPIRY_DAYS, passwordDaysRemaining } from '@/lib/password'
 import { cn } from '@/lib/utils'
@@ -28,6 +34,7 @@ import { useAuthStore } from '@/stores/auth'
 
 const auth = useAuthStore()
 const router = useRouter()
+const route = useRoute()
 const { t, locale } = useI18n()
 
 const isLoading = ref(false)
@@ -39,6 +46,10 @@ const secret = ref('')
 const enableCode = ref('')
 const recoveryCodes = ref<string[]>([])
 const showRecoveryCodes = ref(false)
+const isLinkingGithub = ref(false)
+const isGithubLinked = ref(false)
+const showUnlinkGithubDialog = ref(false)
+const unlinkGithubPassword = ref('')
 
 const displayName = computed(() => auth.user?.fullName || auth.user?.email || t('profile.no_name'))
 const passwordBaseDate = computed(() => auth.user?.passwordChangedAt || auth.user?.createdAt)
@@ -138,9 +149,48 @@ async function confirmDisable2FA() {
   }
 }
 
+async function linkGithub() {
+  isLinkingGithub.value = true
+  try {
+    window.location.assign(await beginGithubLink(auth.token))
+  } catch (error) {
+    toast.error(error instanceof Error ? error.message : t('profile.github_link_failed'))
+    isLinkingGithub.value = false
+  }
+}
+
+function handleUnlinkGithubClick() {
+  unlinkGithubPassword.value = ''
+  showUnlinkGithubDialog.value = true
+}
+
+async function confirmUnlinkGithub() {
+  if (!unlinkGithubPassword.value) {
+    toast.error(t('profile.toast.enter_password'))
+    return
+  }
+
+  isLoading.value = true
+  try {
+    const profile = await unlinkGithub(auth.token, unlinkGithubPassword.value)
+    auth.user = profile
+    isGithubLinked.value = false
+    unlinkGithubPassword.value = ''
+    showUnlinkGithubDialog.value = false
+    toast.success(t('profile.github_unlinked'))
+  } catch (error) {
+    toast.error(error instanceof Error ? error.message : t('profile.github_unlink_failed'))
+  } finally {
+    isLoading.value = false
+  }
+}
+
 onMounted(async () => {
-  if (!auth.user) {
-    await auth.fetchProfile()
+  const profile = await auth.fetchProfile()
+  isGithubLinked.value = Boolean(profile?.githubLinked)
+  if (route.query.github_linked === '1') {
+    toast.success(t('profile.github_linked'))
+    await router.replace({ query: {} })
   }
 })
 </script>
@@ -195,6 +245,25 @@ onMounted(async () => {
           </template>
         </DescriptionActionRow>
 
+        <DescriptionActionRow
+          :title="t('profile.github_title')"
+          :description="t('profile.github_hint')"
+        >
+          <template #action>
+            <Button v-if="!isGithubLinked" :disabled="isLinkingGithub" @click="linkGithub">
+              {{ isLinkingGithub ? t('profile.github_linking') : t('profile.github_link') }}
+            </Button>
+            <Button
+              v-else
+              variant="destructive"
+              :disabled="isLoading"
+              @click="handleUnlinkGithubClick"
+            >
+              {{ t('profile.github_unlink') }}
+            </Button>
+          </template>
+        </DescriptionActionRow>
+
         <div class="rounded-lg border bg-muted/40 p-5">
           <div class="flex items-start justify-between gap-4">
             <div>
@@ -243,6 +312,27 @@ onMounted(async () => {
         </DescriptionActionRow>
       </CardContent>
     </Card>
+
+    <Dialog v-model:open="showUnlinkGithubDialog">
+      <FormDialogContent
+        :title="t('profile.github_unlink_title')"
+        :description="t('profile.github_unlink_desc')"
+        class="sm:max-w-106.25"
+      >
+        <div class="grid gap-2 p-6 pt-4">
+          <Label for="unlink-github-password">{{ t('profile.current_password') }}</Label>
+          <Input id="unlink-github-password" v-model="unlinkGithubPassword" type="password" />
+        </div>
+        <FormDialogFooter class="justify-end">
+          <Button variant="outline" @click="showUnlinkGithubDialog = false">
+            {{ t('common.cancel') }}
+          </Button>
+          <Button variant="destructive" :disabled="isLoading" @click="confirmUnlinkGithub">
+            {{ t('profile.github_unlink') }}
+          </Button>
+        </FormDialogFooter>
+      </FormDialogContent>
+    </Dialog>
 
     <Dialog v-model:open="showDisableDialog">
       <FormDialogContent

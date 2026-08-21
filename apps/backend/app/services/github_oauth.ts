@@ -4,6 +4,8 @@ import db from '@adonisjs/lucid/services/db'
 import { DateTime } from 'luxon'
 
 import GithubIdentity from '#models/github_identity'
+import GithubLinkState from '#models/github_link_state'
+import GithubLoginChallenge from '#models/github_login_challenge'
 import GithubLoginExchange from '#models/github_login_exchange'
 import User from '#models/user'
 
@@ -11,6 +13,8 @@ const GITHUB_TOKEN_URL = 'https://github.com/login/oauth/access_token'
 const GITHUB_USER_URL = 'https://api.github.com/user'
 const GITHUB_EMAILS_URL = 'https://api.github.com/user/emails'
 const EXCHANGE_TTL_MINUTES = 2
+const LINK_STATE_TTL_MINUTES = 10
+const LOGIN_CHALLENGE_TTL_MINUTES = 10
 
 export const githubOAuthErrors = {
   notConfigured: {
@@ -135,27 +139,118 @@ export async function fetchGithubIdentity(code: string) {
   return { githubId: String(user.id), githubLogin: user.login, email: email.toLowerCase() }
 }
 
-export async function findOrLinkGithubUser(identity: {
-  githubId: string
-  githubLogin: string
-  email: string
-}) {
+export async function findOrLinkGithubUser(identity: { githubId: string }) {
   const existingIdentity = await GithubIdentity.findBy('githubId', identity.githubId)
   if (existingIdentity) {
     const user = await User.find(existingIdentity.userId)
     if (!user || user.disabledAt) {
       throw githubOAuthErrors.accountNotLinked
     }
-    if (user.email.toLowerCase() !== identity.email) {
-      await existingIdentity.delete()
-      throw githubOAuthErrors.accountNotLinked
-    }
     return user
   }
+  throw githubOAuthErrors.accountNotLinked
+}
 
-  const user = await User.findBy('email', identity.email)
+export async function createGithubLoginChallenge(identity: {
+  githubId: string
+  githubLogin: string
+  email: string
+}) {
+  const code = randomBytes(32).toString('base64url')
+  await GithubLoginChallenge.create({
+    githubId: identity.githubId,
+    githubLogin: identity.githubLogin,
+    githubEmail: identity.email,
+    codeHash: codeHash(code),
+    expiresAt: DateTime.now().plus({ minutes: LOGIN_CHALLENGE_TTL_MINUTES }),
+  })
+  return code
+}
+
+export async function readGithubLoginChallenge(code: string) {
+  const normalizedCode = code.split('?')[0]
+  const now = DateTime.now()
+  const challenge = await GithubLoginChallenge.query()
+    .where('code_hash', codeHash(normalizedCode))
+    .whereNull('used_at')
+    .where('expires_at', '>', now.toSQL()!)
+    .first()
+  if (!challenge) throw githubOAuthErrors.invalidExchange
+
+  return {
+    id: challenge.id,
+    identity: {
+      githubId: challenge.githubId,
+      githubLogin: challenge.githubLogin,
+      email: challenge.githubEmail,
+    },
+  }
+}
+
+export async function consumeGithubLoginChallenge(code: string) {
+  const challenge = await readGithubLoginChallenge(code)
+  const now = DateTime.now()
+
+  const consumed = await db
+    .from('github_login_challenges')
+    .where('id', challenge.id)
+    .whereNull('used_at')
+    .update({ used_at: now.toSQL() })
+    .returning('id')
+  if (consumed.length !== 1) throw githubOAuthErrors.invalidExchange
+
+  return challenge.identity
+}
+
+export async function createGithubLinkState(userId: number) {
+  if (await GithubIdentity.findBy('userId', userId)) {
+    throw githubOAuthErrors.accountConflict
+  }
+  const state = `link_${randomBytes(32).toString('base64url')}`
+  await GithubLinkState.create({
+    userId,
+    stateHash: codeHash(state),
+    expiresAt: DateTime.now().plus({ minutes: LINK_STATE_TTL_MINUTES }),
+  })
+  return state
+}
+
+export async function consumeGithubLinkState(state: string) {
+  const now = DateTime.now()
+  const linkState = await GithubLinkState.query()
+    .where('state_hash', codeHash(state))
+    .whereNull('used_at')
+    .where('expires_at', '>', now.toSQL()!)
+    .first()
+  if (!linkState) throw githubOAuthErrors.invalidState
+
+  const consumed = await db
+    .from('github_link_states')
+    .where('id', linkState.id)
+    .whereNull('used_at')
+    .update({ used_at: now.toSQL() })
+    .returning('id')
+  if (consumed.length !== 1) throw githubOAuthErrors.invalidState
+
+  const user = await User.find(linkState.userId)
   if (!user || user.disabledAt) throw githubOAuthErrors.accountNotLinked
-  if (await GithubIdentity.findBy('userId', user.id)) throw githubOAuthErrors.accountConflict
+  return user
+}
+
+export async function linkGithubIdentity(
+  user: User,
+  identity: { githubId: string; githubLogin: string }
+) {
+  const existingGithubIdentity = await GithubIdentity.findBy('githubId', identity.githubId)
+  if (existingGithubIdentity && existingGithubIdentity.userId !== user.id) {
+    throw githubOAuthErrors.accountConflict
+  }
+  const existingUserIdentity = await GithubIdentity.findBy('userId', user.id)
+  if (existingUserIdentity && existingUserIdentity.githubId !== identity.githubId) {
+    throw githubOAuthErrors.accountConflict
+  }
+  if (existingGithubIdentity) return user
+
   await GithubIdentity.create({
     userId: user.id,
     githubId: identity.githubId,
