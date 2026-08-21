@@ -128,6 +128,7 @@
   "nav": {
     "account": "账户",
     "api_docs": "API 集成文档",
+    "github_repository": "GitHub 仓库",
     "help": "帮助",
     "language": "语言",
     "language_switched": "语言已切换",
