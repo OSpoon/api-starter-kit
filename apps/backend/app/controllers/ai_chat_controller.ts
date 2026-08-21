@@ -1,16 +1,16 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import { ApiOperation, ApiResponse, ApiSecurity } from '@foadonis/openapi/decorators'
 
-import { getAiRequestTimeout } from '#ai/ai_agent_config'
+import { resolveAiChatRegeneration } from '#ai/chat/ai_chat_regeneration'
+import { runAiChatAssistantTurn } from '#ai/chat/ai_chat_turn_service'
+import { resetAiConversationState } from '#ai/chat/ai_conversation_state'
+import { getAiRequestTimeout } from '#ai/core/ai_agent_config'
 import {
   AiAgentConfirmationError,
   confirmAiAgentAction as executeAiAgentAction,
   listConversationConfirmations,
-} from '#ai/ai_agent_confirmation'
-import { getAiAgentRun } from '#ai/ai_agent_run_registry'
-import { resolveAiChatRegeneration } from '#ai/ai_chat_regeneration'
-import { runAiChatAssistantTurn } from '#ai/ai_chat_turn_service'
-import { resetAiConversationState } from '#ai/ai_conversation_state'
+} from '#ai/core/ai_agent_confirmation'
+import { getAiAgentRun } from '#ai/runtime/ai_agent_run_registry'
 import AiChatConversation from '#models/ai_chat_conversation'
 import AiChatMessage from '#models/ai_chat_message'
 import {

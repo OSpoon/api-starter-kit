@@ -1,11 +1,11 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import type { AssistantMessage } from '@earendil-works/pi-ai'
 
+import type { createAiAgentStream } from '#ai/chat/ai_agent_service'
 import type {
   AiAgentActionToolArtifact,
   AiAgentConfirmationSummary,
-} from '#ai/ai_agent_confirmation'
-import type { createAiAgentStream } from '#ai/ai_agent_service'
+} from '#ai/core/ai_agent_confirmation'
 
 type AiAgentPlanStep = {
   key: 'identify_target' | 'prepare_proposal' | 'await_confirmation'

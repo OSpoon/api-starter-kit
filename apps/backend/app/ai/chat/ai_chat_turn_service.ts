@@ -1,19 +1,19 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import logger from '@adonisjs/core/services/logger'
 
-import {
-  attachAgentRunConfirmations,
-  failUnattachedAgentRunConfirmations,
-} from '#ai/ai_agent_confirmation'
-import { releaseAiAgentRun } from '#ai/ai_agent_run_registry'
-import { type AiAgentPageContext, createAiAgentStream } from '#ai/ai_agent_service'
-import type { AiChatResolvedRegeneration } from '#ai/ai_chat_regeneration'
+import { type AiAgentPageContext, createAiAgentStream } from '#ai/chat/ai_agent_service'
+import type { AiChatResolvedRegeneration } from '#ai/chat/ai_chat_regeneration'
 import {
   startAiChatSseKeepalive,
   streamAiAgentTurnEvents,
   writeAiChatSse,
-} from '#ai/ai_chat_sse_adapter'
-import { resetAiConversationState } from '#ai/ai_conversation_state'
+} from '#ai/chat/ai_chat_sse_adapter'
+import { resetAiConversationState } from '#ai/chat/ai_conversation_state'
+import {
+  attachAgentRunConfirmations,
+  failUnattachedAgentRunConfirmations,
+} from '#ai/core/ai_agent_confirmation'
+import { releaseAiAgentRun } from '#ai/runtime/ai_agent_run_registry'
 import type AiChatConversation from '#models/ai_chat_conversation'
 import AiChatMessage, {
   type AiChatCitation,

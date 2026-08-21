@@ -1,21 +1,24 @@
 import crypto from 'node:crypto'
 
-import { listConversationConfirmations } from '#ai/ai_agent_confirmation'
-import { createAiAgentPiStream } from '#ai/ai_agent_pi_stream'
-import type { AiAgentPageContext } from '#ai/ai_agent_prompt_policy'
-import { getPendingAiQueryContext } from '#ai/ai_agent_query_registry'
-import { registerAiAgentRun } from '#ai/ai_agent_run_registry'
-import type { AiAgentToolRequestContext } from '#ai/ai_agent_tool_context'
-import type { AiAgentMessage } from '#ai/ai_agent_types'
+import { listConversationConfirmations } from '#ai/core/ai_agent_confirmation'
+import type { AiAgentToolRequestContext } from '#ai/core/ai_agent_tool_context'
+import type { AiAgentMessage } from '#ai/core/ai_agent_types'
+import type { AiAgentPageContext } from '#ai/policy/ai_agent_prompt_policy'
+import { getPendingAiQueryContext } from '#ai/registry/ai_agent_query_registry'
+import { createAiAgentPiStream } from '#ai/runtime/ai_agent_pi_stream'
+import { registerAiAgentRun } from '#ai/runtime/ai_agent_run_registry'
 import AiChatConversation from '#models/ai_chat_conversation'
 
 export {
   getAiAgentModelName,
   getAiAgentSummarizationOptions,
   getAiRequestTimeout,
-} from '#ai/ai_agent_config'
-export { type AiAgentPageContext, createAiAgentSystemPrompt } from '#ai/ai_agent_prompt_policy'
-export type { AiAgentMessage } from '#ai/ai_agent_types'
+} from '#ai/core/ai_agent_config'
+export type { AiAgentMessage } from '#ai/core/ai_agent_types'
+export {
+  type AiAgentPageContext,
+  createAiAgentSystemPrompt,
+} from '#ai/policy/ai_agent_prompt_policy'
 
 async function buildLiveSessionContext(conversationId: number, userId: number) {
   try {

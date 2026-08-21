@@ -8,7 +8,7 @@ import {
   type AiAgentActionImpact,
   getAiAgentAction,
   getAiAgentActionChangeSummary,
-} from '#ai/ai_agent_action_registry'
+} from '#ai/core/ai_agent_action_registry'
 import AiAgentConfirmation from '#models/ai_agent_confirmation'
 import AiChatMessage from '#models/ai_chat_message'
 import { recordAuditEvent } from '#services/audit_log'

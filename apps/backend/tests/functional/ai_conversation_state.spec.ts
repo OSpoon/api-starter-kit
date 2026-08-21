@@ -2,7 +2,7 @@ import testUtils from '@adonisjs/core/services/test_utils'
 import { test } from '@japa/runner'
 import { DateTime } from 'luxon'
 
-import { resetAiConversationState } from '#ai/ai_conversation_state'
+import { resetAiConversationState } from '#ai/chat/ai_conversation_state'
 import AiAgentPendingQuery from '#models/ai_agent_pending_query'
 import AiChatConversation from '#models/ai_chat_conversation'
 import Role from '#models/role'

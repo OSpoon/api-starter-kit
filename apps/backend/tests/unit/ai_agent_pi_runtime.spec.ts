@@ -1,6 +1,6 @@
 import { test } from '@japa/runner'
 
-import { shouldStopPiAfterTurn, trimPiContextToTokenBudget } from '#ai/ai_agent_pi_runtime'
+import { shouldStopPiAfterTurn, trimPiContextToTokenBudget } from '#ai/runtime/ai_agent_pi_runtime'
 
 test.group('Pi agent runtime', () => {
   test('keeps complete persistence history separate from the token-bounded model context', ({

@@ -1,4 +1,4 @@
-import type { PiAgentControl } from '#ai/ai_agent_pi_stream'
+import type { PiAgentControl } from '#ai/runtime/ai_agent_pi_stream'
 
 type RegisteredRun = {
   conversationId: number

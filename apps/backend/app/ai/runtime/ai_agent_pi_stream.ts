@@ -1,11 +1,14 @@
 import type { AgentEvent } from '@earendil-works/pi-agent-core'
 import type { AssistantMessage, Usage } from '@earendil-works/pi-ai'
 
-import { createPiAgent, type PiAgentMessage } from '#ai/ai_agent_pi_runtime'
-import { type AiAgentPageContext, createAiAgentSystemPrompt } from '#ai/ai_agent_prompt_policy'
-import type { AiAgentToolRequestContext } from '#ai/ai_agent_tool_context'
-import { createAiAgentTools } from '#ai/ai_agent_tool_registry'
-import type { AiAgentMessage } from '#ai/ai_agent_types'
+import type { AiAgentToolRequestContext } from '#ai/core/ai_agent_tool_context'
+import type { AiAgentMessage } from '#ai/core/ai_agent_types'
+import {
+  type AiAgentPageContext,
+  createAiAgentSystemPrompt,
+} from '#ai/policy/ai_agent_prompt_policy'
+import { createAiAgentTools } from '#ai/registry/ai_agent_tool_registry'
+import { createPiAgent, type PiAgentMessage } from '#ai/runtime/ai_agent_pi_runtime'
 
 export type PiAgentControl = {
   steer(content: string): void

@@ -1,6 +1,6 @@
 import { test } from '@japa/runner'
 
-import { evaluateAiAssistantTurn } from '#ai/ai_evaluation'
+import { evaluateAiAssistantTurn } from '#ai/evaluation/ai_evaluation'
 
 const evaluation = {
   question: 'test',

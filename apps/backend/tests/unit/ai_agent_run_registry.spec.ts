@@ -1,6 +1,10 @@
 import { test } from '@japa/runner'
 
-import { getAiAgentRun, registerAiAgentRun, releaseAiAgentRun } from '#ai/ai_agent_run_registry'
+import {
+  getAiAgentRun,
+  registerAiAgentRun,
+  releaseAiAgentRun,
+} from '#ai/runtime/ai_agent_run_registry'
 
 test.group('AI agent run registry', () => {
   test('isolates active Pi controls by conversation and user', ({ assert }) => {

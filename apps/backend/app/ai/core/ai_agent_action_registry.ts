@@ -3,7 +3,7 @@ import encryption from '@adonisjs/core/services/encryption'
 import { DateTime } from 'luxon'
 import { z } from 'zod'
 
-import { ensureAiAgentPermission } from '#ai/ai_agent_authorization'
+import { ensureAiAgentPermission } from '#ai/core/ai_agent_authorization'
 import type { PermissionCode } from '#authorization/permission_catalog'
 import type AiAgentConfirmation from '#models/ai_agent_confirmation'
 import ApiKey from '#models/api_key'

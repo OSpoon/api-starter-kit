@@ -2,8 +2,11 @@ import testUtils from '@adonisjs/core/services/test_utils'
 import { test } from '@japa/runner'
 import { DateTime } from 'luxon'
 
-import { getPendingAiQueryContext, runRegisteredAiQuery } from '#ai/ai_agent_query_registry'
-import { createAiAgentTools } from '#ai/ai_agent_tool_registry'
+import {
+  getPendingAiQueryContext,
+  runRegisteredAiQuery,
+} from '#ai/registry/ai_agent_query_registry'
+import { createAiAgentTools } from '#ai/registry/ai_agent_tool_registry'
 import AiAgentPendingQuery from '#models/ai_agent_pending_query'
 import AiChatConversation from '#models/ai_chat_conversation'
 import ApiKey from '#models/api_key'

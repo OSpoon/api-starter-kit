@@ -1,6 +1,6 @@
 import { test } from '@japa/runner'
 
-import { buildMyAccessDiagnosis } from '#ai/ai_access_diagnostic'
+import { buildMyAccessDiagnosis } from '#ai/diagnostics/ai_access_diagnostic'
 
 test.group('AI access diagnosis', () => {
   test('returns only the current user access facts needed for a permission check', ({ assert }) => {

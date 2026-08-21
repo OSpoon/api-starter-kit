@@ -5,9 +5,9 @@ import type { AgentTool } from '@earendil-works/pi-agent-core'
 import { test } from '@japa/runner'
 import { DateTime } from 'luxon'
 
-import { getAiAgentAction } from '#ai/ai_agent_action_registry'
-import { proposeAiAgentAction } from '#ai/ai_agent_confirmation'
-import { createAiAgentTools } from '#ai/ai_agent_tool_registry'
+import { getAiAgentAction } from '#ai/core/ai_agent_action_registry'
+import { proposeAiAgentAction } from '#ai/core/ai_agent_confirmation'
+import { createAiAgentTools } from '#ai/registry/ai_agent_tool_registry'
 import AiAgentConfirmation from '#models/ai_agent_confirmation'
 import AiChatConversation from '#models/ai_chat_conversation'
 import AiChatMessage from '#models/ai_chat_message'
@@ -602,7 +602,7 @@ test.group('AI agent confirmations', (group) => {
     const fakeContext = {
       request: { ip: () => '127.0.0.1', header: () => null },
     } as unknown as import('@adonisjs/core/http').HttpContext
-    const { failUnattachedAgentRunConfirmations } = await import('#ai/ai_agent_confirmation')
+    const { failUnattachedAgentRunConfirmations } = await import('#ai/core/ai_agent_confirmation')
     await failUnattachedAgentRunConfirmations({
       conversationId: conversation.id,
       userId: user.id,
