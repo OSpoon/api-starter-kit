@@ -13,7 +13,7 @@ import type {
   KnowledgeProviderAccess,
   KnowledgeProviderSearchResult,
 } from '#services/knowledge_provider'
-import env from '#start/env'
+import { readRuntimeLlmConfiguration } from '#services/llm_configuration_service'
 
 const EMBEDDING_DIMENSIONS = 1024
 const EMBEDDING_BATCH_SIZE = 32
@@ -26,30 +26,30 @@ type KnowledgeSearchRow = {
   similarity: number | string
 }
 
-function embeddingConfig() {
-  const model = env.get('AI_EMBEDDING_MODEL')?.trim()
-  if (!model) throw new Error('AI_EMBEDDING_MODEL 未配置，无法检索知识库')
+async function embeddingConfig() {
+  const runtime = await readRuntimeLlmConfiguration()
+  const model = runtime.embedding.model?.trim()
+  if (!model) throw new Error('LLM 配置中的 Embedding 模型未配置，无法检索知识库')
   return {
     model,
-    apiKey: env.get('AI_EMBEDDING_API_KEY') ?? env.get('AI_OPENAI_API_KEY') ?? 'no-key',
-    baseURL: (env.get('AI_EMBEDDING_BASE_URL') ?? env.get('AI_OPENAI_BASE_URL'))?.replace(
-      /\/+$/,
-      ''
-    ),
+    apiKey: runtime.embedding.apiKey,
+    baseURL: runtime.embedding.baseURL?.replace(/\/+$/, ''),
+    dimensions: runtime.embedding.dimensions,
   }
 }
 
-function createEmbeddings() {
-  const config = embeddingConfig()
+async function createEmbeddings() {
+  const config = await embeddingConfig()
+  const runtime = await readRuntimeLlmConfiguration()
   return new OpenAI({
     apiKey: config.apiKey,
-    timeout: Math.min(Math.max(env.get('AI_REQUEST_TIMEOUT_MS') ?? 60_000, 5_000), 300_000),
+    timeout: runtime.requestTimeoutMs,
     ...(config.baseURL ? { baseURL: config.baseURL } : {}),
   })
 }
 
 function vectorLiteral(vector: number[]) {
-  const dimensions = env.get('AI_EMBEDDING_DIMENSIONS') ?? EMBEDDING_DIMENSIONS
+  const dimensions = EMBEDDING_DIMENSIONS
   if (dimensions !== EMBEDDING_DIMENSIONS) {
     throw new Error(`当前数据库仅支持 ${EMBEDDING_DIMENSIONS} 维 embedding`)
   }
@@ -61,10 +61,12 @@ function vectorLiteral(vector: number[]) {
 
 async function embedVectors(texts: string[]) {
   const embeddings: number[][] = []
-  const client = createEmbeddings()
+  const client = await createEmbeddings()
+  const config = await embeddingConfig()
   for (let start = 0; start < texts.length; start += EMBEDDING_BATCH_SIZE) {
+    const model = config.model
     const response = await client.embeddings.create({
-      model: embeddingConfig().model,
+      model,
       input: texts.slice(start, start + EMBEDDING_BATCH_SIZE),
     })
     const batch = response.data
@@ -82,10 +84,9 @@ async function embedTexts(texts: string[]) {
 }
 
 async function embedQuery(query: string) {
-  const response = await createEmbeddings().embeddings.create({
-    model: embeddingConfig().model,
-    input: query,
-  })
+  const client = await createEmbeddings()
+  const config = await embeddingConfig()
+  const response = await client.embeddings.create({ model: config.model, input: query })
   return vectorLiteral(response.data[0]?.embedding ?? [])
 }
 
@@ -124,7 +125,8 @@ export default class PostgresKnowledgeProvider implements KnowledgeProvider {
 
   async indexDocument(input: { documentId: number; chunks: string[] }) {
     const embeddings = await embedTexts(input.chunks)
-    const embeddingModel = embeddingConfig().model
+    const embeddingConfigValue = await embeddingConfig()
+    const embeddingModel = embeddingConfigValue.model
     await db.transaction(async (trx) => {
       await trx.from('knowledge_chunks').where('document_id', input.documentId).delete()
       for (const [chunkIndex, content] of input.chunks.entries()) {

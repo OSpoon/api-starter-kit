@@ -17,6 +17,7 @@ const UsersController = () => import('#controllers/users_controller')
 const WecomMessageTemplatesController = () =>
   import('#controllers/wecom_message_templates_controller')
 const SystemStatusController = () => import('#controllers/system_status_controller')
+const LlmConfigurationsController = () => import('#controllers/llm_configurations_controller')
 
 router
   .post('/api/v1/wecom-messages/:id/send', [WecomMessageTemplatesController, 'send'])
@@ -40,7 +41,7 @@ router.get('/api/v1/health/ready', async ({ response }) => {
     healthy = false
   }
 
-  checks.ai = process.env.AI_OPENAI_API_KEY ? 'configured' : 'not_configured'
+  checks.ai = 'runtime_configured'
 
   if (!healthy) {
     return response.status(503).send({ status: 'error', checks })
@@ -105,6 +106,15 @@ router
 
     router
       .group(() => {
+        router
+          .get('llm-config', [LlmConfigurationsController, 'show'])
+          .use(middleware.permission(['llm-config:read']))
+        router
+          .put('llm-config', [LlmConfigurationsController, 'update'])
+          .use(middleware.permission(['llm-config:update']))
+        router
+          .post('llm-config/test', [LlmConfigurationsController, 'test'])
+          .use(middleware.permission(['llm-config:test']))
         router
           .get('wecom-message-templates', [WecomMessageTemplatesController, 'index'])
           .use(middleware.permission(['wecom-templates:read']))

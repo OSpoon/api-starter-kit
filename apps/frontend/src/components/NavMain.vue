@@ -29,7 +29,7 @@ function isNavActive(url: string) {
 </script>
 
 <template>
-  <SidebarGroup>
+  <SidebarGroup class="py-1">
     <SidebarGroupLabel v-if="title">{{ title }}</SidebarGroupLabel>
     <SidebarGroupContent>
       <SidebarMenu>

@@ -69,8 +69,8 @@ pnpm --dir apps/backend typecheck
 pnpm --dir apps/backend exec node ace test
 ```
 
-AI 模型通过 OpenAI-compatible 配置接入：`AI_OPENAI_API_KEY`、`AI_OPENAI_BASE_URL`
-和 `AI_OPENAI_MODEL`。请根据部署环境配置对应的 provider 地址与凭据。
+LLM 配置在系统管理中的「LLM 配置」页面维护，支持运行时修改对话模型、Embedding
+模型和 OpenAI-compatible 网关，无需重启服务。API Key 会在后端加密保存。
 
 ## 许可证
 

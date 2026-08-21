@@ -41,6 +41,6 @@ OpenAPI UI 需要后端环境变量 `OPENAPI_DOCS_ENABLED=true`。
 
 ## AI 提供方配置
 
-通过 `apps/backend/.env` 中的 `AI_OPENAI_*` 配置部署所使用的 OpenAI-compatible provider。知识库的 embedding 模型必须与 `AI_EMBEDDING_DIMENSIONS`（默认 1024）一致；如使用独立的 embedding provider，可单独配置 `AI_EMBEDDING_*`。
+首次迁移会将已有 AI 环境变量导入数据库。之后请在系统管理中的「LLM 配置」页面维护 OpenAI-compatible provider 和 Embedding 配置；Embedding 维度默认 1024，切换模型后需要重建知识库索引。
 
 继续阅读 [API 指南](api.md) 和[部署指南](deployment.md)。

@@ -144,6 +144,24 @@ const routes = {
     tokens: [{"old":"/api/v1/api-keys/:id","type":0,"val":"api","end":""},{"old":"/api/v1/api-keys/:id","type":0,"val":"v1","end":""},{"old":"/api/v1/api-keys/:id","type":0,"val":"api-keys","end":""},{"old":"/api/v1/api-keys/:id","type":1,"val":"id","end":""}],
     types: placeholder as Registry['api_keys.destroy']['types'],
   },
+  'llm_configurations.show': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/v1/system/llm-config',
+    tokens: [{"old":"/api/v1/system/llm-config","type":0,"val":"api","end":""},{"old":"/api/v1/system/llm-config","type":0,"val":"v1","end":""},{"old":"/api/v1/system/llm-config","type":0,"val":"system","end":""},{"old":"/api/v1/system/llm-config","type":0,"val":"llm-config","end":""}],
+    types: placeholder as Registry['llm_configurations.show']['types'],
+  },
+  'llm_configurations.update': {
+    methods: ["PUT"],
+    pattern: '/api/v1/system/llm-config',
+    tokens: [{"old":"/api/v1/system/llm-config","type":0,"val":"api","end":""},{"old":"/api/v1/system/llm-config","type":0,"val":"v1","end":""},{"old":"/api/v1/system/llm-config","type":0,"val":"system","end":""},{"old":"/api/v1/system/llm-config","type":0,"val":"llm-config","end":""}],
+    types: placeholder as Registry['llm_configurations.update']['types'],
+  },
+  'llm_configurations.test': {
+    methods: ["POST"],
+    pattern: '/api/v1/system/llm-config/test',
+    tokens: [{"old":"/api/v1/system/llm-config/test","type":0,"val":"api","end":""},{"old":"/api/v1/system/llm-config/test","type":0,"val":"v1","end":""},{"old":"/api/v1/system/llm-config/test","type":0,"val":"system","end":""},{"old":"/api/v1/system/llm-config/test","type":0,"val":"llm-config","end":""},{"old":"/api/v1/system/llm-config/test","type":0,"val":"test","end":""}],
+    types: placeholder as Registry['llm_configurations.test']['types'],
+  },
   'wecom_message_templates.index': {
     methods: ["GET","HEAD"],
     pattern: '/api/v1/system/wecom-message-templates',

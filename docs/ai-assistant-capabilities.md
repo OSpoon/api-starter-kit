@@ -38,7 +38,7 @@ flowchart TB
 
 ## 配置与观测
 
-模型通过 `AI_OPENAI_*` 接入 OpenAI 兼容服务；知识检索使用 `AI_EMBEDDING_*`。上下文预算由模型的 `contextWindow`、输出上限和 Pi 的 token 估算共同控制；长会话由 Pi compaction 生成滚动摘要，`AI_CONTEXT_COMPRESSION_ENABLED` 与 `AI_CONTEXT_COMPRESSION_THRESHOLD_TOKENS` 控制摘要策略，Agent 请求超时由 `AI_REQUEST_TIMEOUT_MS` 控制。
+模型、Embedding 和请求超时通过系统管理中的「LLM 配置」页面维护，保存后对下一次请求生效。上下文预算由模型的 `contextWindow`、输出上限和 Pi 的 token 估算共同控制；长会话由 Pi compaction 生成滚动摘要。
 
 AI 请求运行状态由 Pi Agent、现有审计日志和对话消息记录维护。
 

@@ -56,19 +56,8 @@ export default await Env.create(new URL('../', import.meta.url), {
   OPENAPI_DOCS_ENABLED: Env.schema.boolean.optional(),
 
   // AI
-  AI_OPENAI_API_KEY: Env.schema.string.optional(),
-  AI_OPENAI_BASE_URL: Env.schema.string.optional({ format: 'url', tld: false }),
-  AI_OPENAI_MODEL: Env.schema.string.optional(),
-  AI_EMBEDDING_API_KEY: Env.schema.string.optional(),
-  AI_EMBEDDING_BASE_URL: Env.schema.string.optional({ format: 'url', tld: false }),
-  AI_EMBEDDING_MODEL: Env.schema.string.optional(),
-  AI_EMBEDDING_DIMENSIONS: Env.schema.number.optional(),
   KNOWLEDGE_PROVIDER: Env.schema.string.optional(),
   KNOWLEDGE_CHUNK_MAX_CHARACTERS: Env.schema.number.optional(),
   KNOWLEDGE_CHUNK_OVERLAP_CHARACTERS: Env.schema.number.optional(),
   KNOWLEDGE_SEMANTIC_BREAKPOINT_PERCENTILE: Env.schema.number.optional(),
-  AI_SYSTEM_PROMPT: Env.schema.string.optional(),
-  AI_CONTEXT_COMPRESSION_ENABLED: Env.schema.boolean.optional(),
-  AI_CONTEXT_COMPRESSION_THRESHOLD_TOKENS: Env.schema.number.optional(),
-  AI_REQUEST_TIMEOUT_MS: Env.schema.number.optional(),
 })

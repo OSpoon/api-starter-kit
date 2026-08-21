@@ -40,7 +40,7 @@ export default class AiEvaluate extends BaseCommand {
       calledTools.push(name)
       return toolOutputs[name] ?? fallback
     }
-    const { agent } = createPiAgent({
+    const { agent } = await createPiAgent({
       systemPrompt: createAiAgentSystemPrompt(
         undefined,
         ' <live-session-state>{"pendingConfirmations":[]}</live-session-state>'

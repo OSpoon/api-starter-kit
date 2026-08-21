@@ -1,0 +1,84 @@
+import encryption from '@adonisjs/core/services/encryption'
+
+import LlmConfiguration from '#models/llm_configuration'
+
+type LlmConfigInput = {
+  chatApiKey?: string | null
+  chatBaseUrl?: string | null
+  chatModel: string
+  embeddingApiKey?: string | null
+  embeddingBaseUrl?: string | null
+  embeddingModel?: string | null
+  embeddingDimensions: number
+  requestTimeoutMs: number
+}
+
+function encryptSecret(value?: string | null) {
+  return value?.trim() ? encryption.encrypt(value.trim()) : null
+}
+
+function decryptSecret(value?: string | null) {
+  return value ? encryption.decrypt<string>(value) : null
+}
+
+export async function getLlmConfiguration() {
+  const existing = await LlmConfiguration.find(1)
+  if (existing) return existing
+  return LlmConfiguration.create({
+    id: 1,
+    chatModel: 'gpt-4o-mini',
+    embeddingModel: null,
+    embeddingDimensions: 1024,
+    requestTimeoutMs: 180000,
+  })
+}
+
+export async function readRuntimeLlmConfiguration() {
+  const config = await getLlmConfiguration()
+  return {
+    chat: {
+      apiKey: decryptSecret(config.chatApiKey) ?? 'no-key',
+      baseURL: config.chatBaseUrl,
+      model: config.chatModel,
+    },
+    embedding: {
+      apiKey: decryptSecret(config.embeddingApiKey) ?? decryptSecret(config.chatApiKey) ?? 'no-key',
+      baseURL: config.embeddingBaseUrl ?? config.chatBaseUrl,
+      model: config.embeddingModel,
+      dimensions: config.embeddingDimensions,
+    },
+    requestTimeoutMs: config.requestTimeoutMs,
+  }
+}
+
+export async function updateLlmConfiguration(input: LlmConfigInput) {
+  const config = await getLlmConfiguration()
+  config.chatBaseUrl = input.chatBaseUrl?.trim() || null
+  config.chatModel = input.chatModel.trim()
+  config.embeddingBaseUrl = input.embeddingBaseUrl?.trim() || null
+  config.embeddingModel = input.embeddingModel?.trim() || null
+  config.embeddingDimensions = input.embeddingDimensions
+  config.requestTimeoutMs = input.requestTimeoutMs
+  if (input.chatApiKey?.trim()) config.chatApiKey = encryptSecret(input.chatApiKey)
+  if (input.embeddingApiKey?.trim()) config.embeddingApiKey = encryptSecret(input.embeddingApiKey)
+  await config.save()
+  return config
+}
+
+export function serializeLlmConfiguration(config: LlmConfiguration) {
+  return {
+    chat: {
+      baseUrl: config.chatBaseUrl,
+      model: config.chatModel,
+      apiKeyConfigured: Boolean(config.chatApiKey),
+    },
+    embedding: {
+      baseUrl: config.embeddingBaseUrl,
+      model: config.embeddingModel,
+      dimensions: config.embeddingDimensions,
+      apiKeyConfigured: Boolean(config.embeddingApiKey || config.chatApiKey),
+    },
+    requestTimeoutMs: config.requestTimeoutMs,
+    updatedAt: config.updatedAt.toISO(),
+  }
+}

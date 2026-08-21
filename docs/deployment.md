@@ -30,9 +30,9 @@ Compose 会启动支持 pgvector 的 PostgreSQL、AdonisJS 后端与 Nginx 托�
 
 ## AI 与可观测性
 
-OpenAI-compatible provider 使用 `AI_OPENAI_*` 配置，知识检索使用 `AI_EMBEDDING_*` 配置。部署前确认 provider 地址可从 backend 容器或宿主机访问。
+OpenAI-compatible provider 和知识检索配置在系统管理中的「LLM 配置」页面维护。部署后确认 provider 地址可从 backend 容器或宿主机访问。
 
-AI 助手通过 `AI_OPENAI_API_KEY`、`AI_OPENAI_BASE_URL` 和 `AI_OPENAI_MODEL` 接入配置的 provider。
+AI 助手通过系统管理中的「LLM 配置」页面接入配置的 provider。配置保存后无需重启服务即可生效。
 
 ## 运维检查
 

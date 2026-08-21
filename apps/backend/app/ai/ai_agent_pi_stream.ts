@@ -75,7 +75,7 @@ function toPiMessages(messages: AiAgentMessage[]): PiAgentMessage[] {
   }, [])
 }
 
-export function createAiAgentPiStream(
+export async function createAiAgentPiStream(
   input: AiAgentToolRequestContext & {
     messages: AiAgentMessage[]
     context?: AiAgentPageContext
@@ -91,7 +91,7 @@ export function createAiAgentPiStream(
   const initialMessages =
     lastMessage?.role === 'user' ? input.messages.slice(0, -1) : input.messages
 
-  const { agent } = createPiAgent({
+  const { agent } = await createPiAgent({
     systemPrompt: createAiAgentSystemPrompt(input.context, input.liveSessionContext),
     tools: createAiAgentTools({ ...input, agentRunId: input.agentRunId }),
     messages: toPiMessages(initialMessages),

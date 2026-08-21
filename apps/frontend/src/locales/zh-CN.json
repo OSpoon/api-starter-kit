@@ -81,6 +81,7 @@
     "very_strong": "非常强"
   },
   "sidebar": {
+    "llm_config": "LLM 配置",
     "workbench": "工作台",
     "dashboard": "仪表盘",
     "system_status": "服务状态",
@@ -89,7 +90,9 @@
     "analytics_template": "数据分析",
     "wizard_template": "分步引导",
     "operations_template": "操作模式",
-    "system": "系统管理",
+    "access_control": "访问控制",
+    "ai_knowledge": "AI 与知识",
+    "system_operations": "系统运维",
     "api_keys": "API 密钥",
     "users": "用户管理",
     "roles": "角色管理",
@@ -101,6 +104,26 @@
     "schema_builder": "Schema 构建器",
     "sql_editor": "SQL 编辑器",
     "sql_workspace": "SQL 工作区"
+  },
+  "llm_config": {
+    "title": "LLM 配置",
+    "description": "管理对话模型、Embedding 模型和 API 网关。修改后对下一次请求立即生效。",
+    "chat_title": "对话模型",
+    "chat_description": "用于 AI 助手对话和工具调用的 OpenAI-compatible 服务。",
+    "embedding_title": "Embedding 模型",
+    "embedding_description": "用于知识库分块和语义检索。切换模型或维度后需要重建知识库索引。",
+    "base_url": "Base URL",
+    "model": "模型名称",
+    "api_key": "API Key",
+    "keep_existing": "留空以保持现有密钥",
+    "dimensions": "向量维度",
+    "timeout": "请求超时（毫秒）",
+    "test": "测试连接",
+    "saved": "LLM 配置已保存",
+    "load_failed": "加载 LLM 配置失败",
+    "save_failed": "保存 LLM 配置失败",
+    "test_success": "LLM 连接测试成功",
+    "test_failed": "LLM 连接测试失败"
   },
   "nav": {
     "account": "账户",

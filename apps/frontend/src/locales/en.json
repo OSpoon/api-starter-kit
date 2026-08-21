@@ -81,6 +81,7 @@
     "very_strong": "Very strong"
   },
   "sidebar": {
+    "llm_config": "LLM configuration",
     "workbench": "Workbench",
     "dashboard": "Dashboard",
     "system_status": "Service status",
@@ -89,7 +90,9 @@
     "analytics_template": "Analytics",
     "wizard_template": "Guided setup",
     "operations_template": "Operation patterns",
-    "system": "System",
+    "access_control": "Access control",
+    "ai_knowledge": "AI & knowledge",
+    "system_operations": "System operations",
     "api_keys": "API Keys",
     "users": "Users",
     "roles": "Roles",
@@ -101,6 +104,26 @@
     "schema_builder": "Schema Builder",
     "sql_editor": "SQL Editor",
     "sql_workspace": "SQL Workspace"
+  },
+  "llm_config": {
+    "title": "LLM configuration",
+    "description": "Manage chat, embedding, and gateway settings. Changes apply to the next request.",
+    "chat_title": "Chat model",
+    "chat_description": "OpenAI-compatible service used for the AI assistant and tool calls.",
+    "embedding_title": "Embedding model",
+    "embedding_description": "Used for knowledge indexing and semantic search. Reindex after changing the model or dimensions.",
+    "base_url": "Base URL",
+    "model": "Model name",
+    "api_key": "API key",
+    "keep_existing": "Leave blank to keep the existing key",
+    "dimensions": "Vector dimensions",
+    "timeout": "Request timeout (ms)",
+    "test": "Test connection",
+    "saved": "LLM configuration saved",
+    "load_failed": "Failed to load LLM configuration",
+    "save_failed": "Failed to save LLM configuration",
+    "test_success": "LLM connection succeeded",
+    "test_failed": "LLM connection failed"
   },
   "nav": {
     "account": "Account",

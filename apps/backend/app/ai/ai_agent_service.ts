@@ -58,7 +58,7 @@ export async function createAiAgentStream(
       .where('user_id', input.userId)
       .update({ context_summary: summary })
   }
-  const stream = createAiAgentPiStream({
+  const stream = await createAiAgentPiStream({
     ...input,
     agentRunId,
     liveSessionContext,

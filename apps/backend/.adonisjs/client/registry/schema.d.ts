@@ -283,6 +283,42 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/api_keys_controller').default['destroy']>>>
     }
   }
+  'llm_configurations.show': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/system/llm-config'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/llm_configurations_controller').default['show']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/llm_configurations_controller').default['show']>>>
+    }
+  }
+  'llm_configurations.update': {
+    methods: ["PUT"]
+    pattern: '/api/v1/system/llm-config'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/llm_configuration').updateLlmConfigurationValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/llm_configuration').updateLlmConfigurationValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/llm_configurations_controller').default['update']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/llm_configurations_controller').default['update']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'llm_configurations.test': {
+    methods: ["POST"]
+    pattern: '/api/v1/system/llm-config/test'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/llm_configurations_controller').default['test']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/llm_configurations_controller').default['test']>>>
+    }
+  }
   'wecom_message_templates.index': {
     methods: ["GET","HEAD"]
     pattern: '/api/v1/system/wecom-message-templates'

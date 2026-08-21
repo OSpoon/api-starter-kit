@@ -1,5 +1,6 @@
 import {
   BookOpen,
+  BrainCircuit,
   ChartNoAxesCombined,
   FileClock,
   Gauge,
@@ -51,8 +52,8 @@ export const workbenchRoutes: RouteRecordRaw[] = [
           pageKind: 'list',
           permission: 'api-keys:read',
           nav: {
-            group: 'sidebar.system',
-            groupOrder: 30,
+            group: 'sidebar.system_operations',
+            groupOrder: 32,
             icon: Key,
             order: 10,
           },
@@ -66,7 +67,18 @@ export const workbenchRoutes: RouteRecordRaw[] = [
           title: 'sidebar.system_status',
           pageKind: 'dashboard',
           permission: 'system-status:read',
-          nav: { group: 'sidebar.system', groupOrder: 30, icon: Server, order: 5 },
+          nav: { group: 'sidebar.system_operations', groupOrder: 32, icon: Server, order: 10 },
+        },
+      },
+      {
+        path: 'system/llm-config',
+        name: 'llm-config',
+        component: () => import('@/features/llm-config/LlmConfigurationPage.vue'),
+        meta: {
+          title: 'sidebar.llm_config',
+          pageKind: 'settings',
+          permission: 'llm-config:read',
+          nav: { group: 'sidebar.ai_knowledge', groupOrder: 31, icon: BrainCircuit, order: 10 },
         },
       },
       {
@@ -78,7 +90,7 @@ export const workbenchRoutes: RouteRecordRaw[] = [
           title: 'sidebar.users',
           pageKind: 'list',
           permission: 'users:read',
-          nav: { group: 'sidebar.system', groupOrder: 30, icon: UsersRound, order: 40 },
+          nav: { group: 'sidebar.access_control', groupOrder: 30, icon: UsersRound, order: 10 },
         },
       },
       {
@@ -90,7 +102,7 @@ export const workbenchRoutes: RouteRecordRaw[] = [
           title: 'sidebar.roles',
           pageKind: 'list',
           permission: 'roles:read',
-          nav: { group: 'sidebar.system', groupOrder: 30, icon: ShieldCheck, order: 50 },
+          nav: { group: 'sidebar.access_control', groupOrder: 30, icon: ShieldCheck, order: 20 },
         },
       },
       {
@@ -102,7 +114,7 @@ export const workbenchRoutes: RouteRecordRaw[] = [
           title: 'sidebar.permissions',
           pageKind: 'list',
           permission: 'permissions:read',
-          nav: { group: 'sidebar.system', groupOrder: 30, icon: Key, order: 60 },
+          nav: { group: 'sidebar.access_control', groupOrder: 30, icon: Key, order: 30 },
         },
       },
       {
@@ -113,7 +125,7 @@ export const workbenchRoutes: RouteRecordRaw[] = [
           title: 'sidebar.audit_logs',
           pageKind: 'list',
           permission: 'audit-logs:read',
-          nav: { group: 'sidebar.system', groupOrder: 30, icon: FileClock, order: 70 },
+          nav: { group: 'sidebar.system_operations', groupOrder: 32, icon: FileClock, order: 40 },
         },
       },
       {
@@ -124,7 +136,7 @@ export const workbenchRoutes: RouteRecordRaw[] = [
           title: 'sidebar.knowledge_documents',
           pageKind: 'list',
           permission: 'knowledge:manage',
-          nav: { group: 'sidebar.system', groupOrder: 30, icon: BookOpen, order: 30 },
+          nav: { group: 'sidebar.ai_knowledge', groupOrder: 31, icon: BookOpen, order: 20 },
         },
       },
       {
@@ -135,7 +147,12 @@ export const workbenchRoutes: RouteRecordRaw[] = [
           title: 'sidebar.wecom_message_templates',
           pageKind: 'list',
           permission: 'wecom-templates:read',
-          nav: { group: 'sidebar.system', groupOrder: 30, icon: MessageSquare, order: 20 },
+          nav: {
+            group: 'sidebar.system_operations',
+            groupOrder: 32,
+            icon: MessageSquare,
+            order: 30,
+          },
         },
       },
       {

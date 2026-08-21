@@ -1,6 +1,9 @@
 export const permissionCodes = [
   'dashboard:view',
   'system-status:read',
+  'llm-config:read',
+  'llm-config:update',
+  'llm-config:test',
   'api-keys:read',
   'api-keys:create',
   'api-keys:update',

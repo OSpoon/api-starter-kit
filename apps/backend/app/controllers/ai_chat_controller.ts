@@ -141,7 +141,7 @@ export default class AiChatController {
     const abortController = new AbortController()
     const abortOnDisconnect = () => abortController.abort()
     response.response.once('close', abortOnDisconnect)
-    const requestTimeout = setTimeout(() => abortController.abort(), getAiRequestTimeout())
+    const requestTimeout = setTimeout(() => abortController.abort(), await getAiRequestTimeout())
 
     try {
       await runAiChatAssistantTurn({

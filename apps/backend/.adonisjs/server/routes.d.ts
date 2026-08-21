@@ -27,6 +27,9 @@ export type ScannedRoutes = {
     'api_keys.store': { paramsTuple?: []; params?: {} }
     'api_keys.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'api_keys.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'llm_configurations.show': { paramsTuple?: []; params?: {} }
+    'llm_configurations.update': { paramsTuple?: []; params?: {} }
+    'llm_configurations.test': { paramsTuple?: []; params?: {} }
     'wecom_message_templates.index': { paramsTuple?: []; params?: {} }
     'wecom_message_templates.store': { paramsTuple?: []; params?: {} }
     'wecom_message_templates.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
@@ -79,6 +82,7 @@ export type ScannedRoutes = {
     'profile.access_tokens.destroy': { paramsTuple?: []; params?: {} }
     'profile.github.link': { paramsTuple?: []; params?: {} }
     'api_keys.store': { paramsTuple?: []; params?: {} }
+    'llm_configurations.test': { paramsTuple?: []; params?: {} }
     'wecom_message_templates.store': { paramsTuple?: []; params?: {} }
     'wecom_message_templates.test_send': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'system.wecom.messages.send': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
@@ -103,6 +107,7 @@ export type ScannedRoutes = {
     'auth.github.callback': { paramsTuple?: []; params?: {} }
     'profile.profile.show': { paramsTuple?: []; params?: {} }
     'api_keys.index': { paramsTuple?: []; params?: {} }
+    'llm_configurations.show': { paramsTuple?: []; params?: {} }
     'wecom_message_templates.index': { paramsTuple?: []; params?: {} }
     'knowledge_documents.index': { paramsTuple?: []; params?: {} }
     'system_status.show': { paramsTuple?: []; params?: {} }
@@ -123,6 +128,7 @@ export type ScannedRoutes = {
     'auth.github.callback': { paramsTuple?: []; params?: {} }
     'profile.profile.show': { paramsTuple?: []; params?: {} }
     'api_keys.index': { paramsTuple?: []; params?: {} }
+    'llm_configurations.show': { paramsTuple?: []; params?: {} }
     'wecom_message_templates.index': { paramsTuple?: []; params?: {} }
     'knowledge_documents.index': { paramsTuple?: []; params?: {} }
     'system_status.show': { paramsTuple?: []; params?: {} }
@@ -138,6 +144,7 @@ export type ScannedRoutes = {
   PUT: {
     'profile.profile.change_password': { paramsTuple?: []; params?: {} }
     'api_keys.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'llm_configurations.update': { paramsTuple?: []; params?: {} }
     'wecom_message_templates.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'knowledge_documents.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'users.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }

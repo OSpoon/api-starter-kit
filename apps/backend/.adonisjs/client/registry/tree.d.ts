@@ -49,6 +49,11 @@ export interface ApiDefinition {
     update: typeof routes['api_keys.update']
     destroy: typeof routes['api_keys.destroy']
   }
+  llmConfigurations: {
+    show: typeof routes['llm_configurations.show']
+    update: typeof routes['llm_configurations.update']
+    test: typeof routes['llm_configurations.test']
+  }
   wecomMessageTemplates: {
     index: typeof routes['wecom_message_templates.index']
     store: typeof routes['wecom_message_templates.store']

@@ -25,7 +25,7 @@ import {
 } from '@earendil-works/pi-ai'
 import { openAICompletionsApi } from '@earendil-works/pi-ai/api/openai-completions.lazy'
 
-import env from '#start/env'
+import { readRuntimeLlmConfiguration } from '#services/llm_configuration_service'
 
 /**
  * Pi runtime boundary for the backend AI assistant.
@@ -88,20 +88,17 @@ export function shouldStopPiAfterTurn(
   )
 }
 
-function getModelName() {
-  return env.get('AI_OPENAI_MODEL') ?? 'gpt-4o-mini'
+async function getRuntimeConfig() {
+  return readRuntimeLlmConfiguration()
 }
 
-function getBaseUrl() {
-  return env.get('AI_OPENAI_BASE_URL')?.replace(/\/+$/, '') ?? 'https://api.openai.com/v1'
-}
-
-function createAuth(): ApiKeyAuth {
+async function createAuth(): Promise<ApiKeyAuth> {
   return {
     name: 'AI OpenAI-compatible API key',
     async resolve(input): Promise<AuthResult | undefined> {
-      const key = input.credential?.key ?? (await input.ctx.env('AI_OPENAI_API_KEY'))
-      const baseUrl = await input.ctx.env('AI_OPENAI_BASE_URL')
+      const config = await getRuntimeConfig()
+      const key = input.credential?.key ?? config.chat.apiKey
+      const baseUrl = config.chat.baseURL
       if (!key && !baseUrl) return undefined
       return {
         auth: {
@@ -115,9 +112,7 @@ function createAuth(): ApiKeyAuth {
 
 function createAuthContext(): AuthContext {
   return {
-    async env(name: string) {
-      if (name === 'AI_OPENAI_API_KEY') return env.get('AI_OPENAI_API_KEY')
-      if (name === 'AI_OPENAI_BASE_URL') return env.get('AI_OPENAI_BASE_URL')
+    async env(_name: string) {
       return undefined
     },
     async fileExists() {
@@ -126,14 +121,16 @@ function createAuthContext(): AuthContext {
   }
 }
 
-function createModel(): Model<'openai-completions'> {
+async function createModel(): Promise<Model<'openai-completions'>> {
+  const config = await getRuntimeConfig()
+  const modelName = config.chat.model
   return {
-    id: getModelName(),
-    name: getModelName(),
+    id: modelName,
+    name: modelName,
     api: 'openai-completions',
     provider: 'api-starter-openai',
-    baseUrl: getBaseUrl(),
-    reasoning: /qwen|deepseek|reason/i.test(getModelName()),
+    baseUrl: config.chat.baseURL ?? 'https://api.openai.com/v1',
+    reasoning: /qwen|deepseek|reason/i.test(modelName),
     input: ['text'],
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
     contextWindow: 128_000,
@@ -141,24 +138,25 @@ function createModel(): Model<'openai-completions'> {
   }
 }
 
-function createProviderInstance(): Provider<'openai-completions'> {
+async function createProviderInstance(): Promise<Provider<'openai-completions'>> {
+  const config = await getRuntimeConfig()
   return createProvider({
     id: 'api-starter-openai',
     name: 'API Starter OpenAI-compatible provider',
-    baseUrl: getBaseUrl(),
-    auth: { apiKey: createAuth() },
-    models: [createModel()],
+    baseUrl: config.chat.baseURL ?? 'https://api.openai.com/v1',
+    auth: { apiKey: await createAuth() },
+    models: [await createModel()],
     api: openAICompletionsApi(),
   })
 }
 
-export function createPiModels() {
+export async function createPiModels() {
   const models = createModels({ authContext: createAuthContext() })
-  models.setProvider(createProviderInstance())
+  models.setProvider(await createProviderInstance())
   return models
 }
 
-export function createPiAgent(input: {
+export async function createPiAgent(input: {
   systemPrompt: string
   tools: AgentTool[]
   messages?: PiAgentMessage[]
@@ -167,9 +165,11 @@ export function createPiAgent(input: {
   refreshContext?: (context: PrepareNextTurnContext) => Promise<string | undefined>
   onCompaction?: (summary: string) => Promise<void>
 }) {
-  const models = createPiModels()
-  const model = models.getModel('api-starter-openai', getModelName())
-  if (!model) throw new Error(`Pi model is not configured: ${getModelName()}`)
+  const models = await createPiModels()
+  const runtimeConfig = await getRuntimeConfig()
+  const modelName = runtimeConfig.chat.model
+  const model = models.getModel('api-starter-openai', modelName)
+  if (!model) throw new Error(`Pi model is not configured: ${modelName}`)
 
   const agent = new Agent({
     initialState: {
@@ -189,12 +189,9 @@ export function createPiAgent(input: {
       const tokenBudget = Math.max(model.contextWindow - model.maxTokens, 1)
       const settings = {
         ...DEFAULT_COMPACTION_SETTINGS,
-        enabled: env.get('AI_CONTEXT_COMPRESSION_ENABLED') ?? true,
+        enabled: true,
         reserveTokens: model.maxTokens,
-        keepRecentTokens: Math.max(
-          tokenBudget - (env.get('AI_CONTEXT_COMPRESSION_THRESHOLD_TOKENS') ?? 6000),
-          1
-        ),
+        keepRecentTokens: Math.max(tokenBudget - 6000, 1),
       }
       if (shouldCompact(estimateContextTokens(messages).tokens, tokenBudget, settings)) {
         const preparation = prepareCompaction(toCompactionEntries(messages), settings)
@@ -246,12 +243,4 @@ export function createPiAgent(input: {
   }
 
   return { agent, models, model }
-}
-
-export function getPiAgentModelName() {
-  return getModelName()
-}
-
-export function getPiAgentBaseUrl() {
-  return getBaseUrl()
 }
