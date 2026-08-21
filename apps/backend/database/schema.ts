@@ -109,14 +109,14 @@ export class AiAgentPendingQuerySchema extends BaseModel {
 export class AiChatConversationSchema extends BaseModel {
   static $columns = ['contextSummary', 'createdAt', 'id', 'title', 'updatedAt', 'userId'] as const
   $columns = AiChatConversationSchema.$columns
+  @column()
+  declare contextSummary: string | null
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
   @column({ isPrimary: true })
   declare id: number
   @column()
   declare title: string
-  @column()
-  declare contextSummary: string | null
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime
   @column()
@@ -148,7 +148,7 @@ export class AiChatMessageSchema extends BaseModel {
   @column()
   declare role: string
   @column()
-  declare runtimeDetails: unknown
+  declare runtimeDetails: any
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime
 }
@@ -273,6 +273,53 @@ export class GithubIdentitySchema extends BaseModel {
   declare updatedAt: DateTime | null
   @column()
   declare userId: number
+}
+
+export class GithubLinkStateSchema extends BaseModel {
+  static $columns = ['createdAt', 'expiresAt', 'id', 'stateHash', 'usedAt', 'userId'] as const
+  $columns = GithubLinkStateSchema.$columns
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column.dateTime()
+  declare expiresAt: DateTime
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare stateHash: string
+  @column.dateTime()
+  declare usedAt: DateTime | null
+  @column()
+  declare userId: number
+}
+
+export class GithubLoginChallengeSchema extends BaseModel {
+  static $columns = [
+    'codeHash',
+    'createdAt',
+    'expiresAt',
+    'githubEmail',
+    'githubId',
+    'githubLogin',
+    'id',
+    'usedAt',
+  ] as const
+  $columns = GithubLoginChallengeSchema.$columns
+  @column()
+  declare codeHash: string
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column.dateTime()
+  declare expiresAt: DateTime
+  @column()
+  declare githubEmail: string
+  @column()
+  declare githubId: bigint | number
+  @column()
+  declare githubLogin: string
+  @column({ isPrimary: true })
+  declare id: number
+  @column.dateTime()
+  declare usedAt: DateTime | null
 }
 
 export class GithubLoginExchangeSchema extends BaseModel {

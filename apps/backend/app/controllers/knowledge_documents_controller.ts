@@ -6,7 +6,11 @@ import { ApiOperation, ApiResponse, ApiSecurity } from '@foadonis/openapi/decora
 
 import KnowledgeDocument from '#models/knowledge_document'
 import Role from '#models/role'
-import { createKnowledgeDocument, indexKnowledgeDocument } from '#services/knowledge_service'
+import {
+  createKnowledgeDocument,
+  deleteKnowledgeDocument,
+  indexKnowledgeDocument,
+} from '#services/knowledge_service'
 import { clampLimit } from '#support/pagination'
 import { serializeKnowledgeDocument } from '#transformers/knowledge_document_transformer'
 
@@ -119,7 +123,7 @@ export default class KnowledgeDocumentsController {
   @ApiResponse({ status: 200, description: '已删除的知识文档 ID' })
   async destroy({ params, serialize }: HttpContext) {
     const document = await KnowledgeDocument.findOrFail(params.id)
-    await document.delete()
+    await deleteKnowledgeDocument(document)
     return serialize({ id: document.id, deleted: true })
   }
 }

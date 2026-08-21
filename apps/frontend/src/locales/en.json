@@ -124,6 +124,7 @@
     "title": "AI Assistant",
     "welcome": "Hi, I am the AI assistant. Ask about system features, API integration, or configuration.",
     "input_placeholder": "Type a question. Enter to send, Shift + Enter for a new line",
+    "response_disclaimer": "AI responses are for reference only. Verify important information against current system data and project documentation.",
     "thinking": "Thinking...",
     "waiting": "Waiting for response...",
     "new_chat": "New chat",

@@ -15,13 +15,17 @@ test.group('AI agent prompt', () => {
       'Use the product identity "admin-console AI assistant" when introducing yourself'
     )
     assert.include(prompt, 'Never call yourself a dashboard assistant')
+    assert.include(prompt, 'You are a tool-driven assistant for this system and project')
+    assert.include(prompt, 'use that source instead of relying on general model knowledge')
     assert.notInclude(prompt, '仪表盘助手')
     assert.include(prompt, "Reply in the user's language, briefly and practically.")
-    assert.include(prompt, 'General product guidance and explanations may be answered directly')
-    assert.include(prompt, 'consult the knowledge base when it can improve accuracy')
+    assert.include(prompt, 'Use returned excerpts for project-specific answers')
+    assert.include(prompt, 'call search_knowledge before answering')
+    assert.include(prompt, 'mandatory project grounding')
+    assert.include(prompt, 'do not substitute generic npm, Python, or framework instructions')
     assert.include(
       prompt,
-      'For current facts about system data, permissions, access, or resource state, use an approved read tool'
+      'For current facts about system data, permissions, access, or resource state, use the appropriate approved read tool'
     )
     assert.include(prompt, 'structured confirmation card is the only authorization')
     assert.include(
@@ -34,11 +38,14 @@ test.group('AI agent prompt', () => {
     assert.notInclude(prompt, 'apiKeyId')
     assert.notInclude(prompt, 'expiresIn')
     assert.notInclude(prompt, 'action/input')
-    assert.include(prompt, 'Never claim unverified current system facts')
+    assert.include(
+      prompt,
+      'Never claim a current system fact, project fact, permission, or completed operation'
+    )
     assert.notInclude(prompt, 'only after a tool succeeds in this turn')
     assert.notInclude(prompt, 'missing parameters')
     assert.notInclude(prompt, 'api_key_profile')
     assert.notInclude(prompt, 'authorization-context')
-    assert.isBelow(prompt.length, 2_500)
+    assert.isBelow(prompt.length, 3_300)
   })
 })
