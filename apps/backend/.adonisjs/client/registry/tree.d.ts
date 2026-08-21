@@ -66,6 +66,7 @@ export interface ApiDefinition {
   knowledgeDocuments: {
     index: typeof routes['knowledge_documents.index']
     store: typeof routes['knowledge_documents.store']
+    storeBatch: typeof routes['knowledge_documents.store_batch']
     update: typeof routes['knowledge_documents.update']
     reindex: typeof routes['knowledge_documents.reindex']
     destroy: typeof routes['knowledge_documents.destroy']

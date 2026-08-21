@@ -33,6 +33,5 @@ never exposes the stored Webhook URL.
 
 ## Supported message types
 
-The current portable scope intentionally supports `text`, `markdown`, and
-`markdown_v2`. Media, news, and template-card messages are left out until their
-upload and provider-specific contracts are added.
+The supported portable message types are `text`, `markdown`, and `markdown_v2`.
+Media, news, and template-card messages are outside the current feature scope.

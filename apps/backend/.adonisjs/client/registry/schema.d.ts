@@ -379,6 +379,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/knowledge_documents_controller').default['store']>>>
     }
   }
+  'knowledge_documents.store_batch': {
+    methods: ["POST"]
+    pattern: '/api/v1/system/knowledge-documents/batch'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/knowledge_documents_controller').default['storeBatch']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/knowledge_documents_controller').default['storeBatch']>>>
+    }
+  }
   'knowledge_documents.update': {
     methods: ["PUT"]
     pattern: '/api/v1/system/knowledge-documents/:id'

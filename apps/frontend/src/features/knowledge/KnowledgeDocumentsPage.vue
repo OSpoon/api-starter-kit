@@ -12,7 +12,7 @@ import { Dialog } from '@/components/ui/dialog'
 import { listSystemRoleCatalog, type SystemRoleOption } from '@/features/access-control/api'
 import { badgeToneClass } from '@/features/api-keys/api'
 import {
-  createKnowledgeDocument,
+  createKnowledgeDocuments,
   deleteKnowledgeDocument,
   type KnowledgeDocument,
   type KnowledgeDocumentInput,
@@ -176,14 +176,24 @@ function requestReindex(document: KnowledgeDocument) {
 async function saveDocument(input: KnowledgeDocumentInput) {
   saving.value = true
   try {
+    let batchResult: Awaited<ReturnType<typeof createKnowledgeDocuments>> | null = null
     if (selectedDocument.value) {
       await updateKnowledgeDocument(auth.token, selectedDocument.value.id, input)
     } else {
-      await createKnowledgeDocument(auth.token, input)
+      batchResult = await createKnowledgeDocuments(auth.token, input)
     }
     closeDialog()
     await fetchDocuments()
-    toast.success(t('knowledge.save_success'))
+    if (batchResult?.failed.length) {
+      toast.warning(
+        t('knowledge.batch_partial_success', {
+          success: batchResult.items.length,
+          failed: batchResult.failed.length,
+        })
+      )
+    } else {
+      toast.success(t('knowledge.save_success'))
+    }
   } catch (error) {
     toast.error(error instanceof Error ? error.message : t('knowledge.save_failed'))
   } finally {

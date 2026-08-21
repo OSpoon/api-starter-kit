@@ -18,11 +18,11 @@ flowchart TB
   D --> K["Pi steering / follow-up queues"]
 ```
 
-- `app/ai` 是独立的 AI 应用模块，包含 Pi runtime、会话编排、SSE 适配、提示词策略和工具注册，不再混入 `app/services`。
+- `app/ai` 集中维护 Pi runtime、会话编排、SSE 适配、提示词策略和工具注册；可复用的领域逻辑仍位于 `app/services`。
 - `ai_chat_controller.ts` 只负责会话归属、输入校验、消息持久化和 HTTP/SSE 生命周期。
 - `ai_chat_sse_adapter.ts` 只负责把单一 Pi `AgentEvent` 流转换为 SSE、keepalive、工具状态详情、阶段和确认事件。
 - `ai_agent_service.ts` 创建 Pi Agent，配置模型、上下文和工具事件流；每个会话使用稳定的 Pi `sessionId`，并显式使用 Pi 的 steer/follow-up 单条队列策略。
-- `ai_agent_pi_stream.ts` 只创建 Pi Agent、订阅原始事件并暴露控制句柄，不再维护消息流和工具流两套自定义投影。
+- `ai_agent_pi_stream.ts` 负责创建 Pi Agent、订阅原始事件并暴露控制句柄；消息流和工具流统一通过 Pi 事件处理。
 - `ai_agent_tool_registry.ts` 直接返回 Pi `AgentTool[]`；工具 schema、执行逻辑和业务服务调用在同一注册边界内维护。
 - Pi 生命周期钩子在工具调用前校验输入，在调用后识别错误和终止结果；确认提议及终止性业务错误使用原生 `terminate` 结束本轮。
 - Pi 的 `prepareCompaction`/`compact` 按 token 预算压缩长上下文，摘要写入 `AiChatConversation.contextSummary`，完整消息历史不变；`shouldStopAfterTurn` 防止终态工具结果触发无意义的下一轮推理。

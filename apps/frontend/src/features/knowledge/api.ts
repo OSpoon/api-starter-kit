@@ -20,7 +20,13 @@ export interface KnowledgeDocumentPage {
 
 export type KnowledgeDocumentInput = {
   file?: File | null
+  files?: File[]
   roleIds: number[]
+}
+
+export type KnowledgeDocumentBatchResult = {
+  items: KnowledgeDocument[]
+  failed: Array<{ fileName: string; message: string }>
 }
 
 function authOptions(token: string | null) {
@@ -50,6 +56,25 @@ export async function createKnowledgeDocument(token: string | null, input: Knowl
       ...authOptions(token),
       method: 'POST',
       body: asFormData(input, true),
+    })
+  )
+}
+
+export async function createKnowledgeDocuments(
+  token: string | null,
+  input: KnowledgeDocumentInput
+) {
+  const files = input.files ?? []
+  if (!files.length) throw new Error('请选择纯文本文件')
+  const form = new FormData()
+  files.forEach((file) => form.append('files', file))
+  form.append('roleIds', JSON.stringify(input.roleIds))
+
+  return readItem(
+    await apiRequest<KnowledgeDocumentBatchResult>('/api/v1/system/knowledge-documents/batch', {
+      ...authOptions(token),
+      method: 'POST',
+      body: form,
     })
   )
 }

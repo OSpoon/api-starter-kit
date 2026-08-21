@@ -37,6 +37,8 @@
 
 表内路径均相对 `/api/v1`。系统管理与 API Key 操作需要对应的命名权限，详见[安全与治理](security.md)。
 
-## 新增接口
+知识文档支持通过 `POST /system/knowledge-documents/batch` 使用 multipart 字段 `files` 批量上传 TXT、Markdown 或 reStructuredText 文件；单次最多 20 份、每份最大 2 MB。响应中的 `data.items` 为成功创建的文档，`data.failed` 为未成功处理的文件及原因。
+
+## 接口开发约定
 
 在 `apps/backend/start/routes.ts` 声明路由和最窄 middleware；用 Vine 校验输入，返回显式序列化 DTO，添加 OpenAPI 装饰器，并更新前端 API client 与类型。普通读取或列表响应不得包含密钥。

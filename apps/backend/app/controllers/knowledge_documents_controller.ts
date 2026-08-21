@@ -43,6 +43,29 @@ async function readTextFile(ctx: HttpContext, required: boolean) {
   return { title: path.parse(file.clientName).name.slice(0, 200), content }
 }
 
+async function readTextFiles(ctx: HttpContext) {
+  const files = ctx.request.files('files', {
+    size: '2mb',
+    extnames: ['txt', 'md', 'markdown', 'rst'],
+  })
+  if (!files.length) throw new Error('请至少上传一份纯文本文件')
+  if (files.length > 20) throw new Error('一次最多上传 20 份纯文本文件')
+
+  return Promise.all(
+    files.map(async (file) => {
+      if (!file.isValid || !file.tmpPath) {
+        throw new Error(`文件「${file.clientName}」无效，请上传不超过 2MB 的 UTF-8 纯文本文件`)
+      }
+      const rawContent = await readFile(file.tmpPath, 'utf8')
+      const content = rawContent.replace(/^\uFEFF/, '').trim()
+      if (!content || content.includes('\0')) {
+        throw new Error(`文件「${file.clientName}」内容无效`)
+      }
+      return { title: path.parse(file.clientName).name.slice(0, 200), content }
+    })
+  )
+}
+
 @ApiSecurity('bearerAuth')
 export default class KnowledgeDocumentsController {
   @ApiOperation({ summary: '获取知识文档列表' })
@@ -74,6 +97,60 @@ export default class KnowledgeDocumentsController {
       return serialize(serializeKnowledgeDocument(document))
     } catch (error) {
       if (error instanceof Error && /角色选择|不存在的角色|上传|文本文件/.test(error.message)) {
+        return response.unprocessableEntity({ message: error.message })
+      }
+      throw error
+    }
+  }
+
+  @ApiOperation({ summary: '批量创建并索引知识文档' })
+  @ApiResponse({ status: 200, description: '批量创建结果，包含成功和失败文件' })
+  async storeBatch(ctx: HttpContext) {
+    const { request, response, serialize } = ctx
+    try {
+      const textFiles = await readTextFiles(ctx)
+      const roleIds = await validateRoleIds(parseRoleIds(request.input('roleIds', '[]')))
+      const created: KnowledgeDocument[] = []
+      const failed: Array<{ fileName: string; message: string }> = []
+
+      for (const textFile of textFiles) {
+        try {
+          created.push(
+            await createKnowledgeDocument({
+              title: textFile.title,
+              content: textFile.content,
+              roleIds,
+            })
+          )
+        } catch (error) {
+          failed.push({
+            fileName: `${textFile.title}`,
+            message: error instanceof Error ? error.message : '文件处理失败',
+          })
+        }
+      }
+
+      if (!created.length) {
+        return response.unprocessableEntity({
+          message: failed.map((item) => `${item.fileName}: ${item.message}`).join('；'),
+        })
+      }
+
+      const documents = await KnowledgeDocument.query()
+        .whereIn(
+          'id',
+          created.map((document) => document.id)
+        )
+        .preload('roles')
+        .withCount('chunks')
+        .orderBy('created_at', 'asc')
+
+      return serialize({
+        items: documents.map(serializeKnowledgeDocument),
+        failed,
+      })
+    } catch (error) {
+      if (error instanceof Error && /角色选择|不存在的角色|上传|文件|纯文本/.test(error.message)) {
         return response.unprocessableEntity({ message: error.message })
       }
       throw error

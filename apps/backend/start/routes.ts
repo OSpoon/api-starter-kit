@@ -134,6 +134,7 @@ router
       .group(() => {
         router.get('knowledge-documents', [KnowledgeDocumentsController, 'index'])
         router.post('knowledge-documents', [KnowledgeDocumentsController, 'store'])
+        router.post('knowledge-documents/batch', [KnowledgeDocumentsController, 'storeBatch'])
         router.put('knowledge-documents/:id', [KnowledgeDocumentsController, 'update'])
         router.post('knowledge-documents/:id/reindex', [KnowledgeDocumentsController, 'reindex'])
         router.delete('knowledge-documents/:id', [KnowledgeDocumentsController, 'destroy'])

@@ -19,6 +19,7 @@ const emit = defineEmits<{ save: [input: KnowledgeDocumentInput] }>()
 const { t } = useI18n()
 const form = ref<KnowledgeDocumentInput>({
   file: null,
+  files: [],
   roleIds: [],
 })
 
@@ -28,6 +29,7 @@ watch(
     if (!isOpen) return
     form.value = {
       file: null,
+      files: [],
       roleIds: document?.roles.map((role) => role.id) ?? [],
     }
   },
@@ -42,7 +44,9 @@ function submit() {
 }
 
 function selectFile(event: Event) {
-  form.value.file = (event.target as HTMLInputElement).files?.[0] ?? null
+  const files = Array.from((event.target as HTMLInputElement).files ?? [])
+  form.value.files = files
+  form.value.file = files[0] ?? null
 }
 </script>
 
@@ -65,15 +69,38 @@ function selectFile(event: Event) {
               class="sr-only"
               type="file"
               accept=".txt,.md,.markdown,.rst,text/plain,text/markdown,text/x-rst"
+              :multiple="!document"
               @change="selectFile"
             />
-            <template v-if="form.file">
+            <template v-if="!document && form.files?.length">
+              <FileText class="mb-2 size-7 text-primary" />
+              <span class="font-medium">
+                {{
+                  t('knowledge.selected_files', {
+                    count: form.files.length,
+                    size: Math.ceil(form.files.reduce((sum, file) => sum + file.size, 0) / 1024),
+                  })
+                }}
+              </span>
+              <span
+                class="mt-2 max-h-24 w-full max-w-lg overflow-y-auto rounded-md border border-border/70 bg-background/60 p-1.5 text-left"
+              >
+                <span
+                  v-for="file in form.files"
+                  :key="file.name"
+                  class="flex items-center gap-2 rounded px-2 py-1 text-sm text-muted-foreground"
+                >
+                  <FileText class="size-3.5 shrink-0" />
+                  <span class="truncate">{{ file.name }}</span>
+                </span>
+              </span>
+            </template>
+            <template v-else-if="form.file">
               <FileText class="mb-3 size-8 text-primary" />
               <span class="max-w-full truncate font-medium">{{ form.file.name }}</span>
               <span class="mt-1 text-sm text-muted-foreground"
                 >{{ Math.ceil(form.file.size / 1024) }} KB</span
               >
-              <span class="mt-3 text-sm text-primary">{{ t('knowledge.replace_file') }}</span>
             </template>
             <template v-else>
               <span class="mb-3 rounded-full bg-primary/10 p-3 text-primary"
@@ -116,7 +143,7 @@ function selectFile(event: Event) {
         <Button type="button" variant="outline" @click="open = false">{{
           t('common.cancel')
         }}</Button>
-        <Button type="submit" :disabled="saving || (!document && !form.file)">
+        <Button type="submit" :disabled="saving || (!document && !form.files?.length)">
           {{ saving ? t('common.saving') : t('common.save') }}
         </Button>
       </FormDialogFooter>

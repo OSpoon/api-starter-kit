@@ -192,6 +192,12 @@ const routes = {
     tokens: [{"old":"/api/v1/system/knowledge-documents","type":0,"val":"api","end":""},{"old":"/api/v1/system/knowledge-documents","type":0,"val":"v1","end":""},{"old":"/api/v1/system/knowledge-documents","type":0,"val":"system","end":""},{"old":"/api/v1/system/knowledge-documents","type":0,"val":"knowledge-documents","end":""}],
     types: placeholder as Registry['knowledge_documents.store']['types'],
   },
+  'knowledge_documents.store_batch': {
+    methods: ["POST"],
+    pattern: '/api/v1/system/knowledge-documents/batch',
+    tokens: [{"old":"/api/v1/system/knowledge-documents/batch","type":0,"val":"api","end":""},{"old":"/api/v1/system/knowledge-documents/batch","type":0,"val":"v1","end":""},{"old":"/api/v1/system/knowledge-documents/batch","type":0,"val":"system","end":""},{"old":"/api/v1/system/knowledge-documents/batch","type":0,"val":"knowledge-documents","end":""},{"old":"/api/v1/system/knowledge-documents/batch","type":0,"val":"batch","end":""}],
+    types: placeholder as Registry['knowledge_documents.store_batch']['types'],
+  },
   'knowledge_documents.update': {
     methods: ["PUT"],
     pattern: '/api/v1/system/knowledge-documents/:id',
