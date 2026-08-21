@@ -11,6 +11,10 @@ type LlmConfigInput = {
   embeddingModel?: string | null
   embeddingDimensions: number
   requestTimeoutMs: number
+  wecomBotId?: string | null
+  wecomBotSecret?: string | null
+  wecomBotTenantId?: string | null
+  wecomBotWsUrl?: string | null
 }
 
 function encryptSecret(value?: string | null) {
@@ -51,6 +55,21 @@ export async function readRuntimeLlmConfiguration() {
   }
 }
 
+export async function readRuntimeWecomBotConfiguration() {
+  const config = await getLlmConfiguration()
+  const botId = config.wecomBotId?.trim() || null
+  const secret = decryptSecret(config.wecomBotSecret)
+  const tenantId = config.wecomBotTenantId?.trim() || null
+  if (!botId || !secret || !tenantId) return null
+
+  return {
+    botId,
+    secret,
+    tenantId,
+    wsUrl: config.wecomBotWsUrl?.trim() || undefined,
+  }
+}
+
 export async function updateLlmConfiguration(input: LlmConfigInput) {
   const config = await getLlmConfiguration()
   config.chatBaseUrl = input.chatBaseUrl?.trim() || null
@@ -59,8 +78,12 @@ export async function updateLlmConfiguration(input: LlmConfigInput) {
   config.embeddingModel = input.embeddingModel?.trim() || null
   config.embeddingDimensions = input.embeddingDimensions
   config.requestTimeoutMs = input.requestTimeoutMs
+  config.wecomBotId = input.wecomBotId?.trim() || null
+  config.wecomBotTenantId = input.wecomBotTenantId?.trim() || null
+  config.wecomBotWsUrl = input.wecomBotWsUrl?.trim() || null
   if (input.chatApiKey?.trim()) config.chatApiKey = encryptSecret(input.chatApiKey)
   if (input.embeddingApiKey?.trim()) config.embeddingApiKey = encryptSecret(input.embeddingApiKey)
+  if (input.wecomBotSecret?.trim()) config.wecomBotSecret = encryptSecret(input.wecomBotSecret)
   await config.save()
   return config
 }
@@ -79,6 +102,12 @@ export function serializeLlmConfiguration(config: LlmConfiguration) {
       apiKeyConfigured: Boolean(config.embeddingApiKey || config.chatApiKey),
     },
     requestTimeoutMs: config.requestTimeoutMs,
+    wecomBot: {
+      botId: config.wecomBotId,
+      tenantId: config.wecomBotTenantId,
+      wsUrl: config.wecomBotWsUrl,
+      secretConfigured: Boolean(config.wecomBotSecret),
+    },
     updatedAt: config.updatedAt.toISO(),
   }
 }

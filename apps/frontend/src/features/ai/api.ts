@@ -59,6 +59,16 @@ export interface AiChatCredentialDisclosure {
   label: string
 }
 
+export interface AiChatActionResultMessage {
+  id: number
+  conversationId: number
+  role: 'assistant'
+  content: string
+  citations: AiChatCitation[]
+  createdAt: string
+  updatedAt: string
+}
+
 export type AiChatPendingConfirmation = Omit<AiChatConfirmation, 'messageId'>
 
 export interface AiChatDeleteResult {
@@ -338,7 +348,10 @@ export async function confirmAiAgentAction(
   confirmationId: number
 ) {
   const response = await apiRequest<
-    Omit<AiChatConfirmation, 'messageId'> & { result?: { credential?: AiChatCredentialDisclosure } }
+    Omit<AiChatConfirmation, 'messageId'> & {
+      result?: { credential?: AiChatCredentialDisclosure }
+      message: AiChatActionResultMessage
+    }
   >(`/api/v1/ai-chat/conversations/${conversationId}/confirmations/${confirmationId}/confirm`, {
     ...authOptions(token),
     method: 'POST',

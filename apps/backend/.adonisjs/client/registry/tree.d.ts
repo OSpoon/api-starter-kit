@@ -39,6 +39,10 @@ export interface ApiDefinition {
       generate: typeof routes['profile.2fa.generate']
       enable: typeof routes['profile.2fa.enable']
     }
+    channelIdentities: {
+      bind: typeof routes['profile.channel_identities.bind']
+      unbindWecom: typeof routes['profile.channel_identities.unbind_wecom']
+    }
     accessTokens: {
       destroy: typeof routes['profile.access_tokens.destroy']
     }

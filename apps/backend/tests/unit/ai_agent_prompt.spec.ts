@@ -9,10 +9,10 @@ test.group('AI agent prompt', () => {
       ' <live-session-state>{"pendingConfirmations":[]}</live-session-state>'
     )
 
-    assert.include(prompt, 'You are an admin-console assistant.')
+    assert.include(prompt, 'You are an Admin Console assistant.')
     assert.include(
       prompt,
-      'Use the product identity "admin-console AI assistant" when introducing yourself'
+      'Use the product identity "Admin Console AI assistant" when introducing yourself'
     )
     assert.include(prompt, 'Never call yourself a dashboard assistant')
     assert.include(prompt, 'You are a tool-driven assistant for this system and project')

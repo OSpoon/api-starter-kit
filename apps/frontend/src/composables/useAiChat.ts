@@ -207,6 +207,12 @@ export function useAiChat() {
       pendingAiConfirmation.value = null
       aiApprovalDismissed.value = false
       appendConfirmationTimeline(confirmation.messageId, confirmation, 'confirmed')
+      if (result.message && aiConversation.value) {
+        aiConversation.value = {
+          ...aiConversation.value,
+          messages: [...aiConversation.value.messages, result.message],
+        }
+      }
       toast.success(t('ai_chat.confirmations.success'))
     } catch (error) {
       toast.error(error instanceof Error ? error.message : t('common.error'))

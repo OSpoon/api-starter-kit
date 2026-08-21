@@ -36,6 +36,7 @@ AI 助手基于 Pi Agent 运行。工具参数和调用契约由 Pi 的工具 sc
 | 审计日志         | 关键管理操作与已确认 AI 操作的可检索记录                                           |
 | 知识库           | 审查后的文档管理、角色访问控制、向量检索和结构化检索元数据                         |
 | AI 工作台        | Pi Agent 流式对话、历史持久化、知识问答、注册查询和需确认的管理操作提议            |
+| 外部 AI 渠道     | 企业微信智能机器人 WebSocket 长连接、外部身份绑定和复用系统权限的 AI 对话          |
 | UI 模板          | 管理列表、详情、设置、流程、分析、向导与操作模式示例                               |
 | 交付基础         | OpenAPI/Scalar、Docker、pgvector PostgreSQL、国际化与自动化检查                    |
 
@@ -71,6 +72,17 @@ pnpm --dir apps/backend exec node ace test
 
 LLM 配置在系统管理中的「LLM 配置」页面维护，支持运行时修改对话模型、Embedding
 模型和 OpenAI-compatible 网关，无需重启服务。API Key 会在后端加密保存。
+
+### 企业微信智能机器人
+
+企业微信 Webhook 继续用于出站通知；双向 AI 对话使用智能机器人 API 的 WebSocket 长连接。
+企业微信智能机器人参数在系统管理中的「LLM 配置」页面维护，Bot Secret 会在后端加密保存，不再通过环境变量配置。保存后重启 bot worker，开发环境运行：
+
+```bash
+pnpm dev
+```
+
+机器人用户首次发消息时会收到一次性绑定码；登录管理后台后调用账号绑定入口完成绑定。绑定后会沿用现有 AI 助手的角色、权限、知识库访问和受控操作确认机制。Docker Compose 会自动启动独立的 `wecom-bot` 容器，避免 HTTP 多副本重复连接同一个机器人。
 
 ## 许可证
 

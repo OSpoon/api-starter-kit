@@ -21,6 +21,8 @@ export type ScannedRoutes = {
     'profile.2fa.generate': { paramsTuple?: []; params?: {} }
     'profile.2fa.enable': { paramsTuple?: []; params?: {} }
     'profile.profile.disable_two_factor': { paramsTuple?: []; params?: {} }
+    'profile.channel_identities.bind': { paramsTuple?: []; params?: {} }
+    'profile.channel_identities.unbind_wecom': { paramsTuple?: []; params?: {} }
     'profile.access_tokens.destroy': { paramsTuple?: []; params?: {} }
     'profile.github.link': { paramsTuple?: []; params?: {} }
     'api_keys.index': { paramsTuple?: []; params?: {} }
@@ -79,6 +81,8 @@ export type ScannedRoutes = {
     'profile.2fa.generate': { paramsTuple?: []; params?: {} }
     'profile.2fa.enable': { paramsTuple?: []; params?: {} }
     'profile.profile.disable_two_factor': { paramsTuple?: []; params?: {} }
+    'profile.channel_identities.bind': { paramsTuple?: []; params?: {} }
+    'profile.channel_identities.unbind_wecom': { paramsTuple?: []; params?: {} }
     'profile.access_tokens.destroy': { paramsTuple?: []; params?: {} }
     'profile.github.link': { paramsTuple?: []; params?: {} }
     'api_keys.store': { paramsTuple?: []; params?: {} }

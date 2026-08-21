@@ -7,6 +7,7 @@ import { middleware } from '#start/kernel'
 
 const ApiKeysController = () => import('#controllers/api_keys_controller')
 const AiChatController = () => import('#controllers/ai_chat_controller')
+const ChannelIdentitiesController = () => import('#controllers/channel_identities_controller')
 const AuditLogsController = () => import('#controllers/audit_logs_controller')
 const GithubOauthController = () => import('#controllers/github_oauth_controller')
 const KnowledgeDocumentsController = () => import('#controllers/knowledge_documents_controller')
@@ -79,6 +80,12 @@ router
         router.post('2fa/generate', [TwoFactorAuthController, 'generate']).as('2fa.generate')
         router.post('2fa/enable', [TwoFactorAuthController, 'enable']).as('2fa.enable')
         router.post('2fa/disable', [controllers.Profile, 'disableTwoFactor'])
+        router
+          .post('channel-identities/bind', [ChannelIdentitiesController, 'bind'])
+          .use(middleware.throttle({ max: 5, windowSeconds: 60, key: 'user' }))
+        router
+          .post('channel-identities/wecom/unbind', [ChannelIdentitiesController, 'unbindWecom'])
+          .use(middleware.throttle({ max: 5, windowSeconds: 60, key: 'user' }))
         router.post('logout', [controllers.AccessTokens, 'destroy'])
         router.post('github/link', [GithubOauthController, 'beginLink']).as('github.link')
       })

@@ -88,10 +88,15 @@ export async function runAiChatAssistantTurn(input: {
   regeneration: AiChatResolvedRegeneration<AiChatMessage> | null
   context?: AiAgentPageContext
   signal: AbortSignal
-  response: HttpContext['response']
+  response?: HttpContext['response']
   ctx: HttpContext
+  onEvent?: (event: string, data: unknown) => void | Promise<void>
 }) {
   const { conversation, userId, userMessage, regeneration, response } = input
+  const emit = (event: string, data: unknown) => {
+    if (response) writeAiChatSse(response, event, data)
+    return input.onEvent?.(event, data)
+  }
   let assistantContent = ''
   let agentRunId: string | null = null
   let persistedAssistantMessage: AiChatMessage | null = null
@@ -127,8 +132,8 @@ export async function runAiChatAssistantTurn(input: {
   let stopKeepalive: (() => void) | undefined
 
   try {
-    stopKeepalive = startAiChatSseKeepalive(response)
-    writeAiChatSse(response, 'user', {
+    if (response) stopKeepalive = startAiChatSseKeepalive(response)
+    emit('user', {
       conversation: serializeAiChatConversation(conversation),
       message: serializeAiChatMessage(userMessage),
     })
@@ -165,7 +170,7 @@ export async function runAiChatAssistantTurn(input: {
         for (const source of sources) {
           knowledgeCitations.set(`${source.documentId}:${source.chunkId}`, source)
         }
-        writeAiChatSse(response, 'agent_citations', {
+        void emit('agent_citations', {
           citations: [...knowledgeCitations.values()],
         })
       },
@@ -213,12 +218,12 @@ export async function runAiChatAssistantTurn(input: {
               ? `\n\n${terminalContent}`
               : terminalContent
             assistantContent += visibleContent
-            writeAiChatSse(response, 'delta', { content: visibleContent })
+            await emit('delta', { content: visibleContent })
             await persistAssistantMessage()
           }
           continue
         }
-        writeAiChatSse(response, event.value.event, event.value.data)
+        await emit(event.value.event, event.value.data)
         continue
       }
       if (event.source === 'message_start') {
@@ -234,7 +239,7 @@ export async function runAiChatAssistantTurn(input: {
         ) {
           await persistAssistantMessage()
         }
-        writeAiChatSse(response, 'delta', { content: event.value })
+        await emit('delta', { content: event.value })
         continue
       }
       if (event.source === 'message_end') {
@@ -272,7 +277,7 @@ export async function runAiChatAssistantTurn(input: {
       logger.error({ err: error, conversationId: conversation.id }, 'AI conversation reload failed')
     }
     aiFailureStage = 'done_event_serialization'
-    writeAiChatSse(response, 'run', {
+    await emit('run', {
       agentRunId,
       usage,
       durationMs: Date.now() - streamStartedAt,
@@ -283,7 +288,7 @@ export async function runAiChatAssistantTurn(input: {
       usage,
     })
     await persistAssistantMessage()
-    writeAiChatSse(response, 'done', {
+    await emit('done', {
       conversation: serializeAiChatConversationWithMessages(conversation),
       message: serializeAiChatMessage(assistantMessage),
       confirmations,
@@ -321,7 +326,7 @@ export async function runAiChatAssistantTurn(input: {
           )
         }
       }
-      writeAiChatSse(response, 'done', {
+      await emit('done', {
         conversation: serializeAiChatConversationWithMessages(conversation),
         message: serializeAiChatMessage(failedAssistantMessage),
         confirmations,
@@ -352,7 +357,7 @@ export async function runAiChatAssistantTurn(input: {
     if (!shouldPreserveInterruptedRun(error)) {
       await resetAiConversationState({ conversationId: conversation.id, userId })
     }
-    writeAiChatSse(response, 'error', {
+    await emit('error', {
       message,
       assistantMessage: serializeAiChatMessage(failedAssistantMessage),
     })

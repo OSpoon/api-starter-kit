@@ -10,7 +10,7 @@
   },
   "scripts": {
     "docker:up": "node scripts/docker-up.mjs",
-    "dev": "turbo dev",
+    "dev": "turbo dev bot",
     "build": "turbo build",
     "test": "turbo test",
     "lint": "turbo lint",

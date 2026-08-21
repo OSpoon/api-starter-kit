@@ -8,6 +8,7 @@ import { getAiRequestTimeout } from '#ai/core/ai_agent_config'
 import {
   AiAgentConfirmationError,
   confirmAiAgentAction as executeAiAgentAction,
+  getAiAgentActionResultMessage,
   listConversationConfirmations,
 } from '#ai/core/ai_agent_confirmation'
 import { getAiAgentRun } from '#ai/runtime/ai_agent_run_registry'
@@ -226,7 +227,23 @@ export default class AiChatController {
         conversationId: conversation.id,
         userId: user.id,
       })
-      return serialize(confirmation)
+      const resultMessage = await AiChatMessage.create({
+        conversationId: conversation.id,
+        role: 'assistant',
+        content: await getAiAgentActionResultMessage({
+          confirmationId: Number(params.confirmationId),
+          conversationId: conversation.id,
+          userId: user.id,
+          result:
+            confirmation.result && typeof confirmation.result === 'object'
+              ? confirmation.result
+              : undefined,
+        }),
+      })
+      return serialize({
+        ...confirmation,
+        message: serializeAiChatMessage(resultMessage),
+      })
     } catch (error) {
       if (error instanceof AiAgentConfirmationError) {
         if (error.status === 404) {

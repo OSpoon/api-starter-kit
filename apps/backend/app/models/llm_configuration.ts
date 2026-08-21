@@ -29,6 +29,18 @@ export default class LlmConfiguration extends BaseModel {
   @column()
   declare requestTimeoutMs: number
 
+  @column()
+  declare wecomBotId: string | null
+
+  @column({ serializeAs: null })
+  declare wecomBotSecret: string | null
+
+  @column()
+  declare wecomBotTenantId: string | null
+
+  @column()
+  declare wecomBotWsUrl: string | null
+
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
 

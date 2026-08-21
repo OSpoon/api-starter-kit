@@ -11,6 +11,12 @@ export interface LlmConfiguration {
     apiKeyConfigured: boolean
   }
   requestTimeoutMs: number
+  wecomBot: {
+    botId: string | null
+    tenantId: string | null
+    wsUrl: string | null
+    secretConfigured: boolean
+  }
   updatedAt: string | null
 }
 

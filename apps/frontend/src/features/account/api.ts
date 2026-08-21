@@ -14,6 +14,10 @@ export interface ApiUser {
   roles: Array<{ id: number; code: string; name: string }>
   permissions: string[]
   githubLinked?: boolean
+  channelIdentities?: Array<{
+    channel: 'wecom' | 'feishu'
+    boundAt: string
+  }>
 }
 
 interface AuthResponse {
@@ -187,5 +191,33 @@ export async function disable2fa(token: string | null, password: string) {
     ...authOptions(token),
     body: JSON.stringify({ password }),
   })
+  return readItem(response)
+}
+
+export async function bindChannelIdentity(token: string | null, code: string) {
+  const response = await apiRequest<
+    ApiEnvelope<{
+      bound: boolean
+      channel: 'wecom' | 'feishu'
+      externalTenantId: string
+      externalUserId: string
+    }>
+  >('/api/v1/account/channel-identities/bind', {
+    ...authOptions(token),
+    method: 'POST',
+    body: JSON.stringify({ code }),
+  })
+  return readItem(response)
+}
+
+export async function unbindWecomChannelIdentity(token: string | null, password: string) {
+  const response = await apiRequest<ApiEnvelope<{ unbound: boolean; channel: 'wecom' }>>(
+    '/api/v1/account/channel-identities/wecom/unbind',
+    {
+      ...authOptions(token),
+      method: 'POST',
+      body: JSON.stringify({ password }),
+    }
+  )
   return readItem(response)
 }

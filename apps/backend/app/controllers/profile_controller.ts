@@ -2,6 +2,7 @@ import type { HttpContext } from '@adonisjs/core/http'
 import { ApiOperation, ApiResponse, ApiSecurity } from '@foadonis/openapi/decorators'
 import { DateTime } from 'luxon'
 
+import ChannelIdentity from '#models/channel_identity'
 import GithubIdentity from '#models/github_identity'
 import User from '#models/user'
 import { isStrongPassword, passwordContext } from '#security/password_strength'
@@ -135,11 +136,21 @@ export default class ProfileController {
   }
 
   private async profilePayload(user: User) {
-    const [profile, githubIdentity] = await Promise.all([
+    const [profile, githubIdentity, channelIdentities] = await Promise.all([
       loadUserAccess(user),
       GithubIdentity.findBy('userId', user.id),
+      ChannelIdentity.query()
+        .where('userId', user.id)
+        .where('status', 'active')
+        .select(['channel', 'boundAt']),
     ])
     profile.githubLinked = Boolean(githubIdentity)
+    Object.assign(profile, {
+      channelIdentities: channelIdentities.map((identity) => ({
+        channel: identity.channel,
+        boundAt: identity.boundAt.toISO(),
+      })),
+    })
     return UserTransformer.transform(profile)
   }
 }

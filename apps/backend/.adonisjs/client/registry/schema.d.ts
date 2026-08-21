@@ -211,6 +211,30 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/profile_controller').default['disableTwoFactor']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
+  'profile.channel_identities.bind': {
+    methods: ["POST"]
+    pattern: '/api/v1/account/channel-identities/bind'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/channel_identity').bindChannelIdentityValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/channel_identity').bindChannelIdentityValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/channel_identities_controller').default['bind']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/channel_identities_controller').default['bind']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'profile.channel_identities.unbind_wecom': {
+    methods: ["POST"]
+    pattern: '/api/v1/account/channel-identities/wecom/unbind'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/user').twoFactorValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/user').twoFactorValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/channel_identities_controller').default['unbindWecom']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/channel_identities_controller').default['unbindWecom']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
   'profile.access_tokens.destroy': {
     methods: ["POST"]
     pattern: '/api/v1/account/logout'

@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { Copy } from '@lucide/vue'
+import { toTypedSchema } from '@vee-validate/zod'
+import { useForm } from 'vee-validate'
 import { toast } from 'vue-sonner'
+import { z } from 'zod'
 
 import DescriptionActionRow from '@/components/common/DescriptionActionRow.vue'
 import FormDialogContent from '@/components/common/FormDialogContent.vue'
@@ -17,17 +20,21 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
 import {
   beginGithubLink,
+  bindChannelIdentity,
   disable2fa,
   enable2fa,
   generate2fa,
+  unbindWecomChannelIdentity,
   unlinkGithub,
 } from '@/features/account/api'
 import { copyText } from '@/lib/clipboard'
+import { firstFormError } from '@/lib/form-validation'
 import { PASSWORD_EXPIRY_DAYS, passwordDaysRemaining } from '@/lib/password'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth'
@@ -50,8 +57,31 @@ const isLinkingGithub = ref(false)
 const isGithubLinked = ref(false)
 const showUnlinkGithubDialog = ref(false)
 const unlinkGithubPassword = ref('')
+const isBindingChannel = ref(false)
+const showBindChannelDialog = ref(false)
+const showUnbindChannelDialog = ref(false)
+const unbindChannelPassword = ref('')
+
+const channelBindingSchema = computed(() =>
+  toTypedSchema(
+    z.object({
+      code: z
+        .string()
+        .trim()
+        .regex(/^[A-Z0-9]{8}$/, t('profile.channel_binding.validation')),
+    })
+  )
+)
+const channelBindingForm = useForm({
+  validationSchema: channelBindingSchema,
+  initialValues: { code: '' },
+})
 
 const displayName = computed(() => auth.user?.fullName || auth.user?.email || t('profile.no_name'))
+const boundChannelIdentities = computed(() => auth.user?.channelIdentities ?? [])
+const isWecomBound = computed(() =>
+  boundChannelIdentities.value.some((identity) => identity.channel === 'wecom')
+)
 const passwordBaseDate = computed(() => auth.user?.passwordChangedAt || auth.user?.createdAt)
 const passwordExpiresAt = computed(() =>
   passwordBaseDate.value
@@ -185,6 +215,73 @@ async function confirmUnlinkGithub() {
   }
 }
 
+function handleUnbindChannelClick() {
+  unbindChannelPassword.value = ''
+  showUnbindChannelDialog.value = true
+}
+
+function handleBindChannelClick() {
+  channelBindingForm.resetForm()
+  showBindChannelDialog.value = true
+}
+
+async function confirmUnbindChannel() {
+  if (!unbindChannelPassword.value) {
+    toast.error(t('profile.toast.enter_password'))
+    return
+  }
+
+  isLoading.value = true
+  try {
+    await unbindWecomChannelIdentity(auth.token, unbindChannelPassword.value)
+    if (auth.user) {
+      auth.user = {
+        ...auth.user,
+        channelIdentities: (auth.user.channelIdentities ?? []).filter(
+          (identity) => identity.channel !== 'wecom'
+        ),
+      }
+    }
+    unbindChannelPassword.value = ''
+    showUnbindChannelDialog.value = false
+    toast.success(t('profile.channel_binding.unbound'))
+  } catch (error) {
+    toast.error(error instanceof Error ? error.message : t('profile.channel_binding.unbind_failed'))
+  } finally {
+    isLoading.value = false
+  }
+}
+
+const submitChannelBinding = channelBindingForm.handleSubmit(
+  async ({ code }) => {
+    isBindingChannel.value = true
+    try {
+      const binding = await bindChannelIdentity(auth.token, code)
+      if (auth.user) {
+        auth.user = {
+          ...auth.user,
+          channelIdentities: [
+            ...(auth.user.channelIdentities ?? []).filter(
+              (identity) => identity.channel !== binding.channel
+            ),
+            { channel: binding.channel, boundAt: new Date().toISOString() },
+          ],
+        }
+      }
+      channelBindingForm.resetForm()
+      showBindChannelDialog.value = false
+      toast.success(t('profile.channel_binding.success'))
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : t('profile.channel_binding.failed'))
+    } finally {
+      isBindingChannel.value = false
+    }
+  },
+  ({ errors }) => {
+    toast.error(firstFormError(errors, t('common.form_check_errors')))
+  }
+)
+
 onMounted(async () => {
   const profile = await auth.fetchProfile()
   isGithubLinked.value = Boolean(profile?.githubLinked)
@@ -312,6 +409,100 @@ onMounted(async () => {
         </DescriptionActionRow>
       </CardContent>
     </Card>
+
+    <Card class="rounded-xl">
+      <CardHeader>
+        <CardTitle>{{ t('profile.channel_binding.title') }}</CardTitle>
+        <CardDescription>{{ t('profile.channel_binding.hint') }}</CardDescription>
+      </CardHeader>
+      <CardContent class="space-y-5">
+        <DescriptionActionRow
+          :title="t('profile.channel_binding.wecom_title')"
+          :description="t('profile.channel_binding.wecom_hint')"
+        >
+          <template #action>
+            <Button
+              v-if="isWecomBound"
+              variant="destructive"
+              :disabled="isLoading"
+              @click="handleUnbindChannelClick"
+            >
+              {{ t('profile.channel_binding.unbind') }}
+            </Button>
+            <Button v-else type="button" @click="handleBindChannelClick">
+              {{ t('profile.channel_binding.submit') }}
+            </Button>
+          </template>
+        </DescriptionActionRow>
+      </CardContent>
+    </Card>
+
+    <Dialog v-model:open="showBindChannelDialog">
+      <FormDialogContent
+        :title="t('profile.channel_binding.bind_title')"
+        :description="t('profile.channel_binding.bind_desc')"
+        class="sm:max-w-106.25"
+      >
+        <form class="flex min-h-0 flex-1 flex-col" @submit="submitChannelBinding">
+          <div class="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-6 pt-4 pb-6">
+            <FormField v-slot="{ value, handleChange }" name="code" :validate-on-blur="false">
+              <FormItem class="items-center">
+                <FormLabel class="sr-only">{{ t('profile.channel_binding.code_label') }}</FormLabel>
+                <FormControl>
+                  <div class="flex justify-center">
+                    <SegmentedCodeInput
+                      autocomplete="one-time-code"
+                      :model-value="value"
+                      :maxlength="8"
+                      @update:model-value="(nextValue) => handleChange(nextValue.toUpperCase())"
+                    />
+                  </div>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            </FormField>
+          </div>
+          <FormDialogFooter class="shrink-0 justify-end">
+            <Button type="button" variant="outline" @click="showBindChannelDialog = false">
+              {{ t('common.cancel') }}
+            </Button>
+            <Button type="submit" :disabled="isBindingChannel">
+              {{
+                isBindingChannel
+                  ? t('profile.channel_binding.binding')
+                  : t('profile.channel_binding.submit')
+              }}
+            </Button>
+          </FormDialogFooter>
+        </form>
+      </FormDialogContent>
+    </Dialog>
+
+    <Dialog v-model:open="showUnbindChannelDialog">
+      <FormDialogContent
+        :title="t('profile.channel_binding.unbind_title')"
+        :description="t('profile.channel_binding.unbind_desc')"
+        class="sm:max-w-106.25"
+      >
+        <div class="grid gap-2 p-6 pt-4">
+          <Label for="unbind-channel-password">{{ t('profile.current_password') }}</Label>
+          <Input
+            id="unbind-channel-password"
+            v-model="unbindChannelPassword"
+            type="password"
+            autocomplete="current-password"
+          />
+        </div>
+        <FormDialogFooter class="justify-end">
+          <Button variant="outline" @click="showUnbindChannelDialog = false">
+            {{ t('common.cancel') }}
+          </Button>
+          <Button variant="destructive" :disabled="isLoading" @click="confirmUnbindChannel">
+            {{ t('profile.channel_binding.unbind') }}
+          </Button>
+        </FormDialogFooter>
+      </FormDialogContent>
+    </Dialog>
 
     <Dialog v-model:open="showUnlinkGithubDialog">
       <FormDialogContent

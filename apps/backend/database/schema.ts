@@ -258,6 +258,102 @@ export class AuthAccessTokenSchema extends BaseModel {
   declare updatedAt: DateTime | null
 }
 
+export class ChannelBindingChallengeSchema extends BaseModel {
+  static $columns = [
+    'channel',
+    'codeHash',
+    'createdAt',
+    'expiresAt',
+    'externalTenantId',
+    'externalUserId',
+    'id',
+    'usedAt',
+  ] as const
+  $columns = ChannelBindingChallengeSchema.$columns
+  @column()
+  declare channel: string
+  @column()
+  declare codeHash: string
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column.dateTime()
+  declare expiresAt: DateTime
+  @column()
+  declare externalTenantId: string
+  @column()
+  declare externalUserId: string
+  @column({ isPrimary: true })
+  declare id: number
+  @column.dateTime()
+  declare usedAt: DateTime | null
+}
+
+export class ChannelConversationSchema extends BaseModel {
+  static $columns = [
+    'channel',
+    'conversationId',
+    'createdAt',
+    'externalConversationKey',
+    'externalTenantId',
+    'id',
+    'updatedAt',
+    'userId',
+  ] as const
+  $columns = ChannelConversationSchema.$columns
+  @column()
+  declare channel: string
+  @column()
+  declare conversationId: number
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare externalConversationKey: string
+  @column()
+  declare externalTenantId: string
+  @column({ isPrimary: true })
+  declare id: number
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+  @column()
+  declare userId: number
+}
+
+export class ChannelIdentitySchema extends BaseModel {
+  static $columns = [
+    'boundAt',
+    'channel',
+    'createdAt',
+    'externalTenantId',
+    'externalUserId',
+    'id',
+    'revokedAt',
+    'status',
+    'updatedAt',
+    'userId',
+  ] as const
+  $columns = ChannelIdentitySchema.$columns
+  @column.dateTime()
+  declare boundAt: DateTime
+  @column()
+  declare channel: string
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare externalTenantId: string
+  @column()
+  declare externalUserId: string
+  @column({ isPrimary: true })
+  declare id: number
+  @column.dateTime()
+  declare revokedAt: DateTime | null
+  @column()
+  declare status: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+  @column()
+  declare userId: number
+}
+
 export class GithubIdentitySchema extends BaseModel {
   static $columns = ['createdAt', 'githubId', 'githubLogin', 'id', 'updatedAt', 'userId'] as const
   $columns = GithubIdentitySchema.$columns
@@ -402,6 +498,57 @@ export class KnowledgeDocumentSchema extends BaseModel {
   declare title: string
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime
+}
+
+export class LlmConfigurationSchema extends BaseModel {
+  static $columns = [
+    'chatApiKey',
+    'chatBaseUrl',
+    'chatModel',
+    'createdAt',
+    'embeddingApiKey',
+    'embeddingBaseUrl',
+    'embeddingDimensions',
+    'embeddingModel',
+    'id',
+    'requestTimeoutMs',
+    'updatedAt',
+    'wecomBotId',
+    'wecomBotSecret',
+    'wecomBotTenantId',
+    'wecomBotWsUrl',
+  ] as const
+  $columns = LlmConfigurationSchema.$columns
+  @column()
+  declare chatApiKey: string | null
+  @column()
+  declare chatBaseUrl: string | null
+  @column()
+  declare chatModel: string
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare embeddingApiKey: string | null
+  @column()
+  declare embeddingBaseUrl: string | null
+  @column()
+  declare embeddingDimensions: number
+  @column()
+  declare embeddingModel: string | null
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare requestTimeoutMs: number
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+  @column()
+  declare wecomBotId: string | null
+  @column()
+  declare wecomBotSecret: string | null
+  @column()
+  declare wecomBotTenantId: string | null
+  @column()
+  declare wecomBotWsUrl: string | null
 }
 
 export class PermissionSchema extends BaseModel {

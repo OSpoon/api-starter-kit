@@ -15,6 +15,7 @@
     "start": "node bin/server.js",
     "build": "node ace build",
     "dev": "node ace serve --hmr",
+    "bot": "node ace wecom:bot",
     "test": "node ace test",
     "lint": "eslint . --fix --cache",
     "lint:check": "eslint . --max-warnings=0",
@@ -44,7 +45,8 @@
     "#database/*": "./database/*.js",
     "#tests/*": "./tests/*.js",
     "#start/*": "./start/*.js",
-    "#config/*": "./config/*.js"
+    "#config/*": "./config/*.js",
+    "#channels/*": "./app/channels/*.js"
   },
   "devDependencies": {
     "@adonisjs/assembler": "^8.4.0",
@@ -81,6 +83,7 @@
     "@opentelemetry/sdk-node": "^0.221.0",
     "@tuyau/core": "^1.2.2",
     "@vinejs/vine": "^4.4.0",
+    "@wecom/aibot-node-sdk": "^1.0.7",
     "luxon": "^3.7.2",
     "openai": "^6.45.0",
     "otplib": "^13.4.1",

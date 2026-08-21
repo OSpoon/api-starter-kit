@@ -22,5 +22,15 @@ export const updateLlmConfigurationValidator = vine.compile(
     embeddingModel: vine.string().trim().maxLength(160).optional().nullable(),
     embeddingDimensions: vine.number().positive().max(8192),
     requestTimeoutMs: vine.number().min(5000).max(300000),
+    wecomBotId: vine.string().trim().maxLength(160).optional().nullable(),
+    wecomBotSecret: vine.string().trim().maxLength(500).optional().nullable(),
+    wecomBotTenantId: vine.string().trim().maxLength(160).optional().nullable(),
+    wecomBotWsUrl: vine
+      .string()
+      .trim()
+      .url({ require_tld: false })
+      .maxLength(500)
+      .optional()
+      .nullable(),
   })
 )

@@ -108,6 +108,18 @@ const routes = {
     tokens: [{"old":"/api/v1/account/2fa/disable","type":0,"val":"api","end":""},{"old":"/api/v1/account/2fa/disable","type":0,"val":"v1","end":""},{"old":"/api/v1/account/2fa/disable","type":0,"val":"account","end":""},{"old":"/api/v1/account/2fa/disable","type":0,"val":"2fa","end":""},{"old":"/api/v1/account/2fa/disable","type":0,"val":"disable","end":""}],
     types: placeholder as Registry['profile.profile.disable_two_factor']['types'],
   },
+  'profile.channel_identities.bind': {
+    methods: ["POST"],
+    pattern: '/api/v1/account/channel-identities/bind',
+    tokens: [{"old":"/api/v1/account/channel-identities/bind","type":0,"val":"api","end":""},{"old":"/api/v1/account/channel-identities/bind","type":0,"val":"v1","end":""},{"old":"/api/v1/account/channel-identities/bind","type":0,"val":"account","end":""},{"old":"/api/v1/account/channel-identities/bind","type":0,"val":"channel-identities","end":""},{"old":"/api/v1/account/channel-identities/bind","type":0,"val":"bind","end":""}],
+    types: placeholder as Registry['profile.channel_identities.bind']['types'],
+  },
+  'profile.channel_identities.unbind_wecom': {
+    methods: ["POST"],
+    pattern: '/api/v1/account/channel-identities/wecom/unbind',
+    tokens: [{"old":"/api/v1/account/channel-identities/wecom/unbind","type":0,"val":"api","end":""},{"old":"/api/v1/account/channel-identities/wecom/unbind","type":0,"val":"v1","end":""},{"old":"/api/v1/account/channel-identities/wecom/unbind","type":0,"val":"account","end":""},{"old":"/api/v1/account/channel-identities/wecom/unbind","type":0,"val":"channel-identities","end":""},{"old":"/api/v1/account/channel-identities/wecom/unbind","type":0,"val":"wecom","end":""},{"old":"/api/v1/account/channel-identities/wecom/unbind","type":0,"val":"unbind","end":""}],
+    types: placeholder as Registry['profile.channel_identities.unbind_wecom']['types'],
+  },
   'profile.access_tokens.destroy': {
     methods: ["POST"],
     pattern: '/api/v1/account/logout',

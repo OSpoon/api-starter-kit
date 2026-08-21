@@ -4,6 +4,11 @@ import type User from '#models/user'
 
 export default class UserTransformer extends BaseTransformer<User> {
   toObject() {
+    const channelIdentities = (
+      this.resource as User & {
+        channelIdentities?: Array<{ channel: string; boundAt: string }>
+      }
+    ).channelIdentities
     const roles = this.resource.roles ?? []
     const permissions = new Set(
       roles.flatMap((role) => role.permissions?.map((permission) => permission.code) ?? [])
@@ -26,8 +31,14 @@ export default class UserTransformer extends BaseTransformer<User> {
         : [...permissions].sort(),
     }
 
-    if (this.resource.githubLinked !== undefined) {
-      return { ...transformed, githubLinked: this.resource.githubLinked }
+    if (this.resource.githubLinked !== undefined || channelIdentities !== undefined) {
+      return {
+        ...transformed,
+        ...(this.resource.githubLinked !== undefined
+          ? { githubLinked: this.resource.githubLinked }
+          : {}),
+        ...(channelIdentities !== undefined ? { channelIdentities } : {}),
+      }
     }
 
     return transformed

@@ -11,6 +11,7 @@ import {
 } from '#ai/core/ai_agent_action_registry'
 import AiAgentConfirmation from '#models/ai_agent_confirmation'
 import AiChatMessage from '#models/ai_chat_message'
+import ApiKey from '#models/api_key'
 import { recordAuditEvent } from '#services/audit_log'
 
 const confirmationLifetimeMinutes = 5
@@ -279,6 +280,46 @@ export async function listConversationConfirmations(conversationId: number, user
   }))
 }
 
+export async function listPendingConversationConfirmations(conversationId: number, userId: number) {
+  const confirmations = await AiAgentConfirmation.query()
+    .where('conversation_id', conversationId)
+    .where('requested_by_user_id', userId)
+    .where('status', 'pending')
+    .whereNull('execution_token')
+    .where('expires_at', '>', DateTime.now().toSQL()!)
+
+  return confirmations.map(serializeConfirmation)
+}
+
+export async function getAiAgentActionResultMessage(input: {
+  confirmationId: number
+  conversationId: number
+  userId: number
+  result?: Record<string, unknown>
+}) {
+  const confirmation = await AiAgentConfirmation.query()
+    .where('id', input.confirmationId)
+    .where('conversation_id', input.conversationId)
+    .where('requested_by_user_id', input.userId)
+    .first()
+
+  if (!confirmation || confirmation.status !== 'confirmed') {
+    return '操作已执行，但状态查询未确认完成，请稍后刷新并检查操作记录。'
+  }
+
+  if (confirmation.action === 'create_api_key') {
+    const apiKeyId =
+      input.result && 'apiKeyId' in input.result ? Number(input.result.apiKeyId) : Number.NaN
+    const apiKey = Number.isSafeInteger(apiKeyId) ? await ApiKey.find(apiKeyId) : null
+    if (apiKey) {
+      return `API Key 已创建成功。名称：${apiKey.name}；前缀：${apiKey.prefix}；有效期：${apiKey.expiresAt ? apiKey.expiresAt.toFormat('yyyy-MM-dd HH:mm') : '长期'}；创建时间：${apiKey.createdAt.toFormat('yyyy-MM-dd HH:mm')}。可在 API 密钥菜单中查看。`
+    }
+    return 'API Key 已执行创建，但查询不到刚创建的记录，请刷新 API 密钥菜单确认。'
+  }
+
+  return `受控操作已完成。操作：${confirmation.action}；状态：已确认；完成时间：${confirmation.confirmedAt?.toFormat('yyyy-MM-dd HH:mm') ?? '刚刚'}。`
+}
+
 export async function failUnattachedAgentRunConfirmations(input: {
   conversationId: number
   userId: number
@@ -414,4 +455,29 @@ export async function confirmAiAgentAction(
     ...serializeConfirmation(confirmation),
     ...(executionResult ? { result: executionResult } : {}),
   }
+}
+
+export async function cancelAiAgentAction(
+  ctx: HttpContext,
+  input: { confirmationId: number; conversationId: number; userId: number }
+) {
+  const confirmation = await AiAgentConfirmation.query()
+    .where('id', input.confirmationId)
+    .where('conversation_id', input.conversationId)
+    .where('requested_by_user_id', input.userId)
+    .first()
+  if (!confirmation) throw new AiAgentConfirmationError('确认请求不存在', 404)
+  if (confirmation.status !== 'pending') throw new AiAgentConfirmationError('确认请求已处理', 409)
+
+  confirmation.status = 'failed'
+  await confirmation.save()
+  await appendConfirmationRuntimeDetail(confirmation, 'failed')
+  await recordAuditEvent(ctx, {
+    actorUserId: input.userId,
+    action: 'agent.proposal_cancelled',
+    targetType: confirmation.targetType ?? 'agent_action',
+    targetId: confirmation.targetId,
+    metadata: { action: confirmation.action, confirmationId: confirmation.id, source: 'channel' },
+  })
+  return serializeConfirmation(confirmation)
 }

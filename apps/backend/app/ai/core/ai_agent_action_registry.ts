@@ -366,7 +366,10 @@ const createApiKeyAction: AiAgentActionImplementation = {
       targetId: apiKey.id,
       metadata: { name: apiKey.name, prefix: apiKey.prefix, source: 'ai_agent' },
     })
-    return { credential: { kind: 'api_key', value: secret, label: apiKey.name } }
+    return {
+      credential: { kind: 'api_key', value: secret, label: apiKey.name },
+      apiKeyId: apiKey.id,
+    }
   },
 }
 

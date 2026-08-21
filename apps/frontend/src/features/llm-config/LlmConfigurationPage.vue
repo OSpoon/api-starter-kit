@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { BrainCircuit, LoaderCircle, Save, TestTube } from '@lucide/vue'
+import { Bot, BrainCircuit, LoaderCircle, Save, TestTube } from '@lucide/vue'
 import { toast } from 'vue-sonner'
 
 import SettingsPageTemplate from '@/components/templates/SettingsPageTemplate.vue'
@@ -25,6 +25,10 @@ const form = reactive({
   embeddingModel: '',
   embeddingDimensions: 1024,
   requestTimeoutMs: 180000,
+  wecomBotId: '',
+  wecomBotSecret: '',
+  wecomBotTenantId: '',
+  wecomBotWsUrl: '',
 })
 
 async function load() {
@@ -36,6 +40,9 @@ async function load() {
     form.embeddingModel = config.embedding.model ?? ''
     form.embeddingDimensions = config.embedding.dimensions
     form.requestTimeoutMs = config.requestTimeoutMs
+    form.wecomBotId = config.wecomBot.botId ?? ''
+    form.wecomBotTenantId = config.wecomBot.tenantId ?? ''
+    form.wecomBotWsUrl = config.wecomBot.wsUrl ?? ''
   } catch (error) {
     toast.error(error instanceof Error ? error.message : t('llm_config.load_failed'))
   } finally {
@@ -53,6 +60,7 @@ async function save() {
     })
     form.chatApiKey = ''
     form.embeddingApiKey = ''
+    form.wecomBotSecret = ''
     toast.success(t('llm_config.saved'))
   } catch (error) {
     toast.error(error instanceof Error ? error.message : t('llm_config.save_failed'))
@@ -155,6 +163,36 @@ onMounted(load)
               type="number"
             /></div></CardContent
       ></Card>
+      <Card>
+        <CardHeader
+          ><CardTitle class="flex items-center gap-2"
+            ><Bot class="size-5" />{{ t('llm_config.wecom_title') }}</CardTitle
+          ><CardDescription>{{ t('llm_config.wecom_description') }}</CardDescription></CardHeader
+        >
+        <CardContent class="grid items-start gap-4 md:grid-cols-2">
+          <div class="space-y-2">
+            <Label for="wecom-bot-id">{{ t('llm_config.wecom_bot_id') }}</Label>
+            <Input id="wecom-bot-id" v-model="form.wecomBotId" />
+          </div>
+          <div class="space-y-2">
+            <Label for="wecom-bot-tenant-id">{{ t('llm_config.wecom_tenant_id') }}</Label>
+            <Input id="wecom-bot-tenant-id" v-model="form.wecomBotTenantId" />
+          </div>
+          <div class="space-y-2 md:col-span-2">
+            <Label for="wecom-bot-secret">{{ t('llm_config.wecom_secret') }}</Label>
+            <Input
+              id="wecom-bot-secret"
+              v-model="form.wecomBotSecret"
+              type="password"
+              :placeholder="t('llm_config.keep_existing')"
+            />
+          </div>
+          <div class="space-y-2 md:col-span-2">
+            <Label for="wecom-bot-ws-url">{{ t('llm_config.wecom_ws_url') }}</Label>
+            <Input id="wecom-bot-ws-url" v-model="form.wecomBotWsUrl" />
+          </div>
+        </CardContent>
+      </Card>
       <div class="flex flex-wrap justify-end gap-2">
         <Button
           type="button"
