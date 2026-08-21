@@ -28,6 +28,6 @@
   },
   "packageManager": "pnpm@11.9.0",
   "simple-git-hooks": {
-    "pre-commit": "pnpm lint-staged"
+    "pre-commit": "CI=true pnpm lint-staged"
   }
 }
