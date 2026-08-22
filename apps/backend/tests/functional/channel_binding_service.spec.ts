@@ -59,6 +59,22 @@ test.group('channel binding challenges', (group) => {
     )
   })
 
+  test('rotates an active code when the user requests another one', async ({ assert }) => {
+    const input = {
+      channel: 'feishu' as const,
+      externalTenantId: 'tenant-bind-rotate',
+      externalUserId: 'open-id-bind-rotate',
+    }
+    const first = await createChannelBindingChallenge(input)
+    const second = await createChannelBindingChallenge(input)
+
+    assert.notEqual(first!.code, second!.code)
+    await assert.rejects(
+      () => consumeChannelBindingChallenge({ code: first!.code, userId: 1 }),
+      '绑定码无效或已过期'
+    )
+  })
+
   test('binds through the authenticated account API', async ({ client, assert }) => {
     const user = await User.create({
       email: `channel-bind-api-${Date.now()}@example.com`,

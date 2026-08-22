@@ -60,6 +60,18 @@ export default class ChannelIdentitiesController {
   @ApiResponse({ status: 200, description: '企业微信身份解绑成功' })
   @ApiResponse({ status: 400, description: '密码错误或当前未绑定企业微信' })
   async unbindWecom(ctx: HttpContext) {
+    return this.unbindChannel(ctx, 'wecom', '企业微信智能机器人')
+  }
+
+  @ApiSecurity('bearerAuth')
+  @ApiOperation({ summary: '解绑飞书机器人身份' })
+  @ApiResponse({ status: 200, description: '飞书身份解绑成功' })
+  @ApiResponse({ status: 400, description: '密码错误或当前未绑定飞书机器人' })
+  async unbindFeishu(ctx: HttpContext) {
+    return this.unbindChannel(ctx, 'feishu', '飞书机器人')
+  }
+
+  private async unbindChannel(ctx: HttpContext, channel: 'wecom' | 'feishu', channelLabel: string) {
     const { auth, request, response, serialize } = ctx
     const user = auth.getUserOrFail()
     const payload = await request.validateUsing(twoFactorValidator)
@@ -72,13 +84,13 @@ export default class ChannelIdentitiesController {
     }
 
     const identity = await ChannelIdentity.query()
-      .where('channel', 'wecom')
+      .where('channel', channel)
       .where('userId', user.id)
       .where('status', 'active')
       .first()
 
     if (!identity) {
-      return response.badRequest({ message: '当前账号未绑定企业微信智能机器人' })
+      return response.badRequest({ message: `当前账号未绑定${channelLabel}` })
     }
 
     await revokeChannelIdentity(identity)
@@ -94,6 +106,6 @@ export default class ChannelIdentitiesController {
       },
     })
 
-    return serialize({ unbound: true, channel: 'wecom' })
+    return serialize({ unbound: true, channel })
   }
 }

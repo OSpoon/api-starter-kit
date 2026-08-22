@@ -1,0 +1,8 @@
+{
+  "watch": ["app", "commands"],
+  "ext": "ts,js,json",
+  "ignore": [".adonisjs", "tmp", "storage", "node_modules"],
+  "delay": "300",
+  "signal": "SIGTERM",
+  "exec": "node ace feishu:bot"
+}

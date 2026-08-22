@@ -221,3 +221,15 @@ export async function unbindWecomChannelIdentity(token: string | null, password:
   )
   return readItem(response)
 }
+
+export async function unbindFeishuChannelIdentity(token: string | null, password: string) {
+  const response = await apiRequest<ApiEnvelope<{ unbound: boolean; channel: 'feishu' }>>(
+    '/api/v1/account/channel-identities/feishu/unbind',
+    {
+      ...authOptions(token),
+      method: 'POST',
+      body: JSON.stringify({ password }),
+    }
+  )
+  return readItem(response)
+}

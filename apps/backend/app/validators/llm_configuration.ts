@@ -32,5 +32,8 @@ export const updateLlmConfigurationValidator = vine.compile(
       .maxLength(500)
       .optional()
       .nullable(),
+    feishuAppId: vine.string().trim().maxLength(160).optional().nullable(),
+    feishuAppSecret: vine.string().trim().maxLength(500).optional().nullable(),
+    feishuDomain: vine.string().trim().maxLength(80).optional().nullable(),
   })
 )

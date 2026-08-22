@@ -29,6 +29,9 @@ const form = reactive({
   wecomBotSecret: '',
   wecomBotTenantId: '',
   wecomBotWsUrl: '',
+  feishuAppId: '',
+  feishuAppSecret: '',
+  feishuDomain: '',
 })
 
 async function load() {
@@ -43,6 +46,8 @@ async function load() {
     form.wecomBotId = config.wecomBot.botId ?? ''
     form.wecomBotTenantId = config.wecomBot.tenantId ?? ''
     form.wecomBotWsUrl = config.wecomBot.wsUrl ?? ''
+    form.feishuAppId = config.feishuBot.appId ?? ''
+    form.feishuDomain = config.feishuBot.domain ?? ''
   } catch (error) {
     toast.error(error instanceof Error ? error.message : t('llm_config.load_failed'))
   } finally {
@@ -61,6 +66,7 @@ async function save() {
     form.chatApiKey = ''
     form.embeddingApiKey = ''
     form.wecomBotSecret = ''
+    form.feishuAppSecret = ''
     toast.success(t('llm_config.saved'))
   } catch (error) {
     toast.error(error instanceof Error ? error.message : t('llm_config.save_failed'))
@@ -190,6 +196,32 @@ onMounted(load)
           <div class="space-y-2 md:col-span-2">
             <Label for="wecom-bot-ws-url">{{ t('llm_config.wecom_ws_url') }}</Label>
             <Input id="wecom-bot-ws-url" v-model="form.wecomBotWsUrl" />
+          </div>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader
+          ><CardTitle class="flex items-center gap-2"
+            ><Bot class="size-5" />{{ t('llm_config.feishu_title') }}</CardTitle
+          ><CardDescription>{{ t('llm_config.feishu_description') }}</CardDescription></CardHeader
+        >
+        <CardContent class="grid items-start gap-4 md:grid-cols-2">
+          <div class="space-y-2">
+            <Label for="feishu-app-id">{{ t('llm_config.feishu_app_id') }}</Label>
+            <Input id="feishu-app-id" v-model="form.feishuAppId" />
+          </div>
+          <div class="space-y-2">
+            <Label for="feishu-domain">{{ t('llm_config.feishu_domain') }}</Label>
+            <Input id="feishu-domain" v-model="form.feishuDomain" placeholder="feishu" />
+          </div>
+          <div class="space-y-2 md:col-span-2">
+            <Label for="feishu-app-secret">{{ t('llm_config.feishu_app_secret') }}</Label>
+            <Input
+              id="feishu-app-secret"
+              v-model="form.feishuAppSecret"
+              type="password"
+              :placeholder="t('llm_config.keep_existing')"
+            />
           </div>
         </CardContent>
       </Card>

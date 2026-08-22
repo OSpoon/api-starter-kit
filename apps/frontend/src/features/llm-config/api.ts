@@ -17,6 +17,11 @@ export interface LlmConfiguration {
     wsUrl: string | null
     secretConfigured: boolean
   }
+  feishuBot: {
+    appId: string | null
+    domain: string | null
+    secretConfigured: boolean
+  }
   updatedAt: string | null
 }
 

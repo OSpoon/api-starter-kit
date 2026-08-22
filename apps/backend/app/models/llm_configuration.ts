@@ -41,6 +41,15 @@ export default class LlmConfiguration extends BaseModel {
   @column()
   declare wecomBotWsUrl: string | null
 
+  @column()
+  declare feishuAppId: string | null
+
+  @column({ serializeAs: null })
+  declare feishuAppSecret: string | null
+
+  @column()
+  declare feishuDomain: string | null
+
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
 

@@ -29,6 +29,14 @@
       "cache": false,
       "persistent": true
     },
+    "bot:wecom": {
+      "cache": false,
+      "persistent": true
+    },
+    "bot:feishu": {
+      "cache": false,
+      "persistent": true
+    },
     "test": {
       "dependsOn": ["build"],
       "cache": false

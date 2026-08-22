@@ -30,6 +30,7 @@ import {
   disable2fa,
   enable2fa,
   generate2fa,
+  unbindFeishuChannelIdentity,
   unbindWecomChannelIdentity,
   unlinkGithub,
 } from '@/features/account/api'
@@ -59,8 +60,10 @@ const showUnlinkGithubDialog = ref(false)
 const unlinkGithubPassword = ref('')
 const isBindingChannel = ref(false)
 const showBindChannelDialog = ref(false)
+const bindChannel = ref<'wecom' | 'feishu'>('wecom')
 const showUnbindChannelDialog = ref(false)
 const unbindChannelPassword = ref('')
+const unbindChannel = ref<'wecom' | 'feishu'>('wecom')
 
 const channelBindingSchema = computed(() =>
   toTypedSchema(
@@ -82,6 +85,21 @@ const boundChannelIdentities = computed(() => auth.user?.channelIdentities ?? []
 const isWecomBound = computed(() =>
   boundChannelIdentities.value.some((identity) => identity.channel === 'wecom')
 )
+const isFeishuBound = computed(() =>
+  boundChannelIdentities.value.some((identity) => identity.channel === 'feishu')
+)
+const channelBindingCopy = computed(() => {
+  const channel = bindChannel.value
+  return {
+    bindTitle: t(`profile.channel_binding.${channel}_bind_title`),
+    bindDescription: t(`profile.channel_binding.${channel}_bind_desc`),
+    unbind: t(`profile.channel_binding.${channel}_unbind`),
+    unbindTitle: t(`profile.channel_binding.${channel}_unbind_title`),
+    unbindDescription: t(`profile.channel_binding.${channel}_unbind_desc`),
+    unbound: t(`profile.channel_binding.${channel}_unbound`),
+    unbindFailed: t(`profile.channel_binding.${channel}_unbind_failed`),
+  }
+})
 const passwordBaseDate = computed(() => auth.user?.passwordChangedAt || auth.user?.createdAt)
 const passwordExpiresAt = computed(() =>
   passwordBaseDate.value
@@ -215,12 +233,15 @@ async function confirmUnlinkGithub() {
   }
 }
 
-function handleUnbindChannelClick() {
+function handleUnbindChannelClick(channel: 'wecom' | 'feishu') {
+  bindChannel.value = channel
+  unbindChannel.value = channel
   unbindChannelPassword.value = ''
   showUnbindChannelDialog.value = true
 }
 
-function handleBindChannelClick() {
+function handleBindChannelClick(channel: 'wecom' | 'feishu') {
+  bindChannel.value = channel
   channelBindingForm.resetForm()
   showBindChannelDialog.value = true
 }
@@ -233,20 +254,24 @@ async function confirmUnbindChannel() {
 
   isLoading.value = true
   try {
-    await unbindWecomChannelIdentity(auth.token, unbindChannelPassword.value)
+    if (unbindChannel.value === 'wecom') {
+      await unbindWecomChannelIdentity(auth.token, unbindChannelPassword.value)
+    } else {
+      await unbindFeishuChannelIdentity(auth.token, unbindChannelPassword.value)
+    }
     if (auth.user) {
       auth.user = {
         ...auth.user,
         channelIdentities: (auth.user.channelIdentities ?? []).filter(
-          (identity) => identity.channel !== 'wecom'
+          (identity) => identity.channel !== unbindChannel.value
         ),
       }
     }
     unbindChannelPassword.value = ''
     showUnbindChannelDialog.value = false
-    toast.success(t('profile.channel_binding.unbound'))
+    toast.success(channelBindingCopy.value.unbound)
   } catch (error) {
-    toast.error(error instanceof Error ? error.message : t('profile.channel_binding.unbind_failed'))
+    toast.error(error instanceof Error ? error.message : channelBindingCopy.value.unbindFailed)
   } finally {
     isLoading.value = false
   }
@@ -425,11 +450,29 @@ onMounted(async () => {
               v-if="isWecomBound"
               variant="destructive"
               :disabled="isLoading"
-              @click="handleUnbindChannelClick"
+              @click="handleUnbindChannelClick('wecom')"
             >
               {{ t('profile.channel_binding.unbind') }}
             </Button>
-            <Button v-else type="button" @click="handleBindChannelClick">
+            <Button v-else type="button" @click="handleBindChannelClick('wecom')">
+              {{ t('profile.channel_binding.submit') }}
+            </Button>
+          </template>
+        </DescriptionActionRow>
+        <DescriptionActionRow
+          :title="t('profile.channel_binding.feishu_title')"
+          :description="t('profile.channel_binding.feishu_hint')"
+        >
+          <template #action>
+            <Button
+              v-if="isFeishuBound"
+              variant="destructive"
+              :disabled="isLoading"
+              @click="handleUnbindChannelClick('feishu')"
+            >
+              {{ t('profile.channel_binding.unbind') }}
+            </Button>
+            <Button v-else type="button" @click="handleBindChannelClick('feishu')">
               {{ t('profile.channel_binding.submit') }}
             </Button>
           </template>
@@ -439,8 +482,8 @@ onMounted(async () => {
 
     <Dialog v-model:open="showBindChannelDialog">
       <FormDialogContent
-        :title="t('profile.channel_binding.bind_title')"
-        :description="t('profile.channel_binding.bind_desc')"
+        :title="channelBindingCopy.bindTitle"
+        :description="channelBindingCopy.bindDescription"
         class="sm:max-w-106.25"
       >
         <form class="flex min-h-0 flex-1 flex-col" @submit="submitChannelBinding">
@@ -480,8 +523,8 @@ onMounted(async () => {
 
     <Dialog v-model:open="showUnbindChannelDialog">
       <FormDialogContent
-        :title="t('profile.channel_binding.unbind_title')"
-        :description="t('profile.channel_binding.unbind_desc')"
+        :title="channelBindingCopy.unbindTitle"
+        :description="channelBindingCopy.unbindDescription"
         class="sm:max-w-106.25"
       >
         <div class="grid gap-2 p-6 pt-4">
@@ -498,7 +541,7 @@ onMounted(async () => {
             {{ t('common.cancel') }}
           </Button>
           <Button variant="destructive" :disabled="isLoading" @click="confirmUnbindChannel">
-            {{ t('profile.channel_binding.unbind') }}
+            {{ channelBindingCopy.unbind }}
           </Button>
         </FormDialogFooter>
       </FormDialogContent>

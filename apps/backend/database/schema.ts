@@ -510,6 +510,9 @@ export class LlmConfigurationSchema extends BaseModel {
     'embeddingBaseUrl',
     'embeddingDimensions',
     'embeddingModel',
+    'feishuAppId',
+    'feishuAppSecret',
+    'feishuDomain',
     'id',
     'requestTimeoutMs',
     'updatedAt',
@@ -535,6 +538,12 @@ export class LlmConfigurationSchema extends BaseModel {
   declare embeddingDimensions: number
   @column()
   declare embeddingModel: string | null
+  @column()
+  declare feishuAppId: string | null
+  @column()
+  declare feishuAppSecret: string | null
+  @column()
+  declare feishuDomain: string | null
   @column({ isPrimary: true })
   declare id: number
   @column()

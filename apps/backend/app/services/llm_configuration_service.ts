@@ -15,6 +15,9 @@ type LlmConfigInput = {
   wecomBotSecret?: string | null
   wecomBotTenantId?: string | null
   wecomBotWsUrl?: string | null
+  feishuAppId?: string | null
+  feishuAppSecret?: string | null
+  feishuDomain?: string | null
 }
 
 function encryptSecret(value?: string | null) {
@@ -70,6 +73,19 @@ export async function readRuntimeWecomBotConfiguration() {
   }
 }
 
+export async function readRuntimeFeishuBotConfiguration() {
+  const config = await getLlmConfiguration()
+  const appId = config.feishuAppId?.trim() || null
+  const secret = decryptSecret(config.feishuAppSecret)
+  if (!appId || !secret) return null
+
+  return {
+    appId,
+    secret,
+    domain: config.feishuDomain?.trim() || undefined,
+  }
+}
+
 export async function updateLlmConfiguration(input: LlmConfigInput) {
   const config = await getLlmConfiguration()
   config.chatBaseUrl = input.chatBaseUrl?.trim() || null
@@ -81,9 +97,12 @@ export async function updateLlmConfiguration(input: LlmConfigInput) {
   config.wecomBotId = input.wecomBotId?.trim() || null
   config.wecomBotTenantId = input.wecomBotTenantId?.trim() || null
   config.wecomBotWsUrl = input.wecomBotWsUrl?.trim() || null
+  config.feishuAppId = input.feishuAppId?.trim() || null
+  config.feishuDomain = input.feishuDomain?.trim() || null
   if (input.chatApiKey?.trim()) config.chatApiKey = encryptSecret(input.chatApiKey)
   if (input.embeddingApiKey?.trim()) config.embeddingApiKey = encryptSecret(input.embeddingApiKey)
   if (input.wecomBotSecret?.trim()) config.wecomBotSecret = encryptSecret(input.wecomBotSecret)
+  if (input.feishuAppSecret?.trim()) config.feishuAppSecret = encryptSecret(input.feishuAppSecret)
   await config.save()
   return config
 }
@@ -107,6 +126,11 @@ export function serializeLlmConfiguration(config: LlmConfiguration) {
       tenantId: config.wecomBotTenantId,
       wsUrl: config.wecomBotWsUrl,
       secretConfigured: Boolean(config.wecomBotSecret),
+    },
+    feishuBot: {
+      appId: config.feishuAppId,
+      domain: config.feishuDomain,
+      secretConfigured: Boolean(config.feishuAppSecret),
     },
     updatedAt: config.updatedAt.toISO(),
   }

@@ -20,6 +20,16 @@ export interface ChannelTarget {
   conversationKey: string
 }
 
+export interface ChannelCardActionEvent {
+  channel: ChannelName
+  externalTenantId: string
+  externalUserId: string
+  conversationKey: string
+  actionKey: string
+  taskId: string
+  raw?: unknown
+}
+
 export interface TextOutboundMessage {
   kind: 'text'
   content: string

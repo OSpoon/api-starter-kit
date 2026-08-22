@@ -36,14 +36,15 @@ export async function createChannelBindingChallenge(input: {
     .where('expires_at', '<=', DateTime.utc().toSQL()!)
     .update({ usedAt: DateTime.utc() })
 
-  const existing = await ChannelBindingChallenge.query()
+  // The plaintext code is intentionally never persisted, so an active
+  // challenge cannot be displayed again after the original reply is missed.
+  // Rotate it on a new inbound message to give the user a recoverable flow.
+  await ChannelBindingChallenge.query()
     .where('channel', input.channel)
     .where('external_tenant_id', input.externalTenantId)
     .where('external_user_id', input.externalUserId)
     .whereNull('used_at')
-    .where('expires_at', '>', DateTime.utc().toSQL()!)
-    .first()
-  if (existing) return null
+    .update({ usedAt: DateTime.utc() })
 
   const code = crypto.randomBytes(4).toString('hex').toUpperCase()
   const challenge = await ChannelBindingChallenge.create({

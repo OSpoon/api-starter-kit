@@ -10,6 +10,7 @@ import AiBot, {
 
 import type {
   ChannelAdapter,
+  ChannelCardActionEvent,
   ChannelTarget,
   NormalizedInboundMessage,
   OutboundMessage,
@@ -25,12 +26,7 @@ export interface WecomBotAdapterOptions {
     message: NormalizedInboundMessage,
     emit: (content: string) => Promise<void>
   ) => Promise<OutboundMessage | void>
-  onTemplateCardEvent?: (input: {
-    externalUserId: string
-    conversationKey: string
-    eventKey: string
-    taskId: string
-  }) => Promise<OutboundMessage | void>
+  onTemplateCardEvent?: (input: ChannelCardActionEvent) => Promise<OutboundMessage | void>
   logger?: WSClientOptions['logger']
 }
 
@@ -296,8 +292,10 @@ export class WecomBotAdapter implements ChannelAdapter {
     const reply = await this.options.onTemplateCardEvent({
       externalUserId: body.from.userid,
       conversationKey: body.chatid ?? body.from.userid,
-      eventKey: event.event_key,
+      actionKey: event.event_key,
       taskId: event.task_id,
+      channel: this.channel,
+      externalTenantId: this.tenantId,
     })
     if (reply) {
       await this.send(

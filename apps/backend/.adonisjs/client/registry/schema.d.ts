@@ -227,12 +227,24 @@ export interface Registry {
     methods: ["POST"]
     pattern: '/api/v1/account/channel-identities/wecom/unbind'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/user').twoFactorValidator)>>
+      body: {}
       paramsTuple: []
       params: {}
-      query: ExtractQuery<InferInput<(typeof import('#validators/user').twoFactorValidator)>>
+      query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/channel_identities_controller').default['unbindWecom']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/channel_identities_controller').default['unbindWecom']>>> | { status: 422; response: { errors: SimpleError[] } }
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/channel_identities_controller').default['unbindWecom']>>>
+    }
+  }
+  'profile.channel_identities.unbind_feishu': {
+    methods: ["POST"]
+    pattern: '/api/v1/account/channel-identities/feishu/unbind'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/channel_identities_controller').default['unbindFeishu']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/channel_identities_controller').default['unbindFeishu']>>>
     }
   }
   'profile.access_tokens.destroy': {

@@ -120,6 +120,12 @@ const routes = {
     tokens: [{"old":"/api/v1/account/channel-identities/wecom/unbind","type":0,"val":"api","end":""},{"old":"/api/v1/account/channel-identities/wecom/unbind","type":0,"val":"v1","end":""},{"old":"/api/v1/account/channel-identities/wecom/unbind","type":0,"val":"account","end":""},{"old":"/api/v1/account/channel-identities/wecom/unbind","type":0,"val":"channel-identities","end":""},{"old":"/api/v1/account/channel-identities/wecom/unbind","type":0,"val":"wecom","end":""},{"old":"/api/v1/account/channel-identities/wecom/unbind","type":0,"val":"unbind","end":""}],
     types: placeholder as Registry['profile.channel_identities.unbind_wecom']['types'],
   },
+  'profile.channel_identities.unbind_feishu': {
+    methods: ["POST"],
+    pattern: '/api/v1/account/channel-identities/feishu/unbind',
+    tokens: [{"old":"/api/v1/account/channel-identities/feishu/unbind","type":0,"val":"api","end":""},{"old":"/api/v1/account/channel-identities/feishu/unbind","type":0,"val":"v1","end":""},{"old":"/api/v1/account/channel-identities/feishu/unbind","type":0,"val":"account","end":""},{"old":"/api/v1/account/channel-identities/feishu/unbind","type":0,"val":"channel-identities","end":""},{"old":"/api/v1/account/channel-identities/feishu/unbind","type":0,"val":"feishu","end":""},{"old":"/api/v1/account/channel-identities/feishu/unbind","type":0,"val":"unbind","end":""}],
+    types: placeholder as Registry['profile.channel_identities.unbind_feishu']['types'],
+  },
   'profile.access_tokens.destroy': {
     methods: ["POST"],
     pattern: '/api/v1/account/logout',

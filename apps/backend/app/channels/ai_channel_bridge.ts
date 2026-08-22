@@ -14,6 +14,7 @@ import {
 } from '#ai/core/ai_agent_confirmation'
 import type {
   ChannelAdapter,
+  ChannelCardActionEvent,
   NormalizedInboundMessage,
   OutboundMessage,
 } from '#channels/channel_types'
@@ -152,7 +153,7 @@ export class AiChannelBridge {
                 conversationId: conversation.id,
                 confirmationCount: Array.isArray(confirmations) ? confirmations.length : 0,
               },
-              'WeCom AI turn completed'
+              `${message.channel} AI turn completed`
             )
             if (Array.isArray(confirmations) && confirmations[0]) {
               confirmation = confirmations[0] as Record<string, unknown>
@@ -166,7 +167,7 @@ export class AiChannelBridge {
                 conversationId: conversation.id,
                 confirmation: summarizeConfirmation(confirmation),
               },
-              'WeCom agent confirmation event received'
+              `${message.channel} agent confirmation event received`
             )
           }
           if (event === 'tool_completed' && data && typeof data === 'object') {
@@ -179,7 +180,7 @@ export class AiChannelBridge {
                   artifactKind: artifact.kind ?? null,
                   hasConfirmation: Boolean(artifact.confirmation),
                 },
-                'WeCom AI tool completed'
+                `${message.channel} AI tool completed`
               )
               if (artifact.kind === 'confirmation' && artifact.confirmation) {
                 managedActionResult = 'pending'
@@ -212,20 +213,20 @@ export class AiChannelBridge {
         managedActionResult,
         confirmation: summarizeConfirmation(confirmation),
       },
-      'WeCom confirmation resolution completed'
+      `${message.channel} confirmation resolution completed`
     )
     if (confirmation) {
       const reply = confirmationReply(confirmation)
       if (reply) return reply
       logger.warn(
         { conversationId: conversation.id, confirmation: summarizeConfirmation(confirmation) },
-        'WeCom confirmation was found but could not be converted to a card'
+        `${message.channel} confirmation was found but could not be converted to a card`
       )
     }
     if (managedActionResult === 'pending') {
       logger.warn(
         { conversationId: conversation.id },
-        'WeCom managed action completed without a serializable confirmation'
+        `${message.channel} managed action completed without a serializable confirmation`
       )
       return textReply('操作提案已生成，但确认卡未发送成功，请重新发起操作。')
     }
@@ -246,23 +247,18 @@ export class AiChannelBridge {
     await this.adapter.start()
   }
 
-  async handleTemplateCardEvent(input: {
-    externalUserId: string
-    conversationKey: string
-    eventKey: string
-    taskId: string
-  }): Promise<OutboundMessage> {
+  async handleTemplateCardEvent(input: ChannelCardActionEvent): Promise<OutboundMessage> {
     const identity = await findActiveChannelIdentity({
-      channel: 'wecom',
-      externalTenantId: this.adapter.tenantId,
+      channel: input.channel,
+      externalTenantId: input.externalTenantId,
       externalUserId: input.externalUserId,
     })
     if (!identity) return textReply('当前账号尚未绑定系统用户。')
     const user = await User.query().where('id', identity.userId).whereNull('disabled_at').first()
     if (!user) return textReply('当前系统账号不可用，请联系管理员。')
     const conversation = await findChannelConversation({
-      channel: 'wecom',
-      externalTenantId: this.adapter.tenantId,
+      channel: input.channel,
+      externalTenantId: input.externalTenantId,
       externalConversationKey: input.conversationKey,
       userId: user.id,
     })
@@ -274,7 +270,7 @@ export class AiChannelBridge {
     }
     const ctx = createChannelHttpContext(user)
     try {
-      if (input.eventKey === `confirm:${input.taskId}`) {
+      if (input.actionKey === `confirm:${input.taskId}`) {
         const execution = await confirmAiAgentAction(ctx, {
           confirmationId,
           conversationId: conversation.id,
@@ -292,7 +288,7 @@ export class AiChannelBridge {
           })
         )
       }
-      if (input.eventKey === `cancel:${input.taskId}`) {
+      if (input.actionKey === `cancel:${input.taskId}`) {
         await cancelAiAgentAction(ctx, {
           confirmationId,
           conversationId: conversation.id,
