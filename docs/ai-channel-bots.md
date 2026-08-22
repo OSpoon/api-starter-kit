@@ -242,7 +242,7 @@ contentPreview
 | 机器人回复重复             | 检查消息 ID 去重、是否重复启动两个同渠道 worker                                |
 | 日志只有发送成功没有正文   | 查看 `Feishu message normalized...` 记录中的 `contentPreview`                  |
 
-## 10. 修改后的验证清单
+## 10. 验证清单
 
 涉及渠道适配器、绑定、卡片或 AI Bridge 时至少运行：
 
