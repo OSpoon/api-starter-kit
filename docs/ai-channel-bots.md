@@ -1,13 +1,13 @@
-# 企业微信与飞书 AI 机器人对接指南
+# 企业微信、飞书与钉钉 AI 机器人对接指南
 
-本文说明 API Starter Kit 当前对企业微信智能机器人和飞书自建应用机器人的接入方式、运行时配置、用户绑定、受控操作、消息格式、开发启动和故障排查。
+本文说明 API Starter Kit 当前对企微机器人、飞书自建应用机器人和钉钉企业内部应用 Stream 机器人的接入方式、运行时配置、用户绑定、受控操作、消息格式、开发启动和故障排查。
 
 ## 1. 设计目标
 
 两种外部渠道使用同一套 AI 助手安全边界：
 
 ```text
-企业微信 / 飞书
+企业微信 / 飞书 / 钉钉
         ↓
 渠道适配器（WebSocket、消息格式、卡片格式）
         ↓
@@ -37,6 +37,18 @@ AiChannelBridge
 
 飞书官方 SDK 的 WebSocket 长连接用于接收事件；回复通过发送消息 API 完成。需要逐步展示内容时，应先发送卡片，再调用更新消息卡片 API 刷新内容。飞书卡片支持的 Markdown 语法不是完整 CommonMark，复杂 Markdown 需要降级或转换。
 
+### 钉钉
+
+- [钉钉 Stream 模式概述](https://opensource.dingtalk.com/developerpedia/docs/learn/stream/overview)
+- [钉钉 Stream 开发教程](https://opensource.dingtalk.com/developerpedia/docs/explore/tutorials/stream/overview)
+- [钉钉官方 Node.js Stream SDK](https://github.com/open-dingtalk/dingtalk-stream-sdk-nodejs)
+- [钉钉互动卡片示例](https://github.com/open-dingtalk/dingtalk-card-examples)
+- [创建并投放互动卡片](https://open.dingtalk.com/document/orgapp/create-and-deliver-cards)
+- [互动卡片更新接口](https://open.dingtalk.com/document/orgapp/interactive-card-update-interface)
+- [互动卡片事件回调](https://open.dingtalk.com/document/orgapp/event-callback-card)
+
+钉钉机器人使用官方 Stream WebSocket 接收机器人消息和卡片回调，普通文本/Markdown 回复使用消息中的会话 Webhook。受控操作使用钉钉互动卡片模板投放，模板回调再转换为系统统一的确认事件。一个 Client ID 只运行一个 Stream worker；卡片模板投放必须使用 `STREAM` 回调类型。
+
 ## 3. 运行时配置
 
 机器人凭据统一在系统管理的「LLM 配置」页面底部维护。敏感字段由后端加密保存，保存后重启对应 Bot worker 才会重新加载运行时配置。
@@ -45,8 +57,8 @@ AiChannelBridge
 
 | 字段          | 说明                                                               |
 | ------------- | ------------------------------------------------------------------ |
-| Bot ID        | 企业微信智能机器人后台获取的机器人 ID                              |
-| Bot Secret    | 企业微信智能机器人后台获取的 Secret，后端加密保存                  |
+| Bot ID        | 企微机器人后台获取的机器人 ID                                      |
+| Bot Secret    | 企微机器人后台获取的 Secret，后端加密保存                          |
 | Tenant ID     | 企业/租户标识；按企业微信机器人配置填写                            |
 | WebSocket URL | 长连接地址；通常使用官方默认地址，私有部署按企业后台提供的地址填写 |
 
@@ -58,6 +70,15 @@ AiChannelBridge
 | App Secret | 飞书企业自建应用的 App Secret，后端加密保存             |
 | Domain     | 国内飞书通常留空；国际版或 Lark 环境按官方 SDK 要求填写 |
 
+### 钉钉字段
+
+| 字段                      | 说明                                                        |
+| ------------------------- | ----------------------------------------------------------- |
+| Client ID / AppKey        | 钉钉企业内部应用的 Client ID 或 AppKey                      |
+| Client Secret / AppSecret | 钉钉企业内部应用的 Client Secret 或 AppSecret，后端加密保存 |
+| 受控操作互动卡片模板 ID   | 已发布到同一应用的互动卡片模板 ID；受控操作确认卡必填       |
+| 流式回复互动卡片模板 ID   | 已发布到同一应用的互动卡片模板 ID；普通问答流式输出必填     |
+
 完成数据库初始化后，可检查迁移状态：
 
 ```bash
@@ -68,10 +89,10 @@ pnpm --dir apps/backend exec node ace migration:status
 
 1. 在企业微信管理后台创建或打开智能机器人。
 2. 进入智能机器人 API 配置，取得 Bot ID、Secret、Tenant ID 和 WebSocket 地址。
-3. 在本系统「系统管理 → LLM 配置 → 企业微信智能机器人」保存配置。
+3. 在本系统「系统管理 → LLM 配置 → 企微机器人」保存配置。
 4. 启动企业微信 Bot worker。
 5. 向机器人发送消息，首次回复会包含一次性绑定码。
-6. 登录本系统，在「个人设置 → AI 渠道绑定 → 企业微信智能机器人」点击绑定，使用 Input OTP 组件输入 8 位绑定码。
+6. 登录本系统，在「个人设置 → AI 渠道绑定 → 企微机器人」点击绑定，使用 Input OTP 组件输入 8 位绑定码。
 
 企业微信绑定码具有以下安全属性：
 
@@ -110,13 +131,24 @@ pnpm --dir apps/backend exec node ace migration:status
 
 如果群聊能收到消息、私聊收不到消息，通常是只开通了群聊 @ 机器人权限而未开通单聊权限。
 
-## 6. 开发启动与生产启动
+## 6. 钉钉配置
 
-两个 Bot 必须是独立进程，避免 WebSocket 连接、日志和故障相互影响。
+1. 在[钉钉开放平台](https://open.dingtalk.com/)创建企业内部应用并启用机器人能力。
+2. 按 Stream 文档配置机器人消息接收；本项目使用长连接，不需要公网回调服务器。
+3. 创建并发布受控操作互动卡片模板，模板需要接收 `description`、`confirmLabel`、`cancelLabel`、`confirmActionKey`、`cancelActionKey`、`taskId`、`conversationKey`、`externalUserId` 和 `externalTenantId` 参数，并通过卡片按钮回传 `actionKey`、`taskId`、`conversationKey`、`externalUserId` 和 `externalTenantId` 等私有参数。标准示例见 [`dingtalk-controlled-action-confirmation-template.example.json`](./dingtalk-controlled-action-confirmation-template.example.json)。
+4. 如需普通问答流式输出，再创建并发布流式回复互动卡片模板。模板只需要接收 `content`，卡片标题使用模板中的固定文本，系统通过官方卡片更新接口更新 `content`。标准示例见 [`dingtalk-streaming-reply-template.example.json`](./dingtalk-streaming-reply-template.example.json)。
+5. 在本系统「系统管理 → LLM 配置 → 钉钉机器人」保存 Client ID、Client Secret，以及对应的受控操作和流式回复卡片模板 ID。
+6. 仅启动一个 `bot:dingtalk` 进程，向机器人发送消息获取一次性绑定码，并在个人设置中绑定。
+
+如果日志显示 Stream 已认证但收不到消息，检查机器人能力、应用发布状态、消息事件订阅和当前用户可见范围；如果普通消息正常但没有确认卡，检查卡片模板 ID、模板发布状态、卡片回调主题和按钮回传参数。
+
+## 7. 开发启动与生产启动
+
+三个 Bot 必须是独立进程，避免 WebSocket 连接、日志和故障相互影响。
 
 ### 本地开发
 
-同时启动前端、后端、企业微信 Bot 和飞书 Bot：
+同时启动前端、后端、企业微信 Bot、飞书 Bot 和钉钉 Bot：
 
 ```bash
 pnpm dev
@@ -127,27 +159,31 @@ pnpm dev
 ```bash
 turbo bot:wecom
 turbo bot:feishu
+turbo bot:dingtalk
 ```
 
 对应的 backend 脚本和 Nodemon 配置为：
 
 ```text
-apps/backend/package.json       bot:wecom / bot:feishu
+apps/backend/package.json       bot:wecom / bot:feishu / bot:dingtalk
 apps/backend/nodemon.wecom.json
 apps/backend/nodemon.feishu.json
+apps/backend/nodemon.dingtalk.json
 apps/backend/commands/wecom_bot.ts
 apps/backend/commands/feishu_bot.ts
+apps/backend/commands/dingtalk_bot.ts
 ```
 
 代码变更会由对应 Nodemon worker 重启。LLM 配置保存后，仍需要重启对应 worker，因为 Bot 进程在启动时读取运行时配置并建立连接。
 
 ### Docker Compose
 
-Docker Compose 使用两个独立服务：
+Docker Compose 使用三个独立服务：
 
 ```text
 wecom-bot
 feishu-bot
+dingtalk-bot
 ```
 
 两个服务都依赖 backend 和数据库，但分别执行 `node ace wecom:bot` 与 `node ace feishu:bot`。检查服务状态：
@@ -156,6 +192,7 @@ feishu-bot
 docker compose ps
 docker compose logs -f wecom-bot
 docker compose logs -f feishu-bot
+docker compose logs -f dingtalk-bot
 ```
 
 ## 7. 统一绑定与权限模型
@@ -175,6 +212,8 @@ channel + externalTenantId + externalUserId → system user
 - 确认前会重新校验会话归属、权限、提议状态、有效期和目标当前状态；
 - 执行结果会再次查询或返回业务状态，避免只回复“OK”；
 - 解绑需要当前系统密码确认。
+
+三个机器人均支持精确发送 `/new` 新建会话。系统会保留旧会话历史，但将当前渠道映射切换到新的 AI 会话，后续消息不会继续携带旧会话上下文；旧确认卡也不会在新会话中执行。
 
 不要把 Bot Secret、API Key、绑定码明文或外部平台令牌写入 AI 消息、普通日志、浏览器状态或普通查询结果。
 

@@ -32,6 +32,10 @@ const form = reactive({
   feishuAppId: '',
   feishuAppSecret: '',
   feishuDomain: '',
+  dingtalkClientId: '',
+  dingtalkClientSecret: '',
+  dingtalkCardTemplateId: '',
+  dingtalkStreamingCardTemplateId: '',
 })
 
 async function load() {
@@ -48,6 +52,9 @@ async function load() {
     form.wecomBotWsUrl = config.wecomBot.wsUrl ?? ''
     form.feishuAppId = config.feishuBot.appId ?? ''
     form.feishuDomain = config.feishuBot.domain ?? ''
+    form.dingtalkClientId = config.dingtalkBot.clientId ?? ''
+    form.dingtalkCardTemplateId = config.dingtalkBot.cardTemplateId ?? ''
+    form.dingtalkStreamingCardTemplateId = config.dingtalkBot.streamingCardTemplateId ?? ''
   } catch (error) {
     toast.error(error instanceof Error ? error.message : t('llm_config.load_failed'))
   } finally {
@@ -67,6 +74,7 @@ async function save() {
     form.embeddingApiKey = ''
     form.wecomBotSecret = ''
     form.feishuAppSecret = ''
+    form.dingtalkClientSecret = ''
     toast.success(t('llm_config.saved'))
   } catch (error) {
     toast.error(error instanceof Error ? error.message : t('llm_config.save_failed'))
@@ -221,6 +229,43 @@ onMounted(load)
               v-model="form.feishuAppSecret"
               type="password"
               :placeholder="t('llm_config.keep_existing')"
+            />
+          </div>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader
+          ><CardTitle class="flex items-center gap-2"
+            ><Bot class="size-5" />{{ t('llm_config.dingtalk_title') }}</CardTitle
+          ><CardDescription>{{ t('llm_config.dingtalk_description') }}</CardDescription></CardHeader
+        >
+        <CardContent class="grid items-start gap-4 md:grid-cols-2">
+          <div class="space-y-2">
+            <Label for="dingtalk-client-id">{{ t('llm_config.dingtalk_client_id') }}</Label>
+            <Input id="dingtalk-client-id" v-model="form.dingtalkClientId" />
+          </div>
+          <div class="space-y-2">
+            <Label for="dingtalk-client-secret">{{ t('llm_config.dingtalk_client_secret') }}</Label>
+            <Input
+              id="dingtalk-client-secret"
+              v-model="form.dingtalkClientSecret"
+              type="password"
+              :placeholder="t('llm_config.keep_existing')"
+            />
+          </div>
+          <div class="space-y-2">
+            <Label for="dingtalk-card-template-id">{{
+              t('llm_config.dingtalk_card_template_id')
+            }}</Label>
+            <Input id="dingtalk-card-template-id" v-model="form.dingtalkCardTemplateId" />
+          </div>
+          <div class="space-y-2">
+            <Label for="dingtalk-streaming-card-template-id">{{
+              t('llm_config.dingtalk_streaming_card_template_id')
+            }}</Label>
+            <Input
+              id="dingtalk-streaming-card-template-id"
+              v-model="form.dingtalkStreamingCardTemplateId"
             />
           </div>
         </CardContent>

@@ -78,6 +78,24 @@ services:
       backend:
         condition: service_healthy
 
+  dingtalk-bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: backend
+      args:
+        NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmmirror.com/}
+    env_file:
+      - apps/backend/.env
+    environment:
+      NODE_ENV: production
+      DB_HOST: postgres
+    command: ['node', 'ace', 'dingtalk:bot']
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+
   frontend:
     build:
       context: .

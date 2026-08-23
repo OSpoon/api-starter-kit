@@ -43,6 +43,7 @@ export interface ApiDefinition {
       bind: typeof routes['profile.channel_identities.bind']
       unbindWecom: typeof routes['profile.channel_identities.unbind_wecom']
       unbindFeishu: typeof routes['profile.channel_identities.unbind_feishu']
+      unbindDingtalk: typeof routes['profile.channel_identities.unbind_dingtalk']
     }
     accessTokens: {
       destroy: typeof routes['profile.access_tokens.destroy']

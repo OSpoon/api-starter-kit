@@ -30,6 +30,7 @@ import {
   disable2fa,
   enable2fa,
   generate2fa,
+  unbindDingtalkChannelIdentity,
   unbindFeishuChannelIdentity,
   unbindWecomChannelIdentity,
   unlinkGithub,
@@ -60,10 +61,10 @@ const showUnlinkGithubDialog = ref(false)
 const unlinkGithubPassword = ref('')
 const isBindingChannel = ref(false)
 const showBindChannelDialog = ref(false)
-const bindChannel = ref<'wecom' | 'feishu'>('wecom')
+const bindChannel = ref<'wecom' | 'feishu' | 'dingtalk'>('wecom')
 const showUnbindChannelDialog = ref(false)
 const unbindChannelPassword = ref('')
-const unbindChannel = ref<'wecom' | 'feishu'>('wecom')
+const unbindChannel = ref<'wecom' | 'feishu' | 'dingtalk'>('wecom')
 
 const channelBindingSchema = computed(() =>
   toTypedSchema(
@@ -87,6 +88,9 @@ const isWecomBound = computed(() =>
 )
 const isFeishuBound = computed(() =>
   boundChannelIdentities.value.some((identity) => identity.channel === 'feishu')
+)
+const isDingtalkBound = computed(() =>
+  boundChannelIdentities.value.some((identity) => identity.channel === 'dingtalk')
 )
 const channelBindingCopy = computed(() => {
   const channel = bindChannel.value
@@ -233,14 +237,14 @@ async function confirmUnlinkGithub() {
   }
 }
 
-function handleUnbindChannelClick(channel: 'wecom' | 'feishu') {
+function handleUnbindChannelClick(channel: 'wecom' | 'feishu' | 'dingtalk') {
   bindChannel.value = channel
   unbindChannel.value = channel
   unbindChannelPassword.value = ''
   showUnbindChannelDialog.value = true
 }
 
-function handleBindChannelClick(channel: 'wecom' | 'feishu') {
+function handleBindChannelClick(channel: 'wecom' | 'feishu' | 'dingtalk') {
   bindChannel.value = channel
   channelBindingForm.resetForm()
   showBindChannelDialog.value = true
@@ -256,8 +260,10 @@ async function confirmUnbindChannel() {
   try {
     if (unbindChannel.value === 'wecom') {
       await unbindWecomChannelIdentity(auth.token, unbindChannelPassword.value)
-    } else {
+    } else if (unbindChannel.value === 'feishu') {
       await unbindFeishuChannelIdentity(auth.token, unbindChannelPassword.value)
+    } else {
+      await unbindDingtalkChannelIdentity(auth.token, unbindChannelPassword.value)
     }
     if (auth.user) {
       auth.user = {
@@ -473,6 +479,24 @@ onMounted(async () => {
               {{ t('profile.channel_binding.unbind') }}
             </Button>
             <Button v-else type="button" @click="handleBindChannelClick('feishu')">
+              {{ t('profile.channel_binding.submit') }}
+            </Button>
+          </template>
+        </DescriptionActionRow>
+        <DescriptionActionRow
+          :title="t('profile.channel_binding.dingtalk_title')"
+          :description="t('profile.channel_binding.dingtalk_hint')"
+        >
+          <template #action>
+            <Button
+              v-if="isDingtalkBound"
+              variant="destructive"
+              :disabled="isLoading"
+              @click="handleUnbindChannelClick('dingtalk')"
+            >
+              {{ t('profile.channel_binding.unbind') }}
+            </Button>
+            <Button v-else type="button" @click="handleBindChannelClick('dingtalk')">
               {{ t('profile.channel_binding.submit') }}
             </Button>
           </template>

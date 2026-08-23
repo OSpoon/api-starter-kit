@@ -71,7 +71,19 @@ export default class ChannelIdentitiesController {
     return this.unbindChannel(ctx, 'feishu', '飞书机器人')
   }
 
-  private async unbindChannel(ctx: HttpContext, channel: 'wecom' | 'feishu', channelLabel: string) {
+  @ApiSecurity('bearerAuth')
+  @ApiOperation({ summary: '解绑钉钉机器人身份' })
+  @ApiResponse({ status: 200, description: '钉钉身份解绑成功' })
+  @ApiResponse({ status: 400, description: '密码错误或当前未绑定钉钉机器人' })
+  async unbindDingtalk(ctx: HttpContext) {
+    return this.unbindChannel(ctx, 'dingtalk', '钉钉机器人')
+  }
+
+  private async unbindChannel(
+    ctx: HttpContext,
+    channel: 'wecom' | 'feishu' | 'dingtalk',
+    channelLabel: string
+  ) {
     const { auth, request, response, serialize } = ctx
     const user = auth.getUserOrFail()
     const payload = await request.validateUsing(twoFactorValidator)

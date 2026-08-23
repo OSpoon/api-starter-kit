@@ -4,7 +4,7 @@ import { DateTime } from 'luxon'
 
 import User from '#models/user'
 
-export type ChannelName = 'wecom' | 'feishu'
+export type ChannelName = 'wecom' | 'feishu' | 'dingtalk'
 export type ChannelIdentityStatus = 'active' | 'revoked'
 
 export default class ChannelIdentity extends BaseModel {

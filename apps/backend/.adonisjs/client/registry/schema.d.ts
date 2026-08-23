@@ -247,6 +247,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/channel_identities_controller').default['unbindFeishu']>>>
     }
   }
+  'profile.channel_identities.unbind_dingtalk': {
+    methods: ["POST"]
+    pattern: '/api/v1/account/channel-identities/dingtalk/unbind'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/channel_identities_controller').default['unbindDingtalk']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/channel_identities_controller').default['unbindDingtalk']>>>
+    }
+  }
   'profile.access_tokens.destroy': {
     methods: ["POST"]
     pattern: '/api/v1/account/logout'

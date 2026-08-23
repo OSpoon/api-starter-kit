@@ -50,6 +50,18 @@ export default class LlmConfiguration extends BaseModel {
   @column()
   declare feishuDomain: string | null
 
+  @column()
+  declare dingtalkClientId: string | null
+
+  @column({ serializeAs: null })
+  declare dingtalkClientSecret: string | null
+
+  @column()
+  declare dingtalkCardTemplateId: string | null
+
+  @column()
+  declare dingtalkStreamingCardTemplateId: string | null
+
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
 

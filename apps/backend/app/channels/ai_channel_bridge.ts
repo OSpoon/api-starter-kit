@@ -24,6 +24,7 @@ import { createChannelBindingChallenge } from '#services/channel_binding_service
 import {
   findChannelConversation,
   findOrCreateChannelConversation,
+  startNewChannelConversation,
 } from '#services/channel_conversation_service'
 import { findActiveChannelIdentity } from '#services/channel_identity_service'
 
@@ -93,7 +94,7 @@ export class AiChannelBridge {
     message: NormalizedInboundMessage,
     emit?: (content: string) => Promise<void>
   ): Promise<OutboundMessage> {
-    const identity = await findActiveChannelIdentity({
+    let identity = await findActiveChannelIdentity({
       channel: message.channel,
       externalTenantId: message.externalTenantId,
       externalUserId: message.externalUserId,
@@ -114,6 +115,24 @@ export class AiChannelBridge {
 
     const user = await User.query().where('id', identity.userId).whereNull('disabled_at').first()
     if (!user) return textReply('当前系统账号不可用，请联系管理员。')
+
+    if (message.content.trim().toLowerCase() === '/new') {
+      await startNewChannelConversation({
+        channel: message.channel,
+        externalTenantId: message.externalTenantId,
+        externalConversationKey: message.conversationKey,
+        userId: user.id,
+      })
+      logger.info(
+        {
+          channel: message.channel,
+          externalConversationKey: message.conversationKey,
+          userId: user.id,
+        },
+        'Channel conversation reset by /new command'
+      )
+      return textReply('已新建会话，之前的对话上下文不会继续影响当前会话。')
+    }
 
     const conversation = await findOrCreateChannelConversation({
       channel: message.channel,
@@ -248,7 +267,7 @@ export class AiChannelBridge {
   }
 
   async handleTemplateCardEvent(input: ChannelCardActionEvent): Promise<OutboundMessage> {
-    const identity = await findActiveChannelIdentity({
+    let identity = await findActiveChannelIdentity({
       channel: input.channel,
       externalTenantId: input.externalTenantId,
       externalUserId: input.externalUserId,
@@ -256,7 +275,7 @@ export class AiChannelBridge {
     if (!identity) return textReply('当前账号尚未绑定系统用户。')
     const user = await User.query().where('id', identity.userId).whereNull('disabled_at').first()
     if (!user) return textReply('当前系统账号不可用，请联系管理员。')
-    const conversation = await findChannelConversation({
+    let conversation = await findChannelConversation({
       channel: input.channel,
       externalTenantId: input.externalTenantId,
       externalConversationKey: input.conversationKey,

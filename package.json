@@ -10,7 +10,7 @@
   },
   "scripts": {
     "docker:up": "node scripts/docker-up.mjs",
-    "dev": "turbo dev bot:wecom bot:feishu",
+    "dev": "turbo dev bot:wecom bot:feishu bot:dingtalk",
     "build": "turbo build",
     "test": "turbo test",
     "lint": "turbo lint",

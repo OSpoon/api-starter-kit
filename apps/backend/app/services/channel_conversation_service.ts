@@ -51,3 +51,40 @@ export async function findChannelConversation(input: {
     .first()
   return mapping ? AiChatConversation.findOrFail(mapping.conversationId) : null
 }
+
+export async function startNewChannelConversation(input: {
+  channel: ChannelName
+  externalTenantId: string
+  externalConversationKey: string
+  userId: number
+}) {
+  const mapping = await ChannelConversation.query()
+    .where('channel', input.channel)
+    .where('external_tenant_id', input.externalTenantId)
+    .where('external_conversation_key', input.externalConversationKey)
+    .first()
+
+  if (mapping && mapping.userId !== input.userId) {
+    throw new Error('外部会话已绑定到其他系统用户')
+  }
+
+  const conversation = await AiChatConversation.create({
+    userId: input.userId,
+    title: `${input.channel} assistant`,
+  })
+
+  if (mapping) {
+    mapping.merge({ conversationId: conversation.id })
+    await mapping.save()
+  } else {
+    await ChannelConversation.create({
+      channel: input.channel,
+      externalTenantId: input.externalTenantId,
+      externalConversationKey: input.externalConversationKey,
+      userId: input.userId,
+      conversationId: conversation.id,
+    })
+  }
+
+  return conversation
+}

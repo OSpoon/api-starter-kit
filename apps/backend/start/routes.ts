@@ -89,6 +89,12 @@ router
         router
           .post('channel-identities/feishu/unbind', [ChannelIdentitiesController, 'unbindFeishu'])
           .use(middleware.throttle({ max: 5, windowSeconds: 60, key: 'user' }))
+        router
+          .post('channel-identities/dingtalk/unbind', [
+            ChannelIdentitiesController,
+            'unbindDingtalk',
+          ])
+          .use(middleware.throttle({ max: 5, windowSeconds: 60, key: 'user' }))
         router.post('logout', [controllers.AccessTokens, 'destroy'])
         router.post('github/link', [GithubOauthController, 'beginLink']).as('github.link')
       })

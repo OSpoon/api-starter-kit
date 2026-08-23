@@ -15,7 +15,7 @@ export interface ApiUser {
   permissions: string[]
   githubLinked?: boolean
   channelIdentities?: Array<{
-    channel: 'wecom' | 'feishu'
+    channel: 'wecom' | 'feishu' | 'dingtalk'
     boundAt: string
   }>
 }
@@ -198,7 +198,7 @@ export async function bindChannelIdentity(token: string | null, code: string) {
   const response = await apiRequest<
     ApiEnvelope<{
       bound: boolean
-      channel: 'wecom' | 'feishu'
+      channel: 'wecom' | 'feishu' | 'dingtalk'
       externalTenantId: string
       externalUserId: string
     }>
@@ -232,4 +232,13 @@ export async function unbindFeishuChannelIdentity(token: string | null, password
     }
   )
   return readItem(response)
+}
+
+export async function unbindDingtalkChannelIdentity(token: string | null, password: string) {
+  return readItem(
+    await apiRequest<ApiEnvelope<{ unbound: boolean; channel: 'dingtalk' }>>(
+      '/api/v1/account/channel-identities/dingtalk/unbind',
+      { method: 'POST', token, body: JSON.stringify({ password }) }
+    )
+  )
 }

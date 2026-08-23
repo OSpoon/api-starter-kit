@@ -18,6 +18,10 @@ type LlmConfigInput = {
   feishuAppId?: string | null
   feishuAppSecret?: string | null
   feishuDomain?: string | null
+  dingtalkClientId?: string | null
+  dingtalkClientSecret?: string | null
+  dingtalkCardTemplateId?: string | null
+  dingtalkStreamingCardTemplateId?: string | null
 }
 
 function encryptSecret(value?: string | null) {
@@ -86,6 +90,17 @@ export async function readRuntimeFeishuBotConfiguration() {
   }
 }
 
+export async function readRuntimeDingTalkBotConfiguration() {
+  const config = await getLlmConfiguration()
+  const clientId = config.dingtalkClientId?.trim() || null
+  const clientSecret = decryptSecret(config.dingtalkClientSecret)
+  const cardTemplateId = config.dingtalkCardTemplateId?.trim() || null
+  const streamingCardTemplateId = config.dingtalkStreamingCardTemplateId?.trim() || null
+  if (!clientId || !clientSecret) return null
+
+  return { clientId, clientSecret, cardTemplateId, streamingCardTemplateId }
+}
+
 export async function updateLlmConfiguration(input: LlmConfigInput) {
   const config = await getLlmConfiguration()
   config.chatBaseUrl = input.chatBaseUrl?.trim() || null
@@ -99,10 +114,16 @@ export async function updateLlmConfiguration(input: LlmConfigInput) {
   config.wecomBotWsUrl = input.wecomBotWsUrl?.trim() || null
   config.feishuAppId = input.feishuAppId?.trim() || null
   config.feishuDomain = input.feishuDomain?.trim() || null
+  config.dingtalkClientId = input.dingtalkClientId?.trim() || null
+  config.dingtalkCardTemplateId = input.dingtalkCardTemplateId?.trim() || null
+  config.dingtalkStreamingCardTemplateId = input.dingtalkStreamingCardTemplateId?.trim() || null
   if (input.chatApiKey?.trim()) config.chatApiKey = encryptSecret(input.chatApiKey)
   if (input.embeddingApiKey?.trim()) config.embeddingApiKey = encryptSecret(input.embeddingApiKey)
   if (input.wecomBotSecret?.trim()) config.wecomBotSecret = encryptSecret(input.wecomBotSecret)
   if (input.feishuAppSecret?.trim()) config.feishuAppSecret = encryptSecret(input.feishuAppSecret)
+  if (input.dingtalkClientSecret?.trim()) {
+    config.dingtalkClientSecret = encryptSecret(input.dingtalkClientSecret)
+  }
   await config.save()
   return config
 }
@@ -131,6 +152,12 @@ export function serializeLlmConfiguration(config: LlmConfiguration) {
       appId: config.feishuAppId,
       domain: config.feishuDomain,
       secretConfigured: Boolean(config.feishuAppSecret),
+    },
+    dingtalkBot: {
+      clientId: config.dingtalkClientId,
+      cardTemplateId: config.dingtalkCardTemplateId,
+      streamingCardTemplateId: config.dingtalkStreamingCardTemplateId,
+      clientSecretConfigured: Boolean(config.dingtalkClientSecret),
     },
     updatedAt: config.updatedAt.toISO(),
   }

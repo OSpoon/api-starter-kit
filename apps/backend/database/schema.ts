@@ -506,6 +506,10 @@ export class LlmConfigurationSchema extends BaseModel {
     'chatBaseUrl',
     'chatModel',
     'createdAt',
+    'dingtalkCardTemplateId',
+    'dingtalkClientId',
+    'dingtalkClientSecret',
+    'dingtalkStreamingCardTemplateId',
     'embeddingApiKey',
     'embeddingBaseUrl',
     'embeddingDimensions',
@@ -530,6 +534,14 @@ export class LlmConfigurationSchema extends BaseModel {
   declare chatModel: string
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
+  @column()
+  declare dingtalkCardTemplateId: string | null
+  @column()
+  declare dingtalkClientId: string | null
+  @column()
+  declare dingtalkClientSecret: string | null
+  @column()
+  declare dingtalkStreamingCardTemplateId: string | null
   @column()
   declare embeddingApiKey: string | null
   @column()

@@ -22,6 +22,12 @@ export interface LlmConfiguration {
     domain: string | null
     secretConfigured: boolean
   }
+  dingtalkBot: {
+    clientId: string | null
+    cardTemplateId: string | null
+    streamingCardTemplateId: string | null
+    clientSecretConfigured: boolean
+  }
   updatedAt: string | null
 }
 

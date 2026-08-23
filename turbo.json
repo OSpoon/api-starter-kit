@@ -37,6 +37,10 @@
       "cache": false,
       "persistent": true
     },
+    "bot:dingtalk": {
+      "cache": false,
+      "persistent": true
+    },
     "test": {
       "dependsOn": ["build"],
       "cache": false
