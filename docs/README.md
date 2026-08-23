@@ -19,4 +19,4 @@
 - [AI 助手能力](ai-assistant-capabilities.md)：用户可用能力、流程和安全边界。
 - [AI 助手架构](ai-assistant-architecture.md)：运行时分层、工具边界、持久化和 SSE。
 - [AI 助手提示词](ai-assistant-prompts.md)：提示词、工具契约、确认文案和评估用例。
-- [企业微信与飞书机器人](ai-channel-bots.md)：外部渠道配置、开发启动、生产运行和排障。
+- [企业微信、钉钉与飞书机器人](ai-channel-bots.md)：外部渠道配置、开发启动、生产运行和排障；能力横向对比见 AI 助手能力文档。
