@@ -11,7 +11,7 @@ test.group('permission grouping', () => {
     assert.lengthOf(permissions, 2)
     assert.deepEqual(
       permissions.map((permission) => permission.groupName),
-      ['AI管理', 'AI管理']
+      ['Agent管理', 'Agent管理']
     )
   })
 })

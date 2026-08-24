@@ -78,7 +78,7 @@ export const workbenchRoutes: RouteRecordRaw[] = [
           title: 'sidebar.llm_config',
           pageKind: 'settings',
           permission: 'llm-config:read',
-          nav: { group: 'sidebar.ai_management', groupOrder: 31, icon: BrainCircuit, order: 10 },
+          nav: { group: 'sidebar.agent_management', groupOrder: 29, icon: BrainCircuit, order: 10 },
         },
       },
       {
@@ -89,7 +89,7 @@ export const workbenchRoutes: RouteRecordRaw[] = [
           title: 'sidebar.im_config',
           pageKind: 'settings',
           permission: 'im-config:read',
-          nav: { group: 'sidebar.ai_management', groupOrder: 31, icon: MessageSquare, order: 20 },
+          nav: { group: 'sidebar.agent_management', groupOrder: 29, icon: MessageSquare, order: 20 },
         },
       },
       {
@@ -157,7 +157,7 @@ export const workbenchRoutes: RouteRecordRaw[] = [
           title: 'sidebar.knowledge_documents',
           pageKind: 'list',
           permission: 'knowledge:manage',
-          nav: { group: 'sidebar.ai_management', groupOrder: 31, icon: BookOpen, order: 30 },
+          nav: { group: 'sidebar.agent_management', groupOrder: 29, icon: BookOpen, order: 30 },
         },
       },
       {
