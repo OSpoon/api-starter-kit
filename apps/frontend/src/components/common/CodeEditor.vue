@@ -40,10 +40,17 @@ function editorTheme(dark: boolean) {
         backgroundColor: 'var(--muted)',
         borderRight: '1px solid var(--border)',
       },
-      '.cm-activeLineGutter': { color: 'var(--foreground)', backgroundColor: 'var(--accent)' },
+      '.cm-activeLineGutter': {
+        color: 'var(--destructive-foreground)',
+        backgroundColor: 'var(--destructive)',
+      },
       '.cm-activeLine': { backgroundColor: 'var(--muted)' },
-      '.cm-selectionBackground, &.cm-focused .cm-selectionBackground, ::selection': {
-        backgroundColor: 'var(--ring)',
+      '.cm-selectionBackground, &.cm-focused .cm-selectionBackground': {
+        backgroundColor: 'var(--destructive)',
+      },
+      '.cm-content ::selection, &.cm-focused .cm-content ::selection': {
+        color: 'var(--destructive-foreground) !important',
+        backgroundColor: 'var(--destructive) !important',
       },
       '.cm-cursor, .cm-dropCursor': { borderLeftColor: 'var(--foreground)' },
       '.cm-tooltip': {
