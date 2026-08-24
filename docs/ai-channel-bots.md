@@ -189,10 +189,10 @@ dingtalk-bot
 两个服务都依赖 backend 和数据库，但分别执行 `node ace wecom:bot` 与 `node ace feishu:bot`。检查服务状态：
 
 ```bash
-docker compose ps
-docker compose logs -f wecom-bot
-docker compose logs -f feishu-bot
-docker compose logs -f dingtalk-bot
+docker compose -f docker/docker-compose.yml ps
+docker compose -f docker/docker-compose.yml logs -f wecom-bot
+docker compose -f docker/docker-compose.yml logs -f feishu-bot
+docker compose -f docker/docker-compose.yml logs -f dingtalk-bot
 ```
 
 ## 7. 统一绑定与权限模型
@@ -299,5 +299,5 @@ git diff --check
 
 ```bash
 pnpm --dir apps/backend exec node ace migration:status
-docker compose config
+docker compose --env-file apps/backend/.env -f docker/docker-compose.yml config
 ```

@@ -2,7 +2,7 @@ services:
   postgres:
     image: pgvector/pgvector:pg15
     env_file:
-      - apps/backend/.env
+      - ../apps/backend/.env
     command:
       - sh
       - -c
@@ -17,13 +17,13 @@ services:
 
   backend:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: docker/Dockerfile
       target: backend
       args:
         NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmmirror.com/}
     env_file:
-      - apps/backend/.env
+      - ../apps/backend/.env
     environment:
       HOST: 0.0.0.0
       MIGRATE: 'true'
@@ -44,13 +44,13 @@ services:
 
   wecom-bot:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: docker/Dockerfile
       target: backend
       args:
         NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmmirror.com/}
     env_file:
-      - apps/backend/.env
+      - ../apps/backend/.env
     environment:
       NODE_ENV: production
       DB_HOST: postgres
@@ -62,13 +62,13 @@ services:
 
   feishu-bot:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: docker/Dockerfile
       target: backend
       args:
         NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmmirror.com/}
     env_file:
-      - apps/backend/.env
+      - ../apps/backend/.env
     environment:
       NODE_ENV: production
       DB_HOST: postgres
@@ -80,13 +80,13 @@ services:
 
   dingtalk-bot:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: docker/Dockerfile
       target: backend
       args:
         NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmmirror.com/}
     env_file:
-      - apps/backend/.env
+      - ../apps/backend/.env
     environment:
       NODE_ENV: production
       DB_HOST: postgres
@@ -98,15 +98,15 @@ services:
 
   frontend:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: docker/Dockerfile
       target: frontend
       args:
         NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmmirror.com/}
     ports:
       - '${FRONTEND_PORT:-18080}:18080'
     env_file:
-      - apps/frontend/.env
+      - ../apps/frontend/.env
     depends_on:
       backend:
         condition: service_healthy
