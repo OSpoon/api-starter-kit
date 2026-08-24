@@ -52,7 +52,7 @@ export const workbenchRoutes: RouteRecordRaw[] = [
           pageKind: 'list',
           permission: 'api-keys:read',
           nav: {
-            group: 'sidebar.system_operations',
+            group: 'sidebar.system_management',
             groupOrder: 32,
             icon: Key,
             order: 10,
@@ -67,7 +67,7 @@ export const workbenchRoutes: RouteRecordRaw[] = [
           title: 'sidebar.system_status',
           pageKind: 'dashboard',
           permission: 'system-status:read',
-          nav: { group: 'sidebar.system_operations', groupOrder: 32, icon: Server, order: 10 },
+          nav: { group: 'sidebar.system_management', groupOrder: 32, icon: Server, order: 10 },
         },
       },
       {
@@ -78,7 +78,18 @@ export const workbenchRoutes: RouteRecordRaw[] = [
           title: 'sidebar.llm_config',
           pageKind: 'settings',
           permission: 'llm-config:read',
-          nav: { group: 'sidebar.ai_knowledge', groupOrder: 31, icon: BrainCircuit, order: 10 },
+          nav: { group: 'sidebar.ai_management', groupOrder: 31, icon: BrainCircuit, order: 10 },
+        },
+      },
+      {
+        path: 'system/im-config',
+        name: 'im-config',
+        component: () => import('@/features/llm-config/ImConfigurationPage.vue'),
+        meta: {
+          title: 'sidebar.im_config',
+          pageKind: 'settings',
+          permission: 'im-config:read',
+          nav: { group: 'sidebar.ai_management', groupOrder: 31, icon: MessageSquare, order: 20 },
         },
       },
       {
@@ -90,7 +101,12 @@ export const workbenchRoutes: RouteRecordRaw[] = [
           title: 'sidebar.users',
           pageKind: 'list',
           permission: 'users:read',
-          nav: { group: 'sidebar.access_control', groupOrder: 30, icon: UsersRound, order: 10 },
+          nav: {
+            group: 'sidebar.permission_management',
+            groupOrder: 30,
+            icon: UsersRound,
+            order: 10,
+          },
         },
       },
       {
@@ -102,7 +118,12 @@ export const workbenchRoutes: RouteRecordRaw[] = [
           title: 'sidebar.roles',
           pageKind: 'list',
           permission: 'roles:read',
-          nav: { group: 'sidebar.access_control', groupOrder: 30, icon: ShieldCheck, order: 20 },
+          nav: {
+            group: 'sidebar.permission_management',
+            groupOrder: 30,
+            icon: ShieldCheck,
+            order: 20,
+          },
         },
       },
       {
@@ -114,7 +135,7 @@ export const workbenchRoutes: RouteRecordRaw[] = [
           title: 'sidebar.permissions',
           pageKind: 'list',
           permission: 'permissions:read',
-          nav: { group: 'sidebar.access_control', groupOrder: 30, icon: Key, order: 30 },
+          nav: { group: 'sidebar.permission_management', groupOrder: 30, icon: Key, order: 30 },
         },
       },
       {
@@ -125,7 +146,7 @@ export const workbenchRoutes: RouteRecordRaw[] = [
           title: 'sidebar.audit_logs',
           pageKind: 'list',
           permission: 'audit-logs:read',
-          nav: { group: 'sidebar.system_operations', groupOrder: 32, icon: FileClock, order: 40 },
+          nav: { group: 'sidebar.system_management', groupOrder: 32, icon: FileClock, order: 40 },
         },
       },
       {
@@ -136,7 +157,7 @@ export const workbenchRoutes: RouteRecordRaw[] = [
           title: 'sidebar.knowledge_documents',
           pageKind: 'list',
           permission: 'knowledge:manage',
-          nav: { group: 'sidebar.ai_knowledge', groupOrder: 31, icon: BookOpen, order: 20 },
+          nav: { group: 'sidebar.ai_management', groupOrder: 31, icon: BookOpen, order: 30 },
         },
       },
       {
@@ -148,7 +169,7 @@ export const workbenchRoutes: RouteRecordRaw[] = [
           pageKind: 'list',
           permission: 'wecom-templates:read',
           nav: {
-            group: 'sidebar.system_operations',
+            group: 'sidebar.system_management',
             groupOrder: 32,
             icon: MessageSquare,
             order: 30,

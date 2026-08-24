@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Bot, BrainCircuit, LoaderCircle, Save, TestTube } from '@lucide/vue'
+import { BrainCircuit, LoaderCircle, Save, TestTube } from '@lucide/vue'
 import { toast } from 'vue-sonner'
 
 import SettingsPageTemplate from '@/components/templates/SettingsPageTemplate.vue'
@@ -25,17 +25,6 @@ const form = reactive({
   embeddingModel: '',
   embeddingDimensions: 1024,
   requestTimeoutMs: 180000,
-  wecomBotId: '',
-  wecomBotSecret: '',
-  wecomBotTenantId: '',
-  wecomBotWsUrl: '',
-  feishuAppId: '',
-  feishuAppSecret: '',
-  feishuDomain: '',
-  dingtalkClientId: '',
-  dingtalkClientSecret: '',
-  dingtalkCardTemplateId: '',
-  dingtalkStreamingCardTemplateId: '',
 })
 
 async function load() {
@@ -47,14 +36,6 @@ async function load() {
     form.embeddingModel = config.embedding.model ?? ''
     form.embeddingDimensions = config.embedding.dimensions
     form.requestTimeoutMs = config.requestTimeoutMs
-    form.wecomBotId = config.wecomBot.botId ?? ''
-    form.wecomBotTenantId = config.wecomBot.tenantId ?? ''
-    form.wecomBotWsUrl = config.wecomBot.wsUrl ?? ''
-    form.feishuAppId = config.feishuBot.appId ?? ''
-    form.feishuDomain = config.feishuBot.domain ?? ''
-    form.dingtalkClientId = config.dingtalkBot.clientId ?? ''
-    form.dingtalkCardTemplateId = config.dingtalkBot.cardTemplateId ?? ''
-    form.dingtalkStreamingCardTemplateId = config.dingtalkBot.streamingCardTemplateId ?? ''
   } catch (error) {
     toast.error(error instanceof Error ? error.message : t('llm_config.load_failed'))
   } finally {
@@ -72,9 +53,6 @@ async function save() {
     })
     form.chatApiKey = ''
     form.embeddingApiKey = ''
-    form.wecomBotSecret = ''
-    form.feishuAppSecret = ''
-    form.dingtalkClientSecret = ''
     toast.success(t('llm_config.saved'))
   } catch (error) {
     toast.error(error instanceof Error ? error.message : t('llm_config.save_failed'))
@@ -177,99 +155,6 @@ onMounted(load)
               type="number"
             /></div></CardContent
       ></Card>
-      <Card>
-        <CardHeader
-          ><CardTitle class="flex items-center gap-2"
-            ><Bot class="size-5" />{{ t('llm_config.wecom_title') }}</CardTitle
-          ><CardDescription>{{ t('llm_config.wecom_description') }}</CardDescription></CardHeader
-        >
-        <CardContent class="grid items-start gap-4 md:grid-cols-2">
-          <div class="space-y-2">
-            <Label for="wecom-bot-id">{{ t('llm_config.wecom_bot_id') }}</Label>
-            <Input id="wecom-bot-id" v-model="form.wecomBotId" />
-          </div>
-          <div class="space-y-2">
-            <Label for="wecom-bot-tenant-id">{{ t('llm_config.wecom_tenant_id') }}</Label>
-            <Input id="wecom-bot-tenant-id" v-model="form.wecomBotTenantId" />
-          </div>
-          <div class="space-y-2 md:col-span-2">
-            <Label for="wecom-bot-secret">{{ t('llm_config.wecom_secret') }}</Label>
-            <Input
-              id="wecom-bot-secret"
-              v-model="form.wecomBotSecret"
-              type="password"
-              :placeholder="t('llm_config.keep_existing')"
-            />
-          </div>
-          <div class="space-y-2 md:col-span-2">
-            <Label for="wecom-bot-ws-url">{{ t('llm_config.wecom_ws_url') }}</Label>
-            <Input id="wecom-bot-ws-url" v-model="form.wecomBotWsUrl" />
-          </div>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader
-          ><CardTitle class="flex items-center gap-2"
-            ><Bot class="size-5" />{{ t('llm_config.feishu_title') }}</CardTitle
-          ><CardDescription>{{ t('llm_config.feishu_description') }}</CardDescription></CardHeader
-        >
-        <CardContent class="grid items-start gap-4 md:grid-cols-2">
-          <div class="space-y-2">
-            <Label for="feishu-app-id">{{ t('llm_config.feishu_app_id') }}</Label>
-            <Input id="feishu-app-id" v-model="form.feishuAppId" />
-          </div>
-          <div class="space-y-2">
-            <Label for="feishu-domain">{{ t('llm_config.feishu_domain') }}</Label>
-            <Input id="feishu-domain" v-model="form.feishuDomain" placeholder="feishu" />
-          </div>
-          <div class="space-y-2 md:col-span-2">
-            <Label for="feishu-app-secret">{{ t('llm_config.feishu_app_secret') }}</Label>
-            <Input
-              id="feishu-app-secret"
-              v-model="form.feishuAppSecret"
-              type="password"
-              :placeholder="t('llm_config.keep_existing')"
-            />
-          </div>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader
-          ><CardTitle class="flex items-center gap-2"
-            ><Bot class="size-5" />{{ t('llm_config.dingtalk_title') }}</CardTitle
-          ><CardDescription>{{ t('llm_config.dingtalk_description') }}</CardDescription></CardHeader
-        >
-        <CardContent class="grid items-start gap-4 md:grid-cols-2">
-          <div class="space-y-2">
-            <Label for="dingtalk-client-id">{{ t('llm_config.dingtalk_client_id') }}</Label>
-            <Input id="dingtalk-client-id" v-model="form.dingtalkClientId" />
-          </div>
-          <div class="space-y-2">
-            <Label for="dingtalk-client-secret">{{ t('llm_config.dingtalk_client_secret') }}</Label>
-            <Input
-              id="dingtalk-client-secret"
-              v-model="form.dingtalkClientSecret"
-              type="password"
-              :placeholder="t('llm_config.keep_existing')"
-            />
-          </div>
-          <div class="space-y-2">
-            <Label for="dingtalk-card-template-id">{{
-              t('llm_config.dingtalk_card_template_id')
-            }}</Label>
-            <Input id="dingtalk-card-template-id" v-model="form.dingtalkCardTemplateId" />
-          </div>
-          <div class="space-y-2">
-            <Label for="dingtalk-streaming-card-template-id">{{
-              t('llm_config.dingtalk_streaming_card_template_id')
-            }}</Label>
-            <Input
-              id="dingtalk-streaming-card-template-id"
-              v-model="form.dingtalkStreamingCardTemplateId"
-            />
-          </div>
-        </CardContent>
-      </Card>
       <div class="flex flex-wrap justify-end gap-2">
         <Button
           type="button"

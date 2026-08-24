@@ -82,6 +82,7 @@
   },
   "sidebar": {
     "llm_config": "LLM configuration",
+    "im_config": "IM configuration",
     "workbench": "Workbench",
     "dashboard": "Dashboard",
     "system_status": "Service status",
@@ -90,9 +91,12 @@
     "analytics_template": "Analytics",
     "wizard_template": "Guided setup",
     "operations_template": "Operation patterns",
-    "access_control": "Access control",
-    "ai_knowledge": "AI & knowledge",
-    "system_operations": "System operations",
+    "access_control": "Permission management",
+    "permission_management": "Permission management",
+    "ai_knowledge": "AI management",
+    "ai_management": "AI management",
+    "system_operations": "System management",
+    "system_management": "System management",
     "api_keys": "API Keys",
     "users": "Users",
     "roles": "Roles",
@@ -142,10 +146,17 @@
     "dingtalk_card_template_id": "Controlled-action card template ID",
     "dingtalk_streaming_card_template_id": "Streaming reply card template ID"
   },
+  "im_config": {
+    "title": "IM configuration",
+    "description": "Manage WeCom, Feishu, and DingTalk bot connections.",
+    "saved": "IM configuration saved",
+    "load_failed": "Failed to load IM configuration",
+    "save_failed": "Failed to save IM configuration"
+  },
   "nav": {
     "account": "Account",
     "api_docs": "API integration",
-    "github_repository": "GitHub repository",
+    "github_repository": "GitHub",
     "help": "Help",
     "language": "Language",
     "language_switched": "Language switched",
@@ -773,7 +784,9 @@
         "created": "User created",
         "updated": "User updated",
         "deleted": "User deleted",
-        "password_reset": "User password reset"
+        "password_reset": "User password reset",
+        "enabled": "User enabled",
+        "disabled": "User disabled"
       },
       "role": {
         "created": "Role created",
@@ -788,13 +801,32 @@
       "account": {
         "password_changed": "Password changed",
         "two_factor_enabled": "2FA enabled",
-        "two_factor_disabled": "2FA disabled"
+        "two_factor_disabled": "2FA disabled",
+        "github_unlinked": "GitHub unlinked",
+        "channel_identity_bound": "AI channel bound",
+        "channel_identity_unbound": "AI channel unbound"
+      },
+      "llm_config": {
+        "updated": "LLM configuration updated"
+      },
+      "wecom_template": {
+        "created": "Message template created",
+        "updated": "Message template updated",
+        "deleted": "Message template deleted"
       },
       "agent": {
         "access_diagnosed": "AI access diagnosed",
         "action_confirmed": "AI action confirmed",
+        "api_key_created": "API key created by AI",
         "api_key_revoked": "API key revoked by AI",
-        "api_key_deleted": "API key deleted by AI"
+        "api_key_deleted": "API key deleted by AI",
+        "wecom_message_sent": "WeCom message sent by AI",
+        "query_executed": "AI query executed",
+        "query_rejected": "AI query rejected",
+        "query_failed": "AI query failed",
+        "proposal_failed": "AI action proposal failed",
+        "proposal_expired": "AI action proposal expired",
+        "proposal_cancelled": "AI action proposal cancelled"
       }
     },
     "targets": {
@@ -802,7 +834,11 @@
       "role": "Role",
       "permission": "Permission",
       "api_key": "API key",
-      "agent_action": "AI action"
+      "agent_action": "AI action",
+      "llm_configuration": "LLM configuration",
+      "channel_identity": "Channel identity",
+      "wecom_message_template": "WeCom message template",
+      "ai_query_template": "AI query template"
     }
   },
   "profile": {

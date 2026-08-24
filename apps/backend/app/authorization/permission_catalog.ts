@@ -4,6 +4,7 @@ export const permissionCodes = [
   'llm-config:read',
   'llm-config:update',
   'llm-config:test',
+  'im-config:read',
   'api-keys:read',
   'api-keys:create',
   'api-keys:update',
@@ -32,3 +33,46 @@ export const permissionCodes = [
 ] as const
 
 export type PermissionCode = (typeof permissionCodes)[number]
+
+/**
+ * The permission directory mirrors the product navigation groups. Keep this
+ * mapping as the runtime source of truth so menu renames are reflected even
+ * before an environment has replayed the latest regrouping migration.
+ */
+export const systemPermissionGroupNames: Record<string, string> = {
+  'dashboard:view': '工作台',
+  'system-status:read': '系统管理',
+  'llm-config:read': 'AI管理',
+  'llm-config:update': 'AI管理',
+  'llm-config:test': 'AI管理',
+  'im-config:read': 'AI管理',
+  'knowledge:read': 'AI管理',
+  'knowledge:manage': 'AI管理',
+  'users:read': '权限管理',
+  'users:create': '权限管理',
+  'users:update': '权限管理',
+  'users:delete': '权限管理',
+  'roles:read': '权限管理',
+  'roles:create': '权限管理',
+  'roles:update': '权限管理',
+  'roles:delete': '权限管理',
+  'permissions:read': '权限管理',
+  'permissions:create': '权限管理',
+  'permissions:update': '权限管理',
+  'permissions:delete': '权限管理',
+  'api-keys:read': '系统管理',
+  'api-keys:create': '系统管理',
+  'api-keys:update': '系统管理',
+  'api-keys:delete': '系统管理',
+  'audit-logs:read': '系统管理',
+  'wecom-templates:read': '系统管理',
+  'wecom-templates:create': '系统管理',
+  'wecom-templates:update': '系统管理',
+  'wecom-templates:delete': '系统管理',
+  'wecom-templates:send': '系统管理',
+  'wecom-templates:test': '系统管理',
+}
+
+export function getSystemPermissionGroupName(code: string, fallback: string) {
+  return systemPermissionGroupNames[code] ?? fallback
+}

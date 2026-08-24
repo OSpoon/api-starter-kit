@@ -82,6 +82,7 @@
   },
   "sidebar": {
     "llm_config": "LLM 配置",
+    "im_config": "IM 配置",
     "workbench": "工作台",
     "dashboard": "仪表盘",
     "system_status": "服务状态",
@@ -90,9 +91,12 @@
     "analytics_template": "数据分析",
     "wizard_template": "分步引导",
     "operations_template": "操作模式",
-    "access_control": "访问控制",
-    "ai_knowledge": "AI 与知识",
-    "system_operations": "系统运维",
+    "access_control": "权限管理",
+    "permission_management": "权限管理",
+    "ai_knowledge": "AI 管理",
+    "ai_management": "AI 管理",
+    "system_operations": "系统管理",
+    "system_management": "系统管理",
     "api_keys": "API 密钥",
     "users": "用户管理",
     "roles": "角色管理",
@@ -142,10 +146,17 @@
     "dingtalk_card_template_id": "受控操作互动卡片模板 ID",
     "dingtalk_streaming_card_template_id": "流式回复互动卡片模板 ID"
   },
+  "im_config": {
+    "title": "IM 配置",
+    "description": "管理企业微信、飞书和钉钉机器人连接配置。修改后对下一次机器人请求生效。",
+    "saved": "IM 配置已保存",
+    "load_failed": "加载 IM 配置失败",
+    "save_failed": "保存 IM 配置失败"
+  },
   "nav": {
     "account": "账户",
     "api_docs": "API 集成文档",
-    "github_repository": "GitHub 仓库",
+    "github_repository": "GitHub",
     "help": "帮助",
     "language": "语言",
     "language_switched": "语言已切换",
@@ -773,7 +784,9 @@
         "created": "创建用户",
         "updated": "更新用户",
         "deleted": "删除用户",
-        "password_reset": "重置用户密码"
+        "password_reset": "重置用户密码",
+        "enabled": "启用用户",
+        "disabled": "停用用户"
       },
       "role": {
         "created": "创建角色",
@@ -788,13 +801,32 @@
       "account": {
         "password_changed": "修改登录密码",
         "two_factor_enabled": "启用 2FA",
-        "two_factor_disabled": "停用 2FA"
+        "two_factor_disabled": "停用 2FA",
+        "github_unlinked": "解绑 GitHub",
+        "channel_identity_bound": "绑定 AI 渠道",
+        "channel_identity_unbound": "解绑 AI 渠道"
+      },
+      "llm_config": {
+        "updated": "更新 LLM 配置"
+      },
+      "wecom_template": {
+        "created": "创建消息模板",
+        "updated": "更新消息模板",
+        "deleted": "删除消息模板"
       },
       "agent": {
         "access_diagnosed": "AI 权限诊断",
         "action_confirmed": "AI 操作已确认",
+        "api_key_created": "AI 创建 API 密钥",
         "api_key_revoked": "AI 已吊销 API 密钥",
-        "api_key_deleted": "AI 已删除 API 密钥"
+        "api_key_deleted": "AI 已删除 API 密钥",
+        "wecom_message_sent": "AI 已发送企业微信消息",
+        "query_executed": "AI 查询已执行",
+        "query_rejected": "AI 查询已拒绝",
+        "query_failed": "AI 查询失败",
+        "proposal_failed": "AI 操作提案失败",
+        "proposal_expired": "AI 操作提案已过期",
+        "proposal_cancelled": "AI 操作提案已取消"
       }
     },
     "targets": {
@@ -802,7 +834,11 @@
       "role": "角色",
       "permission": "权限",
       "api_key": "API 密钥",
-      "agent_action": "AI 操作"
+      "agent_action": "AI 操作",
+      "llm_configuration": "LLM 配置",
+      "channel_identity": "渠道身份",
+      "wecom_message_template": "企业微信消息模板",
+      "ai_query_template": "AI 查询模板"
     }
   },
   "profile": {

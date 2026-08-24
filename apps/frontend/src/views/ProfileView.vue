@@ -446,61 +446,55 @@ onMounted(async () => {
         <CardTitle>{{ t('profile.channel_binding.title') }}</CardTitle>
         <CardDescription>{{ t('profile.channel_binding.hint') }}</CardDescription>
       </CardHeader>
-      <CardContent class="space-y-5">
-        <DescriptionActionRow
-          :title="t('profile.channel_binding.wecom_title')"
-          :description="t('profile.channel_binding.wecom_hint')"
-        >
-          <template #action>
-            <Button
-              v-if="isWecomBound"
-              variant="destructive"
-              :disabled="isLoading"
-              @click="handleUnbindChannelClick('wecom')"
-            >
-              {{ t('profile.channel_binding.unbind') }}
-            </Button>
-            <Button v-else type="button" @click="handleBindChannelClick('wecom')">
-              {{ t('profile.channel_binding.submit') }}
-            </Button>
-          </template>
-        </DescriptionActionRow>
-        <DescriptionActionRow
-          :title="t('profile.channel_binding.feishu_title')"
-          :description="t('profile.channel_binding.feishu_hint')"
-        >
-          <template #action>
-            <Button
-              v-if="isFeishuBound"
-              variant="destructive"
-              :disabled="isLoading"
-              @click="handleUnbindChannelClick('feishu')"
-            >
-              {{ t('profile.channel_binding.unbind') }}
-            </Button>
-            <Button v-else type="button" @click="handleBindChannelClick('feishu')">
-              {{ t('profile.channel_binding.submit') }}
-            </Button>
-          </template>
-        </DescriptionActionRow>
-        <DescriptionActionRow
-          :title="t('profile.channel_binding.dingtalk_title')"
-          :description="t('profile.channel_binding.dingtalk_hint')"
-        >
-          <template #action>
-            <Button
-              v-if="isDingtalkBound"
-              variant="destructive"
-              :disabled="isLoading"
-              @click="handleUnbindChannelClick('dingtalk')"
-            >
-              {{ t('profile.channel_binding.unbind') }}
-            </Button>
-            <Button v-else type="button" @click="handleBindChannelClick('dingtalk')">
-              {{ t('profile.channel_binding.submit') }}
-            </Button>
-          </template>
-        </DescriptionActionRow>
+      <CardContent class="grid gap-4 md:grid-cols-3">
+        <div class="flex min-h-44 flex-col rounded-lg border p-4">
+          <h3 class="font-medium">{{ t('profile.channel_binding.wecom_title') }}</h3>
+          <p class="mt-2 flex-1 text-sm text-muted-foreground">
+            {{ t('profile.channel_binding.wecom_hint') }}
+          </p>
+          <Button
+            v-if="isWecomBound"
+            variant="destructive"
+            :disabled="isLoading"
+            @click="handleUnbindChannelClick('wecom')"
+            >{{ t('profile.channel_binding.unbind') }}</Button
+          >
+          <Button v-else type="button" @click="handleBindChannelClick('wecom')">{{
+            t('profile.channel_binding.submit')
+          }}</Button>
+        </div>
+        <div class="flex min-h-44 flex-col rounded-lg border p-4">
+          <h3 class="font-medium">{{ t('profile.channel_binding.feishu_title') }}</h3>
+          <p class="mt-2 flex-1 text-sm text-muted-foreground">
+            {{ t('profile.channel_binding.feishu_hint') }}
+          </p>
+          <Button
+            v-if="isFeishuBound"
+            variant="destructive"
+            :disabled="isLoading"
+            @click="handleUnbindChannelClick('feishu')"
+            >{{ t('profile.channel_binding.unbind') }}</Button
+          >
+          <Button v-else type="button" @click="handleBindChannelClick('feishu')">{{
+            t('profile.channel_binding.submit')
+          }}</Button>
+        </div>
+        <div class="flex min-h-44 flex-col rounded-lg border p-4">
+          <h3 class="font-medium">{{ t('profile.channel_binding.dingtalk_title') }}</h3>
+          <p class="mt-2 flex-1 text-sm text-muted-foreground">
+            {{ t('profile.channel_binding.dingtalk_hint') }}
+          </p>
+          <Button
+            v-if="isDingtalkBound"
+            variant="destructive"
+            :disabled="isLoading"
+            @click="handleUnbindChannelClick('dingtalk')"
+            >{{ t('profile.channel_binding.unbind') }}</Button
+          >
+          <Button v-else type="button" @click="handleBindChannelClick('dingtalk')">{{
+            t('profile.channel_binding.submit')
+          }}</Button>
+        </div>
       </CardContent>
     </Card>
 

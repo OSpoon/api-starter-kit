@@ -4,7 +4,7 @@ export default class extends BaseSchema {
   async up() {
     const groups = [
       {
-        name: '访问控制',
+        name: '权限管理',
         codes: [
           'users:read',
           'users:create',
@@ -21,21 +21,18 @@ export default class extends BaseSchema {
         ],
       },
       {
-        name: 'AI 与知识',
+        name: 'AI管理',
         codes: [
           'llm-config:read',
           'llm-config:update',
           'llm-config:test',
+          'im-config:read',
           'knowledge:read',
           'knowledge:manage',
         ],
       },
       {
-        name: 'AI管理',
-        codes: ['im-config:read'],
-      },
-      {
-        name: '系统运维',
+        name: '系统管理',
         codes: [
           'system-status:read',
           'api-keys:read',
@@ -52,7 +49,6 @@ export default class extends BaseSchema {
         ],
       },
     ]
-
     for (const group of groups) {
       await this.db
         .from('permissions')
