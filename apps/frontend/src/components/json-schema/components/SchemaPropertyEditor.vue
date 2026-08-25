@@ -40,8 +40,12 @@ const expanded = ref(false)
 
 const displayName = computed(() => props.name)
 const displayDesc = computed(() => getSchemaDescription(props.schema))
+const displayTitle = computed(() => withObjectSchema(props.schema, (s) => s.title || '', ''))
 const tempName = ref(props.name)
 const tempDesc = ref(displayDesc.value)
+const tempTitle = ref(displayTitle.value)
+const descriptionId = useId()
+const titleId = useId()
 
 const type = () =>
   withObjectSchema(props.schema, (s) => (s.type || 'object') as SchemaType, 'object' as SchemaType)
@@ -74,8 +78,25 @@ const handleDescSubmit = () => {
   }
 }
 
+const handleTitleSubmit = () => {
+  const trimmedTitle = tempTitle.value.trim()
+  if (trimmedTitle !== displayTitle.value) {
+    const currentSchema = store.getAtPath([...props.path, props.name])
+    const plain = JSON.parse(JSON.stringify(currentSchema ?? { type: 'object' }))
+    if (trimmedTitle) plain.title = trimmedTitle
+    else delete plain.title
+    store.updateProperty(props.path, props.name, plain)
+  } else {
+    tempTitle.value = displayTitle.value
+  }
+}
+
 watch(displayDesc, (newDescription) => {
   tempDesc.value = newDescription
+})
+
+watch(displayTitle, (newTitle) => {
+  tempTitle.value = newTitle
 })
 
 const handleSchemaUpdate = (updatedSchema: ObjectJSONSchema) => {
@@ -140,33 +161,15 @@ const inputClass = 'h-8 text-sm'
               @blur="handleNameSubmit()"
               @keydown.enter.prevent="handleNameSubmit()"
               :aria-label="t.fieldNameLabel"
-              :class="[inputClass, 'z-10 max-w-[25%] min-w-30 flex-[1_1_0%] text-sm font-medium']"
+              :class="[inputClass, 'z-10 max-w-[75%] min-w-30 flex-[1_1_0%] text-sm font-medium']"
             />
             <span
               v-else
-              class="-mx-0.5 max-w-[25%] min-w-20 flex-[1_1_0%] truncate px-2 py-0.5 text-left text-foreground"
+              class="-mx-0.5 max-w-[75%] min-w-20 flex-[1_1_0%] truncate px-2 py-0.5 text-left text-foreground"
             >
               {{ displayName }}
             </span>
 
-            <Input
-              v-if="!readOnly"
-              v-model="tempDesc"
-              @blur="handleDescSubmit()"
-              @keydown.enter.prevent="handleDescSubmit()"
-              :placeholder="t.propertyDescriptionPlaceholder"
-              :aria-label="t.propertyDescriptionPlaceholder"
-              :class="[
-                inputClass,
-                'z-10 max-w-[75%] min-w-37.5 flex-[3_1_0%] text-xs text-muted-foreground italic',
-              ]"
-            />
-            <span
-              v-else-if="displayDesc"
-              class="mr-2 max-w-[75%] min-w-37.5 flex-[3_1_0%] truncate px-2 py-0.5 text-xs text-muted-foreground italic"
-            >
-              {{ displayDesc }}
-            </span>
           </div>
 
           <div class="flex shrink-0 items-center justify-end gap-2">
@@ -211,7 +214,40 @@ const inputClass = 'h-8 text-sm'
     </div>
 
     <div v-if="expanded" class="px-2 pt-1 pb-2 sm:px-3">
-      <p v-if="readOnly && displayDesc" class="pb-2 text-sm">{{ displayDesc }}</p>
+      <div class="mb-3 grid grid-cols-1 items-start gap-4 sm:grid-cols-3">
+        <div v-if="!readOnly || displayTitle" class="sm:col-span-1">
+          <label :for="titleId" class="mb-2 block text-sm font-medium">
+            {{ t.fieldTitle }}
+          </label>
+          <Input
+            v-if="!readOnly"
+            :id="titleId"
+            v-model="tempTitle"
+            @blur="handleTitleSubmit()"
+            @keydown.enter.prevent="handleTitleSubmit()"
+            :placeholder="t.propertyTitlePlaceholder"
+            :aria-label="t.propertyTitlePlaceholder"
+            :class="[inputClass, 'text-xs']"
+          />
+          <p v-else-if="displayTitle" class="text-sm text-muted-foreground">{{ displayTitle }}</p>
+        </div>
+        <div v-if="!readOnly || displayDesc" class="sm:col-span-2">
+          <label :for="descriptionId" class="mb-2 block text-sm font-medium">
+            {{ t.fieldDescription }}
+          </label>
+          <Input
+            v-if="!readOnly"
+            :id="descriptionId"
+            v-model="tempDesc"
+            @blur="handleDescSubmit()"
+            @keydown.enter.prevent="handleDescSubmit()"
+            :placeholder="t.propertyDescriptionPlaceholder"
+            :aria-label="t.propertyDescriptionPlaceholder"
+            :class="[inputClass, 'text-xs text-muted-foreground italic']"
+          />
+          <p v-else-if="displayDesc" class="text-sm text-muted-foreground">{{ displayDesc }}</p>
+        </div>
+      </div>
       <TypeEditor
         :schema="schema"
         :path="[...path, name]"
