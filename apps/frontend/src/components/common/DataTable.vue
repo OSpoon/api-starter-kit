@@ -43,18 +43,27 @@ type ServerPagination = {
   pageCount: number
 }
 
-const props = defineProps<{
-  columns: ColumnDef<TData, TValue>[]
-  data: TData[]
-  searchKeys?: string[]
-  searchPlaceholder?: string
-  getSearchableText?: (row: TData) => string
-  emptyMessage?: string
-  storageKey?: string
-  searchId?: string
-  serverPagination?: ServerPagination
-  filtersLayout?: 'wrap' | 'inline'
-}>()
+const props = withDefaults(
+  defineProps<{
+    columns: ColumnDef<TData, TValue>[]
+    data: TData[]
+    searchKeys?: string[]
+    searchPlaceholder?: string
+    showSearch?: boolean
+    showView?: boolean
+    getSearchableText?: (row: TData) => string
+    emptyMessage?: string
+    storageKey?: string
+    searchId?: string
+    serverPagination?: ServerPagination
+    filtersLayout?: 'wrap' | 'inline'
+  }>(),
+  {
+    showSearch: true,
+    showView: true,
+    filtersLayout: 'inline',
+  },
+)
 
 const search = defineModel<string>('search', { default: '' })
 
@@ -73,7 +82,10 @@ const columnVisibility = persistedPreferences?.columnVisibility ?? ref<Visibilit
 const pagination =
   persistedPreferences?.pagination ?? ref<PaginationState>({ pageIndex: 0, pageSize: 10 })
 
-const showSearch = computed(() => Boolean(props.searchKeys?.length || props.getSearchableText))
+const hasSearch = computed(
+  () => props.showSearch && Boolean(props.searchKeys?.length || props.getSearchableText),
+)
+const showView = computed(() => props.showView)
 
 const resolvedSearchKeys = computed(() => props.searchKeys ?? [])
 
@@ -209,11 +221,11 @@ function nextPage() {
         "
       >
         <slot name="filters" />
-        <Label v-if="showSearch" :for="searchId ?? 'data-table-search'">{{
+        <Label v-if="hasSearch" :for="searchId ?? 'data-table-search'">{{
           t('common.search')
         }}</Label>
         <Input
-          v-if="showSearch"
+          v-if="hasSearch"
           :id="searchId ?? 'data-table-search'"
           :class="filtersLayout === 'inline' ? 'shrink-0' : 'max-w-sm min-w-55'"
           :style="filtersLayout === 'inline' ? { width: '14rem' } : undefined"
@@ -222,7 +234,7 @@ function nextPage() {
           @update:model-value="table.setGlobalFilter($event)"
         />
       </div>
-      <DropdownMenu>
+      <DropdownMenu v-if="showView">
         <DropdownMenuTrigger as-child>
           <Button variant="outline" class="ml-auto">
             <SlidersHorizontal class="mr-2 size-4" />
