@@ -1,0 +1,28 @@
+version: 2
+
+updates:
+  # The root pnpm workspace lockfile contains importers for the root,
+  # backend, and frontend package manifests.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    groups:
+      production:
+        dependency-type: production
+      development:
+        dependency-type: development
+
+  # Keep action references current as well as application dependencies.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      github-actions:
+        patterns:
+          - '*'

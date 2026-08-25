@@ -45,6 +45,14 @@ AI 助手只能访问授权的知识和注册查询模板；管理类操作只�
 - [企业微信、飞书与钉钉机器人](docs/ai-channel-bots.md)：配置、绑定、运行和排障。
 - [WeCom 消息模板 feature](docs/wecom-message-templates.md)：feature 边界、宿主集成和接口说明。
 
+## 依赖升级检查
+
+GitHub Dependabot 会每周一检查 pnpm workspace 和 GitHub Actions 的版本，并按生产依赖、开发依赖和 Actions 分组创建升级 PR。升级 PR 会经过仓库现有 CI 验证后再合并；Dependabot 不会直接修改默认分支。
+
+## 安全扫描
+
+CodeQL 会在主分支变更、Pull Request、每周定时任务和手动触发时扫描 JavaScript/TypeScript 代码及 GitHub Actions。仓库管理员还需要在 GitHub 的 **Settings → Advanced Security** 中开启 Secret Scanning 和 Push Protection；这两项是仓库级安全设置，不能通过提交代码文件代替开启。
+
 ## 许可证
 
 [MIT](LICENSE)
