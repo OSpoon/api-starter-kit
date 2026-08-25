@@ -4,6 +4,7 @@ export type NormalizedMessageType = 'text' | 'image' | 'file' | 'voice'
 
 export interface NormalizedInboundMessage {
   channel: ChannelName
+  conversationType: 'direct' | 'group'
   externalTenantId: string
   externalUserId: string
   conversationKey: string

@@ -100,6 +100,9 @@ export class AiChannelBridge {
       externalUserId: message.externalUserId,
     })
     if (!identity) {
+      if (message.conversationType === 'group') {
+        return textReply('当前群聊不支持绑定。请先在与机器人的单聊中获取绑定码并完成绑定。')
+      }
       const challenge = await createChannelBindingChallenge({
         channel: message.channel,
         externalTenantId: message.externalTenantId,

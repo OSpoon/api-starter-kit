@@ -134,6 +134,7 @@ export class FeishuBotAdapter implements ChannelAdapter {
 
     const message: NormalizedInboundMessage = {
       channel: this.channel,
+      conversationType: event.message.chat_type === 'group' ? 'group' : 'direct',
       externalTenantId: event.tenant_key ?? this.tenantId,
       externalUserId: senderId,
       conversationKey: event.message.chat_id,

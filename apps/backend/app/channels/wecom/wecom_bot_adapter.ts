@@ -120,6 +120,7 @@ export class WecomBotAdapter implements ChannelAdapter {
     try {
       const message: NormalizedInboundMessage = {
         channel: this.channel,
+        conversationType: body.chatid ? 'group' : 'direct',
         externalTenantId: this.options.tenantId,
         externalUserId: body.from.userid,
         conversationKey: body.chatid ?? body.from.userid,
@@ -247,6 +248,7 @@ export class WecomBotAdapter implements ChannelAdapter {
 
     const reply = await this.options.onMessage({
       channel: this.channel,
+      conversationType: body.chatid ? 'group' : 'direct',
       externalTenantId: this.options.tenantId,
       externalUserId: body.from.userid,
       conversationKey: body.chatid ?? body.from.userid,

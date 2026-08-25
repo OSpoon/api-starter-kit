@@ -152,6 +152,7 @@ export class DingTalkBotAdapter implements ChannelAdapter {
     })
     const normalized: NormalizedInboundMessage = {
       channel: this.channel,
+      conversationType: message.conversationType === '2' ? 'group' : 'direct',
       externalTenantId:
         event.headers.eventCorpId || message.chatbotCorpId || message.senderCorpId || this.tenantId,
       externalUserId,
