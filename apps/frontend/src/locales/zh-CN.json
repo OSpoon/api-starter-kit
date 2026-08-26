@@ -148,7 +148,10 @@
   },
   "im_config": {
     "title": "IM 配置",
-    "description": "管理企业微信、飞书和钉钉机器人连接配置。修改后对下一次机器人请求生效。",
+    "description": "管理企业微信、飞书和钉钉机器人连接配置。保存后需要重启对应的 IM 机器人容器。",
+    "restart_title": "配置更新后需要重启 IM 机器人",
+    "restart_description": "请在部署目录执行以下命令，重启全部 IM 机器人 Worker：",
+    "restart_command": "docker compose -f docker/docker-compose.yml restart wecom-bot feishu-bot dingtalk-bot",
     "saved": "IM 配置已保存",
     "load_failed": "加载 IM 配置失败",
     "save_failed": "保存 IM 配置失败"

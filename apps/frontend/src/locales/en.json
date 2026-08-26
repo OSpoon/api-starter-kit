@@ -148,7 +148,10 @@
   },
   "im_config": {
     "title": "IM configuration",
-    "description": "Manage WeCom, Feishu, and DingTalk bot connections.",
+    "description": "Manage WeCom, Feishu, and DingTalk bot connections. Restart the corresponding IM bot container after saving.",
+    "restart_title": "Restart IM bots after updating configuration",
+    "restart_description": "Run the following command from the deployment directory to restart all IM bot workers:",
+    "restart_command": "docker compose -f docker/docker-compose.yml restart wecom-bot feishu-bot dingtalk-bot",
     "saved": "IM configuration saved",
     "load_failed": "Failed to load IM configuration",
     "save_failed": "Failed to save IM configuration"
