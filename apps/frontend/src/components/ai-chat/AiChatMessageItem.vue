@@ -2,7 +2,6 @@
 import {
   Activity,
   BookOpen,
-  Bot,
   Check,
   ChevronRight,
   CircleAlert,
@@ -12,6 +11,7 @@ import {
   Gauge,
   ListChecks,
   LoaderCircle,
+  MessageCircleDashedIcon,
   RotateCcw,
   Search,
   ShieldCheck,
@@ -226,7 +226,7 @@ function getTimelineSections(timeline: AiChatTimelineItem[]) {
       "
     >
       <User v-if="message.role === 'user'" class="size-3.5" />
-      <Bot v-else class="size-3.5" />
+      <MessageCircleDashedIcon v-else class="size-3.5" />
     </div>
     <div
       class="group/message flex max-w-[85%] min-w-0 flex-col gap-1"
@@ -296,7 +296,7 @@ function getTimelineSections(timeline: AiChatTimelineItem[]) {
       </details>
       <div
         v-if="showMessageActions && message.id !== 'welcome' && message.content.trim().length > 0"
-        class="flex h-6 items-center gap-1 opacity-0 transition-opacity group-hover/message:opacity-100 focus-within:opacity-100"
+        class="relative z-10 flex h-8 items-center gap-1 opacity-0 transition-opacity group-hover/message:opacity-100 focus-within:opacity-100"
         :class="message.role === 'user' ? 'justify-end' : 'justify-start'"
       >
         <Button

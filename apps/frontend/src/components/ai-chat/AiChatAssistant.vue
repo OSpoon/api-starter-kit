@@ -1,15 +1,15 @@
 <script setup lang="ts">
 import {
-  Bot,
+  ArrowUpIcon,
   ChevronDown,
   CircleCheck,
   History,
   ListChecks,
   MessageCircle,
+  MessageCircleDashedIcon,
   MessageCirclePlus,
   Minus,
   RefreshCw,
-  Send,
   Sparkles,
   Square,
   Trash2,
@@ -27,7 +27,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { ScrollArea } from '@/components/ui/scroll-area'
+import {
+  MessageScroller,
+  MessageScrollerButton,
+  MessageScrollerContent,
+  MessageScrollerItem,
+  MessageScrollerProvider,
+  MessageScrollerViewport,
+} from '@/components/ui/message-scroller'
 import { Textarea } from '@/components/ui/textarea'
 import type {
   AiChatConfirmation,
@@ -36,7 +43,6 @@ import type {
 } from '@/features/ai/api'
 import { useAiChatMessageSelection } from '@/features/ai/composables/useAiChatMessageSelection'
 import { useAiChatResize } from '@/features/ai/composables/useAiChatResize'
-import { useAiChatScroll } from '@/features/ai/composables/useAiChatScroll'
 import type { DisplayAiChatMessage } from '@/features/ai/types'
 
 interface ChatConversation {
@@ -106,7 +112,6 @@ const internalOpen = ref(false)
 const input = ref('')
 const isComposingInput = ref(false)
 const compositionEndedAt = ref(0)
-const scrollAreaRef = ref<InstanceType<typeof ScrollArea> | null>(null)
 
 const isControlled = computed(() => props.modelValue !== undefined)
 const isOpen = computed({
@@ -143,7 +148,6 @@ const promptSuggestions = computed(() =>
 )
 
 const { chatHeight, chatWidth, startResize } = useAiChatResize()
-const { autoScrollEnabled, scrollToBottom } = useAiChatScroll(scrollAreaRef, isOpen)
 const {
   isSelecting: isSelectingMessages,
   selectedKeys: selectedMessageKeys,
@@ -176,13 +180,8 @@ function copySelectedMessagesAsMarkdown() {
   cancelMessageSelection()
 }
 
-function resumeAutoScroll() {
-  scrollToBottom(true)
-}
-
 function openAssistant() {
   isOpen.value = true
-  scrollToBottom(true)
 }
 
 function closeAssistant() {
@@ -191,7 +190,6 @@ function closeAssistant() {
 
 function clearChat() {
   emit('clear')
-  scrollToBottom(true)
 }
 
 function sendMessage(message = input.value) {
@@ -202,7 +200,6 @@ function sendMessage(message = input.value) {
 
   emit('send', content)
   input.value = ''
-  scrollToBottom(true)
 }
 
 function stopGeneration() {
@@ -277,7 +274,6 @@ watch(
   () => displayMessages.value,
   () => {
     pruneSelectedMessages()
-    scrollToBottom()
   },
   { deep: true }
 )
@@ -306,7 +302,7 @@ watch(
           <div
             class="flex size-8 shrink-0 items-center justify-center rounded-md border bg-background"
           >
-            <Bot class="size-4 text-primary" />
+            <MessageCircleDashedIcon class="size-4 text-primary" />
           </div>
           <span class="truncate text-sm font-medium">{{ assistantTitle }}</span>
         </div>
@@ -423,85 +419,91 @@ watch(
       </div>
 
       <div class="relative min-h-0 flex-1 p-4">
-        <ScrollArea ref="scrollAreaRef" class="h-full">
-          <div class="space-y-3 pr-3">
-            <template v-for="(message, index) in displayMessages" :key="message.id ?? index">
-              <AiChatMessageItem
-                :message="message"
-                :all-messages="displayMessages"
-                :streaming-message-id="streamingMessageId"
-                :loading="loading"
-                :show-message-actions="showMessageActions && !isSelectingMessages"
-                :selectable="isSelectingMessages"
-                :selected="selectedMessageKeys.has(getMessageKey(message, index))"
-                @copy="emit('copyMessage', $event)"
-                @retry="emit('retryMessage', $event)"
-                @select="
-                  (selectedMessage, selected) => selectMessage(selectedMessage, index, selected)
-                "
-              />
-              <div
-                v-if="getConversationBoundaryLabel(message)"
-                class="my-4 flex w-full items-center gap-3 px-2 text-xs text-muted-foreground"
-                role="status"
-              >
-                <div class="h-px flex-1 bg-border/70" />
-                <CircleCheck class="size-3.5 shrink-0 text-emerald-600" aria-hidden="true" />
-                <span class="shrink-0">{{ getConversationBoundaryLabel(message) }}</span>
-                <div class="h-px flex-1 bg-border/70" />
-              </div>
-            </template>
-            <div
-              v-if="displayMessages.length <= 1"
-              class="inline-flex max-w-full flex-col items-start space-y-2 overflow-hidden pl-11"
-            >
-              <div
-                v-for="(suggestion, suggestionIndex) in promptSuggestions"
-                :key="suggestion"
-                class="flex max-w-full items-center gap-2"
-              >
-                <Button
-                  type="button"
-                  variant="link"
-                  size="sm"
-                  class="h-auto w-fit max-w-full min-w-0 justify-start overflow-hidden rounded-md px-2 py-1 text-left text-sm font-normal text-muted-foreground shadow-none hover:bg-muted/60 hover:text-foreground"
-                  :disabled="loading || disabled"
-                  :title="suggestion"
-                  @click="sendMessage(suggestion)"
+        <MessageScrollerProvider auto-scroll default-scroll-position="end">
+          <MessageScroller>
+            <MessageScrollerViewport>
+              <MessageScrollerContent class="pr-3">
+                <template v-for="(message, index) in displayMessages" :key="message.id ?? index">
+                  <MessageScrollerItem
+                    :message-id="String(message.id ?? index)"
+                    :scroll-anchor="message.role === 'user'"
+                    class="space-y-3"
+                  >
+                    <AiChatMessageItem
+                      :message="message"
+                      :all-messages="displayMessages"
+                      :streaming-message-id="streamingMessageId"
+                      :loading="loading"
+                      :show-message-actions="showMessageActions && !isSelectingMessages"
+                      :selectable="isSelectingMessages"
+                      :selected="selectedMessageKeys.has(getMessageKey(message, index))"
+                      @copy="emit('copyMessage', $event)"
+                      @retry="emit('retryMessage', $event)"
+                      @select="
+                        (selectedMessage, selected) =>
+                          selectMessage(selectedMessage, index, selected)
+                      "
+                    />
+                    <div
+                      v-if="getConversationBoundaryLabel(message)"
+                      class="my-4 flex w-full items-center gap-3 px-2 text-xs text-muted-foreground"
+                      role="status"
+                    >
+                      <div class="h-px flex-1 bg-border/70" />
+                      <CircleCheck class="size-3.5 shrink-0 text-emerald-600" aria-hidden="true" />
+                      <span class="shrink-0">{{ getConversationBoundaryLabel(message) }}</span>
+                      <div class="h-px flex-1 bg-border/70" />
+                    </div>
+                  </MessageScrollerItem>
+                </template>
+                <MessageScrollerItem
+                  v-if="displayMessages.length <= 1"
+                  class="inline-flex max-w-full flex-col items-start space-y-2 overflow-hidden pl-11"
                 >
-                  <span class="mr-1 shrink-0 text-xs text-muted-foreground/70">
-                    {{ suggestionIndex + 1 }}.
-                  </span>
-                  <span class="block max-w-full truncate text-left">{{ suggestion }}</span>
-                </Button>
-                <Button
-                  v-if="canRefreshSuggestions && suggestionIndex === promptSuggestions.length - 1"
-                  type="button"
-                  variant="link"
-                  size="icon-sm"
-                  class="size-7 shrink-0 rounded-md p-0 text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-                  :title="t('ai_chat.refresh_suggestions')"
-                  :aria-label="t('ai_chat.refresh_suggestions')"
-                  :disabled="loading || disabled"
-                  @click="emit('refreshSuggestions')"
-                >
-                  <RefreshCw class="size-3.5" />
-                </Button>
-              </div>
-            </div>
-          </div>
-        </ScrollArea>
-        <Button
-          v-if="loading && !autoScrollEnabled"
-          type="button"
-          variant="secondary"
-          size="sm"
-          class="absolute bottom-6 left-1/2 -translate-x-1/2 rounded-full text-xs shadow-sm"
-          @click="resumeAutoScroll"
-        >
-          <ChevronDown class="size-3.5" />
-          {{ t('ai_chat.scroll_to_latest') }}
-        </Button>
+                  <div
+                    v-for="(suggestion, suggestionIndex) in promptSuggestions"
+                    :key="suggestion"
+                    class="flex max-w-full items-center gap-2"
+                  >
+                    <Button
+                      type="button"
+                      variant="link"
+                      size="sm"
+                      class="h-auto w-fit max-w-full min-w-0 justify-start overflow-hidden rounded-md px-2 py-1 text-left text-sm font-normal text-muted-foreground shadow-none hover:bg-muted/60 hover:text-foreground"
+                      :disabled="loading || disabled"
+                      :title="suggestion"
+                      @click="sendMessage(suggestion)"
+                    >
+                      <span class="mr-1 shrink-0 text-xs text-muted-foreground/70">
+                        {{ suggestionIndex + 1 }}.
+                      </span>
+                      <span class="block max-w-full truncate text-left">{{ suggestion }}</span>
+                    </Button>
+                    <Button
+                      v-if="
+                        canRefreshSuggestions && suggestionIndex === promptSuggestions.length - 1
+                      "
+                      type="button"
+                      variant="link"
+                      size="icon-sm"
+                      class="size-7 shrink-0 rounded-md p-0 text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                      :title="t('ai_chat.refresh_suggestions')"
+                      :aria-label="t('ai_chat.refresh_suggestions')"
+                      :disabled="loading || disabled"
+                      @click="emit('refreshSuggestions')"
+                    >
+                      <RefreshCw class="size-3.5" />
+                    </Button>
+                  </div>
+                </MessageScrollerItem>
+              </MessageScrollerContent>
+            </MessageScrollerViewport>
+            <MessageScrollerButton>
+              <ChevronDown class="size-3.5" />
+              <span class="sr-only">{{ t('ai_chat.scroll_to_latest') }}</span>
+            </MessageScrollerButton>
+          </MessageScroller>
+        </MessageScrollerProvider>
       </div>
 
       <div class="p-3 pt-0">
@@ -541,7 +543,7 @@ watch(
               @click="loading ? stopGeneration() : undefined"
             >
               <Square v-if="loading" class="size-3.5 fill-current" />
-              <Send v-else class="size-3.5" />
+              <ArrowUpIcon v-else class="size-3.5" />
             </Button>
           </div>
         </form>
