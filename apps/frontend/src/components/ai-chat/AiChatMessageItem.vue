@@ -11,11 +11,9 @@ import {
   Gauge,
   ListChecks,
   LoaderCircle,
-  MessageCircleDashedIcon,
   RotateCcw,
   Search,
   ShieldCheck,
-  User,
 } from '@lucide/vue'
 
 import { Button } from '@/components/ui/button'
@@ -218,17 +216,6 @@ function getTimelineSections(timeline: AiChatTimelineItem[]) {
       @update:model-value="$emit('select', message, $event === true)"
     />
     <div
-      class="flex size-7 shrink-0 items-center justify-center rounded-full"
-      :class="
-        message.role === 'user'
-          ? 'bg-accent text-accent-foreground'
-          : 'border bg-background text-muted-foreground'
-      "
-    >
-      <User v-if="message.role === 'user'" class="size-3.5" />
-      <MessageCircleDashedIcon v-else class="size-3.5" />
-    </div>
-    <div
       class="group/message flex max-w-[85%] min-w-0 flex-col gap-1"
       :class="message.role === 'assistant' ? 'w-full' : ''"
     >
@@ -237,7 +224,7 @@ function getTimelineSections(timeline: AiChatTimelineItem[]) {
         :class="
           message.role === 'user'
             ? 'bg-accent text-accent-foreground'
-            : 'border bg-background text-foreground dark:bg-input/30'
+            : 'bg-background text-foreground dark:bg-input/30'
         "
       >
         <AiMessageContent
@@ -252,7 +239,7 @@ function getTimelineSections(timeline: AiChatTimelineItem[]) {
       </div>
       <details
         v-if="message.role === 'assistant' && message.timeline?.length"
-        class="group/timeline mt-1 overflow-hidden rounded-md border border-border/70 bg-muted/20 text-xs"
+        class="group/timeline mt-1 overflow-hidden rounded-md bg-muted/20 text-xs"
         :open="shouldOpenTimeline(message)"
       >
         <summary

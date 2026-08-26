@@ -422,7 +422,7 @@ watch(
         <MessageScrollerProvider auto-scroll default-scroll-position="end">
           <MessageScroller>
             <MessageScrollerViewport>
-              <MessageScrollerContent class="pr-3">
+              <MessageScrollerContent class="px-3">
                 <template v-for="(message, index) in displayMessages" :key="message.id ?? index">
                   <MessageScrollerItem
                     :message-id="String(message.id ?? index)"
