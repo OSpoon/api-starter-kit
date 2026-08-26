@@ -4,13 +4,21 @@ import type { ComputedRef } from 'vue'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import type { SystemPermission, SystemRole, SystemUser } from '@/features/access-control/api'
+import PermissionRolesPopover from '@/components/access-control/PermissionRolesPopover.vue'
+import RolePermissionsPopover from '@/components/access-control/RolePermissionsPopover.vue'
+import type {
+  SystemPermission,
+  SystemPermissionOption,
+  SystemRole,
+  SystemUser,
+} from '@/features/access-control/api'
 import { usePermission } from '@/lib/permission'
 
 type AccessControlColumnActions = {
   currentUserId: ComputedRef<number | undefined>
   editUser: (user: SystemUser) => void
   deleteUser: (user: SystemUser) => void
+  permissionCatalog: ComputedRef<SystemPermissionOption[]>
   editRole: (role: SystemRole) => void
   deleteRole: (role: SystemRole) => void
   copyPermission: (permission: SystemPermission) => void
@@ -127,10 +135,18 @@ export function useAccessControlColumns(actions: AccessControlColumnActions) {
     },
     {
       accessorKey: 'permissionIds',
-      meta: { label: t('rbac.roles.permission_count') },
+      meta: { label: t('rbac.roles.permissions') },
       header: () => t('rbac.roles.permissions'),
-      cell: ({ row }) =>
-        t('rbac.roles.permission_count', { count: row.original.permissionIds.length }),
+      cell: ({ row }) => {
+        const permissionById = new Map(
+          actions.permissionCatalog.value.map((permission) => [permission.id, permission])
+        )
+        const permissions = row.original.permissionIds
+          .map((id) => permissionById.get(id))
+          .filter((permission): permission is SystemPermissionOption => Boolean(permission))
+
+        return h(RolePermissionsPopover, { role: row.original, permissions })
+      },
     },
     {
       id: 'actions',
@@ -233,12 +249,10 @@ export function useAccessControlColumns(actions: AccessControlColumnActions) {
       accessorKey: 'roleCount',
       meta: { label: t('rbac.permissions.role_count') },
       header: () => t('rbac.permissions.role_count'),
-      cell: ({ row }) =>
-        row.original.roleCount > 0
-          ? h(Badge, { variant: 'outline' }, () =>
-              t('rbac.permissions.in_use', { count: row.original.roleCount })
-            )
-          : '0',
+      cell: ({ row }) => {
+        const roles = row.original.roles ?? []
+        return roles.length ? h(PermissionRolesPopover, { permission: row.original }) : '0'
+      },
     },
     {
       id: 'actions',

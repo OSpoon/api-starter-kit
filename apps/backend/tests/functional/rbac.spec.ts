@@ -269,6 +269,7 @@ test.group('rbac', (group) => {
       name: 'Search permission',
       groupName: `Search group ${searchId}`,
     })
+    await role.related('permissions').sync([permission.id])
 
     const userResponse = await client
       .get(`/api/v1/system/users?search=${encodeURIComponent(searchId)}`)
@@ -291,8 +292,17 @@ test.group('rbac', (group) => {
       .bearerToken(bearerToken)
     permissionResponse.assertStatus(200)
     const permissionItems = (
-      permissionResponse.body() as { data: { items: Array<{ id: number }> } }
+      permissionResponse.body() as {
+        data: {
+          items: Array<{
+            id: number
+            roles: Array<{ id: number; code: string; name: string }>
+          }>
+        }
+      }
     ).data.items
-    assert.isTrue(permissionItems.some((item) => item.id === permission.id))
+    const permissionItem = permissionItems.find((item) => item.id === permission.id)
+    assert.exists(permissionItem)
+    assert.deepEqual(permissionItem?.roles, [{ id: role.id, code: role.code, name: role.name }])
   })
 })

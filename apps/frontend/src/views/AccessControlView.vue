@@ -53,6 +53,7 @@ const actionLabel = computed(() => t(`rbac.${props.mode}.create`))
 
 const { userColumns, roleColumns, permissionColumns } = useAccessControlColumns({
   currentUserId,
+  permissionCatalog: computed(() => management.permissionCatalog),
   editUser: management.openUser,
   deleteUser: (user) => {
     management.selectedUser = user

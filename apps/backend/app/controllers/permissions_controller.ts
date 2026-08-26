@@ -18,6 +18,11 @@ function serializePermission(permission: Permission) {
     description: permission.description,
     isSystem: permission.isSystem,
     roleCount: Number(permission.$extras.roles_count ?? 0),
+    roles: permission.roles?.map((role) => ({
+      id: role.id,
+      code: role.code,
+      name: role.name,
+    })),
   }
 }
 
@@ -40,7 +45,11 @@ export default class PermissionsController {
     const page = Math.max(Number(request.input('page', 1)) || 1, 1)
     const search = String(request.input('search', '')).trim()
     const groupName = String(request.input('groupName', '')).trim()
-    const query = Permission.query().withCount('roles').orderBy('group_name').orderBy('code')
+    const query = Permission.query()
+      .withCount('roles')
+      .preload('roles', (roles) => roles.select(['id', 'code', 'name']))
+      .orderBy('group_name')
+      .orderBy('code')
     if (search) {
       query.where((builder) => {
         builder
