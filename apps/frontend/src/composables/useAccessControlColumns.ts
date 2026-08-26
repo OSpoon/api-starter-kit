@@ -2,10 +2,10 @@ import { ChevronRight, Copy, Pencil, ShieldCheck, Trash2 } from '@lucide/vue'
 import type { ColumnDef } from '@tanstack/vue-table'
 import type { ComputedRef } from 'vue'
 
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import PermissionRolesPopover from '@/components/access-control/PermissionRolesPopover.vue'
 import RolePermissionsPopover from '@/components/access-control/RolePermissionsPopover.vue'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import type {
   SystemPermission,
   SystemPermissionOption,
