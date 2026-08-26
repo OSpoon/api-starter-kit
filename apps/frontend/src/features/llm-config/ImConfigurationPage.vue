@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Bot, Info, LoaderCircle, Save } from '@lucide/vue'
+import { Info, LoaderCircle, Save } from '@lucide/vue'
 import { toast } from 'vue-sonner'
 
 import SettingsPageTemplate from '@/components/templates/SettingsPageTemplate.vue'
@@ -11,6 +11,9 @@ import { Label } from '@/components/ui/label'
 import { useAuthStore } from '@/stores/auth'
 
 import { getLlmConfiguration, updateLlmConfiguration } from './api'
+import DingtalkIcon from './components/DingtalkIcon.vue'
+import FeishuIcon from './components/FeishuIcon.vue'
+import WecomIcon from './components/WecomIcon.vue'
 
 const { t } = useI18n()
 const auth = useAuthStore()
@@ -101,7 +104,7 @@ onMounted(load)
       <Card>
         <CardHeader
           ><CardTitle class="flex items-center gap-2"
-            ><Bot class="size-5" />{{ t('llm_config.wecom_title') }}</CardTitle
+            ><WecomIcon />{{ t('llm_config.wecom_title') }}</CardTitle
           ><CardDescription>{{ t('llm_config.wecom_description') }}</CardDescription></CardHeader
         >
         <CardContent class="grid items-start gap-4 md:grid-cols-2">
@@ -131,7 +134,7 @@ onMounted(load)
       <Card>
         <CardHeader
           ><CardTitle class="flex items-center gap-2"
-            ><Bot class="size-5" />{{ t('llm_config.feishu_title') }}</CardTitle
+            ><FeishuIcon />{{ t('llm_config.feishu_title') }}</CardTitle
           ><CardDescription>{{ t('llm_config.feishu_description') }}</CardDescription></CardHeader
         >
         <CardContent class="grid items-start gap-4 md:grid-cols-2">
@@ -157,7 +160,7 @@ onMounted(load)
       <Card>
         <CardHeader
           ><CardTitle class="flex items-center gap-2"
-            ><Bot class="size-5" />{{ t('llm_config.dingtalk_title') }}</CardTitle
+            ><DingtalkIcon />{{ t('llm_config.dingtalk_title') }}</CardTitle
           ><CardDescription>{{ t('llm_config.dingtalk_description') }}</CardDescription></CardHeader
         >
         <CardContent class="grid items-start gap-4 md:grid-cols-2">

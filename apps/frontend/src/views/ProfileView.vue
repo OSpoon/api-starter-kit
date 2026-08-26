@@ -35,6 +35,9 @@ import {
   unbindWecomChannelIdentity,
   unlinkGithub,
 } from '@/features/account/api'
+import DingtalkIcon from '@/features/llm-config/components/DingtalkIcon.vue'
+import FeishuIcon from '@/features/llm-config/components/FeishuIcon.vue'
+import WecomIcon from '@/features/llm-config/components/WecomIcon.vue'
 import { copyText } from '@/lib/clipboard'
 import { firstFormError } from '@/lib/form-validation'
 import { PASSWORD_EXPIRY_DAYS, passwordDaysRemaining } from '@/lib/password'
@@ -448,7 +451,10 @@ onMounted(async () => {
       </CardHeader>
       <CardContent class="grid gap-4 md:grid-cols-3">
         <div class="flex min-h-44 flex-col rounded-lg border p-4">
-          <h3 class="font-medium">{{ t('profile.channel_binding.wecom_title') }}</h3>
+          <div class="flex items-center gap-2">
+            <WecomIcon />
+            <h3 class="font-medium">{{ t('profile.channel_binding.wecom_title') }}</h3>
+          </div>
           <p class="mt-2 flex-1 text-sm text-muted-foreground">
             {{ t('profile.channel_binding.wecom_hint') }}
           </p>
@@ -464,7 +470,10 @@ onMounted(async () => {
           }}</Button>
         </div>
         <div class="flex min-h-44 flex-col rounded-lg border p-4">
-          <h3 class="font-medium">{{ t('profile.channel_binding.feishu_title') }}</h3>
+          <div class="flex items-center gap-2">
+            <FeishuIcon />
+            <h3 class="font-medium">{{ t('profile.channel_binding.feishu_title') }}</h3>
+          </div>
           <p class="mt-2 flex-1 text-sm text-muted-foreground">
             {{ t('profile.channel_binding.feishu_hint') }}
           </p>
@@ -480,7 +489,10 @@ onMounted(async () => {
           }}</Button>
         </div>
         <div class="flex min-h-44 flex-col rounded-lg border p-4">
-          <h3 class="font-medium">{{ t('profile.channel_binding.dingtalk_title') }}</h3>
+          <div class="flex items-center gap-2">
+            <DingtalkIcon />
+            <h3 class="font-medium">{{ t('profile.channel_binding.dingtalk_title') }}</h3>
+          </div>
           <p class="mt-2 flex-1 text-sm text-muted-foreground">
             {{ t('profile.channel_binding.dingtalk_hint') }}
           </p>
