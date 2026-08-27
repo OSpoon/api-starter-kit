@@ -178,6 +178,8 @@
     "resize_both": "调整助手大小",
     "title": "AI 助手",
     "welcome": "你好，我是 AI 助手。你可以询问当前系统的功能、API 接入或配置方式。",
+    "welcome_title": "你好，我是 AI 助手",
+    "welcome_subtitle": "你可以询问当前系统的功能、API 接入或配置方式。",
     "input_placeholder": "输入问题，Enter 发送，Shift + Enter 换行",
     "response_disclaimer": "AI 回复仅供参考，重要信息请以系统实际数据和项目文档为准。",
     "thinking": "正在思考...",

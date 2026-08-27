@@ -238,13 +238,19 @@ function getTimelineSections(timeline: AiChatTimelineItem[]) {
               : 'bg-background text-foreground dark:bg-input/30'
         "
       >
-        <MessageCircleDashedIcon
+        <div
           v-if="isWelcomeMessage"
-          class="mx-auto mt-6 mb-2 size-8 shrink-0 text-primary"
-          aria-hidden="true"
-        />
+          class="flex flex-col items-center gap-1.5 px-4 pt-10 pb-4 text-center"
+        >
+          <MessageCircleDashedIcon
+            class="mb-1.5 size-10 shrink-0 text-primary"
+            aria-hidden="true"
+          />
+          <p class="text-base font-semibold text-primary">{{ t('ai_chat.welcome_title') }}</p>
+          <p class="text-xs/5 text-muted-foreground">{{ t('ai_chat.welcome_subtitle') }}</p>
+        </div>
         <AiMessageContent
-          v-if="message.role === 'assistant'"
+          v-else-if="message.role === 'assistant'"
           :content="getMessageContent(message.content)"
           :status="message.status ?? 'done'"
           :streaming="message.status === 'streaming' || message.id === streamingMessageId"
