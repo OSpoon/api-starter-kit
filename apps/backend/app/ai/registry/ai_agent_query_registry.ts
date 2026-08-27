@@ -15,7 +15,6 @@ import { wecomMessagePreviewQuery } from '#ai/queries/wecom_message_preview'
 import { wecomMessageTemplateProfileQuery } from '#ai/queries/wecom_message_template_profile'
 import { wecomMessageTemplatesQuery } from '#ai/queries/wecom_message_templates'
 import type { AiQueryTemplate, AiQueryTemplateCode } from '#ai/registry/ai_agent_query_types'
-import type { PermissionCode } from '#authorization/permission_catalog'
 import AiAgentPendingQuery from '#models/ai_agent_pending_query'
 import AuditLog from '#models/audit_log'
 
@@ -59,7 +58,7 @@ export function getAiQueryTemplate(code: string) {
   return queryTemplates.find((template) => template.code === code)
 }
 
-async function ensurePermission(userId: number, permission: PermissionCode) {
+async function ensurePermission(userId: number, permission: string) {
   await ensureAiAgentPermission(userId, permission, '当前账号没有执行此查询的权限')
 }
 

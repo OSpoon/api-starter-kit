@@ -1,9 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http'
 
-import {
-  getSystemPermissionGroupName,
-  systemPermissionGroupNames,
-} from '#authorization/permission_catalog'
 import Permission from '#models/permission'
 import { recordAuditEvent } from '#services/audit_log'
 import { clampLimit } from '#support/pagination'
@@ -14,7 +10,7 @@ function serializePermission(permission: Permission) {
     id: permission.id,
     code: permission.code,
     name: permission.name,
-    groupName: getSystemPermissionGroupName(permission.code, permission.groupName),
+    groupName: permission.groupName,
     description: permission.description,
     isSystem: permission.isSystem,
     roleCount: Number(permission.$extras.roles_count ?? 0),
@@ -28,20 +24,18 @@ function serializePermission(permission: Permission) {
 
 export default class PermissionsController {
   async catalog({ serialize }: HttpContext) {
-    await this.syncSystemPermissionGroups()
     const permissions = await Permission.query().orderBy('group_name').orderBy('code')
     return serialize(
       permissions.map((permission) => ({
         id: permission.id,
         code: permission.code,
         name: permission.name,
-        groupName: getSystemPermissionGroupName(permission.code, permission.groupName),
+        groupName: permission.groupName,
       }))
     )
   }
 
   async index({ request, serialize }: HttpContext) {
-    await this.syncSystemPermissionGroups()
     const page = Math.max(Number(request.input('page', 1)) || 1, 1)
     const search = String(request.input('search', '')).trim()
     const groupName = String(request.input('groupName', '')).trim()
@@ -62,12 +56,6 @@ export default class PermissionsController {
     if (groupName) query.where('group_name', groupName)
     const paginator = await query.paginate(page, clampLimit(request.input('limit'), 20, 100))
     return serialize({ items: paginator.all().map(serializePermission), meta: paginator.getMeta() })
-  }
-
-  private async syncSystemPermissionGroups() {
-    for (const [code, groupName] of Object.entries(systemPermissionGroupNames)) {
-      await Permission.query().where('code', code).where('is_system', true).update({ groupName })
-    }
   }
 
   async store(ctx: HttpContext) {

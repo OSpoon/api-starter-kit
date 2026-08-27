@@ -4,7 +4,6 @@ import { DateTime } from 'luxon'
 import { z } from 'zod'
 
 import { ensureAiAgentPermission } from '#ai/core/ai_agent_authorization'
-import type { PermissionCode } from '#authorization/permission_catalog'
 import type AiAgentConfirmation from '#models/ai_agent_confirmation'
 import ApiKey from '#models/api_key'
 import Permission from '#models/permission'
@@ -54,7 +53,7 @@ export type AiAgentActionPreparation = {
 export type AiAgentActionImpact = 'standard' | 'destructive'
 
 export type AiAgentActionDefinition = {
-  permission: PermissionCode
+  permission: string
   impact: AiAgentActionImpact
   prepare: (input: Record<string, unknown>) => Promise<AiAgentActionPreparation>
   execute: (input: {
@@ -150,7 +149,7 @@ export const aiApiKeyChangeSchema = z.preprocess(
     )
 )
 
-async function ensurePermission(ctx: HttpContext, permission: PermissionCode) {
+async function ensurePermission(ctx: HttpContext, permission: string) {
   const user = ctx.auth.getUserOrFail()
   try {
     await ensureAiAgentPermission(user.id, permission)

@@ -1,7 +1,5 @@
 import { type z } from 'zod'
 
-import type { PermissionCode } from '#authorization/permission_catalog'
-
 export type AiQueryParameter = {
   description: string
   required?: boolean
@@ -27,7 +25,7 @@ export type AiQueryTemplate = {
   code: AiQueryTemplateCode
   version: number
   description: string
-  permission: PermissionCode
+  permission: string
   parameters: Record<string, AiQueryParameter>
   persistParameters?: boolean
   execute: (params: Record<string, unknown>) => Promise<Record<string, unknown>>
