@@ -196,7 +196,6 @@
     "assistant": "AI Assistant",
     "copy_message": "Copy message",
     "retry_message": "Regenerate",
-    "refresh_suggestions": "Show different suggestions",
     "scroll_to_latest": "Jump to latest",
     "activities": {
       "diagnose_my_access": {
@@ -436,39 +435,7 @@
     "share_success": "Selected conversation copied as Markdown",
     "stream_incomplete": "The AI response connection was interrupted. Please try again.",
     "copy_failed": "Copy failed",
-    "demo_response": "Received. This component is now available as a reusable floating assistant and can be connected to a real AI service through the @send event.",
-    "suggestions": {
-      "api_keys": "How do I manage API keys?",
-      "openapi": "How do I view OpenAPI docs?",
-      "schema": "What can the Schema Builder do?"
-    },
-    "tasks": {
-      "access": {
-        "check": "Check my current permissions"
-      },
-      "api_keys": {
-        "list": "List active API keys",
-        "create": "Create a new API key"
-      },
-      "users": {
-        "list": "List users and their roles",
-        "reset_password": "Reset a user's password"
-      },
-      "roles": {
-        "list": "List roles and their permissions",
-        "create": "Create a new role"
-      },
-      "permissions": {
-        "list": "List the permission catalog",
-        "create": "Create a new permission"
-      },
-      "audit_logs": {
-        "recent": "Show recent audit records"
-      },
-      "knowledge": {
-        "search": "How do I use and maintain the knowledge base?"
-      }
-    }
+    "demo_response": "Received. This component is now available as a reusable floating assistant and can be connected to a real AI service through the @send event."
   },
   "dashboard": {
     "title": "Dashboard",

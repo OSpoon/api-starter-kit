@@ -196,7 +196,6 @@
     "assistant": "AI 助手",
     "copy_message": "复制消息",
     "retry_message": "重新生成",
-    "refresh_suggestions": "换一批",
     "scroll_to_latest": "回到最新消息",
     "activities": {
       "diagnose_my_access": {
@@ -436,39 +435,7 @@
     "share_success": "已复制所选对话 Markdown",
     "stream_incomplete": "AI 回复连接意外中断，请稍后重试。",
     "copy_failed": "复制失败",
-    "demo_response": "已收到。当前组件已作为通用悬浮助手接入，后续可以通过 @send 事件连接真实 AI 服务。",
-    "suggestions": {
-      "api_keys": "如何管理 API 密钥？",
-      "openapi": "如何查看 OpenAPI 文档？",
-      "schema": "Schema 构建器可以做什么？"
-    },
-    "tasks": {
-      "access": {
-        "check": "检查我当前拥有的权限"
-      },
-      "api_keys": {
-        "list": "列出当前有效的 API Key",
-        "create": "创建一个新的 API Key"
-      },
-      "users": {
-        "list": "列出用户及其角色",
-        "reset_password": "为用户重置密码"
-      },
-      "roles": {
-        "list": "列出角色及其权限",
-        "create": "创建一个新角色"
-      },
-      "permissions": {
-        "list": "列出权限目录",
-        "create": "创建一项新权限"
-      },
-      "audit_logs": {
-        "recent": "查看最近的审计记录"
-      },
-      "knowledge": {
-        "search": "如何使用和维护知识库？"
-      }
-    }
+    "demo_response": "已收到。当前组件已作为通用悬浮助手接入，后续可以通过 @send 事件连接真实 AI 服务。"
   },
   "dashboard": {
     "title": "仪表盘",

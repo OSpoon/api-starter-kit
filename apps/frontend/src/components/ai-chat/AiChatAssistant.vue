@@ -9,7 +9,6 @@ import {
   MessageCircleDashedIcon,
   MessageCirclePlus,
   Minus,
-  RefreshCw,
   Sparkles,
   Square,
   Trash2,
@@ -56,8 +55,6 @@ const props = withDefaults(
     title?: string
     placeholder?: string
     welcomeMessage?: string
-    suggestions?: string[]
-    canRefreshSuggestions?: boolean
     messages?: DisplayAiChatMessage[]
     conversations?: ChatConversation[]
     currentConversationId?: string | number | null
@@ -74,8 +71,6 @@ const props = withDefaults(
     title: undefined,
     placeholder: undefined,
     welcomeMessage: undefined,
-    suggestions: undefined,
-    canRefreshSuggestions: false,
     messages: undefined,
     conversations: () => [],
     currentConversationId: null,
@@ -99,7 +94,6 @@ const emit = defineEmits<{
   copyMessagesAsMarkdown: [messages: DisplayAiChatMessage[]]
   retryMessage: [message: DisplayAiChatMessage]
   stop: []
-  refreshSuggestions: []
   approveConfirmation: []
   dismissConfirmation: []
   dismissCredential: []
@@ -137,15 +131,6 @@ const displayMessages = computed(() => {
 
 const assistantTitle = computed(() => props.title || t('ai_chat.title'))
 const inputPlaceholder = computed(() => props.placeholder || t('ai_chat.input_placeholder'))
-const promptSuggestions = computed(() =>
-  (
-    props.suggestions ?? [
-      t('ai_chat.suggestions.api_keys'),
-      t('ai_chat.suggestions.openapi'),
-      t('ai_chat.suggestions.schema'),
-    ]
-  ).slice(0, 3)
-)
 
 const { chatHeight, chatWidth, startResize } = useAiChatResize()
 const {
@@ -456,46 +441,6 @@ watch(
                     </div>
                   </MessageScrollerItem>
                 </template>
-                <MessageScrollerItem
-                  v-if="displayMessages.length <= 1"
-                  class="inline-flex max-w-full flex-col items-start space-y-2 overflow-hidden pl-11"
-                >
-                  <div
-                    v-for="(suggestion, suggestionIndex) in promptSuggestions"
-                    :key="suggestion"
-                    class="flex max-w-full items-center gap-2"
-                  >
-                    <Button
-                      type="button"
-                      variant="link"
-                      size="sm"
-                      class="h-auto w-fit max-w-full min-w-0 justify-start overflow-hidden rounded-md px-2 py-1 text-left text-sm font-normal text-muted-foreground shadow-none hover:bg-muted/60 hover:text-foreground"
-                      :disabled="loading || disabled"
-                      :title="suggestion"
-                      @click="sendMessage(suggestion)"
-                    >
-                      <span class="mr-1 shrink-0 text-xs text-muted-foreground/70">
-                        {{ suggestionIndex + 1 }}.
-                      </span>
-                      <span class="block max-w-full truncate text-left">{{ suggestion }}</span>
-                    </Button>
-                    <Button
-                      v-if="
-                        canRefreshSuggestions && suggestionIndex === promptSuggestions.length - 1
-                      "
-                      type="button"
-                      variant="link"
-                      size="icon-sm"
-                      class="size-7 shrink-0 rounded-md p-0 text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-                      :title="t('ai_chat.refresh_suggestions')"
-                      :aria-label="t('ai_chat.refresh_suggestions')"
-                      :disabled="loading || disabled"
-                      @click="emit('refreshSuggestions')"
-                    >
-                      <RefreshCw class="size-3.5" />
-                    </Button>
-                  </div>
-                </MessageScrollerItem>
               </MessageScrollerContent>
             </MessageScrollerViewport>
             <MessageScrollerButton>

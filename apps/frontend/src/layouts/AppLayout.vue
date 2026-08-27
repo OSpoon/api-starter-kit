@@ -13,8 +13,6 @@ const {
   aiConversation,
   aiStreamingMessageId,
   aiLoading,
-  aiSuggestions,
-  allAiSuggestions,
   aiCredentialDisclosure,
   aiApprovalDismissed,
   pendingAiConfirmation,
@@ -25,7 +23,6 @@ const {
   handleAiCopyMessagesAsMarkdown,
   handleAiDeleteConversation,
   handleAiRetryMessage,
-  refreshAiSuggestions,
   confirmAiConfirmation,
   dismissAiConfirmation,
   handleAiCopyCredential,
@@ -65,8 +62,6 @@ const breadcrumbs = computed(() => {
         :current-conversation-id="aiConversation?.id"
         :streaming-message-id="aiStreamingMessageId"
         :loading="aiLoading"
-        :suggestions="aiSuggestions"
-        :can-refresh-suggestions="allAiSuggestions.length > 3"
         :approval="aiApprovalDismissed ? null : pendingAiConfirmation"
         :approval-loading="aiConfirming"
         :credential-disclosure="aiCredentialDisclosure"
@@ -75,7 +70,6 @@ const breadcrumbs = computed(() => {
         @copy-messages-as-markdown="handleAiCopyMessagesAsMarkdown"
         @delete-conversation="handleAiDeleteConversation"
         @retry-message="handleAiRetryMessage"
-        @refresh-suggestions="refreshAiSuggestions"
         @approve-confirmation="confirmAiConfirmation"
         @dismiss-confirmation="dismissAiConfirmation"
         @dismiss-credential="aiCredentialDisclosure = null"

@@ -11,6 +11,7 @@ import {
   Gauge,
   ListChecks,
   LoaderCircle,
+  MessageCircleDashedIcon,
   RotateCcw,
   Search,
   ShieldCheck,
@@ -63,6 +64,8 @@ defineEmits<{
 const { t, te } = useI18n()
 
 const actionMarker = /\[\[action:([A-Za-z0-9_-]+)\]\]/g
+
+const isWelcomeMessage = computed(() => props.message.id === 'welcome')
 
 function localizedOrFallback(key: string, fallback: string) {
   return te(key) ? t(key) : fallback
@@ -207,7 +210,13 @@ function getTimelineSections(timeline: AiChatTimelineItem[]) {
 </script>
 
 <template>
-  <div class="flex gap-2.5 text-sm/5" :class="message.role === 'user' ? 'flex-row-reverse' : ''">
+  <div
+    class="flex gap-2.5 text-sm/5"
+    :class="[
+      message.role === 'user' ? 'flex-row-reverse' : '',
+      isWelcomeMessage ? 'justify-center' : '',
+    ]"
+  >
     <Checkbox
       v-if="selectable && message.id !== 'welcome' && message.content.trim()"
       :model-value="selected"
@@ -224,9 +233,16 @@ function getTimelineSections(timeline: AiChatTimelineItem[]) {
         :class="
           message.role === 'user'
             ? 'bg-accent text-accent-foreground'
-            : 'bg-background text-foreground dark:bg-input/30'
+            : isWelcomeMessage
+              ? 'px-0 py-0 text-center'
+              : 'bg-background text-foreground dark:bg-input/30'
         "
       >
+        <MessageCircleDashedIcon
+          v-if="isWelcomeMessage"
+          class="mx-auto mt-6 mb-2 size-8 shrink-0 text-primary"
+          aria-hidden="true"
+        />
         <AiMessageContent
           v-if="message.role === 'assistant'"
           :content="getMessageContent(message.content)"

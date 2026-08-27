@@ -15,7 +15,6 @@ import {
 import { useAiChatConversations } from '@/features/ai/composables/useAiChatConversations'
 import { useAiChatStream } from '@/features/ai/composables/useAiChatStream'
 import { formatAiChatMessagesAsMarkdown } from '@/features/ai/markdown'
-import { getAiChatSuggestions, pickRandomAiChatSuggestions } from '@/features/ai/suggestions'
 import type { DisplayAiChatMessage, LocalAiChatMessage } from '@/features/ai/types'
 import { copyText } from '@/lib/clipboard'
 import { useAuthStore } from '@/stores/auth'
@@ -38,7 +37,6 @@ export function useAiChat() {
   const aiConfirming = ref(false)
   const aiApprovalDismissed = ref(false)
   const aiCredentialDisclosure = ref<AiChatCredentialDisclosure | null>(null)
-  const aiSuggestions = ref<string[]>([])
   const aiRunMeta = ref<AiChatRunMeta | null>(null)
 
   const conversationManager = useAiChatConversations(
@@ -66,14 +64,6 @@ export function useAiChat() {
     return messages
   })
 
-  const allAiSuggestions = computed(() => {
-    return getAiChatSuggestions({
-      permissions: auth.user?.permissions,
-      routeName: route.name,
-      translate: t,
-    })
-  })
-
   const aiPageContext = computed(() => {
     const lastMatched = [...route.matched].reverse().find((matched) => matched.meta.title)
     const title = lastMatched ? t(lastMatched.meta.title as string) : settingsStore.platformName
@@ -83,18 +73,6 @@ export function useAiChat() {
       title,
     }
   })
-
-  function refreshAiSuggestions() {
-    aiSuggestions.value = pickRandomAiChatSuggestions(allAiSuggestions.value)
-  }
-
-  watch(
-    allAiSuggestions,
-    () => {
-      aiSuggestions.value = pickRandomAiChatSuggestions(allAiSuggestions.value)
-    },
-    { immediate: true }
-  )
 
   function getDisplayedAiMessages() {
     return aiStreamingMessages.value.length
@@ -272,12 +250,9 @@ export function useAiChat() {
     aiConfirming,
     aiApprovalDismissed,
     aiCredentialDisclosure,
-    aiSuggestions,
     aiRunMeta,
     displayedAiChatMessages,
-    allAiSuggestions,
     aiPageContext,
-    refreshAiSuggestions,
     refreshAiConversations: conversationManager.refresh,
     ensureAiConversation: conversationManager.ensure,
     handleAiNewChat: conversationManager.createNew,
