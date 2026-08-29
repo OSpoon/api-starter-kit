@@ -356,6 +356,25 @@ at desktop and narrow widths and verify:
 - Add focused regression tests for bugs and high-risk behavior.
 - Verification must match the affected layer and risk. Never describe an unrun, failed, or blocked command as passing.
 
+### 7.3 Git Commit Messages
+
+- Use the Conventional Commits format: `<type>(<scope>): <subject>`.
+- Allowed types are `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, and `revert`.
+- Use a stable, lowercase scope when useful, such as `backend`, `frontend`, `auth`, `ai`, `database`, or `deps`. Omit the scope only when the change spans the repository broadly.
+- Write the subject in imperative mood, keep it concise (preferably no more than 72 characters), start with a lowercase letter, and do not end it with a period.
+- Add a body when context, behavior, migration notes, security impact, or verification details are not clear from the subject. Separate the body with one blank line and wrap it at approximately 72 characters.
+- Mark breaking changes with `!` after the type or scope, and explain the migration in the body or a `BREAKING CHANGE:` footer.
+- Keep each commit focused on one coherent change. Do not combine unrelated refactors, formatting, dependency upgrades, or generated-file updates.
+
+Examples:
+
+```text
+feat(ai): add confirmed WeCom send action
+fix(auth): prevent last administrator lockout
+docs: document Node.js version requirement
+chore(deps): update AdonisJS packages
+```
+
 ## 8. Delivery and Reporting
 
 The final summary must state:
