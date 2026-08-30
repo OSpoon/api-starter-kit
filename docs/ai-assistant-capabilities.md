@@ -64,7 +64,7 @@ flowchart TB
 
 ## 配置与观测
 
-模型、Embedding 和请求超时通过系统管理中的「LLM 配置」页面维护，保存后对下一次请求生效。上下文预算由模型的 `contextWindow`、输出上限和 Pi 的 token 估算共同控制；长会话由 Pi compaction 生成滚动摘要。
+模型、Embedding、ASR 和请求超时通过系统管理中的「LLM 配置」页面维护，保存后对下一次请求生效。Web AI 助手支持语音输入：录音最长 60 秒、音频最大 10 MB，停止后先由配置的 `Qwen3-ASR-0.6B-4bit`（或自定义模型）转写，再将中文文本交给对话模型。上下文预算由模型的 `contextWindow`、输出上限和 Pi 的 token 估算共同控制；长会话由 Pi compaction 生成滚动摘要。
 
 AI 请求运行状态由 Pi Agent、现有审计日志和对话消息记录维护。
 

@@ -11,6 +11,7 @@ import {
   type AiChatConversationSummary,
   type AiChatMessage,
   confirmAiAgentAction,
+  transcribeAiChatAudio,
 } from '@/features/ai/api'
 import { useAiChatConversations } from '@/features/ai/composables/useAiChatConversations'
 import { useAiChatStream } from '@/features/ai/composables/useAiChatStream'
@@ -38,6 +39,7 @@ export function useAiChat() {
   const aiApprovalDismissed = ref(false)
   const aiCredentialDisclosure = ref<AiChatCredentialDisclosure | null>(null)
   const aiRunMeta = ref<AiChatRunMeta | null>(null)
+  const aiVoiceTranscribing = ref(false)
 
   const conversationManager = useAiChatConversations(
     () => auth.token,
@@ -214,6 +216,20 @@ export function useAiChat() {
     await handleAiSend(previousUserMessage.content, Number(message.id))
   }
 
+  async function handleAiVoiceSend(audio: Blob, fileName: string) {
+    aiVoiceTranscribing.value = true
+    try {
+      const text = await transcribeAiChatAudio(auth.token, audio, fileName)
+      // Return to the normal composer as soon as ASR finishes. The LLM stream
+      // has its own loading state and must not keep the transcription UI open.
+      aiVoiceTranscribing.value = false
+      await handleAiSend(text)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : t('ai_chat.voice.transcribe_failed'))
+      aiVoiceTranscribing.value = false
+    }
+  }
+
   const { send: handleAiSend } = useAiChatStream(
     () => auth.token,
     (key) => t(key),
@@ -251,6 +267,7 @@ export function useAiChat() {
     aiApprovalDismissed,
     aiCredentialDisclosure,
     aiRunMeta,
+    aiVoiceTranscribing,
     displayedAiChatMessages,
     aiPageContext,
     refreshAiConversations: conversationManager.refresh,
@@ -267,5 +284,6 @@ export function useAiChat() {
     confirmAiConfirmation,
     handleAiRetryMessage,
     handleAiSend,
+    handleAiVoiceSend,
   }
 }

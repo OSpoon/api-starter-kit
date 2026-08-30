@@ -15,6 +15,7 @@ const {
   aiLoading,
   aiCredentialDisclosure,
   aiApprovalDismissed,
+  aiVoiceTranscribing,
   pendingAiConfirmation,
   aiConfirming,
   displayedAiChatMessages,
@@ -27,6 +28,7 @@ const {
   dismissAiConfirmation,
   handleAiCopyCredential,
   handleAiSend,
+  handleAiVoiceSend,
   handleAiSelectConversation,
   handleAiStop,
 } = useAiChat()
@@ -65,6 +67,7 @@ const breadcrumbs = computed(() => {
         :approval="aiApprovalDismissed ? null : pendingAiConfirmation"
         :approval-loading="aiConfirming"
         :credential-disclosure="aiCredentialDisclosure"
+        :voice-transcribing="aiVoiceTranscribing"
         @clear="handleAiNewChat"
         @copy-message="handleAiCopyMessage"
         @copy-messages-as-markdown="handleAiCopyMessagesAsMarkdown"
@@ -75,6 +78,7 @@ const breadcrumbs = computed(() => {
         @dismiss-credential="aiCredentialDisclosure = null"
         @copy-credential="handleAiCopyCredential"
         @send="handleAiSend"
+        @voice-send="handleAiVoiceSend"
         @select-conversation="handleAiSelectConversation"
         @stop="handleAiStop"
       />

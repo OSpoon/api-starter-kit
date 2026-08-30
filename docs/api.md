@@ -33,11 +33,17 @@
 | 账户     | `/account/profile`、`/account/password`、2FA 操作、`/account/logout`                                         |
 | API Key  | `/api-keys`、`/api-keys/:id`                                                                                 |
 | 系统管理 | `/system/users`、`/system/roles`、`/system/permissions`、`/system/audit-logs`、`/system/knowledge-documents` |
-| AI 会话  | `/ai-chat/conversations` 及嵌套消息、确认操作、`POST /ai-chat/conversations/:id/resume` 恢复操作             |
+| AI 会话  | `/ai-chat/conversations` 及嵌套消息、确认操作、`POST /ai-chat/transcribe` 语音转写               |
 
 表内路径均相对 `/api/v1`。系统管理与 API Key 操作需要对应的命名权限，详见[安全与治理](security.md)。
 
 知识文档支持通过 `POST /system/knowledge-documents/batch` 使用 multipart 字段 `files` 批量上传 TXT、Markdown 或 reStructuredText 文件；单次最多 20 份、每份最大 2 MB。响应中的 `data.items` 为成功创建的文档，`data.failed` 为未成功处理的文件及原因。
+
+### AI 语音转写
+
+`POST /api/v1/ai-chat/transcribe` 使用 Bearer Token 鉴权，接收 `multipart/form-data` 字段 `audio`。支持 WebM、OGG、WAV、MP3、M4A、MP4、MPEG 和 MPGA，单个文件最大 10 MB。响应为 `{ data: { text } }`；接口只返回转写文本，不创建聊天消息，前端随后复用普通 AI 消息接口提交文本。
+
+ASR 服务地址、模型和密钥通过系统管理的「LLM 配置」页面维护。密钥只在服务端使用并加密存储，不会返回给前端。
 
 ## 接口开发约定
 

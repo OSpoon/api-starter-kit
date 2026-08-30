@@ -66,6 +66,7 @@ export type ScannedRoutes = {
     'ai_chat.index': { paramsTuple?: []; params?: {} }
     'ai_chat.store': { paramsTuple?: []; params?: {} }
     'ai_chat.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'ai_chat.transcribe': { paramsTuple?: []; params?: {} }
     'ai_chat.send_message': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'ai_chat.steer': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'ai_chat.follow_up': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
@@ -102,6 +103,7 @@ export type ScannedRoutes = {
     'roles.store': { paramsTuple?: []; params?: {} }
     'permissions.store': { paramsTuple?: []; params?: {} }
     'ai_chat.store': { paramsTuple?: []; params?: {} }
+    'ai_chat.transcribe': { paramsTuple?: []; params?: {} }
     'ai_chat.send_message': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'ai_chat.steer': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'ai_chat.follow_up': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }

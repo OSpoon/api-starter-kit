@@ -227,6 +227,7 @@ router
         router.get('conversations', [AiChatController, 'index'])
         router.post('conversations', [AiChatController, 'store'])
         router.get('conversations/:id', [AiChatController, 'show'])
+        router.post('transcribe', [AiChatController, 'transcribe'])
         router.post('conversations/:id/messages', [AiChatController, 'sendMessage'])
         router.post('conversations/:id/steer', [AiChatController, 'steer'])
         router.post('conversations/:id/follow-up', [AiChatController, 'followUp'])

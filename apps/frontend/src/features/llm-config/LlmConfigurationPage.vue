@@ -20,6 +20,9 @@ const form = reactive({
   chatApiKey: '',
   chatBaseUrl: '',
   chatModel: '',
+  asrApiKey: '',
+  asrBaseUrl: '',
+  asrModel: 'Qwen3-ASR-0.6B-4bit',
   embeddingApiKey: '',
   embeddingBaseUrl: '',
   embeddingModel: '',
@@ -32,6 +35,8 @@ async function load() {
     const config = await getLlmConfiguration(auth.token)
     form.chatBaseUrl = config.chat.baseUrl ?? ''
     form.chatModel = config.chat.model
+    form.asrBaseUrl = config.asr.baseUrl ?? ''
+    form.asrModel = config.asr.model
     form.embeddingBaseUrl = config.embedding.baseUrl ?? ''
     form.embeddingModel = config.embedding.model ?? ''
     form.embeddingDimensions = config.embedding.dimensions
@@ -49,9 +54,11 @@ async function save() {
     await updateLlmConfiguration(auth.token, {
       ...form,
       chatApiKey: form.chatApiKey || undefined,
+      asrApiKey: form.asrApiKey || undefined,
       embeddingApiKey: form.embeddingApiKey || undefined,
     })
     form.chatApiKey = ''
+    form.asrApiKey = ''
     form.embeddingApiKey = ''
     toast.success(t('llm_config.saved'))
   } catch (error) {
@@ -104,6 +111,35 @@ onMounted(load)
             ><Input
               id="chat-api-key"
               v-model="form.chatApiKey"
+              type="password"
+              :placeholder="t('llm_config.keep_existing')"
+            />
+          </div>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader
+          ><CardTitle>{{ t('llm_config.asr_title') }}</CardTitle
+          ><CardDescription>{{ t('llm_config.asr_description') }}</CardDescription></CardHeader
+        >
+        <CardContent class="grid items-start gap-4 md:grid-cols-2">
+          <div class="space-y-2 md:col-span-2">
+            <Label for="asr-base-url">{{ t('llm_config.base_url') }}</Label>
+            <Input
+              id="asr-base-url"
+              v-model="form.asrBaseUrl"
+              placeholder="http://localhost:8000/v1"
+            />
+          </div>
+          <div class="space-y-2">
+            <Label for="asr-model">{{ t('llm_config.model') }}</Label>
+            <Input id="asr-model" v-model="form.asrModel" />
+          </div>
+          <div class="space-y-2">
+            <Label for="asr-api-key">{{ t('llm_config.api_key') }}</Label>
+            <Input
+              id="asr-api-key"
+              v-model="form.asrApiKey"
               type="password"
               :placeholder="t('llm_config.keep_existing')"
             />

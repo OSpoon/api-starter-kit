@@ -113,6 +113,7 @@ export interface ApiDefinition {
     index: typeof routes['ai_chat.index']
     store: typeof routes['ai_chat.store']
     show: typeof routes['ai_chat.show']
+    transcribe: typeof routes['ai_chat.transcribe']
     sendMessage: typeof routes['ai_chat.send_message']
     steer: typeof routes['ai_chat.steer']
     followUp: typeof routes['ai_chat.follow_up']

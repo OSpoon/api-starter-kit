@@ -15,6 +15,15 @@ export default class LlmConfiguration extends BaseModel {
   declare chatModel: string
 
   @column({ serializeAs: null })
+  declare asrApiKey: string | null
+
+  @column()
+  declare asrBaseUrl: string | null
+
+  @column()
+  declare asrModel: string
+
+  @column({ serializeAs: null })
   declare embeddingApiKey: string | null
 
   @column()

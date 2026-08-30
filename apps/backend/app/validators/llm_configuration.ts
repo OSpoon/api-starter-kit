@@ -11,6 +11,15 @@ export const updateLlmConfigurationValidator = vine.compile(
       .optional()
       .nullable(),
     chatModel: vine.string().trim().minLength(1).maxLength(160),
+    asrApiKey: vine.string().trim().maxLength(500).optional().nullable(),
+    asrBaseUrl: vine
+      .string()
+      .trim()
+      .url({ require_tld: false })
+      .maxLength(500)
+      .optional()
+      .nullable(),
+    asrModel: vine.string().trim().minLength(1).maxLength(160),
     embeddingApiKey: vine.string().trim().maxLength(500).optional().nullable(),
     embeddingBaseUrl: vine
       .string()

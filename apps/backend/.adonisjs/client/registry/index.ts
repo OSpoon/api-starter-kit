@@ -378,6 +378,12 @@ const routes = {
     tokens: [{"old":"/api/v1/ai-chat/conversations/:id","type":0,"val":"api","end":""},{"old":"/api/v1/ai-chat/conversations/:id","type":0,"val":"v1","end":""},{"old":"/api/v1/ai-chat/conversations/:id","type":0,"val":"ai-chat","end":""},{"old":"/api/v1/ai-chat/conversations/:id","type":0,"val":"conversations","end":""},{"old":"/api/v1/ai-chat/conversations/:id","type":1,"val":"id","end":""}],
     types: placeholder as Registry['ai_chat.show']['types'],
   },
+  'ai_chat.transcribe': {
+    methods: ["POST"],
+    pattern: '/api/v1/ai-chat/transcribe',
+    tokens: [{"old":"/api/v1/ai-chat/transcribe","type":0,"val":"api","end":""},{"old":"/api/v1/ai-chat/transcribe","type":0,"val":"v1","end":""},{"old":"/api/v1/ai-chat/transcribe","type":0,"val":"ai-chat","end":""},{"old":"/api/v1/ai-chat/transcribe","type":0,"val":"transcribe","end":""}],
+    types: placeholder as Registry['ai_chat.transcribe']['types'],
+  },
   'ai_chat.send_message': {
     methods: ["POST"],
     pattern: '/api/v1/ai-chat/conversations/:id/messages',

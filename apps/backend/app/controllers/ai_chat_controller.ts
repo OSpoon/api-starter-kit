@@ -14,6 +14,7 @@ import {
 import { getAiAgentRun } from '#ai/runtime/ai_agent_run_registry'
 import AiChatConversation from '#models/ai_chat_conversation'
 import AiChatMessage from '#models/ai_chat_message'
+import { getAudioMimeType, transcribeAudio } from '#services/ai_speech_service'
 import {
   serializeAiChatConversation,
   serializeAiChatConversationWithMessages,
@@ -32,6 +33,34 @@ function createTitle(content: string) {
 
 @ApiSecurity('bearerAuth')
 export default class AiChatController {
+  @ApiOperation({ summary: '转写 AI 助手语音消息' })
+  @ApiResponse({ status: 200, description: '语音转写结果' })
+  async transcribe(ctx: HttpContext) {
+    const { request, response, serialize } = ctx
+    const file = request.file('audio', {
+      size: '10mb',
+      extnames: ['webm', 'ogg', 'wav', 'mp3', 'm4a', 'mp4', 'mpeg', 'mpga'],
+    })
+    if (!file || !file.isValid || !file.tmpPath) {
+      return response.unprocessableEntity({
+        message: file?.errors?.[0]?.message ?? '请上传不超过 10 MB 的有效音频文件',
+      })
+    }
+    try {
+      return serialize({
+        text: await transcribeAudio(
+          file.tmpPath,
+          file.clientName,
+          getAudioMimeType(file.clientName)
+        ),
+      })
+    } catch (error) {
+      return response.unprocessableEntity({
+        message: error instanceof Error ? error.message : '语音转写失败，请稍后重试',
+      })
+    }
+  }
+
   @ApiOperation({
     summary: '获取 AI 会话列表',
     description: '返回当前管理员的 AI 聊天历史会话。',

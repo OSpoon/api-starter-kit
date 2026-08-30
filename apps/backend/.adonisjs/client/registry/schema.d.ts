@@ -751,6 +751,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['show']>>>
     }
   }
+  'ai_chat.transcribe': {
+    methods: ["POST"]
+    pattern: '/api/v1/ai-chat/transcribe'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['transcribe']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['transcribe']>>>
+    }
+  }
   'ai_chat.send_message': {
     methods: ["POST"]
     pattern: '/api/v1/ai-chat/conversations/:id/messages'

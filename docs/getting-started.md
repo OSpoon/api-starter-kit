@@ -41,6 +41,8 @@ OpenAPI UI 需要后端环境变量 `OPENAPI_DOCS_ENABLED=true`。
 
 ## AI 提供方配置
 
-首次迁移会将已有 AI 环境变量导入数据库。之后请在系统管理中的「LLM 配置」页面维护 OpenAI-compatible provider 和 Embedding 配置；Embedding 维度默认 1024，切换模型后需要重建知识库索引。
+首次迁移会将已有 AI 环境变量导入数据库。之后请在系统管理中的「LLM 配置」页面维护对话模型、Embedding 和语音转写（ASR）配置；Embedding 维度默认 1024，切换模型后需要重建知识库索引。ASR 需要配置 OpenAI-compatible 音频转写服务，模型默认是 `Qwen3-ASR-0.6B-4bit`。
+
+配置 ASR 后，登录 Web 管理台打开 AI 助手，点击麦克风即可录音。录音最长 60 秒、上传文件最大 10 MB；停止录音后系统先转写为中文，再将中文文本提交给对话模型。
 
 继续阅读 [API 指南](api.md) 和[部署指南](deployment.md)。

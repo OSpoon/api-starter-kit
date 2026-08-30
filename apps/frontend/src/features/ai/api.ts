@@ -196,6 +196,17 @@ export async function sendAiChatMessage(token: string | null, id: number, conten
   return readItem(response)
 }
 
+export async function transcribeAiChatAudio(token: string | null, audio: Blob, fileName: string) {
+  const body = new FormData()
+  body.append('audio', audio, fileName)
+  const response = await apiRequest<{ data: { text: string } }>('/api/v1/ai-chat/transcribe', {
+    ...authOptions(token),
+    method: 'POST',
+    body,
+  })
+  return readItem(response).text
+}
+
 type AiChatStreamEvent =
   | { type: 'user'; conversation: AiChatConversationSummary; message: AiChatMessage }
   | { type: 'delta'; content: string }

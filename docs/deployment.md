@@ -30,7 +30,7 @@ Compose 会启动支持 pgvector 的 PostgreSQL、AdonisJS 后端与 Nginx 托�
 
 ## AI 与可观测性
 
-OpenAI-compatible provider 和知识检索配置在系统管理中的「LLM 配置」页面维护。部署后确认 provider 地址可从 backend 容器或宿主机访问。
+OpenAI-compatible provider、知识检索和 ASR 配置在系统管理中的「LLM 配置」页面维护。启用 Web 语音输入时，配置 ASR Base URL、API Key 和模型（默认 `Qwen3-ASR-0.6B-4bit`），并确认该地址可从 backend 容器或宿主机访问。ASR 服务应支持 `/audio/transcriptions` multipart 接口，并能解码 WebM、OGG、WAV、MP3 或 M4A 音频。
 
 AI 助手通过系统管理中的「LLM 配置」页面接入配置的 provider。配置保存后无需重启服务即可生效。
 

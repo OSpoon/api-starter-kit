@@ -7,6 +7,7 @@
 ```mermaid
 flowchart TB
   A["HTTP 请求"] --> B["ai_chat_controller"]
+  B --> ASR["ASR 转写服务"]
   B --> C["ai_chat_sse_adapter"]
   B --> D["ai_agent_service"]
   D --> E["Pi Agent"]
@@ -20,6 +21,7 @@ flowchart TB
 
 - `app/ai` 集中维护 Pi runtime、会话编排、SSE 适配、提示词策略和工具注册；可复用的领域逻辑仍位于 `app/services`。
 - `ai_chat_controller.ts` 只负责会话归属、输入校验、消息持久化和 HTTP/SSE 生命周期。
+- `ai_chat_controller.ts` 的 `transcribe` 处理 Web AI 助手的 multipart 音频上传；`ai_speech_service.ts` 使用运行时 LLM 配置调用 OpenAI-compatible ASR 服务，并只返回转写文本。转写接口不直接创建聊天消息，前端拿到文本后复用普通消息 SSE 链路。
 - `ai_chat_sse_adapter.ts` 只负责把单一 Pi `AgentEvent` 流转换为 SSE、keepalive、工具状态详情、阶段和确认事件。
 - `ai_agent_service.ts` 创建 Pi Agent，配置模型、上下文和工具事件流；每个会话使用稳定的 Pi `sessionId`，并显式使用 Pi 的 steer/follow-up 单条队列策略。
 - `ai_agent_pi_stream.ts` 负责创建 Pi Agent、订阅原始事件并暴露控制句柄；消息流和工具流统一通过 Pi 事件处理。
@@ -62,7 +64,7 @@ AI 请求完成时间由现有审计日志和运行状态记录，不依赖外�
 
 后端 SSE 事件包括 `user`、`agent_status`、`agent_confirmation`、`agent_citations`、`delta`、`done` 和 `error`。`agent_status` 只返回工具名称、状态、阶段及安全详情，不返回敏感参数或原始结果。
 
-前端 `ai-chat-api.ts` 解析事件，`useAiChat.ts` 管理流式消息和确认状态，`AiChatAssistant.vue` 提供会话、工具状态、确认、重试、停止生成和快捷建议。AI 查询没有“继续查看”按钮；完整数据由业务模块自身的列表分页提供。
+前端 `ai-chat-api.ts` 解析事件并请求 ASR，`useAiChat.ts` 管理流式消息、确认状态和转写状态，`AiChatAssistant.vue` 提供会话、工具状态、确认、语音录音、实时波形、重试、停止生成和快捷建议。AI 查询没有“继续查看”按钮；完整数据由业务模块自身的列表分页提供。
 
 ## 验证
 

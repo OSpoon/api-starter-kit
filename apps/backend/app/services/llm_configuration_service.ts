@@ -6,6 +6,9 @@ type LlmConfigInput = {
   chatApiKey?: string | null
   chatBaseUrl?: string | null
   chatModel: string
+  asrApiKey?: string | null
+  asrBaseUrl?: string | null
+  asrModel: string
   embeddingApiKey?: string | null
   embeddingBaseUrl?: string | null
   embeddingModel?: string | null
@@ -38,6 +41,7 @@ export async function getLlmConfiguration() {
   return LlmConfiguration.create({
     id: 1,
     chatModel: 'gpt-4o-mini',
+    asrModel: 'Qwen3-ASR-0.6B-4bit',
     embeddingModel: null,
     embeddingDimensions: 1024,
     requestTimeoutMs: 180000,
@@ -51,6 +55,11 @@ export async function readRuntimeLlmConfiguration() {
       apiKey: decryptSecret(config.chatApiKey) ?? 'no-key',
       baseURL: config.chatBaseUrl,
       model: config.chatModel,
+    },
+    asr: {
+      apiKey: decryptSecret(config.asrApiKey),
+      baseURL: config.asrBaseUrl,
+      model: config.asrModel,
     },
     embedding: {
       apiKey: decryptSecret(config.embeddingApiKey) ?? decryptSecret(config.chatApiKey) ?? 'no-key',
@@ -105,6 +114,8 @@ export async function updateLlmConfiguration(input: LlmConfigInput) {
   const config = await getLlmConfiguration()
   config.chatBaseUrl = input.chatBaseUrl?.trim() || null
   config.chatModel = input.chatModel.trim()
+  config.asrBaseUrl = input.asrBaseUrl?.trim() || null
+  config.asrModel = input.asrModel.trim()
   config.embeddingBaseUrl = input.embeddingBaseUrl?.trim() || null
   config.embeddingModel = input.embeddingModel?.trim() || null
   config.embeddingDimensions = input.embeddingDimensions
@@ -118,6 +129,7 @@ export async function updateLlmConfiguration(input: LlmConfigInput) {
   config.dingtalkCardTemplateId = input.dingtalkCardTemplateId?.trim() || null
   config.dingtalkStreamingCardTemplateId = input.dingtalkStreamingCardTemplateId?.trim() || null
   if (input.chatApiKey?.trim()) config.chatApiKey = encryptSecret(input.chatApiKey)
+  if (input.asrApiKey?.trim()) config.asrApiKey = encryptSecret(input.asrApiKey)
   if (input.embeddingApiKey?.trim()) config.embeddingApiKey = encryptSecret(input.embeddingApiKey)
   if (input.wecomBotSecret?.trim()) config.wecomBotSecret = encryptSecret(input.wecomBotSecret)
   if (input.feishuAppSecret?.trim()) config.feishuAppSecret = encryptSecret(input.feishuAppSecret)
@@ -134,6 +146,11 @@ export function serializeLlmConfiguration(config: LlmConfiguration) {
       baseUrl: config.chatBaseUrl,
       model: config.chatModel,
       apiKeyConfigured: Boolean(config.chatApiKey),
+    },
+    asr: {
+      baseUrl: config.asrBaseUrl,
+      model: config.asrModel,
+      apiKeyConfigured: Boolean(config.asrApiKey),
     },
     embedding: {
       baseUrl: config.embeddingBaseUrl,

@@ -5,15 +5,18 @@ import {
   CircleCheck,
   History,
   ListChecks,
+  LoaderCircle,
   MessageCircle,
   MessageCircleDashedIcon,
   MessageCirclePlus,
+  Mic,
   Minus,
   Sparkles,
   Square,
   Trash2,
   X,
 } from '@lucide/vue'
+import { toast } from 'vue-sonner'
 
 import AiChatApprovalCard from '@/components/ai-chat/AiChatApprovalCard.vue'
 import AiChatCredentialCard from '@/components/ai-chat/AiChatCredentialCard.vue'
@@ -65,6 +68,7 @@ const props = withDefaults(
     approval?: AiChatConfirmation | null
     approvalLoading?: boolean
     credentialDisclosure?: AiChatCredentialDisclosure | null
+    voiceTranscribing?: boolean
   }>(),
   {
     modelValue: undefined,
@@ -81,12 +85,14 @@ const props = withDefaults(
     approval: null,
     approvalLoading: false,
     credentialDisclosure: null,
+    voiceTranscribing: false,
   }
 )
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
   send: [message: string]
+  voiceSend: [audio: Blob, fileName: string]
   clear: []
   selectConversation: [id: string | number]
   deleteConversation: [id: string | number]
@@ -106,6 +112,124 @@ const internalOpen = ref(false)
 const input = ref('')
 const isComposingInput = ref(false)
 const compositionEndedAt = ref(0)
+const isRecording = ref(false)
+const isPreparingRecording = ref(false)
+let mediaRecorder: MediaRecorder | null = null
+let recordingChunks: Blob[] = []
+let recordingTimeout: ReturnType<typeof setTimeout> | null = null
+let discardRecording = false
+let audioContext: AudioContext | null = null
+let audioAnalyser: AnalyserNode | null = null
+let audioSource: MediaStreamAudioSourceNode | null = null
+let waveformFrame: number | null = null
+let lastWaveformSampleAt = 0
+
+const waveformHeights = ref<number[]>(Array.from({ length: 56 }, () => 8))
+
+const MAX_RECORDING_DURATION_MS = 60_000
+
+function preferredAudioMimeType() {
+  return ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg'].find((type) =>
+    MediaRecorder.isTypeSupported(type)
+  )
+}
+
+function stopWaveform() {
+  if (waveformFrame !== null) cancelAnimationFrame(waveformFrame)
+  waveformFrame = null
+  audioSource?.disconnect()
+  audioAnalyser?.disconnect()
+  audioSource = null
+  audioAnalyser = null
+  void audioContext?.close()
+  audioContext = null
+  lastWaveformSampleAt = 0
+  waveformHeights.value = Array.from({ length: 56 }, () => 8)
+}
+
+function updateWaveform() {
+  if (!audioAnalyser) return
+  const now = performance.now()
+  if (now - lastWaveformSampleAt >= 50) {
+    lastWaveformSampleAt = now
+    const values = new Uint8Array(audioAnalyser.fftSize)
+    audioAnalyser.getByteTimeDomainData(values)
+    const volume = Math.sqrt(
+      values.reduce((total, value) => total + (value - 128) ** 2, 0) / values.length
+    )
+    const peak = Math.min(volume / 18, 1)
+    const nextHeight = Math.round(8 + peak * 28)
+    waveformHeights.value = [...waveformHeights.value.slice(1), nextHeight]
+  }
+  waveformFrame = requestAnimationFrame(updateWaveform)
+}
+
+function startWaveform(stream: MediaStream) {
+  const browserWindow = window as Window & typeof globalThis & {
+    webkitAudioContext?: typeof AudioContext
+  }
+  const AudioContextConstructor = browserWindow.AudioContext || browserWindow.webkitAudioContext
+  if (!AudioContextConstructor) return
+  audioContext = new AudioContextConstructor()
+  audioAnalyser = audioContext.createAnalyser()
+  audioAnalyser.fftSize = 256
+  audioSource = audioContext.createMediaStreamSource(stream)
+  audioSource.connect(audioAnalyser)
+  updateWaveform()
+}
+
+async function toggleRecording() {
+  if (isPreparingRecording.value || props.disabled) return
+  if (isRecording.value) {
+    mediaRecorder?.stop()
+    return
+  }
+  if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
+    toast.error(t('ai_chat.voice.unsupported'))
+    return
+  }
+  isPreparingRecording.value = true
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+    startWaveform(stream)
+    const mimeType = preferredAudioMimeType()
+    mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined)
+    recordingChunks = []
+    discardRecording = false
+    mediaRecorder.ondataavailable = (event) => event.data.size && recordingChunks.push(event.data)
+    mediaRecorder.onstop = () => {
+      if (recordingTimeout) {
+        clearTimeout(recordingTimeout)
+        recordingTimeout = null
+      }
+      stream.getTracks().forEach((track) => track.stop())
+      stopWaveform()
+      const blob = new Blob(recordingChunks, { type: mediaRecorder?.mimeType || 'audio/webm' })
+      const extension = blob.type.includes('mp4') ? 'mp4' : blob.type.includes('ogg') ? 'ogg' : 'webm'
+      if (blob.size > 10 * 1024 * 1024) toast.error(t('ai_chat.voice.too_large'))
+      else if (!discardRecording && blob.size) emit('voiceSend', blob, `voice-message.${extension}`)
+      isRecording.value = false
+      mediaRecorder = null
+    }
+    mediaRecorder.start()
+    isRecording.value = true
+    recordingTimeout = setTimeout(() => {
+      toast.info(t('ai_chat.voice.max_duration'))
+      mediaRecorder?.stop()
+    }, MAX_RECORDING_DURATION_MS)
+  } catch {
+    stopWaveform()
+    toast.error(t('ai_chat.voice.permission_denied'))
+  } finally {
+    isPreparingRecording.value = false
+  }
+}
+
+function cancelRecording() {
+  if (!isRecording.value) return
+  discardRecording = true
+  mediaRecorder?.stop()
+}
 
 const isControlled = computed(() => props.modelValue !== undefined)
 const isOpen = computed({
@@ -466,7 +590,62 @@ watch(
           @approve="emit('approveConfirmation')"
           @dismiss="emit('dismissConfirmation')"
         />
-        <form class="flex items-end gap-2" @submit.prevent="handleSubmit">
+        <div
+          v-if="isRecording || voiceTranscribing"
+          class="flex min-h-10 items-center gap-2 rounded-full border bg-background px-2 py-1.5"
+          role="status"
+          :aria-label="
+            voiceTranscribing ? t('ai_chat.voice.transcribing') : t('ai_chat.voice.recording')
+          "
+        >
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            class="shrink-0 rounded-full text-muted-foreground"
+            :title="t('ai_chat.voice.cancel')"
+            :aria-label="t('ai_chat.voice.cancel')"
+            :disabled="voiceTranscribing"
+            @click="cancelRecording"
+          >
+            <X class="size-4" />
+          </Button>
+          <div v-if="voiceTranscribing" class="flex min-w-0 flex-1 items-center justify-center">
+            <span class="text-sm text-muted-foreground">{{ t('ai_chat.voice.transcribing') }}</span>
+          </div>
+          <div v-else class="flex min-w-0 flex-1 items-center justify-center gap-0.5 px-2" aria-hidden="true">
+            <span
+              v-for="index in 56"
+              :key="index"
+              class="w-1 rounded-full bg-muted-foreground/25 transition-[height] duration-75"
+              :style="{ height: `${waveformHeights[index - 1]}px` }"
+            />
+          </div>
+          <Button
+            v-if="isRecording"
+            type="button"
+            variant="secondary"
+            size="icon-sm"
+            class="shrink-0 rounded-full"
+            :title="t('ai_chat.voice.stop')"
+            :aria-label="t('ai_chat.voice.stop')"
+            @click="toggleRecording"
+          >
+            <Square class="size-3.5 fill-current" />
+          </Button>
+          <Button
+            type="button"
+            size="icon-sm"
+            class="shrink-0 rounded-full"
+            :disabled="voiceTranscribing"
+            :title="voiceTranscribing ? t('ai_chat.voice.transcribing') : t('ai_chat.voice.send')"
+            :aria-label="voiceTranscribing ? t('ai_chat.voice.transcribing') : t('ai_chat.voice.send')"
+          >
+            <LoaderCircle v-if="voiceTranscribing" class="size-3.5 animate-spin" />
+            <ArrowUpIcon v-else class="size-3.5" />
+          </Button>
+        </div>
+        <form v-else class="flex items-end gap-2" @submit.prevent="handleSubmit">
           <div class="relative flex-1">
             <Textarea
               v-model="input"
@@ -479,6 +658,20 @@ watch(
               @keydown="handleKeydown"
               @paste="handlePaste"
             />
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              class="absolute right-10 bottom-2"
+              :class="{ 'text-destructive': isRecording, 'text-primary': isPreparingRecording }"
+              :disabled="disabled || loading || isPreparingRecording"
+              :title="isRecording ? t('ai_chat.voice.stop') : t('ai_chat.voice.start')"
+              :aria-label="isRecording ? t('ai_chat.voice.stop') : t('ai_chat.voice.start')"
+              @click="toggleRecording"
+            >
+              <LoaderCircle v-if="isPreparingRecording" class="size-3.5 animate-spin" />
+              <Mic v-else class="size-3.5" />
+            </Button>
             <Button
               :type="loading ? 'button' : 'submit'"
               size="icon-sm"

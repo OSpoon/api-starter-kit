@@ -4,6 +4,7 @@ import { readItem } from '@/lib/api-types'
 
 export interface LlmConfiguration {
   chat: { baseUrl: string | null; model: string; apiKeyConfigured: boolean }
+  asr: { baseUrl: string | null; model: string; apiKeyConfigured: boolean }
   embedding: {
     baseUrl: string | null
     model: string | null
