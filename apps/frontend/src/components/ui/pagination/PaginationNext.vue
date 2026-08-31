@@ -8,6 +8,8 @@ import { PaginationNext, useForwardProps } from 'reka-ui'
 import { cn } from '@/lib/utils'
 import { buttonVariants } from '@/components/ui/button'
 
+const { t } = useI18n()
+
 const props = withDefaults(
   defineProps<
     PaginationNextProps & {
@@ -27,11 +29,12 @@ const forwarded = useForwardProps(delegatedProps)
 <template>
   <PaginationNext
     data-slot="pagination-next"
+    :aria-label="t('common.next')"
     :class="cn(buttonVariants({ variant: 'ghost', size }), 'pr-2!', props.class)"
     v-bind="forwarded"
   >
     <slot>
-      <span class="hidden sm:block">Next</span>
+      <span class="hidden sm:block">{{ t('common.next') }}</span>
       <ChevronRightIcon data-icon="inline-end" class="cn-rtl-flip" />
     </slot>
   </PaginationNext>

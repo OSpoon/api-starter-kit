@@ -29,6 +29,14 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationNext,
+  PaginationPrevious,
+} from '@/components/ui/pagination'
+import {
   Table,
   TableBody,
   TableCell,
@@ -86,6 +94,8 @@ const hasSearch = computed(
   () => props.showSearch && Boolean(props.searchKeys?.length || props.getSearchableText),
 )
 const showView = computed(() => props.showView)
+const pageCount = computed(() => props.serverPagination?.pageCount ?? table.getPageCount())
+const currentPage = computed(() => props.serverPagination?.page ?? pagination.value.pageIndex + 1)
 
 const resolvedSearchKeys = computed(() => props.searchKeys ?? [])
 
@@ -193,20 +203,12 @@ function columnLabel(column: Column<TData, unknown>) {
   return meta?.label ?? column.id
 }
 
-function previousPage() {
+function handlePageChange(page: number) {
   if (props.serverPagination) {
-    emit('pageChange', props.serverPagination.page - 1)
+    emit('pageChange', page)
     return
   }
-  table.previousPage()
-}
-
-function nextPage() {
-  if (props.serverPagination) {
-    emit('pageChange', props.serverPagination.page + 1)
-    return
-  }
-  table.nextPage()
+  table.setPageIndex(page - 1)
 }
 </script>
 
@@ -297,29 +299,30 @@ function nextPage() {
         </TableBody>
       </Table>
     </div>
-    <div class="flex shrink-0 items-center justify-end space-x-2">
-      <div class="space-x-2">
-        <Button
-          variant="outline"
-          size="sm"
-          :disabled="serverPagination ? serverPagination.page <= 1 : !table.getCanPreviousPage()"
-          @click="previousPage"
-        >
-          {{ t('common.previous') }}
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          :disabled="
-            serverPagination
-              ? serverPagination.page >= serverPagination.pageCount
-              : !table.getCanNextPage()
-          "
-          @click="nextPage"
-        >
-          {{ t('common.next') }}
-        </Button>
-      </div>
+    <div class="flex shrink-0 items-center justify-end">
+      <Pagination
+        class="justify-end"
+        :page="currentPage"
+        :items-per-page="pagination.pageSize"
+        :total="pageCount * pagination.pageSize"
+        :disabled="pageCount <= 1"
+        @update:page="handlePageChange"
+      >
+        <PaginationContent v-slot="{ items }">
+          <PaginationPrevious />
+          <template v-for="(item, index) in items" :key="index">
+            <PaginationItem
+              v-if="item.type === 'page'"
+              :value="item.value"
+              :is-active="item.value === currentPage"
+            >
+              {{ item.value }}
+            </PaginationItem>
+            <PaginationEllipsis v-else :index="index" />
+          </template>
+          <PaginationNext />
+        </PaginationContent>
+      </Pagination>
     </div>
   </div>
 </template>
