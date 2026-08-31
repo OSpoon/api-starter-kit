@@ -10,7 +10,6 @@ node_modules
 .codebuddy
 apps/backend/tmp
 apps/backend/.env
-apps/backend/.adonisjs
 apps/frontend/.env
 apps/frontend/.env.local
 **/.env.local

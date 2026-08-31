@@ -55,7 +55,6 @@ services:
       NODE_ENV: production
       DB_HOST: postgres
     command: ['node', 'ace', 'wecom:bot']
-    restart: unless-stopped
     depends_on:
       backend:
         condition: service_healthy
@@ -73,7 +72,6 @@ services:
       NODE_ENV: production
       DB_HOST: postgres
     command: ['node', 'ace', 'feishu:bot']
-    restart: unless-stopped
     depends_on:
       backend:
         condition: service_healthy
@@ -91,7 +89,6 @@ services:
       NODE_ENV: production
       DB_HOST: postgres
     command: ['node', 'ace', 'dingtalk:bot']
-    restart: unless-stopped
     depends_on:
       backend:
         condition: service_healthy
