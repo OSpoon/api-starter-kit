@@ -22,7 +22,11 @@ export function getAudioMimeType(fileName: string) {
   return AUDIO_MIME_TYPES[extension] ?? 'application/octet-stream'
 }
 
-export async function transcribeAudio(filePath: string, fileName: string, mimeType: string) {
+async function transcribeAudioFile(
+  file: Buffer | ReturnType<typeof createReadStream>,
+  fileName: string,
+  mimeType: string
+) {
   const config = await readRuntimeLlmConfiguration()
   const baseURL = config.asr.baseURL?.trim()
   const apiKey = config.asr.apiKey?.trim()
@@ -32,11 +36,19 @@ export async function transcribeAudio(filePath: string, fileName: string, mimeTy
 
   const client = new OpenAI({ baseURL, apiKey, timeout: 120_000 })
   const result = await client.audio.transcriptions.create({
-    file: await toFile(createReadStream(filePath), fileName, { type: mimeType }),
+    file: await toFile(file, fileName, { type: mimeType }),
     model: config.asr.model?.trim() || DEFAULT_ASR_MODEL,
     response_format: 'json',
   })
   const text = 'text' in result && typeof result.text === 'string' ? result.text.trim() : ''
   if (!text) throw new Error('ASR 服务未返回可用的转写文本')
   return text
+}
+
+export async function transcribeAudio(filePath: string, fileName: string, mimeType: string) {
+  return transcribeAudioFile(createReadStream(filePath), fileName, mimeType)
+}
+
+export async function transcribeAudioBuffer(audio: Buffer, fileName: string, mimeType: string) {
+  return transcribeAudioFile(audio, fileName, mimeType)
 }

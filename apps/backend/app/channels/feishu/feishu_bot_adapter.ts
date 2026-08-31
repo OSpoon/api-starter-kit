@@ -1,3 +1,7 @@
+import { mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+
 import logger from '@adonisjs/core/services/logger'
 import * as Lark from '@larksuiteoapi/node-sdk'
 
@@ -8,6 +12,7 @@ import type {
   NormalizedInboundMessage,
   OutboundMessage,
 } from '#channels/channel_types'
+import { getAudioMimeType, transcribeAudio } from '#services/ai_speech_service'
 
 export interface FeishuBotAdapterOptions {
   appId: string
@@ -37,6 +42,23 @@ function parseTextContent(content: string) {
   } catch {
     return content
   }
+}
+
+function parseMessageContent(content: string) {
+  try {
+    const value = JSON.parse(content) as Record<string, unknown>
+    return value
+  } catch {
+    return {}
+  }
+}
+
+function readAudioTranscript(content: Record<string, unknown>) {
+  for (const key of ['recognition', 'transcript', 'transcription']) {
+    const value = content[key]
+    if (typeof value === 'string' && value.trim()) return value.trim()
+  }
+  return null
 }
 
 function summarizeContent(content: string) {
@@ -132,6 +154,28 @@ export class FeishuBotAdapter implements ChannelAdapter {
       return
     }
 
+    const isAudio = event.message.message_type === 'audio'
+    let content = isAudio ? '' : parseTextContent(event.message.content)
+    if (isAudio) {
+      try {
+        content = await this.transcribeAudioMessage(event.message.message_id, event.message.content)
+      } catch (error) {
+        logger.error(
+          { messageId: event.message.message_id, err: error },
+          'Feishu audio transcription failed'
+        )
+        await this.send(
+          {
+            channel: this.channel,
+            externalTenantId: event.tenant_key ?? this.tenantId,
+            conversationKey: event.message.chat_id,
+          },
+          { kind: 'text', content: '语音转写失败，请稍后重试。' }
+        )
+        return
+      }
+    }
+
     const message: NormalizedInboundMessage = {
       channel: this.channel,
       conversationType: event.message.chat_type === 'group' ? 'group' : 'direct',
@@ -139,8 +183,8 @@ export class FeishuBotAdapter implements ChannelAdapter {
       externalUserId: senderId,
       conversationKey: event.message.chat_id,
       messageId: event.message.message_id,
-      messageType: event.message.message_type === 'text' ? 'text' : 'text',
-      content: parseTextContent(event.message.content),
+      messageType: isAudio ? 'voice' : 'text',
+      content,
       receivedAt: new Date(Number(event.message.create_time) || Date.now()),
       raw: event,
     }
@@ -165,6 +209,28 @@ export class FeishuBotAdapter implements ChannelAdapter {
         reply
       )
       logger.info({ messageId: message.messageId, kind: reply.kind }, 'Feishu AI reply sent')
+    }
+  }
+
+  private async transcribeAudioMessage(messageId: string, rawContent: string) {
+    const content = parseMessageContent(rawContent)
+    const platformTranscript = readAudioTranscript(content)
+    if (platformTranscript) return platformTranscript
+    const fileKey = typeof content.file_key === 'string' ? content.file_key.trim() : ''
+    if (!fileKey) throw new Error('Feishu audio message has no file_key')
+
+    const resource = await this.client.im.v1.messageResource.get({
+      params: { type: 'audio' },
+      path: { message_id: messageId, file_key: fileKey },
+    })
+    const directory = await mkdtemp(join(tmpdir(), 'api-starter-feishu-audio-'))
+    const fileName = 'feishu-audio.ogg'
+    const filePath = join(directory, fileName)
+    try {
+      await resource.writeFile(filePath)
+      return await transcribeAudio(filePath, fileName, getAudioMimeType(fileName))
+    } finally {
+      await rm(directory, { recursive: true, force: true })
     }
   }
 

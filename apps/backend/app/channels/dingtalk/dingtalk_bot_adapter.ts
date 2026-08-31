@@ -60,6 +60,25 @@ async function readDingTalkResponse(response: Response) {
   }
 }
 
+function readAudioRecognition(message: RobotMessage) {
+  const value = message as unknown as Record<string, unknown>
+  const candidate = value.audio ?? value.voice ?? value.content
+  const content = typeof candidate === 'string' ? parseJson(candidate) : thisRecord(candidate)
+  return (
+    readStringValue(content.recognition) ??
+    readStringValue(content.transcript) ??
+    readStringValue(content.transcription)
+  )
+}
+
+function readStringValue(value: unknown) {
+  return typeof value === 'string' && value.trim() ? value.trim() : null
+}
+
+function thisRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' ? (value as Record<string, unknown>) : {}
+}
+
 function formatDingTalkError(status: number, result: Record<string, unknown>) {
   const code = result.code ?? result.errcode ?? result.errorCode ?? 'unknown'
   const message = result.message ?? result.msg ?? result.errorMsg ?? 'unknown error'
@@ -133,8 +152,11 @@ export class DingTalkBotAdapter implements ChannelAdapter {
 
   private async handleRobotEvent(event: DWClientDownStream) {
     const message = parseJson(event.data) as unknown as RobotMessage
+    const rawMessage = message as unknown as Record<string, unknown>
     this.client.socketCallBackResponse(event.headers.messageId, EventAck.SUCCESS)
-    if (message.msgtype !== 'text' || !message.text?.content) {
+    const messageType = readStringValue(rawMessage.msgtype) ?? 'text'
+    const isVoice = messageType === 'voice' || messageType === 'audio'
+    if (!isVoice && (message.msgtype !== 'text' || !message.text?.content)) {
       logger.info({ messageId: message.msgId }, 'DingTalk non-text message ignored')
       return
     }
@@ -150,6 +172,22 @@ export class DingTalkBotAdapter implements ChannelAdapter {
         event.headers.eventCorpId || message.chatbotCorpId || message.senderCorpId || this.tenantId,
       expiresAt: normalizeSessionWebhookExpiry(message.sessionWebhookExpiredTime),
     })
+    let content = message.text?.content?.trim() ?? ''
+    if (isVoice) {
+      content = readAudioRecognition(message) ?? ''
+      logger.info(
+        { messageId: message.msgId, hasRecognition: Boolean(content) },
+        'DingTalk voice recognition resolved'
+      )
+      if (!content) {
+        logger.warn({ messageId: message.msgId }, 'DingTalk voice has no recognition text')
+        return
+      }
+    }
+    if (!content) {
+      logger.warn({ messageId: message.msgId }, 'DingTalk message has no usable content')
+      return
+    }
     const normalized: NormalizedInboundMessage = {
       channel: this.channel,
       conversationType: message.conversationType === '2' ? 'group' : 'direct',
@@ -159,7 +197,7 @@ export class DingTalkBotAdapter implements ChannelAdapter {
       conversationKey,
       messageId: message.msgId,
       messageType: 'text',
-      content: message.text.content.trim(),
+      content,
       receivedAt: new Date(message.createAt || Date.now()),
       raw: message,
     }
