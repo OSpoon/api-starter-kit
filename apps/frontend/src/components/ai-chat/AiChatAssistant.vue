@@ -662,7 +662,7 @@ watch(
               type="button"
               variant="ghost"
               size="icon-sm"
-              class="absolute right-10 bottom-2"
+              class="absolute right-11 bottom-2"
               :class="{ 'text-destructive': isRecording, 'text-primary': isPreparingRecording }"
               :disabled="disabled || loading || isPreparingRecording"
               :title="isRecording ? t('ai_chat.voice.stop') : t('ai_chat.voice.start')"
