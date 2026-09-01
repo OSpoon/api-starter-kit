@@ -1,6 +1,7 @@
 import type { HttpContext } from '@adonisjs/core/http'
 
 import AuditLog from '#models/audit_log'
+import { getRequestCorrelation } from '#support/request_correlation'
 
 export type AuditEvent = {
   actorUserId: number | null
@@ -11,6 +12,8 @@ export type AuditEvent = {
 }
 
 export async function recordAuditEvent(ctx: HttpContext, event: AuditEvent) {
+  const { requestId } = getRequestCorrelation(ctx)
+
   await AuditLog.create({
     actorUserId: event.actorUserId,
     action: event.action,
@@ -20,6 +23,6 @@ export async function recordAuditEvent(ctx: HttpContext, event: AuditEvent) {
     metadata: event.metadata ?? null,
     ipAddress: ctx.request.ip(),
     userAgent: ctx.request.header('user-agent')?.slice(0, 512) ?? null,
-    requestId: ctx.request.header('x-request-id')?.slice(0, 120) ?? null,
+    requestId: requestId.slice(0, 120),
   })
 }

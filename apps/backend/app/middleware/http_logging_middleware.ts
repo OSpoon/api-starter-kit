@@ -1,5 +1,24 @@
+import { randomUUID } from 'node:crypto'
+
 import type { HttpContext } from '@adonisjs/core/http'
 import type { NextFn } from '@adonisjs/core/types/http'
+
+import { setRequestCorrelation } from '#support/request_correlation'
+
+const correlationIdPattern = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,119}$/
+
+function getCorrelationId(value: string | undefined) {
+  return value && correlationIdPattern.test(value) ? value : randomUUID()
+}
+
+function getTraceId(ctx: HttpContext) {
+  const traceId = ctx.request.header('x-trace-id')
+  if (traceId && correlationIdPattern.test(traceId)) return traceId
+
+  const traceparent = ctx.request.header('traceparent')
+  const traceparentMatch = traceparent?.match(/^[\da-f]{2}-([\da-f]{32})-[\da-f]{16}-[\da-f]{2}$/i)
+  return traceparentMatch?.[1] ?? randomUUID()
+}
 
 /**
  * Logs the HTTP lifecycle without recording request bodies or credentials.
@@ -9,14 +28,20 @@ export default class HttpLoggingMiddleware {
   async handle(ctx: HttpContext, next: NextFn) {
     const { request, response, logger } = ctx
     const startedAt = process.hrtime.bigint()
-    const requestId = request.id()
+    const requestId = getCorrelationId(request.header('x-request-id') ?? request.id())
+    const traceId = getTraceId(ctx)
+
+    setRequestCorrelation(ctx, { requestId, traceId })
+    response.header('x-request-id', requestId)
+    response.header('x-trace-id', traceId)
+
     const method = request.method()
     const url = request.url()
     const queryKeys = Object.keys(request.qs())
 
     logger.info(
       {
-        requestId,
+        traceId,
         method,
         url,
         queryKeys,
@@ -31,7 +56,7 @@ export default class HttpLoggingMiddleware {
       logger.error(
         {
           err: error,
-          requestId,
+          traceId,
           method,
           url,
         },
@@ -44,7 +69,7 @@ export default class HttpLoggingMiddleware {
 
       logger.info(
         {
-          requestId,
+          traceId,
           method,
           url,
           route: ctx.route?.pattern ?? null,
