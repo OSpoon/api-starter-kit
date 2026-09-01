@@ -84,6 +84,12 @@ docker compose --env-file apps/backend/.env -f docker/docker-compose.yml build
 docker compose --env-file apps/backend/.env -f docker/docker-compose.yml up -d
 ```
 
+backend 和三个 Bot 共用 `api-starter-kit-backend:latest` 运行镜像；frontend
+使用 `api-starter-kit-frontend:latest`。Bot 仍然是独立容器和独立进程，但
+Compose 不会为每个 Bot 重复构建一份镜像。可通过 `BACKEND_IMAGE` 和
+`FRONTEND_IMAGE` 覆盖默认镜像标签，例如在多套环境中使用不同的仓库或版本
+标签。
+
 backend 容器启动时会执行 `apps/backend/docker-entrypoint.js`。在生产
 Compose 中 `MIGRATE=true`，所以它会先运行：
 

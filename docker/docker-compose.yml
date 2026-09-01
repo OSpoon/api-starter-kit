@@ -16,6 +16,7 @@ services:
       retries: 10
 
   backend:
+    image: ${BACKEND_IMAGE:-api-starter-kit-backend:latest}
     build:
       context: ..
       dockerfile: docker/Dockerfile
@@ -43,12 +44,7 @@ services:
         condition: service_healthy
 
   wecom-bot:
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile
-      target: backend
-      args:
-        NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmmirror.com/}
+    image: ${BACKEND_IMAGE:-api-starter-kit-backend:latest}
     env_file:
       - ../apps/backend/.env
     environment:
@@ -60,12 +56,7 @@ services:
         condition: service_healthy
 
   feishu-bot:
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile
-      target: backend
-      args:
-        NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmmirror.com/}
+    image: ${BACKEND_IMAGE:-api-starter-kit-backend:latest}
     env_file:
       - ../apps/backend/.env
     environment:
@@ -77,12 +68,7 @@ services:
         condition: service_healthy
 
   dingtalk-bot:
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile
-      target: backend
-      args:
-        NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmmirror.com/}
+    image: ${BACKEND_IMAGE:-api-starter-kit-backend:latest}
     env_file:
       - ../apps/backend/.env
     environment:
@@ -94,6 +80,7 @@ services:
         condition: service_healthy
 
   frontend:
+    image: ${FRONTEND_IMAGE:-api-starter-kit-frontend:latest}
     build:
       context: ..
       dockerfile: docker/Dockerfile

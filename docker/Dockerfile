@@ -25,12 +25,14 @@ FROM deps AS backend-build
 COPY . .
 RUN pnpm --filter @api-starter-kit/backend exec node ace build --package-manager=pnpm
 
-FROM base AS backend
+FROM deps AS backend-deps
+RUN pnpm deploy --legacy --filter=@api-starter-kit/backend --prod --ignore-scripts /tmp/backend-runtime
+
+FROM node:24.15.0-bookworm-slim AS backend
 ENV NODE_ENV=production
 COPY --from=backend-build /app/apps/backend/build /app
+COPY --from=backend-deps /tmp/backend-runtime/node_modules /app/node_modules
 WORKDIR /app
-RUN --mount=type=cache,id=api-starter-kit-pnpm-store,target=/pnpm/store \
-  pnpm install --prod --ignore-scripts
 USER node
 EXPOSE 13333
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
