@@ -11,7 +11,11 @@ import {
   getAiAgentActionResultMessage,
   listConversationConfirmations,
 } from '#ai/core/ai_agent_confirmation'
-import { getAiAgentRun } from '#ai/runtime/ai_agent_run_registry'
+import {
+  claimAiAgentConversation,
+  getAiAgentRun,
+  releaseAiAgentConversation,
+} from '#ai/runtime/ai_agent_run_registry'
 import AiChatConversation from '#models/ai_chat_conversation'
 import AiChatMessage from '#models/ai_chat_message'
 import { getAudioMimeType, transcribeAudio } from '#services/ai_speech_service'
@@ -114,6 +118,7 @@ export default class AiChatController {
     description: '保存用户消息，调用 OpenAI 兼容接口，并保存助手回复。',
   })
   @ApiResponse({ status: 200, description: '流式 AI 会话响应' })
+  @ApiResponse({ status: 409, description: '当前会话已有 AI 请求正在运行' })
   async sendMessage(ctx: HttpContext) {
     const { auth, params, request, response } = ctx
     const user = auth.getUserOrFail()
@@ -123,71 +128,79 @@ export default class AiChatController {
       .where('user_id', user.id)
       .firstOrFail()
 
-    if (payload.regenerateAssistantMessageId) {
-      await conversation.load('messages', (query) => query.orderBy('created_at', 'asc'))
+    if (!claimAiAgentConversation(conversation.id, user.id)) {
+      return response.conflict({ message: '当前会话已有 AI 请求正在运行，请稍后再试' })
     }
-
-    const regeneration = payload.regenerateAssistantMessageId
-      ? resolveAiChatRegeneration(conversation.messages, payload.regenerateAssistantMessageId)
-      : null
-
-    if (payload.regenerateAssistantMessageId) {
-      if (!regeneration) {
-        return response.unprocessableEntity({ message: '只能重新生成当前对话的最后一条助手回复' })
-      }
-
-      await AiChatMessage.query()
-        .where('id', regeneration.assistantMessage.id)
-        .where('conversation_id', conversation.id)
-        .delete()
-      await resetAiConversationState({ conversationId: conversation.id, userId: user.id })
-    }
-
-    const userMessage =
-      regeneration?.userMessage ??
-      (await AiChatMessage.create({
-        conversationId: conversation.id,
-        role: 'user',
-        content: payload.content,
-      }))
-
-    const messageCount = await AiChatMessage.query()
-      .where('conversation_id', conversation.id)
-      .count('* as total')
-    if (
-      !payload.regenerateAssistantMessageId &&
-      Number(messageCount[0].$extras.total) === 1 &&
-      conversation.title === 'New chat'
-    ) {
-      conversation.title = createTitle(payload.content)
-      await conversation.save()
-    }
-
-    response.header('Content-Type', 'text/event-stream; charset=utf-8')
-    response.header('Cache-Control', 'no-cache, no-transform')
-    response.header('Connection', 'keep-alive')
-    response.header('X-Accel-Buffering', 'no')
-    response.writeHead(200)
-    const abortController = new AbortController()
-    const abortOnDisconnect = () => abortController.abort()
-    response.response.once('close', abortOnDisconnect)
-    const requestTimeout = setTimeout(() => abortController.abort(), await getAiRequestTimeout())
 
     try {
-      await runAiChatAssistantTurn({
-        conversation,
-        userId: user.id,
-        userMessage,
-        regeneration,
-        context: payload.context,
-        signal: abortController.signal,
-        response,
-        ctx,
-      })
+      if (payload.regenerateAssistantMessageId) {
+        await conversation.load('messages', (query) => query.orderBy('created_at', 'asc'))
+      }
+
+      const regeneration = payload.regenerateAssistantMessageId
+        ? resolveAiChatRegeneration(conversation.messages, payload.regenerateAssistantMessageId)
+        : null
+
+      if (payload.regenerateAssistantMessageId) {
+        if (!regeneration) {
+          return response.unprocessableEntity({ message: '只能重新生成当前对话的最后一条助手回复' })
+        }
+
+        await AiChatMessage.query()
+          .where('id', regeneration.assistantMessage.id)
+          .where('conversation_id', conversation.id)
+          .delete()
+        await resetAiConversationState({ conversationId: conversation.id, userId: user.id })
+      }
+
+      const userMessage =
+        regeneration?.userMessage ??
+        (await AiChatMessage.create({
+          conversationId: conversation.id,
+          role: 'user',
+          content: payload.content,
+        }))
+
+      const messageCount = await AiChatMessage.query()
+        .where('conversation_id', conversation.id)
+        .count('* as total')
+      if (
+        !payload.regenerateAssistantMessageId &&
+        Number(messageCount[0].$extras.total) === 1 &&
+        conversation.title === 'New chat'
+      ) {
+        conversation.title = createTitle(payload.content)
+        await conversation.save()
+      }
+
+      response.header('Content-Type', 'text/event-stream; charset=utf-8')
+      response.header('Cache-Control', 'no-cache, no-transform')
+      response.header('Connection', 'keep-alive')
+      response.header('X-Accel-Buffering', 'no')
+      response.writeHead(200)
+      const abortController = new AbortController()
+      const abortOnDisconnect = () => abortController.abort()
+      response.response.once('close', abortOnDisconnect)
+      const requestTimeout = setTimeout(() => abortController.abort(), await getAiRequestTimeout())
+
+      try {
+        await runAiChatAssistantTurn({
+          conversation,
+          userId: user.id,
+          userMessage,
+          regeneration,
+          context: payload.context,
+          signal: abortController.signal,
+          response,
+          ctx,
+        })
+      } finally {
+        clearTimeout(requestTimeout)
+        response.response.off('close', abortOnDisconnect)
+        response.response.end()
+      }
     } finally {
-      clearTimeout(requestTimeout)
-      response.response.off('close', abortOnDisconnect)
-      response.response.end()
+      releaseAiAgentConversation(conversation.id, user.id)
     }
   }
 
