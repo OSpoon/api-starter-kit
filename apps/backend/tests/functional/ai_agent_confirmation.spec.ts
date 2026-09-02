@@ -600,7 +600,7 @@ test.group('AI agent confirmations', (group) => {
     })
 
     const fakeContext = {
-      request: { ip: () => '127.0.0.1', header: () => null },
+      request: { id: () => 'test-request-id', ip: () => '127.0.0.1', header: () => null },
     } as unknown as import('@adonisjs/core/http').HttpContext
     const { failUnattachedAgentRunConfirmations } = await import('#ai/core/ai_agent_confirmation')
     await failUnattachedAgentRunConfirmations({
