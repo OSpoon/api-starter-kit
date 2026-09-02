@@ -12,7 +12,7 @@ API Starter Kit 为团队构建可运营业务系统提供统一的治理基础�
 
 ## 项目定位
 
-这是一个 pnpm/Turborepo 全栈 monorepo：后端使用 AdonisJS 7、Lucid、Bouncer、Vine 和 OpenAPI；前端使用 Vue 3、Vite、Pinia、Vue Router、Tailwind CSS 和 Reka UI。仓库提供系统级能力，不预设具体业务领域，适合从产品需求出发构建新的管理应用。
+这是一个 pnpm/Turborepo 全栈 monorepo：后端使用 AdonisJS 7，前端使用 Vue 3。仓库提供系统级能力，不预设具体业务领域，适合从产品需求出发构建新的管理应用。
 
 ## 核心能力
 
@@ -29,21 +29,12 @@ API Starter Kit 为团队构建可运营业务系统提供统一的治理基础�
 
 AI 助手只能访问授权的知识和注册查询模板；管理类操作只创建持久化提议，必须经过结构化确认后执行。后端负责校验、授权、脱敏、持久化和审计，前端不是安全边界。
 
-## 文档
+## 从这里开始
 
-按使用场景选择文档：
-
-- [文档总览](docs/README.md)：文档分类与阅读路径。
-- [快速开始](docs/getting-started.md)：环境准备、安装、配置和本地启动。
-- [开发指南](docs/development.md)：工作区结构、命令、实现约定和验证矩阵。
-- [API 指南](docs/api.md)：OpenAPI、鉴权、接口组和响应约定。
-- [部署指南](docs/deployment.md)：Docker Compose、环境变量和上线检查。
-- [安全与治理](docs/security.md)：认证、RBAC、凭据、AI 控制和部署加固。
-- [AI 助手能力](docs/ai-assistant-capabilities.md)：面向产品与评估人员的能力边界。
-- [AI 助手架构](docs/ai-assistant-architecture.md)：模块、状态、数据流和测试入口。
-- [AI 助手提示词](docs/ai-assistant-prompts.md)：系统提示、工具描述和界面文案契约。
-- [企业微信、飞书与钉钉机器人](docs/ai-channel-bots.md)：配置、绑定、运行和排障。
-- [WeCom 消息模板 feature](docs/wecom-message-templates.md)：feature 边界、宿主集成和接口说明。
+1. [快速开始](docs/getting-started.md)：安装依赖并启动本地环境。
+2. [开发指南](docs/customization.md)：新增业务 feature、页面、API 和权限。
+3. [系统架构](docs/architecture.md)：理解前后端边界和扩展位置。
+4. [文档总览](docs/README.md)：按场景查找 API、安全、部署和 AI 参考。
 
 ## 依赖升级检查
 

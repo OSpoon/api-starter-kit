@@ -1,4 +1,4 @@
-# WeCom 消息模板 feature
+# WeCom 消息模板 feature 参考
 
 The feature manages reusable WeCom webhook message templates and exposes the template-driven send contract used by application code and external systems.
 

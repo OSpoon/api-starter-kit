@@ -1,25 +1,32 @@
 # 开发指南
 
-## 工作区结构
+这份文档用于日常开发和提交前检查。如何新增业务能力，阅读[开发指南](customization.md)；如何理解模块边界，阅读[系统架构](architecture.md)。
+
+## 工作区
 
 ```text
-apps/
-├── backend/   # AdonisJS API、Lucid 模型、迁移、服务和测试
-└── frontend/  # Vue 应用、路由、Pinia、UI 与 locale
-docs/          # 产品、开发、运维和维护文档
+apps/backend/   AdonisJS API、模型、迁移、服务和测试
+apps/frontend/  Vue 应用、路由、页面、feature、状态和共享 UI
+docs/           项目使用、开发、部署和能力参考
+docker/         Compose、镜像和 Nginx 配置
 ```
 
-根工作区使用 pnpm 与 Turborepo。修改代码前阅读 [AGENTS.md](../AGENTS.md) 和目标目录最近的 `AGENTS.md`。
+根工作区使用 pnpm 与 Turborepo。修改代码前阅读根目录 [AGENTS.md](../AGENTS.md) 以及目标目录最近的 `AGENTS.md`。
 
 ## 常用命令
 
 ```bash
+pnpm install
 pnpm dev
 pnpm build
 pnpm typecheck
 pnpm test
 pnpm lint
+```
 
+验证单个应用时：
+
+```bash
 pnpm --dir apps/backend typecheck
 pnpm --dir apps/backend lint:check
 pnpm --dir apps/backend test
@@ -31,22 +38,22 @@ pnpm --dir apps/frontend test
 pnpm --dir apps/frontend build
 ```
 
-`lint` 和 `format` 会修改文件；验证既有改动时使用 `lint:check`。
+`lint` 和 `format` 会修改文件；只检查现有改动时使用 `lint:check`。
 
-## 实现约定
+## 实现入口
 
-- `apps/backend/start/routes.ts` 管理路由和 middleware；controller 协调 HTTP，validator、service、model 和 serializer 各自承担职责。
-- 公开后端接口变更同步更新 OpenAPI、前端 API 类型和相关响应契约测试。
-- Vue 路由管理标题、导航、权限和 `meta.pageKind`；管理列表使用 `ListPage` 与 `DataTable`，其他页面选择对应模板或 `PageShell`。
-- 共享 UI 位于 `components/common`；领域 UI 与 API 位于 `features/<feature>/`；可复用客户端状态和副作用位于 `composables`。
-- 所有用户可见文本使用 locale key；`usePermission()` 仅用于前端体验，后端权限 middleware 才是安全边界。
+后端路由集中在 `apps/backend/start/routes.ts`。controller 负责 HTTP 协调，validator 负责输入，service 负责领域逻辑和外部副作用，model 负责持久化关系，transformer 或 serializer 负责输出字段。
 
-## 验证
+前端路由集中在 `apps/frontend/src/router/modules/`。页面编排放在 `views/`，领域 API 和组件放在 `features/<feature>/`，共享 UI 放在 `components/common/` 或 `components/ui/`，可复用状态和副作用放在 `composables/`。
 
-- 前端页面、组件或路由：类型检查、lint 检查和构建。
-- 后端 controller、validator、service、model 或 middleware：类型检查、lint 检查和聚焦或完整测试。
-- 迁移：migration status、后端类型检查和行为变化的持久化测试。
-- 认证、RBAC、凭据和密钥：后端允许与拒绝路径测试。
-- 共享或跨应用契约：每个受影响应用的验证加 `git diff --check`。
+新增页面时，同时确定 `meta.permission`、`meta.pageKind`、locale key 和对应的后端权限。管理列表使用 `ListPage` + `DataTable`，表单和破坏性操作复用现有共享组件。
 
-完整流程和验证矩阵见 [AGENTS.md](../AGENTS.md)。
+## 提交前检查
+
+- 页面、API、权限目录、导航和测试是否同步更新。
+- 后端是否重新执行授权、校验、脱敏和资源归属检查。
+- 是否覆盖加载、空数据、错误、禁用、无权限和校验失败状态。
+- 是否避免把密钥、密码、恢复码或其他敏感值写入日志和浏览器状态。
+- 是否运行与改动范围匹配的类型检查、lint、测试和构建。
+
+完整规则和验证矩阵见 [AGENTS.md](../AGENTS.md)。

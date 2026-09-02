@@ -200,7 +200,7 @@ docker compose -f docker/docker-compose.yml restart dingtalk-bot
 `/audio/transcriptions` multipart 接口，并能处理 WebM、OGG、WAV、MP3 或
 M4A；默认模型为 `Qwen3-ASR-0.6B-4bit`。确认 backend 容器可以访问配置的
 ASR/LLM 地址。渠道平台的应用发布、长连接、权限、绑定和卡片配置详见
-[企业微信、飞书与钉钉机器人](ai-channel-bots.md)。
+[企业微信、飞书与钉钉机器人](reference/ai-channel-bots.md)。
 
 ## 7. 生产上线检查
 

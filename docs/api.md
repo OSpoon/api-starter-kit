@@ -1,50 +1,53 @@
 # API 指南
 
-## OpenAPI 文档
+这份文档面向调用现有 API 或新增业务接口的开发者。后端 API 的基础路径为 `/api/v1`，OpenAPI schema 是请求和响应契约的权威来源。
 
-后端从路由与装饰器生成 OpenAPI。设置 `OPENAPI_DOCS_ENABLED=true` 后提供：
+## 查看契约
 
-| 资源         | 路径             |
-| ------------ | ---------------- |
-| Scalar UI    | `/api-docs`      |
+设置 `OPENAPI_DOCS_ENABLED=true` 后，后端提供：
+
+| 资源 | 路径 |
+| --- | --- |
+| Scalar UI | `/api-docs` |
 | OpenAPI JSON | `/api-docs.json` |
 | OpenAPI YAML | `/api-docs.yaml` |
-
-业务 API 基础路径为 `/api/v1`。已启用的 OpenAPI 文档是请求和响应 schema 的权威来源。
 
 ## 鉴权与响应
 
 除明确挂载 API Key middleware 的路由外，业务接口使用管理员 Bearer Token。账户、登录、2FA、API Key 管理和 AI 会话接口不接受 API Key。
 
-除健康检查和 SSE 流外，成功响应为：
+普通成功响应使用：
 
 ```json
 { "data": {} }
 ```
 
-分页响应在 `data` 中返回 `items` 与 `meta`。`401` 表示未认证，`403` 表示未授权，`409` 表示冲突，`422` 表示校验失败。
+分页响应把 `items` 和 `meta` 放在 `data` 中。状态码约定为：`401` 未认证、`403` 无权限、`409` 冲突、`422` 校验失败。健康检查和 SSE 流遵循各自的响应格式。
 
-## 接口组
+## 现有接口组
 
-| 接口组   | 相对路径                                                                                                     |
-| -------- | ------------------------------------------------------------------------------------------------------------ |
-| 健康检查 | `GET /health`、`GET /health/ready`                                                                           |
-| 认证     | `/auth/login`、`/auth/github`、`/auth/github/callback`、`/auth/github/exchange`、`/auth/2fa/verify`          |
-| 账户     | `/account/profile`、`/account/password`、2FA 操作、`/account/logout`                                         |
-| API Key  | `/api-keys`、`/api-keys/:id`                                                                                 |
-| 系统管理 | `/system/users`、`/system/roles`、`/system/permissions`、`/system/audit-logs`、`/system/knowledge-documents` |
-| AI 会话  | `/ai-chat/conversations` 及嵌套消息、确认操作、`POST /ai-chat/transcribe` 语音转写               |
+| 接口组 | 相对路径 |
+| --- | --- |
+| 健康检查 | `GET /health`、`GET /health/ready` |
+| 认证 | `/auth/*` |
+| 账户与 2FA | `/account/*` |
+| API Key | `/api-keys/*` |
+| 系统管理 | `/system/*` |
+| AI 会话 | `/ai-chat/*` |
 
-表内路径均相对 `/api/v1`。系统管理与 API Key 操作需要对应的命名权限，详见[安全与治理](security.md)。
+具体请求参数和响应字段以 OpenAPI 为准。系统管理与 API Key 操作需要对应的命名权限，详见[安全与治理](security.md)。
 
-知识文档支持通过 `POST /system/knowledge-documents/batch` 使用 multipart 字段 `files` 批量上传 TXT、Markdown 或 reStructuredText 文件；单次最多 20 份、每份最大 2 MB。响应中的 `data.items` 为成功创建的文档，`data.failed` 为未成功处理的文件及原因。
+## 新增或修改接口
 
-### AI 语音转写
+1. 在 `apps/backend/start/routes.ts` 声明路径、middleware 和 controller。
+2. 使用 Vine validator 校验所有输入。
+3. 将领域逻辑放入 service，避免 controller 之间互相调用。
+4. 用 `serialize()`、transformer 或明确 DTO 只返回所需字段。
+5. 添加 OpenAPI 装饰器，并同步前端 API client、类型和响应契约测试。
+6. 为认证、权限拒绝、校验失败、资源归属和分页边界补充测试。
 
-`POST /api/v1/ai-chat/transcribe` 使用 Bearer Token 鉴权，接收 `multipart/form-data` 字段 `audio`。支持 WebM、OGG、WAV、MP3、M4A、MP4、MPEG 和 MPGA，单个文件最大 10 MB。响应为 `{ data: { text } }`；接口只返回转写文本，不创建聊天消息，前端随后复用普通 AI 消息接口提交文本。
+前端请求统一使用 `@/lib/api`，不要引入平行 HTTP client。普通读取接口不得返回密钥、密码哈希、加密值或内部模型字段。
 
-ASR 服务地址、模型和密钥通过系统管理的「LLM 配置」页面维护。密钥只在服务端使用并加密存储，不会返回给前端。
+## 特殊接口
 
-## 接口开发约定
-
-在 `apps/backend/start/routes.ts` 声明路由和最窄 middleware；用 Vine 校验输入，返回显式序列化 DTO，添加 OpenAPI 装饰器，并更新前端 API client 与类型。普通读取或列表响应不得包含密钥。
+知识文档批量上传、AI 语音转写等接口包含 multipart 和文件大小限制；实施或调整这些能力前，以当前 OpenAPI schema 和对应 feature/service 为准。AI 查询与有副作用的操作还必须遵循[系统架构中的 AI 扩展边界](architecture.md#ai-扩展边界)。
