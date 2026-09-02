@@ -23,6 +23,7 @@ import { useAuthStore } from '@/stores/auth'
 
 const auth = useAuthStore()
 const { copy: copyText } = useCopyText()
+const tokenText = ref<HTMLElement | null>(null)
 const copiedReset = useTimeoutFn(() => {
   copied.value = false
 }, 2000, { immediate: false })
@@ -255,7 +256,7 @@ async function confirmRevokeKey() {
 
 async function copyToken() {
   try {
-    await copyText(createdToken.value)
+    await copyText(createdToken.value, tokenText.value)
     copied.value = true
     copiedReset.stop()
     copiedReset.start()
@@ -330,7 +331,7 @@ watch(page, (nextPage) => void fetchKeys(nextPage))
         >
           <div class="px-6 pb-6">
             <div class="flex items-center gap-2 overflow-x-auto rounded-md border bg-muted p-3">
-              <p class="shrink-0 font-mono text-sm/snug whitespace-nowrap">
+              <p ref="tokenText" class="shrink-0 font-mono text-sm/snug whitespace-nowrap">
                 {{ createdToken }}
               </p>
               <Button size="sm" variant="secondary" class="ml-auto shrink-0" @click="copyToken">

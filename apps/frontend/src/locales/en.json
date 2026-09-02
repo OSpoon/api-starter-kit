@@ -1,6 +1,9 @@
 {
   "common": {
     "confirm": "Confirm",
+    "done": "Done",
+    "copy": "Copy",
+    "copied": "Copied",
     "cancel": "Cancel",
     "close": "Close",
     "save": "Save",

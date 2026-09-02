@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Copy, Plus, RefreshCw } from '@lucide/vue'
+import { Check, Copy, Plus, RefreshCw } from '@lucide/vue'
 import { proxyRefs } from 'vue'
 
 import ManagedUserDialog from '@/components/access-control/ManagedUserDialog.vue'
@@ -7,16 +7,11 @@ import PermissionDialog from '@/components/access-control/PermissionDialog.vue'
 import RoleDialog from '@/components/access-control/RoleDialog.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import DataTable from '@/components/common/DataTable.vue'
+import FormDialogContent from '@/components/common/FormDialogContent.vue'
+import FormDialogFooter from '@/components/common/FormDialogFooter.vue'
 import ListPage from '@/components/common/ListPage.vue'
 import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { Dialog } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import {
   Select,
@@ -36,6 +31,7 @@ import { useAuthStore } from '@/stores/auth'
 const props = defineProps<{ mode: AccessControlMode }>()
 const auth = useAuthStore()
 const { can } = usePermission()
+const initialPasswordText = ref<HTMLElement | null>(null)
 const { t } = useI18n()
 const mode = toRef(props, 'mode')
 const management = proxyRefs(useAccessControlManagement(mode))
@@ -174,30 +170,46 @@ const { userColumns, roleColumns, permissionColumns } = useAccessControlColumns(
         />
       </Dialog>
       <Dialog v-model:open="management.initialPasswordDialogOpen">
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{{ t('rbac.users.initial_password') }}</DialogTitle>
-            <DialogDescription>{{ t('rbac.users.initial_password_desc') }}</DialogDescription>
-          </DialogHeader>
-          <div class="flex items-center gap-2 rounded-md border bg-muted p-3">
-            <code class="min-w-0 flex-1 overflow-x-auto text-sm">{{
-              management.createdInitialPassword
-            }}</code>
-            <Button
-              variant="secondary"
-              size="icon"
-              :title="t('common.copy')"
-              :aria-label="t('common.copy')"
-              @click="management.copyInitialPassword"
-              ><Copy class="size-4"
-            /></Button>
+        <FormDialogContent
+          :title="t('rbac.users.initial_password')"
+          :description="t('rbac.users.initial_password_desc')"
+          class="sm:max-w-155"
+        >
+          <div class="px-6 pb-6">
+            <div class="flex items-center gap-2 overflow-x-auto rounded-md border bg-muted p-3">
+              <p
+                ref="initialPasswordText"
+                class="shrink-0 font-mono text-sm/snug whitespace-nowrap"
+              >
+                {{ management.createdInitialPassword }}
+              </p>
+              <Button
+                size="sm"
+                variant="secondary"
+                class="ml-auto shrink-0"
+                :title="
+                  management.initialPasswordCopied ? t('common.copied') : t('common.copy')
+                "
+                :aria-label="
+                  management.initialPasswordCopied ? t('common.copied') : t('common.copy')
+                "
+                @click="management.copyInitialPassword(initialPasswordText)"
+              >
+                <Check
+                  v-if="management.initialPasswordCopied"
+                  class="mr-1 size-4 text-chart-3"
+                />
+                <Copy v-else class="mr-1 size-4" />
+                {{ management.initialPasswordCopied ? t('common.copied') : t('common.copy') }}
+              </Button>
+            </div>
           </div>
-          <DialogFooter
-            ><Button @click="management.initialPasswordDialogOpen = false">{{
-              t('common.confirm')
-            }}</Button></DialogFooter
-          >
-        </DialogContent>
+          <FormDialogFooter class="justify-end">
+            <Button @click="management.initialPasswordDialogOpen = false">
+              {{ t('common.done') }}
+            </Button>
+          </FormDialogFooter>
+        </FormDialogContent>
       </Dialog>
       <ConfirmDialog
         v-model:open="management.deleteRoleDialogOpen"

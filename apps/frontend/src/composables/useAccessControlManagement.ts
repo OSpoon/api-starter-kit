@@ -64,6 +64,14 @@ export function useAccessControlManagement(mode: Ref<AccessControlMode>) {
   const deleteRoleDialogOpen = ref(false)
   const deleteUserDialogOpen = ref(false)
   const deletePermissionDialogOpen = ref(false)
+  const initialPasswordCopied = ref(false)
+  const initialPasswordCopiedReset = useTimeoutFn(
+    () => {
+      initialPasswordCopied.value = false
+    },
+    2000,
+    { immediate: false }
+  )
   const selectedUser = ref<SystemUser | null>(null)
   const selectedRole = ref<SystemRole | null>(null)
   const selectedPermission = ref<SystemPermission | null>(null)
@@ -143,6 +151,8 @@ export function useAccessControlManagement(mode: Ref<AccessControlMode>) {
       } else {
         const created = await createSystemUser(auth.token, payload)
         createdInitialPassword.value = created.initialPassword
+        initialPasswordCopied.value = false
+        initialPasswordCopiedReset.stop()
         initialPasswordDialogOpen.value = true
       }
       await load()
@@ -245,6 +255,8 @@ export function useAccessControlManagement(mode: Ref<AccessControlMode>) {
     try {
       const result = await resetSystemUserPassword(auth.token, selectedUser.value.id)
       createdInitialPassword.value = result.initialPassword
+      initialPasswordCopied.value = false
+      initialPasswordCopiedReset.stop()
       resetPasswordDialogOpen.value = false
       userDialogOpen.value = false
       initialPasswordDialogOpen.value = true
@@ -255,9 +267,12 @@ export function useAccessControlManagement(mode: Ref<AccessControlMode>) {
       saving.value = false
     }
   }
-  async function copyInitialPassword() {
+  async function copyInitialPassword(element?: HTMLElement | null) {
     try {
-      await copyText(createdInitialPassword.value)
+      await copyText(createdInitialPassword.value, element)
+      initialPasswordCopied.value = true
+      initialPasswordCopiedReset.stop()
+      initialPasswordCopiedReset.start()
       toast.success(t('common.success'))
     } catch {
       toast.error(t('common.error'))
@@ -315,6 +330,7 @@ export function useAccessControlManagement(mode: Ref<AccessControlMode>) {
     selectedRole,
     selectedPermission,
     createdInitialPassword,
+    initialPasswordCopied,
     load,
     openCreate,
     openUser,
