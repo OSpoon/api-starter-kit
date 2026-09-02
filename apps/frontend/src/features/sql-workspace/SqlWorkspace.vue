@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useEventListener } from '@vueuse/core'
+
 import PageShell from '@/components/common/PageShell.vue'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
 import SqlWorkspaceDialogs from '@/features/sql-workspace/components/SqlWorkspaceDialogs.vue'
@@ -142,16 +144,9 @@ function saveShortcut(event: KeyboardEvent) {
   void saveSelectedFile()
 }
 
-onMounted(() => {
-  window.addEventListener('beforeunload', warnBeforeUnload)
-  window.addEventListener('keydown', saveShortcut)
-  void restoreWorkspace()
-})
-
-onBeforeUnmount(() => {
-  window.removeEventListener('beforeunload', warnBeforeUnload)
-  window.removeEventListener('keydown', saveShortcut)
-})
+useEventListener('beforeunload', warnBeforeUnload)
+useEventListener('keydown', saveShortcut)
+onMounted(() => void restoreWorkspace())
 </script>
 
 <template>

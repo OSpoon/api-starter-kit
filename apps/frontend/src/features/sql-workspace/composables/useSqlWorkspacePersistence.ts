@@ -1,4 +1,5 @@
-import { onBeforeUnmount, type Ref, type ShallowRef, watch } from 'vue'
+import { useTimeoutFn } from '@vueuse/core'
+import { type Ref, type ShallowRef, watch } from 'vue'
 
 import {
   clearStoredSqlWorkspace,
@@ -22,8 +23,8 @@ export function useSqlWorkspacePersistence(
   translate: (key: string) => string,
   state: PersistenceState
 ) {
-  let persistTimer: ReturnType<typeof setTimeout> | undefined
   let persistenceRevision = 0
+  let scheduledRevision: number | undefined
 
   function workspaceSnapshot() {
     return {
@@ -54,15 +55,24 @@ export function useSqlWorkspacePersistence(
     }
   }
 
+  const persistTimeout = useTimeoutFn(
+    () => {
+      if (scheduledRevision !== undefined) void persist(scheduledRevision)
+    },
+    600,
+    { immediate: false }
+  )
+
   function schedule() {
     if (!state.files.value.length) return
-    const revision = beginPersistence()
-    clearTimeout(persistTimer)
-    persistTimer = setTimeout(() => void persist(revision), 600)
+    scheduledRevision = beginPersistence()
+    persistTimeout.stop()
+    persistTimeout.start()
   }
 
   async function persistNow() {
-    clearTimeout(persistTimer)
+    persistTimeout.stop()
+    scheduledRevision = undefined
     await persist(beginPersistence())
   }
 
@@ -93,7 +103,8 @@ export function useSqlWorkspacePersistence(
   }
 
   async function clear() {
-    clearTimeout(persistTimer)
+    persistTimeout.stop()
+    scheduledRevision = undefined
     persistenceRevision += 1
     state.pending.value = false
     try {
@@ -102,8 +113,6 @@ export function useSqlWorkspacePersistence(
       state.error.value = translate('sql_workspace.errors.storage_unavailable')
     }
   }
-
-  onBeforeUnmount(() => clearTimeout(persistTimer))
 
   watch([state.dialect, state.explorerCollapsed], schedule)
 

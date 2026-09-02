@@ -17,7 +17,7 @@ import { useAiChatConversations } from '@/features/ai/composables/useAiChatConve
 import { useAiChatStream } from '@/features/ai/composables/useAiChatStream'
 import { formatAiChatMessagesAsMarkdown } from '@/features/ai/markdown'
 import type { DisplayAiChatMessage, LocalAiChatMessage } from '@/features/ai/types'
-import { copyText } from '@/lib/clipboard'
+import { useCopyText } from '@/lib/clipboard'
 import { useAuthStore } from '@/stores/auth'
 import { useSettingsStore } from '@/stores/settings'
 
@@ -25,6 +25,7 @@ export function useAiChat() {
   const route = useRoute()
   const { t } = useI18n()
   const auth = useAuthStore()
+  const { copy: copyText } = useCopyText()
   const settingsStore = useSettingsStore()
 
   const aiLoading = ref(false)

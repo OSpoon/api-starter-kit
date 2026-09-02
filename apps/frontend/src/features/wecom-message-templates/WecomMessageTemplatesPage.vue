@@ -19,6 +19,7 @@ import {
   TagsInputItemDelete,
   TagsInputItemText,
 } from '@/components/ui/tags-input'
+import { useCopyText } from '@/lib/clipboard'
 import { usePermission } from '@/lib/permission'
 import { useDelayedDialog } from '@/lib/use-delayed-dialog'
 import { useAuthStore } from '@/stores/auth'
@@ -36,6 +37,7 @@ import type { WecomMessageTemplate, WecomTemplateInput } from './types'
 
 const { t } = useI18n()
 const auth = useAuthStore()
+const { copy: copyText } = useCopyText()
 const { can } = usePermission()
 const templates = ref<WecomMessageTemplate[]>([])
 const loading = ref(false)
@@ -190,7 +192,7 @@ function requestDelete(template: WecomMessageTemplate) {
 }
 async function copyCurl(template: WecomMessageTemplate) {
   try {
-    await navigator.clipboard.writeText(buildWecomTemplateCurl(template))
+    await copyText(buildWecomTemplateCurl(template))
     toast.success(t('wecom_templates.curl_copied'))
   } catch {
     toast.error(t('wecom_templates.curl_copy_failed'))

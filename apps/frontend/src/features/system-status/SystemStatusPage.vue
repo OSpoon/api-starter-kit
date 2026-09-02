@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Activity, Cpu, HardDrive, MemoryStick, RefreshCw, Server, Terminal } from '@lucide/vue'
+import { useIntervalFn } from '@vueuse/core'
 
 import PageShell from '@/components/common/PageShell.vue'
 import { Button } from '@/components/ui/button'
@@ -16,7 +17,6 @@ const status = ref<SystemStatus | null>(null)
 const loading = ref(true)
 const error = ref(false)
 const now = ref(new Date())
-let refreshTimer: ReturnType<typeof setInterval> | undefined
 
 const disk = computed(() => status.value?.disks[0])
 const cards = computed(() => [
@@ -67,14 +67,7 @@ async function refresh() {
   }
 }
 
-onMounted(() => {
-  void refresh()
-  refreshTimer = setInterval(() => void refresh(), 10_000)
-})
-
-onBeforeUnmount(() => {
-  if (refreshTimer) clearInterval(refreshTimer)
-})
+useIntervalFn(() => void refresh(), 10_000, { immediateCallback: true })
 </script>
 
 <template>

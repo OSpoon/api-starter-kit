@@ -1,4 +1,4 @@
-import { onUnmounted, ref } from 'vue'
+import { useEventListener } from '@vueuse/core'
 
 export function useAiChatResize() {
   const chatHeight = ref(600)
@@ -11,8 +11,6 @@ export function useAiChatResize() {
 
   function stopResize() {
     isResizing.value = false
-    window.removeEventListener('mousemove', onResize)
-    window.removeEventListener('mouseup', stopResize)
     document.body.style.userSelect = ''
   }
 
@@ -38,12 +36,12 @@ export function useAiChatResize() {
     resizeStartY.value = event.clientY
     resizeStartWidth.value = chatWidth.value
     resizeStartHeight.value = chatHeight.value
-    window.addEventListener('mousemove', onResize)
-    window.addEventListener('mouseup', stopResize)
     document.body.style.userSelect = 'none'
   }
 
-  onUnmounted(stopResize)
+  useEventListener('mousemove', onResize)
+  useEventListener('mouseup', stopResize)
+  tryOnUnmounted(stopResize)
 
   return { chatHeight, chatWidth, startResize, stopResize }
 }

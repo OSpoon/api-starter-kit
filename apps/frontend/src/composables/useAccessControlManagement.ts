@@ -23,7 +23,7 @@ import {
   updateSystemRole,
   updateSystemUser,
 } from '@/features/access-control/api'
-import { copyText } from '@/lib/clipboard'
+import { useCopyText } from '@/lib/clipboard'
 import { useAuthStore } from '@/stores/auth'
 
 export type AccessControlMode = 'users' | 'roles' | 'permissions'
@@ -43,6 +43,7 @@ export type ManagedPermissionPayload = {
 
 export function useAccessControlManagement(mode: Ref<AccessControlMode>) {
   const auth = useAuthStore()
+  const { copy: copyText } = useCopyText()
   const { t } = useI18n()
   const users = ref<SystemUser[]>([])
   const roles = ref<SystemRole[]>([])

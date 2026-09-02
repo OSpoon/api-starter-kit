@@ -15,13 +15,17 @@ import ApiKeyForm from '@/components/workbench/ApiKeyForm.vue'
 import { useAsyncToast } from '@/composables/useAsyncToast'
 import type { ApiKeySummary } from '@/features/api-keys/api'
 import { badgeToneClass, createApiKey, listApiKeys, revokeApiKey } from '@/features/api-keys/api'
-import { copyText } from '@/lib/clipboard'
+import { useCopyText } from '@/lib/clipboard'
 import { formatDateOnly, formatDateTime } from '@/lib/format'
 import { usePermission } from '@/lib/permission'
 import { useDelayedDialog } from '@/lib/use-delayed-dialog'
 import { useAuthStore } from '@/stores/auth'
 
 const auth = useAuthStore()
+const { copy: copyText } = useCopyText()
+const copiedReset = useTimeoutFn(() => {
+  copied.value = false
+}, 2000, { immediate: false })
 const { can } = usePermission()
 const { t } = useI18n()
 const { runWithToast } = useAsyncToast()
@@ -253,9 +257,8 @@ async function copyToken() {
   try {
     await copyText(createdToken.value)
     copied.value = true
-    setTimeout(() => {
-      copied.value = false
-    }, 2000)
+    copiedReset.stop()
+    copiedReset.start()
     toast.success(t('api_keys.copy_success'))
   } catch {
     toast.error(t('api_keys.copy_failed'))

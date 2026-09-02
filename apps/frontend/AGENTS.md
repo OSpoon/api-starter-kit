@@ -71,6 +71,25 @@ only the domain-specific content required by the new route.
 
 Before adding page-local layout or control markup, extend the relevant shared component when the behavior is reusable. A page-specific implementation is acceptable only for genuinely domain-specific content and must not duplicate an existing shared component's responsibilities.
 
+## VueUse Composable Priority
+
+`@vueuse/core` is the first-choice composable library for frontend
+cross-cutting behavior. Before implementing a new composable or writing
+manual lifecycle, browser API, event-listener, timer, debounce/throttle,
+storage, media-query, viewport, focus, clipboard, or async-state logic, check
+the installed VueUse API and reuse the closest composable when it covers the
+behavior. Prefer VueUse composables such as `useEventListener`,
+`useTimeoutFn`/`useIntervalFn`, `useDebounceFn`, `useStorage`, and
+`useClipboard` over equivalent local helpers.
+
+When VueUse does not provide the required behavior, implement the smallest
+feature-owned composable that fits the existing architecture. Document the
+reason in the implementation summary when a custom implementation replaces or
+closely resembles a VueUse capability. Do not add a parallel utility merely
+because a local implementation is familiar; preserve existing security,
+cleanup, cancellation, SSR, and browser-support requirements when adopting
+VueUse.
+
 ## shadcn-vue Component Baseline
 
 Treat `src/components/ui` as the frontend's owned shadcn-vue primitive layer.

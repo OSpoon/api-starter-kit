@@ -1,3 +1,4 @@
+import { useTimeoutFn } from '@vueuse/core'
 import type { editor } from 'monaco-editor'
 import * as monaco from 'monaco-editor'
 import type { ComputedRef } from 'vue'
@@ -19,7 +20,6 @@ export function useSqlWorkspaceValidator(
 ) {
   const { t } = useI18n()
   const diagnostics = ref<editor.IMarkerData[]>([])
-  let validationTimer: ReturnType<typeof setTimeout> | undefined
   let editorInstance: editor.IStandaloneCodeEditor | undefined
   let validatorWorker: Worker | undefined
   let validatorDialect: SqlDialect | undefined
@@ -79,18 +79,24 @@ export function useSqlWorkspaceValidator(
     worker.postMessage({ id, sql })
   }
 
+  let scheduledValidation: { id: number; sql: string } | undefined
+  const validationTimeout = useTimeoutFn(() => {
+    if (!scheduledValidation) return
+    const { id, sql } = scheduledValidation
+    if (!sql.trim()) {
+      diagnostics.value = []
+      applyDiagnostics()
+      return
+    }
+    void validateInWorker(id, sql, activeDialect.value)
+  }, 250, { immediate: false })
+
   function validateSql(sql: string) {
-    clearTimeout(validationTimer)
     validationId += 1
     const id = validationId
-    validationTimer = setTimeout(() => {
-      if (!sql.trim()) {
-        diagnostics.value = []
-        applyDiagnostics()
-        return
-      }
-      void validateInWorker(id, sql, activeDialect.value)
-    }, 250)
+    scheduledValidation = { id, sql }
+    validationTimeout.stop()
+    validationTimeout.start()
   }
 
   function onEditorMount(instance: editor.IStandaloneCodeEditor) {
@@ -112,7 +118,8 @@ export function useSqlWorkspaceValidator(
     }
   )
   onBeforeUnmount(() => {
-    clearTimeout(validationTimer)
+    validationTimeout.stop()
+    scheduledValidation = undefined
     validatorWorker?.terminate()
   })
 

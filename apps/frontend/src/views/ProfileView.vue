@@ -38,13 +38,14 @@ import {
 import DingtalkIcon from '@/features/llm-config/components/DingtalkIcon.vue'
 import FeishuIcon from '@/features/llm-config/components/FeishuIcon.vue'
 import WecomIcon from '@/features/llm-config/components/WecomIcon.vue'
-import { copyText } from '@/lib/clipboard'
+import { useCopyText } from '@/lib/clipboard'
 import { firstFormError } from '@/lib/form-validation'
 import { PASSWORD_EXPIRY_DAYS, passwordDaysRemaining } from '@/lib/password'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth'
 
 const auth = useAuthStore()
+const { copy: copyText } = useCopyText()
 const router = useRouter()
 const route = useRoute()
 const { t, locale } = useI18n()

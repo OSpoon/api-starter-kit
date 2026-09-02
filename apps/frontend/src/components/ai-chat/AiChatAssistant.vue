@@ -16,6 +16,7 @@ import {
   Trash2,
   X,
 } from '@lucide/vue'
+import { useRafFn, useTimeoutFn } from '@vueuse/core'
 import { toast } from 'vue-sonner'
 
 import AiChatApprovalCard from '@/components/ai-chat/AiChatApprovalCard.vue'
@@ -116,12 +117,10 @@ const isRecording = ref(false)
 const isPreparingRecording = ref(false)
 let mediaRecorder: MediaRecorder | null = null
 let recordingChunks: Blob[] = []
-let recordingTimeout: ReturnType<typeof setTimeout> | null = null
 let discardRecording = false
 let audioContext: AudioContext | null = null
 let audioAnalyser: AnalyserNode | null = null
 let audioSource: MediaStreamAudioSourceNode | null = null
-let waveformFrame: number | null = null
 let lastWaveformSampleAt = 0
 
 const waveformHeights = ref<number[]>(Array.from({ length: 56 }, () => 8))
@@ -135,8 +134,7 @@ function preferredAudioMimeType() {
 }
 
 function stopWaveform() {
-  if (waveformFrame !== null) cancelAnimationFrame(waveformFrame)
-  waveformFrame = null
+  stopWaveformFrame()
   audioSource?.disconnect()
   audioAnalyser?.disconnect()
   audioSource = null
@@ -161,8 +159,11 @@ function updateWaveform() {
     const nextHeight = Math.round(8 + peak * 28)
     waveformHeights.value = [...waveformHeights.value.slice(1), nextHeight]
   }
-  waveformFrame = requestAnimationFrame(updateWaveform)
 }
+
+const { pause: stopWaveformFrame, resume: startWaveformFrame } = useRafFn(updateWaveform, {
+  immediate: false,
+})
 
 function startWaveform(stream: MediaStream) {
   const browserWindow = window as Window & typeof globalThis & {
@@ -175,8 +176,17 @@ function startWaveform(stream: MediaStream) {
   audioAnalyser.fftSize = 256
   audioSource = audioContext.createMediaStreamSource(stream)
   audioSource.connect(audioAnalyser)
-  updateWaveform()
+  startWaveformFrame()
 }
+
+const recordingTimeout = useTimeoutFn(
+  () => {
+    toast.info(t('ai_chat.voice.max_duration'))
+    mediaRecorder?.stop()
+  },
+  MAX_RECORDING_DURATION_MS,
+  { immediate: false }
+)
 
 async function toggleRecording() {
   if (isPreparingRecording.value || props.disabled) return
@@ -198,10 +208,7 @@ async function toggleRecording() {
     discardRecording = false
     mediaRecorder.ondataavailable = (event) => event.data.size && recordingChunks.push(event.data)
     mediaRecorder.onstop = () => {
-      if (recordingTimeout) {
-        clearTimeout(recordingTimeout)
-        recordingTimeout = null
-      }
+      recordingTimeout.stop()
       stream.getTracks().forEach((track) => track.stop())
       stopWaveform()
       const blob = new Blob(recordingChunks, { type: mediaRecorder?.mimeType || 'audio/webm' })
@@ -213,10 +220,7 @@ async function toggleRecording() {
     }
     mediaRecorder.start()
     isRecording.value = true
-    recordingTimeout = setTimeout(() => {
-      toast.info(t('ai_chat.voice.max_duration'))
-      mediaRecorder?.stop()
-    }, MAX_RECORDING_DURATION_MS)
+    recordingTimeout.start()
   } catch {
     stopWaveform()
     toast.error(t('ai_chat.voice.permission_denied'))

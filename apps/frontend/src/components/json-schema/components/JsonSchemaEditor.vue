@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { LockIcon, Maximize2Icon, Minimize2Icon, UnlockIcon } from '@lucide/vue'
+import { useEventListener, useTimeoutFn } from '@vueuse/core'
 
 import {
   createSchemaStore,
@@ -34,22 +35,31 @@ const emit = defineEmits<{ 'update:schema': [schema: JSONSchema] }>()
 const t = useTranslation()
 
 let skipNextWatch = false
-let pendingEmit: ReturnType<typeof setTimeout> | null = null
+let pendingSchema: JSONSchema | undefined
 let lastEmittedJson = JSON.stringify(props.schema)
+
+const emitTimeout = useTimeoutFn(
+  () => {
+    const schema = pendingSchema
+    pendingSchema = undefined
+    if (!schema) return
+    emit('update:schema', schema)
+    void nextTick(() => {
+      skipNextWatch = false
+    })
+  },
+  0,
+  { immediate: false }
+)
 
 const store = createSchemaStore(props.schema, (newSchema) => {
   const json = JSON.stringify(newSchema)
   if (json === lastEmittedJson) return
   lastEmittedJson = json
-  if (pendingEmit !== null) clearTimeout(pendingEmit)
   skipNextWatch = true
-  pendingEmit = setTimeout(() => {
-    pendingEmit = null
-    emit('update:schema', newSchema)
-    setTimeout(() => {
-      skipNextWatch = false
-    }, 0)
-  }, 0)
+  pendingSchema = newSchema
+  emitTimeout.stop()
+  emitTimeout.start()
 })
 
 provideSchemaStore(store)
@@ -92,8 +102,6 @@ watch(
 const handleMouseDown = (e: MouseEvent) => {
   e.preventDefault()
   isDragging.value = true
-  document.addEventListener('mousemove', handleMouseMove)
-  document.addEventListener('mouseup', handleMouseUp)
 }
 
 const handleMouseMove = (e: MouseEvent) => {
@@ -107,9 +115,10 @@ const handleMouseMove = (e: MouseEvent) => {
 
 const handleMouseUp = () => {
   isDragging.value = false
-  document.removeEventListener('mousemove', handleMouseMove)
-  document.removeEventListener('mouseup', handleMouseUp)
 }
+
+useEventListener('mousemove', handleMouseMove)
+useEventListener('mouseup', handleMouseUp)
 </script>
 
 <template>

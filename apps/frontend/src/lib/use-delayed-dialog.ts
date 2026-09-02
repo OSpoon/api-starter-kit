@@ -1,19 +1,20 @@
+import { useTimeoutFn } from '@vueuse/core'
+
 const DEFAULT_UNMOUNT_DELAY_MS = 200
 
 export function useDelayedDialog(delayMs = DEFAULT_UNMOUNT_DELAY_MS) {
   const open = ref(false)
   const mounted = ref(false)
-  let unmountTimer: ReturnType<typeof setTimeout> | undefined
-
-  function clearUnmountTimer() {
-    if (unmountTimer !== undefined) {
-      clearTimeout(unmountTimer)
-      unmountTimer = undefined
-    }
-  }
+  const unmountTimeout = useTimeoutFn(
+    () => {
+      if (!open.value) mounted.value = false
+    },
+    delayMs,
+    { immediate: false }
+  )
 
   function show() {
-    clearUnmountTimer()
+    unmountTimeout.stop()
     mounted.value = true
     open.value = true
   }
@@ -24,16 +25,9 @@ export function useDelayedDialog(delayMs = DEFAULT_UNMOUNT_DELAY_MS) {
 
   function onOpenChange(value: boolean) {
     open.value = value
-    clearUnmountTimer()
+    unmountTimeout.stop()
 
-    if (!value) {
-      unmountTimer = setTimeout(() => {
-        if (!open.value) {
-          mounted.value = false
-        }
-        unmountTimer = undefined
-      }, delayMs)
-    }
+    if (!value) unmountTimeout.start()
   }
 
   return {
