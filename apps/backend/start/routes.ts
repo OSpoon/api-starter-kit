@@ -19,6 +19,7 @@ const WecomMessageTemplatesController = () =>
   import('#controllers/wecom_message_templates_controller')
 const SystemStatusController = () => import('#controllers/system_status_controller')
 const LlmConfigurationsController = () => import('#controllers/llm_configurations_controller')
+const ImConfigurationsController = () => import('#controllers/im_configurations_controller')
 
 router
   .post('/api/v1/wecom-messages/:id/send', [WecomMessageTemplatesController, 'send'])
@@ -131,6 +132,12 @@ router
         router
           .post('llm-config/test', [LlmConfigurationsController, 'test'])
           .use(middleware.permission(['llm-config:test']))
+        router
+          .get('im-config', [ImConfigurationsController, 'show'])
+          .use(middleware.permission(['im-config:read']))
+        router
+          .put('im-config', [ImConfigurationsController, 'update'])
+          .use(middleware.permission(['im-config:update']))
         router
           .get('wecom-message-templates', [WecomMessageTemplatesController, 'index'])
           .use(middleware.permission(['wecom-templates:read']))

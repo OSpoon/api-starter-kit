@@ -101,7 +101,12 @@ export async function deleteKnowledgeDocument(document: KnowledgeDocument) {
   await document.delete()
 }
 
-export async function searchKnowledge(input: { user: User; query: string; limit?: number }) {
+export async function searchKnowledge(input: {
+  user: User
+  query: string
+  limit?: number
+  publicOnly?: boolean
+}) {
   const query = input.query.trim()
   if (!query) throw new Error('知识库检索内容不能为空')
 
@@ -115,10 +120,12 @@ export async function searchKnowledge(input: { user: User; query: string; limit?
 
   return getKnowledgeProvider().search({
     query,
-    access: {
-      isSuperAdmin: accessState.isSuperAdmin,
-      roleIds: input.user.roles.map((role) => role.id),
-    },
+    access: input.publicOnly
+      ? { isSuperAdmin: false, roleIds: [] }
+      : {
+          isSuperAdmin: accessState.isSuperAdmin,
+          roleIds: input.user.roles.map((role) => role.id),
+        },
     limit,
   })
 }

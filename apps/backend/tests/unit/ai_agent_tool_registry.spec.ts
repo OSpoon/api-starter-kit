@@ -46,6 +46,20 @@ test.group('AI agent tool registry', () => {
     )
   })
 
+  test('exposes only public knowledge search in visitor mode', ({ assert }) => {
+    const tools = createAiAgentTools({
+      userId: 1,
+      conversationId: 1,
+      agentRunId: 'visitor-run',
+      capabilityMode: 'knowledge-only',
+    })
+
+    assert.deepEqual(
+      tools.map((tool) => tool.name),
+      ['search_knowledge']
+    )
+  })
+
   test('documents direct fields for API Key creation', ({ assert }) => {
     const tool = createAiAgentTools({
       userId: 1,

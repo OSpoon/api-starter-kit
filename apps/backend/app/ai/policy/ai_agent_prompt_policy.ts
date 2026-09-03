@@ -1,3 +1,5 @@
+import type { AiAgentCapabilityMode } from '#ai/core/ai_agent_tool_context'
+
 export interface AiAgentPageContext {
   route: string
   title: string
@@ -38,17 +40,31 @@ export function buildAiAgentSystemPrompt(input: {
   identity: string
   context?: AiAgentPageContext
   liveSessionContext?: string
+  capabilityMode?: AiAgentCapabilityMode
 }) {
+  const capabilityPolicy =
+    input.capabilityMode === 'knowledge-only'
+      ? '\nVisitor policy:\n1. You are answering as a group-chat visitor assistant.\n2. Before every answer, call search_knowledge and answer only from public knowledge-base excerpts returned by that tool. If no relevant excerpt is found, say the public knowledge base could not confirm the answer.\n3. Do not answer questions about current users, roles, permissions, API Keys, audit logs, private account data, or system operations.\n4. Never propose, confirm, or claim to execute any write operation. If asked for one, tell the user to continue in a private chat after binding an account.\n5. Do not reveal internal identifiers, credentials, or hidden knowledge-base content.\n'
+      : ''
+  const effectiveDomainPolicies =
+    input.capabilityMode === 'knowledge-only'
+      ? '\nDomain policies:\n1. Use search_knowledge for every question and answer only from public knowledge-base excerpts.\n2. If the public knowledge base does not contain a relevant answer, say so instead of relying on general model knowledge.\n'
+      : domainPolicies
   return `${input.identity}${formatPageContext(input.context)}${input.liveSessionContext ?? ''}
 ${systemPolicy}
-${domainPolicies}
+${effectiveDomainPolicies}${capabilityPolicy}
 `
 }
 
-export function createAiAgentSystemPrompt(context?: AiAgentPageContext, liveSessionContext = '') {
+export function createAiAgentSystemPrompt(
+  context?: AiAgentPageContext,
+  liveSessionContext = '',
+  capabilityMode?: AiAgentCapabilityMode
+) {
   return buildAiAgentSystemPrompt({
     identity: 'You are an Admin Console assistant.',
     context,
     liveSessionContext,
+    capabilityMode,
   })
 }

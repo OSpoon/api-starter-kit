@@ -14,6 +14,9 @@ type LlmConfigInput = {
   embeddingModel?: string | null
   embeddingDimensions: number
   requestTimeoutMs: number
+}
+
+export type ImConfigInput = {
   wecomBotId?: string | null
   wecomBotSecret?: string | null
   wecomBotTenantId?: string | null
@@ -46,6 +49,10 @@ export async function getLlmConfiguration() {
     embeddingDimensions: 1024,
     requestTimeoutMs: 180000,
   })
+}
+
+export async function getImConfiguration() {
+  return getLlmConfiguration()
 }
 
 export async function readRuntimeLlmConfiguration() {
@@ -120,6 +127,15 @@ export async function updateLlmConfiguration(input: LlmConfigInput) {
   config.embeddingModel = input.embeddingModel?.trim() || null
   config.embeddingDimensions = input.embeddingDimensions
   config.requestTimeoutMs = input.requestTimeoutMs
+  if (input.chatApiKey?.trim()) config.chatApiKey = encryptSecret(input.chatApiKey)
+  if (input.asrApiKey?.trim()) config.asrApiKey = encryptSecret(input.asrApiKey)
+  if (input.embeddingApiKey?.trim()) config.embeddingApiKey = encryptSecret(input.embeddingApiKey)
+  await config.save()
+  return config
+}
+
+export async function updateImConfiguration(input: ImConfigInput) {
+  const config = await getImConfiguration()
   config.wecomBotId = input.wecomBotId?.trim() || null
   config.wecomBotTenantId = input.wecomBotTenantId?.trim() || null
   config.wecomBotWsUrl = input.wecomBotWsUrl?.trim() || null
@@ -128,9 +144,6 @@ export async function updateLlmConfiguration(input: LlmConfigInput) {
   config.dingtalkClientId = input.dingtalkClientId?.trim() || null
   config.dingtalkCardTemplateId = input.dingtalkCardTemplateId?.trim() || null
   config.dingtalkStreamingCardTemplateId = input.dingtalkStreamingCardTemplateId?.trim() || null
-  if (input.chatApiKey?.trim()) config.chatApiKey = encryptSecret(input.chatApiKey)
-  if (input.asrApiKey?.trim()) config.asrApiKey = encryptSecret(input.asrApiKey)
-  if (input.embeddingApiKey?.trim()) config.embeddingApiKey = encryptSecret(input.embeddingApiKey)
   if (input.wecomBotSecret?.trim()) config.wecomBotSecret = encryptSecret(input.wecomBotSecret)
   if (input.feishuAppSecret?.trim()) config.feishuAppSecret = encryptSecret(input.feishuAppSecret)
   if (input.dingtalkClientSecret?.trim()) {
@@ -159,6 +172,12 @@ export function serializeLlmConfiguration(config: LlmConfiguration) {
       apiKeyConfigured: Boolean(config.embeddingApiKey || config.chatApiKey),
     },
     requestTimeoutMs: config.requestTimeoutMs,
+    updatedAt: config.updatedAt.toISO(),
+  }
+}
+
+export function serializeImConfiguration(config: LlmConfiguration) {
+  return {
     wecomBot: {
       botId: config.wecomBotId,
       tenantId: config.wecomBotTenantId,

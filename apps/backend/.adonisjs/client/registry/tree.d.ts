@@ -60,6 +60,10 @@ export interface ApiDefinition {
     update: typeof routes['llm_configurations.update']
     test: typeof routes['llm_configurations.test']
   }
+  imConfigurations: {
+    show: typeof routes['im_configurations.show']
+    update: typeof routes['im_configurations.update']
+  }
   wecomMessageTemplates: {
     index: typeof routes['wecom_message_templates.index']
     store: typeof routes['wecom_message_templates.store']

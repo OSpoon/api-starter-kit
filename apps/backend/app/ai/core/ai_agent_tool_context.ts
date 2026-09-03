@@ -5,9 +5,12 @@ export type AiAgentKnowledgeSource = {
   excerpt: string
 }
 
+export type AiAgentCapabilityMode = 'full' | 'knowledge-only'
+
 export interface AiAgentToolRequestContext {
   userId: number
   conversationId: number
+  capabilityMode?: AiAgentCapabilityMode
   signal?: AbortSignal
   onKnowledgeSources?: (sources: AiAgentKnowledgeSource[]) => void
 }

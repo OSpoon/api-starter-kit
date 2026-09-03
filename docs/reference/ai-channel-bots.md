@@ -16,7 +16,7 @@ AiChannelBridge
 现有 AI 助手、知识库、查询工具、受控操作和权限系统
 ```
 
-渠道适配器只负责连接和协议转换，不复制 AI 编排、权限判断或业务执行逻辑。用户在外部渠道首次发消息时，系统为该渠道身份生成一次性绑定码；绑定后，外部消息使用系统用户的角色、权限、知识库范围和 AI 确认机制。
+渠道适配器只负责连接和协议转换，不复制 AI 编排、权限判断或业务执行逻辑。私聊用户首次发消息时，系统为该渠道身份生成一次性绑定码；绑定后，私聊消息使用系统用户的角色、权限、知识库范围和 AI 确认机制。群聊采用独立的访客模式，只回答公开知识库内容，不开放系统查询、管理操作或确认卡片。
 
 ## 2. 官方文档
 
@@ -51,7 +51,7 @@ AiChannelBridge
 
 ## 3. 运行时配置
 
-机器人凭据统一在系统管理的「LLM 配置」页面底部维护。敏感字段由后端加密保存，保存后重启对应 Bot worker 才会重新加载运行时配置。
+机器人凭据统一在系统管理的「IM 配置」页面维护。敏感字段由后端加密保存，保存后重启对应 Bot worker 才会重新加载运行时配置；模型、ASR 和 Embedding 配置仍在「LLM 配置」页面维护。
 
 ### 企业微信字段
 
@@ -89,7 +89,7 @@ pnpm --dir apps/backend exec node ace migration:status
 
 1. 在企业微信管理后台创建或打开智能机器人。
 2. 进入智能机器人 API 配置，取得 Bot ID、Secret、Tenant ID 和 WebSocket 地址。
-3. 在本系统「系统管理 → LLM 配置 → 企微机器人」保存配置。
+3. 在本系统「系统管理 → IM 配置 → 企微机器人」保存配置。
 4. 启动企业微信 Bot worker。
 5. 向机器人发送消息，首次回复会包含一次性绑定码。
 6. 登录本系统，在「个人设置 → AI 渠道绑定 → 企微机器人」点击绑定，使用 Input OTP 组件输入 8 位绑定码。
@@ -114,7 +114,7 @@ pnpm --dir apps/backend exec node ace migration:status
 7. 如需群聊触发，开通群聊中 @ 机器人的消息权限，并在群里使用 `@机器人` 测试。
 8. 在「权限管理」中开通以应用身份发送消息所需的消息权限。
 9. 发布应用版本；仅保存开发者后台配置但未发布时，权限和可见范围可能不会生效。
-10. 在本系统「系统管理 → LLM 配置 → 飞书机器人」配置 App ID、App Secret 和 Domain。
+10. 在本系统「系统管理 → IM 配置 → 飞书机器人」配置 App ID、App Secret 和 Domain。
 11. 启动飞书 Bot worker。
 12. 私聊机器人获取一次性绑定码，并在本系统个人设置中绑定。
 
@@ -137,7 +137,7 @@ pnpm --dir apps/backend exec node ace migration:status
 2. 按 Stream 文档配置机器人消息接收；本项目使用长连接，不需要公网回调服务器。
 3. 创建并发布受控操作互动卡片模板，模板需要接收 `description`、`confirmLabel`、`cancelLabel`、`confirmActionKey`、`cancelActionKey`、`taskId`、`conversationKey`、`externalUserId` 和 `externalTenantId` 参数，并通过卡片按钮回传 `actionKey`、`taskId`、`conversationKey`、`externalUserId` 和 `externalTenantId` 等私有参数。标准示例见 [`dingtalk-controlled-action-confirmation-template.example.json`](./dingtalk-controlled-action-confirmation-template.example.json)。
 4. 如需普通问答流式输出，再创建并发布流式回复互动卡片模板。模板只需要接收 `content`，卡片标题使用模板中的固定文本，系统通过官方卡片更新接口更新 `content`。标准示例见 [`dingtalk-streaming-reply-template.example.json`](./dingtalk-streaming-reply-template.example.json)。
-5. 在本系统「系统管理 → LLM 配置 → 钉钉机器人」保存 Client ID、Client Secret，以及对应的受控操作和流式回复卡片模板 ID。
+5. 在本系统「系统管理 → IM 配置 → 钉钉机器人」保存 Client ID、Client Secret，以及对应的受控操作和流式回复卡片模板 ID。
 6. 仅启动一个 `bot:dingtalk` 进程，向机器人发送消息获取一次性绑定码，并在个人设置中绑定。
 
 如果日志显示 Stream 已认证但收不到消息，检查机器人能力、应用发布状态、消息事件订阅和当前用户可见范围；如果普通消息正常但没有确认卡，检查卡片模板 ID、模板发布状态、卡片回调主题和按钮回传参数。
@@ -213,6 +213,16 @@ channel + externalTenantId + externalUserId → system user
 - 执行结果会再次查询或返回业务状态，避免只回复“OK”；
 - 解绑需要当前系统密码确认。
 
+### 群聊访客模式
+
+群聊不要求绑定系统账号。群聊消息使用以下逻辑会话范围：
+
+```text
+channel + externalTenantId + externalConversationKey + externalUserId
+```
+
+同一群中的不同外部用户拥有隔离的多轮上下文；用户发送 `/new` 只会重置自己的访客会话。群聊访客仅注册 `search_knowledge` 工具，并且只检索未绑定角色限制的公开知识库文档。实时系统查询、个人或敏感数据查询、所有写操作和确认卡片都必须转到私聊，并先完成身份绑定。
+
 三个机器人均支持精确发送 `/new` 新建会话。系统会保留旧会话历史，但将当前渠道映射切换到新的 AI 会话，后续消息不会继续携带旧会话上下文；旧确认卡也不会在新会话中执行。
 
 不要把 Bot Secret、API Key、绑定码明文或外部平台令牌写入 AI 消息、普通日志、浏览器状态或普通查询结果。
@@ -271,7 +281,7 @@ contentPreview
 
 | 现象                       | 检查方向                                                                       |
 | -------------------------- | ------------------------------------------------------------------------------ |
-| Bot 无法启动               | 检查 LLM 配置是否完整、迁移是否完成、对应 worker 是否启动                      |
+| Bot 无法启动               | 检查 IM 配置是否完整、迁移是否完成、对应 worker 是否启动                       |
 | 连接成功但没有消息         | 检查事件订阅、应用发布、用户范围和单聊/群聊权限                                |
 | 飞书私聊无响应、群聊有响应 | 开通 `im:message.p2p_msg` 并重新发布应用                                       |
 | 收到消息但无法绑定         | 重新向未绑定账号发送一条消息获取新绑定码；旧码会在轮换后失效                   |

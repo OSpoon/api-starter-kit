@@ -12,23 +12,6 @@ export interface LlmConfiguration {
     apiKeyConfigured: boolean
   }
   requestTimeoutMs: number
-  wecomBot: {
-    botId: string | null
-    tenantId: string | null
-    wsUrl: string | null
-    secretConfigured: boolean
-  }
-  feishuBot: {
-    appId: string | null
-    domain: string | null
-    secretConfigured: boolean
-  }
-  dingtalkBot: {
-    clientId: string | null
-    cardTemplateId: string | null
-    streamingCardTemplateId: string | null
-    clientSecretConfigured: boolean
-  }
   updatedAt: string | null
 }
 

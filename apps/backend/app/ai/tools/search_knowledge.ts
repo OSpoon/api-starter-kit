@@ -11,7 +11,11 @@ export function createSearchKnowledgeTool(input: AiAgentToolContext, support: Ai
     async ({ query }) => {
       support.throwIfAborted()
       const user = await ensureAiAgentPermission(input.userId, 'knowledge:read')
-      const sources = await searchKnowledge({ user, query })
+      const sources = await searchKnowledge({
+        user,
+        query,
+        publicOnly: input.capabilityMode === 'knowledge-only',
+      })
       const serializedSources = sources.map((source) => ({
         documentId: source.documentId,
         title: source.title,

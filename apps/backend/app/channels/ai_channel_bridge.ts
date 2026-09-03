@@ -22,10 +22,12 @@ import AiChatMessage from '#models/ai_chat_message'
 import User from '#models/user'
 import { createChannelBindingChallenge } from '#services/channel_binding_service'
 import {
+  createVisitorConversationKey,
   findChannelConversation,
   findOrCreateChannelConversation,
   startNewChannelConversation,
 } from '#services/channel_conversation_service'
+import { getChannelGuestUser } from '#services/channel_guest_principal'
 import { findActiveChannelIdentity } from '#services/channel_identity_service'
 
 function createChannelHttpContext(user: User) {
@@ -94,36 +96,52 @@ export class AiChannelBridge {
     message: NormalizedInboundMessage,
     emit?: (content: string) => Promise<void>
   ): Promise<OutboundMessage> {
-    let identity = await findActiveChannelIdentity({
-      channel: message.channel,
-      externalTenantId: message.externalTenantId,
-      externalUserId: message.externalUserId,
-    })
-    if (!identity) {
-      if (message.conversationType === 'group') {
-        return textReply('当前群聊不支持绑定。请先在与机器人的单聊中获取绑定码并完成绑定。')
+    const isVisitor = message.conversationType === 'group'
+    let user: User
+    let conversationKey = message.conversationKey
+    if (isVisitor) {
+      try {
+        user = await getChannelGuestUser()
+      } catch {
+        return textReply('群聊访客模式尚未初始化，请联系管理员。')
       }
-      const challenge = await createChannelBindingChallenge({
+      conversationKey = createVisitorConversationKey({
+        externalConversationKey: message.conversationKey,
+        externalUserId: message.externalUserId,
+      })
+    } else {
+      const identity = await findActiveChannelIdentity({
         channel: message.channel,
         externalTenantId: message.externalTenantId,
         externalUserId: message.externalUserId,
       })
-      if (challenge) {
-        return textReply(
-          `当前账号尚未绑定系统用户。请登录管理后台，在“账号设置”中输入一次性绑定码：${challenge.code}（10分钟内有效）。`
-        )
+      if (!identity) {
+        const challenge = await createChannelBindingChallenge({
+          channel: message.channel,
+          externalTenantId: message.externalTenantId,
+          externalUserId: message.externalUserId,
+        })
+        if (challenge) {
+          return textReply(
+            `当前账号尚未绑定系统用户。请登录管理后台，在“账号设置”中输入一次性绑定码：${challenge.code}（10分钟内有效）。`
+          )
+        }
+        return textReply('当前账号尚未绑定系统用户，请使用之前收到的绑定码完成绑定。')
       }
-      return textReply('当前账号尚未绑定系统用户，请使用之前收到的绑定码完成绑定。')
-    }
 
-    const user = await User.query().where('id', identity.userId).whereNull('disabled_at').first()
-    if (!user) return textReply('当前系统账号不可用，请联系管理员。')
+      const activeUser = await User.query()
+        .where('id', identity.userId)
+        .whereNull('disabled_at')
+        .first()
+      if (!activeUser) return textReply('当前系统账号不可用，请联系管理员。')
+      user = activeUser
+    }
 
     if (message.content.trim().toLowerCase() === '/new') {
       await startNewChannelConversation({
         channel: message.channel,
         externalTenantId: message.externalTenantId,
-        externalConversationKey: message.conversationKey,
+        externalConversationKey: conversationKey,
         userId: user.id,
       })
       logger.info(
@@ -140,7 +158,7 @@ export class AiChannelBridge {
     const conversation = await findOrCreateChannelConversation({
       channel: message.channel,
       externalTenantId: message.externalTenantId,
-      externalConversationKey: message.conversationKey,
+      externalConversationKey: conversationKey,
       userId: user.id,
     })
     const userMessage = await AiChatMessage.create({
@@ -158,6 +176,7 @@ export class AiChannelBridge {
         userId: user.id,
         userMessage,
         regeneration: null,
+        capabilityMode: isVisitor ? 'knowledge-only' : 'full',
         signal: new AbortController().signal,
         ctx: createChannelHttpContext(user),
         onEvent: async (event, data) => {
@@ -270,6 +289,22 @@ export class AiChannelBridge {
   }
 
   async handleTemplateCardEvent(input: ChannelCardActionEvent): Promise<OutboundMessage> {
+    const guestUser = await getChannelGuestUser().catch(() => null)
+    if (guestUser) {
+      const visitorConversation = await findChannelConversation({
+        channel: input.channel,
+        externalTenantId: input.externalTenantId,
+        externalConversationKey: createVisitorConversationKey({
+          externalConversationKey: input.conversationKey,
+          externalUserId: input.externalUserId,
+        }),
+        userId: guestUser.id,
+      })
+      if (visitorConversation) {
+        return textReply('群聊访客模式不支持确认操作，请转到私聊并完成身份绑定。')
+      }
+    }
+
     let identity = await findActiveChannelIdentity({
       channel: input.channel,
       externalTenantId: input.externalTenantId,

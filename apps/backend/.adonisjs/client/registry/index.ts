@@ -186,6 +186,18 @@ const routes = {
     tokens: [{"old":"/api/v1/system/llm-config/test","type":0,"val":"api","end":""},{"old":"/api/v1/system/llm-config/test","type":0,"val":"v1","end":""},{"old":"/api/v1/system/llm-config/test","type":0,"val":"system","end":""},{"old":"/api/v1/system/llm-config/test","type":0,"val":"llm-config","end":""},{"old":"/api/v1/system/llm-config/test","type":0,"val":"test","end":""}],
     types: placeholder as Registry['llm_configurations.test']['types'],
   },
+  'im_configurations.show': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/v1/system/im-config',
+    tokens: [{"old":"/api/v1/system/im-config","type":0,"val":"api","end":""},{"old":"/api/v1/system/im-config","type":0,"val":"v1","end":""},{"old":"/api/v1/system/im-config","type":0,"val":"system","end":""},{"old":"/api/v1/system/im-config","type":0,"val":"im-config","end":""}],
+    types: placeholder as Registry['im_configurations.show']['types'],
+  },
+  'im_configurations.update': {
+    methods: ["PUT"],
+    pattern: '/api/v1/system/im-config',
+    tokens: [{"old":"/api/v1/system/im-config","type":0,"val":"api","end":""},{"old":"/api/v1/system/im-config","type":0,"val":"v1","end":""},{"old":"/api/v1/system/im-config","type":0,"val":"system","end":""},{"old":"/api/v1/system/im-config","type":0,"val":"im-config","end":""}],
+    types: placeholder as Registry['im_configurations.update']['types'],
+  },
   'wecom_message_templates.index': {
     methods: ["GET","HEAD"],
     pattern: '/api/v1/system/wecom-message-templates',

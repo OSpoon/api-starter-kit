@@ -86,6 +86,7 @@ export async function runAiChatAssistantTurn(input: {
   userId: number
   userMessage: AiChatMessage
   regeneration: AiChatResolvedRegeneration<AiChatMessage> | null
+  capabilityMode?: import('#ai/core/ai_agent_tool_context').AiAgentCapabilityMode
   context?: AiAgentPageContext
   signal: AbortSignal
   response?: HttpContext['response']
@@ -164,6 +165,7 @@ export async function runAiChatAssistantTurn(input: {
       conversationId: conversation.id,
       userId,
       messages: history,
+      capabilityMode: input.capabilityMode,
       context: input.context,
       signal: input.signal,
       onKnowledgeSources: (sources) => {

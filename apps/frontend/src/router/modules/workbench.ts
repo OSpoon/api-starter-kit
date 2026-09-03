@@ -84,12 +84,17 @@ export const workbenchRoutes: RouteRecordRaw[] = [
       {
         path: 'system/im-config',
         name: 'im-config',
-        component: () => import('@/features/llm-config/ImConfigurationPage.vue'),
+        component: () => import('@/features/im-config/ImConfigurationPage.vue'),
         meta: {
           title: 'sidebar.im_config',
           pageKind: 'settings',
           permission: 'im-config:read',
-          nav: { group: 'sidebar.agent_management', groupOrder: 29, icon: MessageSquare, order: 20 },
+          nav: {
+            group: 'sidebar.agent_management',
+            groupOrder: 29,
+            icon: MessageSquare,
+            order: 20,
+          },
         },
       },
       {

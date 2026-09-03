@@ -3,6 +3,7 @@ import type { HttpContext } from '@adonisjs/core/http'
 import User from '#models/user'
 import { generateInitialPassword } from '#security/user_credentials'
 import { recordAuditEvent } from '#services/audit_log'
+import { CHANNEL_GUEST_USER_EMAIL, isChannelGuestUser } from '#services/channel_guest_principal'
 import {
   countSuperAdminUsers,
   includesSuperAdminRole,
@@ -45,6 +46,7 @@ export default class UsersController {
     const query = User.query()
       .orderBy('id')
       .preload('roles', (roles) => roles.preload('permissions'))
+      .whereNot('email', CHANNEL_GUEST_USER_EMAIL)
     if (search) {
       query.where((builder) => {
         builder.whereILike('full_name', `%${search}%`).orWhereILike('email', `%${search}%`)
@@ -89,6 +91,9 @@ export default class UsersController {
   async update(ctx: HttpContext) {
     const { auth, params, request, response, serialize } = ctx
     const user = await User.findOrFail(params.id)
+    if (isChannelGuestUser(user)) {
+      return response.forbidden({ message: '系统内部用户不可管理' })
+    }
     await user.load('roles')
     const payload = await request.validateUsing(updateManagedUserValidator)
     const currentUser = auth.getUserOrFail()
@@ -130,6 +135,9 @@ export default class UsersController {
   async resetPassword(ctx: HttpContext) {
     const { auth, params, response, serialize } = ctx
     const user = await User.findOrFail(params.id)
+    if (isChannelGuestUser(user)) {
+      return response.forbidden({ message: '系统内部用户不可管理' })
+    }
     const currentUser = auth.getUserOrFail()
     if (user.id === currentUser.id) {
       return response.badRequest({ message: '请通过个人资料页面修改当前账号的密码' })
@@ -152,6 +160,9 @@ export default class UsersController {
   async destroy(ctx: HttpContext) {
     const { auth, params, response, serialize } = ctx
     const user = await User.findOrFail(params.id)
+    if (isChannelGuestUser(user)) {
+      return response.forbidden({ message: '系统内部用户不可管理' })
+    }
     const currentUser = auth.getUserOrFail()
     if (user.id === currentUser.id) return response.badRequest({ message: '不能删除当前登录账号' })
     if (await isSuperAdmin(user)) {

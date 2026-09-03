@@ -1,6 +1,19 @@
+import crypto from 'node:crypto'
+
 import AiChatConversation from '#models/ai_chat_conversation'
 import ChannelConversation from '#models/channel_conversation'
 import type { ChannelName } from '#models/channel_identity'
+
+export function createVisitorConversationKey(input: {
+  externalConversationKey: string
+  externalUserId: string
+}) {
+  const digest = crypto
+    .createHash('sha256')
+    .update(`${input.externalConversationKey}\u0000${input.externalUserId}`)
+    .digest('hex')
+  return `visitor:${digest}`
+}
 
 export async function findOrCreateChannelConversation(input: {
   channel: ChannelName

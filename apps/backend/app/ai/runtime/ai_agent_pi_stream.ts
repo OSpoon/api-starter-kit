@@ -95,7 +95,11 @@ export async function createAiAgentPiStream(
     lastMessage?.role === 'user' ? input.messages.slice(0, -1) : input.messages
 
   const { agent } = await createPiAgent({
-    systemPrompt: createAiAgentSystemPrompt(input.context, input.liveSessionContext),
+    systemPrompt: createAiAgentSystemPrompt(
+      input.context,
+      input.liveSessionContext,
+      input.capabilityMode
+    ),
     tools: createAiAgentTools({ ...input, agentRunId: input.agentRunId }),
     messages: toPiMessages(initialMessages),
     sessionId: `ai-chat:${input.conversationId}`,
@@ -105,7 +109,7 @@ export async function createAiAgentPiStream(
       const liveSessionContext = await input.getLiveSessionContext?.()
       return liveSessionContext === undefined
         ? undefined
-        : createAiAgentSystemPrompt(input.context, liveSessionContext)
+        : createAiAgentSystemPrompt(input.context, liveSessionContext, input.capabilityMode)
     },
   })
 

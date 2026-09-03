@@ -8,24 +8,20 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { usePermission } from '@/lib/permission'
 import { useAuthStore } from '@/stores/auth'
 
-import { getLlmConfiguration, updateLlmConfiguration } from './api'
-import DingtalkIcon from './components/DingtalkIcon.vue'
-import FeishuIcon from './components/FeishuIcon.vue'
-import WecomIcon from './components/WecomIcon.vue'
+import DingtalkIcon from '../llm-config/components/DingtalkIcon.vue'
+import FeishuIcon from '../llm-config/components/FeishuIcon.vue'
+import WecomIcon from '../llm-config/components/WecomIcon.vue'
+import { getImConfiguration, updateImConfiguration } from './api'
 
 const { t } = useI18n()
 const auth = useAuthStore()
+const { can } = usePermission()
 const loading = ref(true)
 const saving = ref(false)
 const form = reactive({
-  chatBaseUrl: '',
-  chatModel: '',
-  embeddingBaseUrl: '',
-  embeddingModel: '',
-  embeddingDimensions: 1024,
-  requestTimeoutMs: 180000,
   wecomBotId: '',
   wecomBotSecret: '',
   wecomBotTenantId: '',
@@ -41,13 +37,7 @@ const form = reactive({
 
 async function load() {
   try {
-    const config = await getLlmConfiguration(auth.token)
-    form.chatModel = config.chat.model
-    form.chatBaseUrl = config.chat.baseUrl ?? ''
-    form.embeddingBaseUrl = config.embedding.baseUrl ?? ''
-    form.embeddingModel = config.embedding.model ?? ''
-    form.embeddingDimensions = config.embedding.dimensions
-    form.requestTimeoutMs = config.requestTimeoutMs
+    const config = await getImConfiguration(auth.token)
     form.wecomBotId = config.wecomBot.botId ?? ''
     form.wecomBotTenantId = config.wecomBot.tenantId ?? ''
     form.wecomBotWsUrl = config.wecomBot.wsUrl ?? ''
@@ -66,9 +56,8 @@ async function load() {
 async function save() {
   saving.value = true
   try {
-    await updateLlmConfiguration(auth.token, {
+    await updateImConfiguration(auth.token, {
       ...form,
-      embeddingModel: form.embeddingModel || undefined,
       wecomBotSecret: form.wecomBotSecret || undefined,
       feishuAppSecret: form.feishuAppSecret || undefined,
       dingtalkClientSecret: form.dingtalkClientSecret || undefined,
@@ -195,7 +184,7 @@ onMounted(load)
         </CardContent>
       </Card>
       <div class="flex justify-end">
-        <Button type="submit" :disabled="saving"
+        <Button type="submit" :disabled="saving || !can('im-config:update')"
           ><LoaderCircle v-if="saving" class="size-4 animate-spin" />
           <Save v-else class="size-4" />{{ t('common.save') }}</Button
         >

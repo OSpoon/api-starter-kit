@@ -336,7 +336,7 @@ export class DingTalkBotAdapter implements ChannelAdapter {
     if (!cardTemplateId) {
       await this.postSessionWebhook(message.sessionWebhook, {
         msgtype: 'text',
-        text: { content: '受控操作确认卡未配置，请管理员在 LLM 配置中填写钉钉互动卡片模板 ID。' },
+        text: { content: '受控操作确认卡未配置，请管理员在 IM 配置中填写钉钉互动卡片模板 ID。' },
       })
       logger.warn(
         { confirmationId: confirmation.confirmationId },

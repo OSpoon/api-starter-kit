@@ -367,6 +367,30 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/llm_configurations_controller').default['test']>>>
     }
   }
+  'im_configurations.show': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/system/im-config'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/im_configurations_controller').default['show']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/im_configurations_controller').default['show']>>>
+    }
+  }
+  'im_configurations.update': {
+    methods: ["PUT"]
+    pattern: '/api/v1/system/im-config'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/im_configuration').updateImConfigurationValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/im_configuration').updateImConfigurationValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/im_configurations_controller').default['update']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/im_configurations_controller').default['update']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
   'wecom_message_templates.index': {
     methods: ["GET","HEAD"]
     pattern: '/api/v1/system/wecom-message-templates'

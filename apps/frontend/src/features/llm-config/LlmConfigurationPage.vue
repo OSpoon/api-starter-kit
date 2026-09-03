@@ -7,12 +7,14 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { usePermission } from '@/lib/permission'
 import { useAuthStore } from '@/stores/auth'
 
 import { getLlmConfiguration, testLlmConfiguration, updateLlmConfiguration } from './api'
 
 const { t } = useI18n()
 const auth = useAuthStore()
+const { can } = usePermission()
 const loading = ref(true)
 const saving = ref(false)
 const testing = ref(false)
@@ -195,13 +197,13 @@ onMounted(load)
         <Button
           type="button"
           variant="outline"
-          :disabled="testing || saving"
+          :disabled="testing || saving || !can('llm-config:test')"
           @click="testConnection"
           ><LoaderCircle v-if="testing" class="size-4 animate-spin" /><TestTube
             v-else
             class="size-4"
           />{{ t('llm_config.test') }}</Button
-        ><Button type="submit" :disabled="saving || testing"
+        ><Button type="submit" :disabled="saving || testing || !can('llm-config:update')"
           ><LoaderCircle v-if="saving" class="size-4 animate-spin" /><Save
             v-else
             class="size-4"

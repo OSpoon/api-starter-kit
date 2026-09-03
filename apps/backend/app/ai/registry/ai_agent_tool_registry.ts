@@ -14,6 +14,10 @@ import { createSearchKnowledgeTool } from '#ai/tools/search_knowledge'
 export function createAiAgentTools(input: AiAgentToolContext): AgentTool[] {
   const support = createAiAgentToolSupport(input)
 
+  if (input.capabilityMode === 'knowledge-only') {
+    return [createSearchKnowledgeTool(input, support)]
+  }
+
   return [
     createDiagnoseMyAccessTool(input, support),
     createRunRegisteredQueryTool(input, support),

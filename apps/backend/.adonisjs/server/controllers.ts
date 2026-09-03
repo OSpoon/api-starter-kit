@@ -10,6 +10,7 @@ export const controllers = {
   AuditLogs: () => import('#controllers/audit_logs_controller'),
   ChannelIdentities: () => import('#controllers/channel_identities_controller'),
   GithubOauth: () => import('#controllers/github_oauth_controller'),
+  ImConfigurations: () => import('#controllers/im_configurations_controller'),
   KnowledgeDocuments: () => import('#controllers/knowledge_documents_controller'),
   LlmConfigurations: () => import('#controllers/llm_configurations_controller'),
   NewAccount: () => import('#controllers/new_account_controller'),

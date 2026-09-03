@@ -34,6 +34,8 @@ export type ScannedRoutes = {
     'llm_configurations.show': { paramsTuple?: []; params?: {} }
     'llm_configurations.update': { paramsTuple?: []; params?: {} }
     'llm_configurations.test': { paramsTuple?: []; params?: {} }
+    'im_configurations.show': { paramsTuple?: []; params?: {} }
+    'im_configurations.update': { paramsTuple?: []; params?: {} }
     'wecom_message_templates.index': { paramsTuple?: []; params?: {} }
     'wecom_message_templates.store': { paramsTuple?: []; params?: {} }
     'wecom_message_templates.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
@@ -118,6 +120,7 @@ export type ScannedRoutes = {
     'profile.profile.show': { paramsTuple?: []; params?: {} }
     'api_keys.index': { paramsTuple?: []; params?: {} }
     'llm_configurations.show': { paramsTuple?: []; params?: {} }
+    'im_configurations.show': { paramsTuple?: []; params?: {} }
     'wecom_message_templates.index': { paramsTuple?: []; params?: {} }
     'knowledge_documents.index': { paramsTuple?: []; params?: {} }
     'system_status.show': { paramsTuple?: []; params?: {} }
@@ -139,6 +142,7 @@ export type ScannedRoutes = {
     'profile.profile.show': { paramsTuple?: []; params?: {} }
     'api_keys.index': { paramsTuple?: []; params?: {} }
     'llm_configurations.show': { paramsTuple?: []; params?: {} }
+    'im_configurations.show': { paramsTuple?: []; params?: {} }
     'wecom_message_templates.index': { paramsTuple?: []; params?: {} }
     'knowledge_documents.index': { paramsTuple?: []; params?: {} }
     'system_status.show': { paramsTuple?: []; params?: {} }
@@ -155,6 +159,7 @@ export type ScannedRoutes = {
     'profile.profile.change_password': { paramsTuple?: []; params?: {} }
     'api_keys.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'llm_configurations.update': { paramsTuple?: []; params?: {} }
+    'im_configurations.update': { paramsTuple?: []; params?: {} }
     'wecom_message_templates.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'knowledge_documents.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'users.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }

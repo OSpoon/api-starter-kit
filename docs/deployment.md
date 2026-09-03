@@ -53,9 +53,9 @@ cp apps/frontend/.env.example apps/frontend/.env
 `VITE_TURNSTILE_SITE_KEY` 同时匹配。
 
 不要把 backend `.env` 提交到 Git，也不要把 `APP_KEY`、数据库密码、OAuth
-secret、Bot secret 或 AI API key 写入 frontend 环境变量。Bot 凭据、LLM、
-Embedding 和 ASR 凭据在首次迁移后通过系统管理的「LLM 配置」页面维护，
-敏感值由 backend 加密保存。
+secret、Bot secret 或 AI API key 写入 frontend 环境变量。LLM、Embedding 和
+ASR 凭据在首次迁移后通过系统管理的「LLM 配置」页面维护，Bot 凭据通过「IM
+配置」页面维护，敏感值由 backend 加密保存。
 
 ### 前端环境变量的 Docker 边界
 
@@ -182,12 +182,12 @@ node ace feishu:bot
 node ace dingtalk:bot
 ```
 
-Bot 未在「LLM 配置」中完成对应渠道配置时，会打印配置错误并退出；生产
+Bot 未在「IM 配置」中完成对应渠道配置时，会打印配置错误并退出；生产
 Compose 不会对这三个 worker 设置自动重启，因此不会对必然失败的进程进行
 无效重启。完成配置后，手动启动对应服务：
 
 它们使用 backend 的数据库、权限、知识库和受控 AI 操作，不是独立的 API
-服务。LLM 配置保存后，backend 的普通请求会读取新的运行时配置；Bot 已
+服务。LLM 或 IM 配置保存后，backend 的普通请求会读取新的运行时配置；Bot 已
 建立的长连接仍需重启对应 worker 才会重新加载连接配置：
 
 ```bash
