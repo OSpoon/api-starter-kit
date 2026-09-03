@@ -174,7 +174,7 @@ apps/backend/commands/feishu_bot.ts
 apps/backend/commands/dingtalk_bot.ts
 ```
 
-代码变更会由对应 Nodemon worker 重启。LLM 配置保存后，仍需要重启对应 worker，因为 Bot 进程在启动时读取运行时配置并建立连接。
+代码变更会由对应 Nodemon worker 重启。IM 配置保存后，仍需要重启对应 worker，因为 Bot 进程在启动时读取运行时配置并建立连接。开发模式下，如果数据库暂时未就绪、IM 配置不完整或 WebSocket 握手失败，worker 会记录原因并自动重试，不需要再次修改代码才能恢复。
 
 ### Docker Compose
 

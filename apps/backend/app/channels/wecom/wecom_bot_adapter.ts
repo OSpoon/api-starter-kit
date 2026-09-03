@@ -43,6 +43,7 @@ export class WecomBotAdapter implements ChannelAdapter {
   private readonly client: InstanceType<typeof AiBot.WSClient>
   private readonly logger: NonNullable<WSClientOptions['logger']>
   private started = false
+  private rejectStartup: ((error: Error) => void) | null = null
 
   constructor(private readonly options: WecomBotAdapterOptions) {
     this.tenantId = options.tenantId
@@ -69,12 +70,45 @@ export class WecomBotAdapter implements ChannelAdapter {
   async start() {
     if (this.started) return
     this.started = true
-    this.client.connect()
+
+    await new Promise<void>((resolve, reject) => {
+      let settled = false
+      const timeout = setTimeout(() => {
+        finish(new Error('WebSocket authentication timed out'))
+      }, 15_000)
+      const finish = (error?: Error) => {
+        if (settled) return
+        settled = true
+        clearTimeout(timeout)
+        this.client.off('authenticated', onAuthenticated)
+        this.client.off('error', onError)
+        if (this.rejectStartup === cancel) this.rejectStartup = null
+        if (error) reject(error)
+        else resolve()
+      }
+      const onAuthenticated = () => {
+        this.logger.info('WeCom WebSocket authenticated')
+        finish()
+      }
+      const onError = (error: Error) => finish(error)
+      const cancel = (error: Error) => finish(error)
+
+      this.rejectStartup = cancel
+      this.client.once('authenticated', onAuthenticated)
+      this.client.once('error', onError)
+      this.client.connect()
+    }).catch((error) => {
+      this.started = false
+      this.client.disconnect()
+      throw error
+    })
   }
 
   async stop() {
     if (!this.started) return
     this.started = false
+    this.rejectStartup?.(new Error('WebSocket startup cancelled'))
+    this.rejectStartup = null
     this.client.disconnect()
   }
 
