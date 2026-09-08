@@ -117,6 +117,8 @@ function toggleRole(roleId: number, checked: boolean | 'indeterminate') {
 function invalidSubmit({ errors }: { errors: Parameters<typeof firstFormError>[0] }) {
   toast.error(firstFormError(errors, t('knowledge.validation_failed')))
 }
+
+const onSubmit = form.handleSubmit(submit, invalidSubmit)
 </script>
 
 <template>
@@ -127,7 +129,8 @@ function invalidSubmit({ errors }: { errors: Parameters<typeof firstFormError>[0
   >
     <form
       class="flex min-h-0 flex-1 flex-col overflow-hidden"
-      @submit.prevent="form.handleSubmit(submit, invalidSubmit)"
+      novalidate
+      @submit.prevent="onSubmit"
     >
       <div class="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
         <div class="grid gap-4 px-6 pb-6">

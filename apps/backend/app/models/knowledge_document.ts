@@ -5,6 +5,22 @@ import { DateTime } from 'luxon'
 import KnowledgeChunk from '#models/knowledge_chunk'
 import Role from '#models/role'
 
+function consumeTopics(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.filter((topic): topic is string => typeof topic === 'string')
+  }
+  if (typeof value !== 'string') return []
+
+  try {
+    const topics = JSON.parse(value)
+    return Array.isArray(topics)
+      ? topics.filter((topic): topic is string => typeof topic === 'string')
+      : []
+  } catch {
+    return []
+  }
+}
+
 export default class KnowledgeDocument extends BaseModel {
   static table = 'knowledge_documents'
 
@@ -20,7 +36,10 @@ export default class KnowledgeDocument extends BaseModel {
   @column()
   declare summary: string | null
 
-  @column()
+  @column({
+    prepare: (value: string[] | null | undefined) => JSON.stringify(value ?? []),
+    consume: consumeTopics,
+  })
   declare topics: string[]
 
   @column()
