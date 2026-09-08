@@ -61,9 +61,9 @@ export async function getLlmConfiguration() {
   if (existing) return existing
   return LlmConfiguration.create({
     id: 1,
-    chatModel: 'gpt-4o-mini',
+    chatModel: 'Qwen3.5-4B-MLX-4bit',
     asrModel: 'Qwen3-ASR-0.6B-4bit',
-    embeddingModel: null,
+    embeddingModel: 'Qwen3-Embedding-0.6B-4bit-DWQ',
     embeddingDimensions: 1024,
     requestTimeoutMs: 180000,
   })
