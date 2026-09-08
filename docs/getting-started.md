@@ -46,4 +46,4 @@ OpenAPI UI 需要后端环境变量 `OPENAPI_DOCS_ENABLED=true`。
 
 ## 下一步
 
-完成登录后，阅读[开发指南](customization.md)开始替换 starter 示例并添加业务 feature。需要了解模块边界时，阅读[系统架构](architecture.md)；需要配置 AI、ASR 或渠道 Bot 时，再查阅对应的参考文档。
+完成登录后，阅读[产品扩展指南](customization.md)开始替换 starter 示例并添加业务 feature。需要了解模块边界时，阅读[系统架构](architecture.md)；需要配置 AI、ASR 或渠道 Bot 时，再查阅对应的参考文档。

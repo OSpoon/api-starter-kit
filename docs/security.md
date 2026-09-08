@@ -15,13 +15,14 @@
 - 前端路由与控件显隐只改善体验，后端始终重新鉴权。
 - 管理操作和已确认 AI 操作均写入审计日志。
 
-### 知识库权限与审计
+### 知识库安全原则
 
 - 文档管理统一需要 `knowledge:manage`；AI 目录和正文检索统一需要 `knowledge:read`。管理权限不因拥有检索权限而自动获得。
 - 文档角色关系由后端过滤。群聊访客强制使用公开范围，只能读取没有角色限制的文档；模型不能通过文档 ID 绕过角色校验。
 - AI 知识检索必须先执行目录阶段，再执行限定文档的正文阶段；第二阶段只能使用本轮目录返回的文档 ID，目录结果本身不是回答证据。
-- 文档创建、更新、重建索引和删除记录 `knowledge_document.*` 审计事件；目录和正文检索分别记录 `knowledge.catalog_searched` 与 `knowledge.searched`。
-- 检索审计只保留查询 SHA-256 哈希、授权结果、候选/选中文档数量、结果数量、公开模式和耗时，不保存原始查询、正文摘录或敏感参数。
+- 文档管理和 AI 检索均记录审计事件；检索审计不保存原始查询、正文摘录或敏感参数。
+
+字段、检索流程、具体事件和数据保护细节见[知识库实现说明](knowledge-base.md)。
 
 ## 应用与部署加固
 
@@ -30,6 +31,11 @@
 - Adonis Shield 与 Nginx 设置 CSP、`X-Content-Type-Options`、`X-Frame-Options` 和 `Referrer-Policy` 等安全头。
 - 后端容器以非 root 的 `node` 用户运行。
 - 前端 Markdown 渲染器转义 raw HTML，防止 AI 输出 XSS。
+
+## 仓库安全设置
+
+仓库管理员需要在 GitHub 的 **Settings → Advanced Security → Secret Protection** 中开启
+Secret Scanning 和 Push Protection。它们是 GitHub 仓库级安全设置，不能通过提交代码文件代替开启。
 
 ## AI 安全边界
 

@@ -51,7 +51,7 @@
 | `POST`   | `/system/knowledge-documents/:id/reindex`      | 使用当前内容重新生成正文和目录向量                                       |
 | `DELETE` | `/system/knowledge-documents/:id`              | 删除文档及其索引                                                         |
 
-创建和更新使用 multipart 表单：`file`（更新时可选）、`summary`、JSON 字符串 `topics` 和 `roleIds`。当前对外不再支持来源机构、文档类型、产品或业务对象等旧字段。AI 侧知识检索不是普通 HTTP 查询接口，而是由 `search_knowledge_catalog` 和 `search_knowledge` 两个受服务端权限控制的 Agent 工具完成，规则见[知识库实现说明](knowledge-base.md)。
+创建和更新使用 multipart 表单：`file`（更新时可选）、`summary`、JSON 字符串 `topics` 和 `roleIds`。当前对外不再支持来源机构、文档类型、产品或业务对象等旧字段。知识库字段、索引和 AI 检索规则见[知识库实现说明](knowledge-base.md)。
 
 ## 新增或修改接口
 

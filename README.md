@@ -18,39 +18,20 @@ API Starter Kit 为团队构建可运营业务系统提供统一的治理基础�
 
 | 领域             | 能力                                                                                  |
 | ---------------- | ------------------------------------------------------------------------------------- |
-| 账号与安全       | 管理员初始化、登录、密码策略、账号锁定、TOTP 2FA、恢复码和 GitHub OAuth               |
-| 用户、角色与权限 | RBAC、权限目录、Bouncer 鉴权、路由驱动导航和前端权限显隐                              |
-| API Key          | 创建、更新、吊销、删除、过期管理、哈希校验和仅一次明文展示                            |
-| 审计与可观测性   | 关键管理操作与已确认 AI 操作的可检索审计记录                                          |
-| 知识库           | 审查后的通用文档管理、角色访问控制、目录/正文两阶段向量检索和结构化检索元数据         |
-| AI 工作台        | Pi Agent 流式对话、完整历史、知识问答、注册查询和需确认的管理操作提议                 |
-| 外部 AI 渠道     | 企业微信、飞书、钉钉智能机器人长连接、私聊身份绑定，以及群聊公开知识库访客问答        |
-| 交付基础         | OpenAPI/Scalar、Docker（配置位于 `docker/`）、pgvector PostgreSQL、国际化与自动化检查 |
-
-AI 助手只能访问授权的知识和注册查询模板；管理类操作只创建持久化提议，必须经过结构化确认后执行。后端负责校验、授权、脱敏、持久化和审计，前端不是安全边界。
-
-知识库采用两阶段检索：AI 先检索权限过滤后的知识源目录，再限定文档范围检索正文片段；回答只能基于正文片段。知识文档上传支持 LLM 生成可检索主题和知识源说明建议，管理员确认后才会保存。管理接口为 `POST /api/v1/system/knowledge-documents/metadata-preview`，文档检索权限仍使用 `knowledge:read`。完整的字段、接口、迁移和审计说明见[知识库实现说明](docs/knowledge-base.md)。
-
-系统管理中的「LLM 配置」仅维护 Chat、ASR、Embedding 和请求超时；「IM 配置」单独维护企业微信、飞书和钉钉机器人凭据及卡片模板。
+| 账号与治理       | 认证、2FA、RBAC、API Key、审计和安全策略                                      |
+| 知识与 AI        | 知识库、受控 AI 对话、注册查询和需确认的管理操作                              |
+| 集成与交付       | OpenAPI、Docker Compose、PostgreSQL、国际化和可选外部渠道集成                  |
 
 ## 从这里开始
 
 1. [快速开始](docs/getting-started.md)：安装依赖并启动本地环境。
-2. [开发指南](docs/customization.md)：新增业务 feature、页面、API 和权限。
+2. [产品扩展指南](docs/customization.md)：基于 starter 新增业务 feature、页面、API 和权限。
 3. [系统架构](docs/architecture.md)：理解前后端边界和扩展位置。
 4. [文档总览](docs/README.md)：按场景查找 API、安全、部署和 AI 参考。
 
 安全提示：启动前必须将 `apps/backend/.env.example` 中的
 `ADMIN_PASSWORD` 和 `DB_PASSWORD` 替换为彼此不同的高强度密码；示例值仅为占位符，
 不能用于共享或生产环境。
-
-## 依赖升级检查
-
-GitHub Dependabot 会每周一检查 pnpm workspace 和 GitHub Actions 的版本，并按生产依赖、开发依赖和 Actions 分组创建升级 PR。升级 PR 会经过仓库现有 CI 验证后再合并；Dependabot 不会直接修改默认分支。
-
-## 安全防护
-
-仓库管理员需要在 GitHub 的 **Settings → Advanced Security → Secret Protection** 中开启 Secret Scanning 和 Push Protection。它们是 GitHub 仓库级安全设置，不能通过提交代码文件代替开启。
 
 ## 许可证
 

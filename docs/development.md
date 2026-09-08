@@ -1,6 +1,6 @@
-# 开发指南
+# 工程开发指南
 
-这份文档用于日常开发和提交前检查。如何新增业务能力，阅读[开发指南](customization.md)；如何理解模块边界，阅读[系统架构](architecture.md)。
+这份文档用于日常工程开发和提交前检查。如何新增业务能力，阅读[产品扩展指南](customization.md)；如何理解模块边界，阅读[系统架构](architecture.md)。
 
 ## 工作区
 
@@ -55,5 +55,9 @@ pnpm --dir apps/frontend build
 - 是否覆盖加载、空数据、错误、禁用、无权限和校验失败状态。
 - 是否避免把密钥、密码、恢复码或其他敏感值写入日志和浏览器状态。
 - 是否运行与改动范围匹配的类型检查、lint、测试和构建。
+
+## 仓库维护
+
+GitHub Dependabot 每周检查 pnpm workspace 和 GitHub Actions 的版本，并按生产依赖、开发依赖和 Actions 分组创建升级 PR。升级 PR 需要经过仓库现有 CI 验证后再合并；Dependabot 不会直接修改默认分支。
 
 完整规则和验证矩阵见 [AGENTS.md](../AGENTS.md)。
