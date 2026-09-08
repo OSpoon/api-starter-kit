@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import { Info, LoaderCircle, Save } from '@lucide/vue'
+import { LoaderCircle, Save } from '@lucide/vue'
 import { toast } from 'vue-sonner'
 
 import SettingsPageTemplate from '@/components/templates/SettingsPageTemplate.vue'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -80,16 +79,6 @@ onMounted(load)
   <SettingsPageTemplate :title="t('im_config.title')" :description="t('im_config.description')">
     <div v-if="loading" class="text-sm text-muted-foreground">{{ t('common.loading') }}</div>
     <form v-else class="space-y-4" @submit.prevent="save">
-      <Alert>
-        <Info class="size-4" />
-        <AlertTitle>{{ t('im_config.restart_title') }}</AlertTitle>
-        <AlertDescription class="space-y-2">
-          <p>{{ t('im_config.restart_description') }}</p>
-          <code class="block overflow-x-auto rounded-md bg-muted px-3 py-2 font-mono text-xs">
-            {{ t('im_config.restart_command') }}
-          </code>
-        </AlertDescription>
-      </Alert>
       <Card>
         <CardHeader
           ><CardTitle class="flex items-center gap-2"

@@ -16,6 +16,6 @@ export async function createWecomAiRuntime() {
     onMessageStream: (message, emit) => bridge.handleMessageStream(message, emit),
     onTemplateCardEvent: (event) => bridge.handleTemplateCardEvent(event),
   })
-  bridge = new AiChannelBridge(adapter)
+  bridge = new AiChannelBridge(adapter, config.configurationKey)
   return bridge
 }

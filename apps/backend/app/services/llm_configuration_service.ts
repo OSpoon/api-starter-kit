@@ -1,6 +1,9 @@
 import encryption from '@adonisjs/core/services/encryption'
+import logger from '@adonisjs/core/services/logger'
+import db from '@adonisjs/lucid/services/db'
 
 import LlmConfiguration from '#models/llm_configuration'
+import { IM_CONFIGURATION_CHANGED_CHANNEL } from '#services/im_configuration_change_listener'
 
 type LlmConfigInput = {
   chatApiKey?: string | null
@@ -36,6 +39,21 @@ function encryptSecret(value?: string | null) {
 
 function decryptSecret(value?: string | null) {
   return value ? encryption.decrypt<string>(value) : null
+}
+
+async function notifyImConfigurationChanged() {
+  try {
+    await db.rawQuery('select pg_notify(?, ?)', [IM_CONFIGURATION_CHANGED_CHANNEL, 'changed'])
+  } catch (error) {
+    logger.warn(
+      { err: error },
+      'IM configuration saved, but the PostgreSQL change notification could not be sent'
+    )
+  }
+}
+
+function configurationKey(value: unknown) {
+  return JSON.stringify(value)
 }
 
 export async function getLlmConfiguration() {
@@ -90,6 +108,12 @@ export async function readRuntimeWecomBotConfiguration() {
     secret,
     tenantId,
     wsUrl: config.wecomBotWsUrl?.trim() || undefined,
+    configurationKey: configurationKey({
+      botId: config.wecomBotId,
+      secret: config.wecomBotSecret,
+      tenantId: config.wecomBotTenantId,
+      wsUrl: config.wecomBotWsUrl,
+    }),
   }
 }
 
@@ -103,6 +127,11 @@ export async function readRuntimeFeishuBotConfiguration() {
     appId,
     secret,
     domain: config.feishuDomain?.trim() || undefined,
+    configurationKey: configurationKey({
+      appId: config.feishuAppId,
+      secret: config.feishuAppSecret,
+      domain: config.feishuDomain,
+    }),
   }
 }
 
@@ -114,7 +143,18 @@ export async function readRuntimeDingTalkBotConfiguration() {
   const streamingCardTemplateId = config.dingtalkStreamingCardTemplateId?.trim() || null
   if (!clientId || !clientSecret) return null
 
-  return { clientId, clientSecret, cardTemplateId, streamingCardTemplateId }
+  return {
+    clientId,
+    clientSecret,
+    cardTemplateId,
+    streamingCardTemplateId,
+    configurationKey: configurationKey({
+      clientId: config.dingtalkClientId,
+      clientSecret: config.dingtalkClientSecret,
+      cardTemplateId: config.dingtalkCardTemplateId,
+      streamingCardTemplateId: config.dingtalkStreamingCardTemplateId,
+    }),
+  }
 }
 
 export async function updateLlmConfiguration(input: LlmConfigInput) {
@@ -150,6 +190,7 @@ export async function updateImConfiguration(input: ImConfigInput) {
     config.dingtalkClientSecret = encryptSecret(input.dingtalkClientSecret)
   }
   await config.save()
+  await notifyImConfigurationChanged()
   return config
 }
 

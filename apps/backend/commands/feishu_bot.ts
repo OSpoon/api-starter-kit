@@ -1,7 +1,7 @@
 import { BaseCommand } from '@adonisjs/core/ace'
 
-import { runChannelBot } from '#channels/channel_bot_runner'
 import { createFeishuAiRuntime } from '#channels/feishu/feishu_ai_runtime'
+import { runAiChannelWorker } from '#channels/run_ai_channel_worker'
 
 export default class FeishuBot extends BaseCommand {
   static commandName = 'feishu:bot'
@@ -9,7 +9,7 @@ export default class FeishuBot extends BaseCommand {
   static options = { startApp: true }
 
   async run() {
-    const completed = await runChannelBot({
+    const completed = await runAiChannelWorker({
       name: 'Feishu',
       createRuntime: createFeishuAiRuntime,
       logger: this.logger,

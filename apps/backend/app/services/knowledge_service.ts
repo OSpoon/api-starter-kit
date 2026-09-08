@@ -33,20 +33,13 @@ export type CreateKnowledgeDocumentInput = {
   roleIds?: number[]
 }
 
-export type KnowledgeDocumentMetadata = Pick<
-  CreateKnowledgeDocumentInput,
-  'summary' | 'topics'
->
+export type KnowledgeDocumentMetadata = Pick<CreateKnowledgeDocumentInput, 'summary' | 'topics'>
 
 export function buildKnowledgeCatalogText(input: {
   title: string
   metadata: KnowledgeDocumentMetadata
 }) {
-  return [
-    input.title,
-    input.metadata.summary,
-    ...(input.metadata.topics ?? []),
-  ]
+  return [input.title, input.metadata.summary, ...(input.metadata.topics ?? [])]
     .filter((value): value is string => Boolean(value?.trim()))
     .join('\n')
 }

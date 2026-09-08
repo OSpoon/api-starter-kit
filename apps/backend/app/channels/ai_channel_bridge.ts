@@ -18,6 +18,7 @@ import type {
   NormalizedInboundMessage,
   OutboundMessage,
 } from '#channels/channel_types'
+import type { ReloadableBotRuntime } from '#channels/reloadable_ai_channel_runtime'
 import AiChatMessage from '#models/ai_chat_message'
 import User from '#models/user'
 import { createChannelBindingChallenge } from '#services/channel_binding_service'
@@ -89,8 +90,15 @@ function confirmationReply(value: Record<string, unknown>): OutboundMessage | nu
   }
 }
 
-export class AiChannelBridge {
-  constructor(private readonly adapter: ChannelAdapter) {}
+export class AiChannelBridge implements ReloadableBotRuntime {
+  readonly configurationKey?: string
+
+  constructor(adapter: ChannelAdapter, configurationKey?: string) {
+    this.adapter = adapter
+    this.configurationKey = configurationKey
+  }
+
+  private readonly adapter: ChannelAdapter
 
   async handleMessage(
     message: NormalizedInboundMessage,

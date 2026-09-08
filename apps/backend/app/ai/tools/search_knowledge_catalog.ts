@@ -32,9 +32,9 @@ export function createSearchKnowledgeCatalogTool(
         input.knowledgeCatalogDocumentIds = new Set(sources.map((source) => source.documentId))
         return {
           sources: sources.map((source) => ({
-          documentId: source.documentId,
-          title: source.title,
-          summary: source.summary,
+            documentId: source.documentId,
+            title: source.title,
+            summary: source.summary,
             topics: source.topics,
             similarity: source.similarity,
           })),

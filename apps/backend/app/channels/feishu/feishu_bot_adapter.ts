@@ -72,6 +72,8 @@ export class FeishuBotAdapter implements ChannelAdapter {
   private readonly client: Lark.Client
   private readonly wsClient: Lark.WSClient
   private started = false
+  private resolveStartup: (() => void) | null = null
+  private rejectStartup: ((error: Error) => void) | null = null
   private readonly handledMessageIds = new Map<string, number>()
 
   constructor(private readonly options: FeishuBotAdapterOptions) {
@@ -86,7 +88,11 @@ export class FeishuBotAdapter implements ChannelAdapter {
       ...baseConfig,
       loggerLevel: Lark.LoggerLevel.info,
       autoReconnect: true,
-      onReady: () => console.info('[feishu-bot] WebSocket authenticated'),
+      onReady: () => {
+        console.info('[feishu-bot] WebSocket authenticated')
+        this.resolveStartup?.()
+      },
+      onError: (error) => this.rejectStartup?.(error),
       onReconnecting: () => console.warn('[feishu-bot] WebSocket reconnecting'),
     })
   }
@@ -117,12 +123,38 @@ export class FeishuBotAdapter implements ChannelAdapter {
         void this.handleCardAction(event).catch((error) => this.logError(error))
       },
     })
-    await this.wsClient.start({ eventDispatcher })
+    await new Promise<void>((resolve, reject) => {
+      let settled = false
+      const timeout = setTimeout(
+        () => finish(new Error('Feishu WebSocket authentication timed out')),
+        15_000
+      )
+      const finish = (error?: Error) => {
+        if (settled) return
+        settled = true
+        clearTimeout(timeout)
+        this.resolveStartup = null
+        this.rejectStartup = null
+        if (error) reject(error)
+        else resolve()
+      }
+
+      this.resolveStartup = () => finish()
+      this.rejectStartup = (error) => finish(error)
+      void this.wsClient.start({ eventDispatcher }).catch((error) => finish(error))
+    }).catch((error) => {
+      this.started = false
+      this.wsClient.close({ force: true })
+      throw error
+    })
   }
 
   async stop() {
     if (!this.started) return
     this.started = false
+    this.rejectStartup?.(new Error('Feishu WebSocket startup cancelled'))
+    this.resolveStartup = null
+    this.rejectStartup = null
     this.wsClient.close({ force: true })
   }
 

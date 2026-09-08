@@ -3,7 +3,9 @@ import { configApp } from '@adonisjs/eslint-config'
 import simpleImportSort from 'eslint-plugin-simple-import-sort'
 
 export default [
-  globalIgnores(['.adonisjs/**', 'build/**']),
+  // Lucid regenerates this file from the database and does not use the
+  // repository Prettier print width. TypeScript still type-checks it.
+  globalIgnores(['.adonisjs/**', 'build/**', 'database/schema.ts']),
   ...configApp(),
   {
     name: 'app/tsconfig-root-dir',

@@ -1,6 +1,6 @@
 import { BaseCommand } from '@adonisjs/core/ace'
 
-import { runChannelBot } from '#channels/channel_bot_runner'
+import { runAiChannelWorker } from '#channels/run_ai_channel_worker'
 import { createWecomAiRuntime } from '#channels/wecom/wecom_ai_runtime'
 
 export default class WecomBot extends BaseCommand {
@@ -9,7 +9,7 @@ export default class WecomBot extends BaseCommand {
   static options = { startApp: true }
 
   async run() {
-    const completed = await runChannelBot({
+    const completed = await runAiChannelWorker({
       name: 'WeCom',
       createRuntime: createWecomAiRuntime,
       logger: this.logger,

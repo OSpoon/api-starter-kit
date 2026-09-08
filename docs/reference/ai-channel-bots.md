@@ -51,7 +51,7 @@ AiChannelBridge
 
 ## 3. 运行时配置
 
-机器人凭据统一在系统管理的「IM 配置」页面维护。敏感字段由后端加密保存，保存后重启对应 Bot worker 才会重新加载运行时配置；模型、ASR 和 Embedding 配置仍在「LLM 配置」页面维护。
+机器人凭据统一在系统管理的「IM 配置」页面维护。敏感字段由后端加密保存，保存后对应 Bot worker 会自动重新加载运行时配置；模型、ASR 和 Embedding 配置仍在「LLM 配置」页面维护。
 
 ### 企业微信字段
 
@@ -174,7 +174,7 @@ apps/backend/commands/feishu_bot.ts
 apps/backend/commands/dingtalk_bot.ts
 ```
 
-代码变更会由对应 Nodemon worker 重启。IM 配置保存后，仍需要重启对应 worker，因为 Bot 进程在启动时读取运行时配置并建立连接。开发模式下，如果数据库暂时未就绪、IM 配置不完整或 WebSocket 握手失败，worker 会记录原因并自动重试，不需要再次修改代码才能恢复。
+代码变更会由对应 Nodemon worker 重启。IM 配置保存后，worker 会通过 PostgreSQL 通知重新读取配置并重建连接。开发模式下，如果数据库暂时未就绪、IM 配置不完整或 WebSocket 握手失败，worker 会保持运行、记录原因并自动重试，不需要再次修改代码才能恢复。
 
 ### Docker Compose
 
@@ -186,7 +186,8 @@ feishu-bot
 dingtalk-bot
 ```
 
-两个服务都依赖 backend 和数据库，但分别执行 `node ace wecom:bot` 与 `node ace feishu:bot`。检查服务状态：
+三个服务都依赖 backend 和数据库，但分别执行 `node ace wecom:bot`、`node ace feishu:bot`
+和 `node ace dingtalk:bot`。检查服务状态：
 
 ```bash
 docker compose -f docker/docker-compose.yml ps
@@ -194,6 +195,11 @@ docker compose -f docker/docker-compose.yml logs -f wecom-bot
 docker compose -f docker/docker-compose.yml logs -f feishu-bot
 docker compose -f docker/docker-compose.yml logs -f dingtalk-bot
 ```
+
+Bot worker 会监听 PostgreSQL 的 IM 配置变更通知。管理员在「IM 配置」页面保存后，
+对应渠道会自动使用新配置建立连接，无需执行 `docker compose restart`。如果配置不完整，
+worker 会保持运行并等待；如果 PostgreSQL 监听连接断开，worker 会自动重连并重新读取
+数据库配置。
 
 ## 7. 统一绑定与权限模型
 

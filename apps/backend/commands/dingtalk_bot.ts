@@ -1,7 +1,7 @@
 import { BaseCommand } from '@adonisjs/core/ace'
 
-import { runChannelBot } from '#channels/channel_bot_runner'
 import { createDingTalkAiRuntime } from '#channels/dingtalk/dingtalk_ai_runtime'
+import { runAiChannelWorker } from '#channels/run_ai_channel_worker'
 
 export default class DingTalkBot extends BaseCommand {
   static commandName = 'dingtalk:bot'
@@ -9,7 +9,7 @@ export default class DingTalkBot extends BaseCommand {
   static options = { startApp: true }
 
   async run() {
-    const completed = await runChannelBot({
+    const completed = await runAiChannelWorker({
       name: 'DingTalk',
       createRuntime: createDingTalkAiRuntime,
       logger: this.logger,

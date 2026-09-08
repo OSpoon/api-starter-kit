@@ -186,19 +186,14 @@ node ace feishu:bot
 node ace dingtalk:bot
 ```
 
-Bot 未在「IM 配置」中完成对应渠道配置时，开发模式会打印配置错误并持续重试；生产
-Compose 不会对这三个 worker 设置自动重启，因此不会对必然失败的进程进行
-无效重启。完成配置后，手动启动对应服务：
+Bot 未在「IM 配置」中完成对应渠道配置时，worker 会保持运行并等待配置；保存配置后，
+对应渠道会自动建立连接。生产 Compose 不会对这三个 worker 设置自动重启，因此 worker
+进程异常退出时仍需要按运维流程恢复服务。
 
 它们使用 backend 的数据库、权限、知识库和受控 AI 操作，不是独立的 API
-服务。LLM 或 IM 配置保存后，backend 的普通请求会读取新的运行时配置；Bot 已
-建立的长连接仍需重启对应 worker 才会重新加载连接配置：
-
-```bash
-docker compose -f docker/docker-compose.yml restart wecom-bot
-docker compose -f docker/docker-compose.yml restart feishu-bot
-docker compose -f docker/docker-compose.yml restart dingtalk-bot
-```
+服务。LLM 配置保存后，backend 的普通请求会读取新的运行时配置；IM 配置保存后，
+对应 Bot worker 会通过 PostgreSQL 配置变更通知重新读取数据库配置，先建立新长连接，
+再停止旧连接。通知连接短暂断开时，worker 重连成功会主动重新对账配置。
 
 语音输入使用系统管理中的 ASR 配置。ASR 服务需要提供 OpenAI-compatible
 `/audio/transcriptions` multipart 接口，并能处理 WebM、OGG、WAV、MP3 或
@@ -228,7 +223,7 @@ ASR/LLM 地址。渠道平台的应用发布、长连接、权限、绑定和卡
 | frontend 打开但 API 失败        | 确认 backend healthy、frontend 与 backend 在同一 Compose 网络，浏览器请求使用 `/api/`，并检查 Nginx/backend 日志。                                                            |
 | 直接访问 backend 出现 CORS 错误 | 将浏览器 origin 加入 `CORS_ORIGIN`，或使用 frontend 的同源入口；修改 backend `.env` 后重建/重启 backend。                                                                     |
 | `/api-docs` 404                 | 只有 `OPENAPI_DOCS_ENABLED=true` 时才注册该路由；修改后需要重启 backend。                                                                                                     |
-| Bot 已连接但配置未生效          | 在系统管理保存配置后重启对应 Bot worker；不要重复启动同一渠道的多个 worker。                                                                                                  |
+| Bot 已连接但配置未生效          | 检查对应 worker 日志中的配置通知、重载和连接错误；确认 PostgreSQL 可用且不要重复启动同一渠道的多个 worker。                                                                     |
 | 迁移未执行                      | 检查 Compose backend 是否使用 `MIGRATE=true`（生产文件会设置），再查看 backend 日志和 `node ace migration:status`。                                                           |
 
 开发环境使用 `pnpm docker:up` 或 `docker/docker-compose.dev.yml`，会额外
