@@ -46,14 +46,16 @@ test.group('AI agent prompt', () => {
     assert.notInclude(prompt, 'missing parameters')
     assert.notInclude(prompt, 'api_key_profile')
     assert.notInclude(prompt, 'authorization-context')
-    assert.isBelow(prompt.length, 3_300)
+    assert.include(prompt, 'use the server-generated runtime context JSON')
+    assert.isBelow(prompt.length, 3_500)
   })
 
   test('adds a restrictive visitor policy for group chat', ({ assert }) => {
     const prompt = createAiAgentSystemPrompt(undefined, '', 'knowledge-only')
 
     assert.include(prompt, 'group-chat visitor assistant')
-    assert.include(prompt, 'Before every answer, call search_knowledge_catalog')
+    assert.include(prompt, 'For current time, date, weekday, or server timezone questions')
+    assert.include(prompt, 'For other questions, call search_knowledge_catalog')
     assert.include(prompt, 'Never propose, confirm, or claim to execute any write operation')
     assert.notInclude(prompt, 'run_registered_query')
   })

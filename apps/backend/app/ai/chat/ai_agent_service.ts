@@ -1,6 +1,7 @@
 import crypto from 'node:crypto'
 
 import { listConversationConfirmations } from '#ai/core/ai_agent_confirmation'
+import { serializeAiAgentRuntimeContext } from '#ai/core/ai_agent_runtime_context'
 import type { AiAgentToolRequestContext } from '#ai/core/ai_agent_tool_context'
 import type { AiAgentMessage } from '#ai/core/ai_agent_types'
 import type { AiAgentPageContext } from '#ai/policy/ai_agent_prompt_policy'
@@ -22,6 +23,7 @@ export {
 
 async function buildLiveSessionContext(conversationId: number, userId: number) {
   try {
+    const runtimeContext = `\nServer-generated runtime context (JSON): ${serializeAiAgentRuntimeContext()}`
     const conversation = await AiChatConversation.query()
       .where('id', conversationId)
       .where('user_id', userId)
@@ -41,9 +43,9 @@ async function buildLiveSessionContext(conversationId: number, userId: number) {
     const summaryContext = conversation?.contextSummary
       ? `<conversation-summary>${conversation.contextSummary}</conversation-summary>`
       : ''
-    return `${summaryContext} ${pendingQueryContext} ${pendingConfirmationContext}`
+    return `${runtimeContext}${summaryContext} ${pendingQueryContext} ${pendingConfirmationContext}`
   } catch {
-    return ''
+    return `\nServer-generated runtime context (JSON): ${serializeAiAgentRuntimeContext()}`
   }
 }
 
