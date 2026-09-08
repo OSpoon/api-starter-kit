@@ -15,7 +15,12 @@ cp apps/frontend/.env.example apps/frontend/.env
 pnpm --dir apps/backend exec node ace generate:key --show
 ```
 
-将生成的值写入 `apps/backend/.env` 的 `APP_KEY`。`ADMIN_EMAIL`、`ADMIN_PASSWORD` 和 `ADMIN_FULL_NAME` 用于初始化首个管理员；仅当用户表为空时创建。
+将生成的值写入 `apps/backend/.env` 的 `APP_KEY`。启动任何服务前，必须将其中的
+`ADMIN_PASSWORD` 和 `DB_PASSWORD` 替换为密码管理器生成的、彼此不同的高强度密码；
+示例文件中的 `Change-Me-1234-5678-9012` 和 `app_password` 只是占位值，不能用于共享或生产环境。
+管理员密码至少 15 位，并满足项目密码强度要求。不要将 `apps/backend/.env` 提交到 Git。
+
+`ADMIN_EMAIL`、`ADMIN_PASSWORD` 和 `ADMIN_FULL_NAME` 用于初始化首个管理员；仅当用户表为空时创建。
 
 生产环境可启用 Cloudflare Turnstile 登录保护：在 Cloudflare 创建 Widget，将 Site Key 写入 `apps/frontend/.env` 的 `VITE_TURNSTILE_SITE_KEY`，将 Secret Key 写入 `apps/backend/.env` 的 `TURNSTILE_SECRET_KEY`，并设置 `TURNSTILE_ENABLED=true`。后端会在登录时通过 Cloudflare 服务端校验临时 token；本地开发默认关闭。
 

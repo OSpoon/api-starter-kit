@@ -32,6 +32,11 @@ cp apps/backend/.env.example apps/backend/.env
 cp apps/frontend/.env.example apps/frontend/.env
 ```
 
+安全提示：`apps/backend/.env.example` 中的 `ADMIN_PASSWORD=Change-Me-1234-5678-9012`
+和 `DB_PASSWORD=app_password` 都是公开的占位值。生产部署前必须将两者替换为密码管理器
+生成的、彼此不同的高强度随机密码；不要复用管理员密码、提交 `.env`，或把密码写入
+frontend 环境变量。管理员密码至少 15 位，并满足项目密码强度要求。
+
 生产环境至少检查以下 backend 变量：
 
 | 变量                                                 | 生产要求                                                                                                        |
@@ -40,8 +45,8 @@ cp apps/frontend/.env.example apps/frontend/.env
 | `HOST` / `PORT`                                      | 容器内应为 `0.0.0.0` / `13333`；Compose 会覆盖 `HOST`，端口不要改成与 Dockerfile/Compose 不一致的值。           |
 | `APP_KEY`                                            | 必须填写高强度、稳定且只保存在服务端的密钥；更换会影响加密数据。                                                |
 | `APP_URL`                                            | 填写对外可访问的 backend URL。                                                                                  |
-| `ADMIN_EMAIL` / `ADMIN_PASSWORD` / `ADMIN_FULL_NAME` | 首次启动时用于自动创建首个管理员；密码至少 15 位，并满足项目密码强度要求。                                      |
-| `DB_USER` / `DB_PASSWORD` / `DB_DATABASE`            | PostgreSQL 初始化凭据。Compose 会把它们传给 PostgreSQL，并让 backend 连接内部主机名 `postgres`。                |
+| `ADMIN_EMAIL` / `ADMIN_PASSWORD` / `ADMIN_FULL_NAME` | 首次启动时用于自动创建首个管理员；必须使用未在其他环境复用的高强度密码，至少 15 位并满足项目密码强度要求。     |
+| `DB_USER` / `DB_PASSWORD` / `DB_DATABASE`            | PostgreSQL 初始化凭据；必须使用未与管理员或其他服务复用的高强度密码。Compose 会把它们传给 PostgreSQL，并让 backend 连接内部主机名 `postgres`。 |
 | `CORS_ORIGIN`                                        | 填写允许跨域访问 API 的前端 origin，多个值用逗号分隔，例如 `https://app.example.com`。同源访问仍由 Nginx 代理。 |
 | `SESSION_DRIVER`                                     | 当前示例使用 `cookie`；按认证部署策略配置。                                                                     |
 | `OPENAPI_DOCS_ENABLED`                               | 生产默认建议为 `false`；仅在确实需要 `/api-docs` 时开启，并限制 backend 暴露范围。                              |
@@ -56,6 +61,10 @@ cp apps/frontend/.env.example apps/frontend/.env
 secret、Bot secret 或 AI API key 写入 frontend 环境变量。LLM、Embedding 和
 ASR 凭据在首次迁移后通过系统管理的「LLM 配置」页面维护，Bot 凭据通过「IM
 配置」页面维护，敏感值由 backend 加密保存。
+
+如果 PostgreSQL 已经使用现有 volume 初始化，之后仅修改 `.env` 中的
+`DB_PASSWORD` 不会修改数据库内部密码；请按既有数据库凭据轮换流程先同步更新
+PostgreSQL 用户密码，再更新应用配置，避免直接删除 volume。
 
 ### 前端环境变量的 Docker 边界
 

@@ -40,6 +40,10 @@ AI 助手只能访问授权的知识和注册查询模板；管理类操作只�
 3. [系统架构](docs/architecture.md)：理解前后端边界和扩展位置。
 4. [文档总览](docs/README.md)：按场景查找 API、安全、部署和 AI 参考。
 
+安全提示：启动前必须将 `apps/backend/.env.example` 中的
+`ADMIN_PASSWORD` 和 `DB_PASSWORD` 替换为彼此不同的高强度密码；示例值仅为占位符，
+不能用于共享或生产环境。
+
 ## 依赖升级检查
 
 GitHub Dependabot 会每周一检查 pnpm workspace 和 GitHub Actions 的版本，并按生产依赖、开发依赖和 Actions 分组创建升级 PR。升级 PR 会经过仓库现有 CI 验证后再合并；Dependabot 不会直接修改默认分支。
