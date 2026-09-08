@@ -6,6 +6,8 @@ import { ApiOperation, ApiResponse, ApiSecurity } from '@foadonis/openapi/decora
 
 import KnowledgeDocument from '#models/knowledge_document'
 import Role from '#models/role'
+import { recordAuditEvent } from '#services/audit_log'
+import { suggestKnowledgeMetadata } from '#services/knowledge_metadata_service'
 import {
   createKnowledgeDocument,
   deleteKnowledgeDocument,
@@ -13,6 +15,10 @@ import {
 } from '#services/knowledge_service'
 import { clampLimit } from '#support/pagination'
 import { serializeKnowledgeDocument } from '#transformers/knowledge_document_transformer'
+import {
+  knowledgeDocumentValidator,
+  knowledgeMetadataPreviewValidator,
+} from '#validators/knowledge_document'
 
 function parseRoleIds(value: unknown) {
   const parsed = typeof value === 'string' ? JSON.parse(value) : value
@@ -30,12 +36,12 @@ async function validateRoleIds(roleIds: number[]) {
 
 async function readTextFile(ctx: HttpContext, required: boolean) {
   const file = ctx.request.file('file', {
-    size: '2mb',
+    size: '5mb',
     extnames: ['txt', 'md', 'markdown', 'rst'],
   })
   if (!file && !required) return null
   if (!file || !file.isValid || !file.tmpPath) {
-    throw new Error('请上传不超过 2MB 的 UTF-8 纯文本文件')
+    throw new Error('请上传不超过 5MB 的 UTF-8 纯文本文件')
   }
   const rawContent = await readFile(file.tmpPath, 'utf8')
   const content = rawContent.replace(/^\uFEFF/, '').trim()
@@ -43,9 +49,16 @@ async function readTextFile(ctx: HttpContext, required: boolean) {
   return { title: path.parse(file.clientName).name.slice(0, 200), content }
 }
 
+function parseTopics(value: unknown) {
+  if (value === undefined || value === null || value === '') return []
+  const parsed = typeof value === 'string' ? JSON.parse(value) : value
+  if (!Array.isArray(parsed)) throw new Error('可检索主题格式无效')
+  return parsed
+}
+
 async function readTextFiles(ctx: HttpContext) {
   const files = ctx.request.files('files', {
-    size: '2mb',
+    size: '5mb',
     extnames: ['txt', 'md', 'markdown', 'rst'],
   })
   if (!files.length) throw new Error('请至少上传一份纯文本文件')
@@ -54,7 +67,7 @@ async function readTextFiles(ctx: HttpContext) {
   return Promise.all(
     files.map(async (file) => {
       if (!file.isValid || !file.tmpPath) {
-        throw new Error(`文件「${file.clientName}」无效，请上传不超过 2MB 的 UTF-8 纯文本文件`)
+        throw new Error(`文件「${file.clientName}」无效，请上传不超过 5MB 的 UTF-8 纯文本文件`)
       }
       const rawContent = await readFile(file.tmpPath, 'utf8')
       const content = rawContent.replace(/^\uFEFF/, '').trim()
@@ -83,20 +96,54 @@ export default class KnowledgeDocumentsController {
     })
   }
 
+  @ApiOperation({ summary: '生成知识文档目录元数据建议' })
+  @ApiResponse({ status: 200, description: 'LLM 提取的待确认元数据建议' })
+  async metadataPreview(ctx: HttpContext) {
+    const { response, serialize } = ctx
+    const textFile = await readTextFile(ctx, true)
+    const payload = await knowledgeMetadataPreviewValidator.validate({
+      title: textFile!.title,
+      content: textFile!.content,
+    })
+    try {
+      return serialize(await suggestKnowledgeMetadata(payload))
+    } catch (error) {
+      return response.unprocessableEntity({
+        message: error instanceof Error ? error.message : '知识文档元数据提取失败',
+      })
+    }
+  }
+
   @ApiOperation({ summary: '创建并索引知识文档' })
   @ApiResponse({ status: 200, description: '已创建的知识文档' })
   async store(ctx: HttpContext) {
-    const { request, response, serialize } = ctx
+    const { auth, request, response, serialize } = ctx
     const textFile = await readTextFile(ctx, true)
     try {
-      const document = await createKnowledgeDocument({
+      const payload = await knowledgeDocumentValidator.validate({
         title: textFile!.title,
         content: textFile!.content,
+        summary: request.input('summary') || null,
+        topics: parseTopics(request.input('topics', '[]')),
         roleIds: await validateRoleIds(parseRoleIds(request.input('roleIds', '[]'))),
+      })
+      const document = await createKnowledgeDocument(payload)
+      await recordAuditEvent(ctx, {
+        actorUserId: auth.getUserOrFail().id,
+        action: 'knowledge_document.created',
+        targetType: 'knowledge_document',
+        targetId: document.id,
+        metadata: {
+          title: document.title,
+          roleIds: payload.roleIds ?? [],
+        },
       })
       return serialize(serializeKnowledgeDocument(document))
     } catch (error) {
-      if (error instanceof Error && /角色选择|不存在的角色|上传|文本文件/.test(error.message)) {
+      if (
+        error instanceof Error &&
+        /角色选择|不存在的角色|上传|文本文件|主题|元数据/.test(error.message)
+      ) {
         return response.unprocessableEntity({ message: error.message })
       }
       throw error
@@ -109,6 +156,7 @@ export default class KnowledgeDocumentsController {
     const { request, response, serialize } = ctx
     try {
       const textFiles = await readTextFiles(ctx)
+      const actorUserId = ctx.auth.getUserOrFail().id
       const roleIds = await validateRoleIds(parseRoleIds(request.input('roleIds', '[]')))
       const created: KnowledgeDocument[] = []
       const failed: Array<{ fileName: string; message: string }> = []
@@ -136,6 +184,20 @@ export default class KnowledgeDocumentsController {
         })
       }
 
+      for (const document of created) {
+        await recordAuditEvent(ctx, {
+          actorUserId,
+          action: 'knowledge_document.created',
+          targetType: 'knowledge_document',
+          targetId: document.id,
+          metadata: {
+            title: document.title,
+            roleIds,
+            batch: true,
+          },
+        })
+      }
+
       const documents = await KnowledgeDocument.query()
         .whereIn(
           'id',
@@ -160,20 +222,59 @@ export default class KnowledgeDocumentsController {
   @ApiOperation({ summary: '更新并重新索引知识文档' })
   @ApiResponse({ status: 200, description: '已更新的知识文档' })
   async update(ctx: HttpContext) {
-    const { params, request, response, serialize } = ctx
+    const { auth, params, request, response, serialize } = ctx
     const document = await KnowledgeDocument.findOrFail(params.id)
+    await document.load('roles')
     const textFile = await readTextFile(ctx, false)
     try {
-      const roleIds = await validateRoleIds(parseRoleIds(request.input('roleIds', '[]')))
-      if (textFile) {
-        document.title = textFile.title
-        document.content = textFile.content
+      const previousRoleIds = document.roles.map((role) => role.id).sort((a, b) => a - b)
+      const payload = await knowledgeDocumentValidator.validate({
+        title: textFile?.title ?? document.title,
+        content: textFile?.content ?? document.content,
+        summary: request.input('summary') || null,
+        topics: parseTopics(request.input('topics', '[]')),
+        roleIds: await validateRoleIds(parseRoleIds(request.input('roleIds', '[]'))),
+      })
+      const shouldReindex =
+        document.title !== payload.title ||
+        document.content !== payload.content ||
+        document.summary !== (payload.summary ?? null) ||
+        JSON.stringify(document.topics ?? []) !== JSON.stringify(payload.topics ?? [])
+      const nextRoleIds = [...(payload.roleIds ?? [])].sort((a, b) => a - b)
+      const changedFields = [
+        document.title !== payload.title ? 'title' : null,
+        document.content !== payload.content ? 'content' : null,
+        document.summary !== (payload.summary ?? null) ? 'summary' : null,
+        JSON.stringify(document.topics ?? []) !== JSON.stringify(payload.topics ?? [])
+          ? 'topics'
+          : null,
+        JSON.stringify(previousRoleIds) !== JSON.stringify(nextRoleIds) ? 'roles' : null,
+      ].filter((field): field is string => field !== null)
+      document.merge({
+        title: payload.title,
+        content: payload.content,
+        summary: payload.summary ?? null,
+        topics: payload.topics ?? [],
+      })
+      if (shouldReindex) {
         await indexKnowledgeDocument(document)
       } else {
         await document.save()
       }
-      await document.related('roles').sync(roleIds)
+      await document.related('roles').sync(payload.roleIds ?? [])
       await document.load('roles')
+      await recordAuditEvent(ctx, {
+        actorUserId: auth.getUserOrFail().id,
+        action: 'knowledge_document.updated',
+        targetType: 'knowledge_document',
+        targetId: document.id,
+        metadata: {
+          title: document.title,
+          changedFields,
+          reindexed: shouldReindex,
+          roleIds: nextRoleIds,
+        },
+      })
       return serialize(serializeKnowledgeDocument(document))
     } catch (error) {
       if (error instanceof Error && /角色选择|不存在的角色|上传|文本文件/.test(error.message)) {
@@ -185,7 +286,8 @@ export default class KnowledgeDocumentsController {
 
   @ApiOperation({ summary: '使用当前内容重建知识文档向量索引' })
   @ApiResponse({ status: 200, description: '已重新索引的知识文档' })
-  async reindex({ params, serialize }: HttpContext) {
+  async reindex(ctx: HttpContext) {
+    const { auth, params, serialize } = ctx
     const document = await KnowledgeDocument.findOrFail(params.id)
     await indexKnowledgeDocument(document)
     const indexedDocument = await KnowledgeDocument.query()
@@ -193,14 +295,30 @@ export default class KnowledgeDocumentsController {
       .preload('roles')
       .withCount('chunks')
       .firstOrFail()
+    await recordAuditEvent(ctx, {
+      actorUserId: auth.getUserOrFail().id,
+      action: 'knowledge_document.reindexed',
+      targetType: 'knowledge_document',
+      targetId: document.id,
+      metadata: { title: document.title },
+    })
     return serialize(serializeKnowledgeDocument(indexedDocument))
   }
 
   @ApiOperation({ summary: '删除知识文档' })
   @ApiResponse({ status: 200, description: '已删除的知识文档 ID' })
-  async destroy({ params, serialize }: HttpContext) {
+  async destroy(ctx: HttpContext) {
+    const { auth, params, serialize } = ctx
     const document = await KnowledgeDocument.findOrFail(params.id)
+    const title = document.title
     await deleteKnowledgeDocument(document)
+    await recordAuditEvent(ctx, {
+      actorUserId: auth.getUserOrFail().id,
+      action: 'knowledge_document.deleted',
+      targetType: 'knowledge_document',
+      targetId: document.id,
+      metadata: { title },
+    })
     return serialize({ id: document.id, deleted: true })
   }
 }

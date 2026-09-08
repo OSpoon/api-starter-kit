@@ -15,7 +15,7 @@ export const aiAssistantEvaluationCases: readonly AiEvaluationCase[] = [
     turns: [
       {
         question: '找一下 API Starter Kit 所用的技术栈。',
-        expectedTools: ['search_knowledge'],
+        expectedTools: ['search_knowledge_catalog', 'search_knowledge'],
       },
     ],
   },
@@ -24,7 +24,7 @@ export const aiAssistantEvaluationCases: readonly AiEvaluationCase[] = [
     turns: [
       {
         question: '如何启动 API Starter Kit 项目？',
-        expectedTools: ['search_knowledge'],
+        expectedTools: ['search_knowledge_catalog', 'search_knowledge'],
       },
     ],
   },
@@ -105,7 +105,7 @@ export const aiAssistantEvaluationCases: readonly AiEvaluationCase[] = [
     turns: [
       {
         question: '如何在系统中维护知识库？',
-        expectedTools: ['search_knowledge'],
+        expectedTools: ['search_knowledge_catalog', 'search_knowledge'],
       },
       {
         question: '列出当前权限目录。',

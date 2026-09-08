@@ -13,6 +13,7 @@ export interface AiAgentToolRequestContext {
   capabilityMode?: AiAgentCapabilityMode
   signal?: AbortSignal
   onKnowledgeSources?: (sources: AiAgentKnowledgeSource[]) => void
+  knowledgeCatalogDocumentIds?: Set<number>
 }
 
 export interface AiAgentToolContext extends AiAgentToolRequestContext {

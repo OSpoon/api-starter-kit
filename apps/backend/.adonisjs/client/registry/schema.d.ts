@@ -475,16 +475,28 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/knowledge_documents_controller').default['index']>>>
     }
   }
+  'knowledge_documents.metadata_preview': {
+    methods: ["POST"]
+    pattern: '/api/v1/system/knowledge-documents/metadata-preview'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/knowledge_document').knowledgeMetadataPreviewValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/knowledge_document').knowledgeMetadataPreviewValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/knowledge_documents_controller').default['metadataPreview']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/knowledge_documents_controller').default['metadataPreview']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
   'knowledge_documents.store': {
     methods: ["POST"]
     pattern: '/api/v1/system/knowledge-documents'
     types: {
-      body: {}
+      body: ExtractBody<InferInput<(typeof import('#validators/knowledge_document').knowledgeDocumentValidator)>>
       paramsTuple: []
       params: {}
-      query: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/knowledge_document').knowledgeDocumentValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/knowledge_documents_controller').default['store']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/knowledge_documents_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/knowledge_documents_controller').default['store']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
   'knowledge_documents.store_batch': {
@@ -503,12 +515,12 @@ export interface Registry {
     methods: ["PUT"]
     pattern: '/api/v1/system/knowledge-documents/:id'
     types: {
-      body: {}
+      body: ExtractBody<InferInput<(typeof import('#validators/knowledge_document').knowledgeDocumentValidator)>>
       paramsTuple: [ParamValue]
       params: { id: ParamValue }
-      query: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/knowledge_document').knowledgeDocumentValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/knowledge_documents_controller').default['update']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/knowledge_documents_controller').default['update']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/knowledge_documents_controller').default['update']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
   'knowledge_documents.reindex': {

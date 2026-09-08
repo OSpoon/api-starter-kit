@@ -9,6 +9,7 @@ import {
   splitSemanticUnits,
 } from '#services/knowledge_chunking'
 import type {
+  KnowledgeCatalogSearchResult,
   KnowledgeProvider,
   KnowledgeProviderAccess,
   KnowledgeProviderSearchResult,
@@ -23,6 +24,14 @@ type KnowledgeSearchRow = {
   document_title: string
   chunk_id: number
   content: string
+  similarity: number | string
+}
+
+type KnowledgeCatalogSearchRow = {
+  document_id: number
+  document_title: string
+  summary: string | null
+  topics: string[] | string | null
   similarity: number | string
 }
 
@@ -123,12 +132,21 @@ export default class PostgresKnowledgeProvider implements KnowledgeProvider {
     })
   }
 
-  async indexDocument(input: { documentId: number; chunks: string[] }) {
+  async indexDocument(input: { documentId: number; chunks: string[]; catalogText: string }) {
     const embeddings = await embedTexts(input.chunks)
+    const catalogEmbedding = await embedQuery(input.catalogText)
     const embeddingConfigValue = await embeddingConfig()
     const embeddingModel = embeddingConfigValue.model
     await db.transaction(async (trx) => {
       await trx.from('knowledge_chunks').where('document_id', input.documentId).delete()
+      await trx.rawQuery(
+        `UPDATE knowledge_documents
+         SET catalog_embedding = ?::vector,
+             catalog_embedding_model = ?,
+             catalog_indexed_at = CURRENT_TIMESTAMP
+         WHERE id = ?`,
+        [catalogEmbedding, embeddingModel, input.documentId]
+      )
       for (const [chunkIndex, content] of input.chunks.entries()) {
         await trx.rawQuery(
           `INSERT INTO knowledge_chunks (document_id, chunk_index, content, embedding, embedding_model)
@@ -143,8 +161,61 @@ export default class PostgresKnowledgeProvider implements KnowledgeProvider {
     await db.from('knowledge_chunks').where('document_id', input.documentId).delete()
   }
 
+  async searchCatalog(input: {
+    query: string
+    access: KnowledgeProviderAccess
+    limit: number
+  }): Promise<KnowledgeCatalogSearchResult[]> {
+    const embedding = await embedQuery(input.query)
+    const result = await db
+      .rawQuery(
+        `SELECT
+         d.id AS document_id,
+         d.title AS document_title,
+         d.summary,
+         d.topics,
+         COALESCE(
+           CASE WHEN d.catalog_embedding IS NOT NULL
+             THEN 1 - (d.catalog_embedding <=> ?::vector)
+           END,
+           MAX(1 - (c.embedding <=> ?::vector)) * 0.85,
+           0
+         ) AS similarity
+       FROM knowledge_documents d
+       LEFT JOIN knowledge_chunks c ON c.document_id = d.id
+       WHERE (
+           ?::boolean
+           OR NOT EXISTS (
+             SELECT 1 FROM knowledge_document_roles restricted WHERE restricted.document_id = d.id
+           )
+           OR EXISTS (
+             SELECT 1 FROM knowledge_document_roles permitted
+             WHERE permitted.document_id = d.id AND permitted.role_id = ANY(?::int[])
+           )
+         )
+       GROUP BY d.id
+       ORDER BY similarity DESC, d.updated_at DESC
+       LIMIT ?`,
+        [embedding, embedding, input.access.isSuperAdmin, input.access.roleIds, input.limit]
+      )
+      .exec()
+
+    return ((result as { rows: KnowledgeCatalogSearchRow[] }).rows ?? []).map((row) => ({
+      documentId: Number(row.document_id),
+      title: row.document_title,
+      summary: row.summary,
+      topics: Array.isArray(row.topics)
+        ? row.topics
+        : typeof row.topics === 'string'
+          ? JSON.parse(row.topics)
+          : [],
+      similarity: Number(row.similarity),
+    }))
+  }
+
   async search(input: {
     query: string
+    documentIds: number[]
     access: KnowledgeProviderAccess
     limit: number
   }): Promise<KnowledgeProviderSearchResult[]> {
@@ -161,6 +232,8 @@ export default class PostgresKnowledgeProvider implements KnowledgeProvider {
        FROM knowledge_chunks c
        INNER JOIN knowledge_documents d ON d.id = c.document_id
        WHERE (
+           d.id = ANY(?::bigint[])
+           AND (
            ?::boolean
            OR NOT EXISTS (
              SELECT 1 FROM knowledge_document_roles restricted WHERE restricted.document_id = d.id
@@ -168,6 +241,7 @@ export default class PostgresKnowledgeProvider implements KnowledgeProvider {
            OR EXISTS (
              SELECT 1 FROM knowledge_document_roles permitted
              WHERE permitted.document_id = d.id AND permitted.role_id = ANY(?::int[])
+           )
            )
          )
        ORDER BY
@@ -179,6 +253,7 @@ export default class PostgresKnowledgeProvider implements KnowledgeProvider {
        LIMIT ?`,
         [
           embedding,
+          input.documentIds,
           input.access.isSuperAdmin,
           input.access.roleIds,
           embedding,

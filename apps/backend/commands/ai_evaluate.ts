@@ -53,6 +53,14 @@ export default class AiEvaluate extends BaseCommand {
           () => calledTools.push('diagnose_my_access')
         ),
         evaluationTool(
+          'search_knowledge_catalog',
+          'Search the knowledge-source catalog before document retrieval.',
+          remember('search_knowledge_catalog', {
+            sources: [{ documentId: 1, title: 'Evaluation document' }],
+          }),
+          () => {}
+        ),
+        evaluationTool(
           'search_knowledge',
           'Search product documentation.',
           remember('search_knowledge', { sources: [] }),

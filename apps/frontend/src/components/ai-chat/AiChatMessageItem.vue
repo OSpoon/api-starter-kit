@@ -147,7 +147,7 @@ function getTimelineIcon(item: AiChatTimelineItem) {
   if (item.kind === 'confirmation') return CircleCheck
   if (item.kind === 'run') return Gauge
   if (item.name === 'run_registered_query') return Search
-  if (item.name === 'search_knowledge') return BookOpen
+  if (item.name === 'search_knowledge_catalog' || item.name === 'search_knowledge') return BookOpen
   if (item.name === 'diagnose_my_access') return ShieldCheck
   if (item.name.startsWith('propose_')) return FileCheck2
   if (item.state === 'error') return CircleAlert

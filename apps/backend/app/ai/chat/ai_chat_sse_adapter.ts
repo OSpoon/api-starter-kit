@@ -134,6 +134,9 @@ function getAgentStatusPhase(name: string, state: 'running' | 'done' | 'error') 
   if (isProposalTool(name)) {
     return state === 'running' ? 'preparing_proposal' : 'awaiting_confirmation'
   }
+  if (name === 'search_knowledge_catalog') {
+    return state === 'running' ? 'retrieving_knowledge_catalog' : 'knowledge_catalog_retrieved'
+  }
   if (name === 'search_knowledge') {
     return state === 'running' ? 'retrieving_knowledge' : 'knowledge_retrieved'
   }

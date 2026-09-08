@@ -11,7 +11,10 @@ import { loadUserAccess } from '#services/user_access'
 
 export { buildSemanticKnowledgeChunks, splitKnowledgeContent } from '#services/knowledge_chunking'
 export { extractKnowledgeSearchTerms } from '#services/knowledge_chunking'
-export type { KnowledgeProviderSearchResult as KnowledgeSearchResult } from '#services/knowledge_provider'
+export type {
+  KnowledgeCatalogSearchResult,
+  KnowledgeProviderSearchResult as KnowledgeSearchResult,
+} from '#services/knowledge_provider'
 
 export type KnowledgeAccess = {
   isSuperAdmin: boolean
@@ -25,8 +28,27 @@ type KnowledgeAccessUser = {
 export type CreateKnowledgeDocumentInput = {
   title: string
   content: string
-  requiredPermission?: string | null
+  summary?: string | null
+  topics?: string[]
   roleIds?: number[]
+}
+
+export type KnowledgeDocumentMetadata = Pick<
+  CreateKnowledgeDocumentInput,
+  'summary' | 'topics'
+>
+
+export function buildKnowledgeCatalogText(input: {
+  title: string
+  metadata: KnowledgeDocumentMetadata
+}) {
+  return [
+    input.title,
+    input.metadata.summary,
+    ...(input.metadata.topics ?? []),
+  ]
+    .filter((value): value is string => Boolean(value?.trim()))
+    .join('\n')
 }
 
 export function getKnowledgeAccess(user: KnowledgeAccessUser): KnowledgeAccess {
@@ -70,7 +92,8 @@ export async function createKnowledgeDocument(input: CreateKnowledgeDocumentInpu
       title,
       content,
       contentHash,
-      requiredPermission: input.requiredPermission ?? null,
+      summary: input.summary ?? null,
+      topics: input.topics ?? [],
     })
     await created.save()
     if (input.roleIds) await created.related('roles').sync(input.roleIds)
@@ -78,7 +101,14 @@ export async function createKnowledgeDocument(input: CreateKnowledgeDocumentInpu
   })
 
   try {
-    await getKnowledgeProvider().indexDocument({ documentId: document.id, chunks })
+    await getKnowledgeProvider().indexDocument({
+      documentId: document.id,
+      chunks,
+      catalogText: buildKnowledgeCatalogText({
+        title,
+        metadata: input,
+      }),
+    })
   } catch (error) {
     await document.delete()
     throw error
@@ -91,7 +121,14 @@ export async function indexKnowledgeDocument(document: KnowledgeDocument) {
   const contentHash = crypto.createHash('sha256').update(document.content).digest('hex')
   const provider = getKnowledgeProvider()
 
-  await provider.indexDocument({ documentId: document.id, chunks })
+  await provider.indexDocument({
+    documentId: document.id,
+    chunks,
+    catalogText: buildKnowledgeCatalogText({
+      title: document.title,
+      metadata: document,
+    }),
+  })
   document.contentHash = contentHash
   await document.save()
 }
@@ -104,6 +141,7 @@ export async function deleteKnowledgeDocument(document: KnowledgeDocument) {
 export async function searchKnowledge(input: {
   user: User
   query: string
+  documentIds: number[]
   limit?: number
   publicOnly?: boolean
 }) {
@@ -117,8 +155,42 @@ export async function searchKnowledge(input: {
   await loadUserAccess(input.user)
   const accessState = getKnowledgeAccess(input.user)
   const limit = Math.min(Math.max(input.limit ?? 5, 1), 10)
+  const documentIds = [...new Set(input.documentIds)].filter((id) => Number.isInteger(id) && id > 0)
+  if (!documentIds.length || documentIds.length > 10) {
+    throw new Error('文档精检索必须限定在 1 到 10 个目录结果内')
+  }
 
   return getKnowledgeProvider().search({
+    query,
+    documentIds,
+    access: input.publicOnly
+      ? { isSuperAdmin: false, roleIds: [] }
+      : {
+          isSuperAdmin: accessState.isSuperAdmin,
+          roleIds: input.user.roles.map((role) => role.id),
+        },
+    limit,
+  })
+}
+
+export async function searchKnowledgeCatalog(input: {
+  user: User
+  query: string
+  limit?: number
+  publicOnly?: boolean
+}) {
+  const query = input.query.trim()
+  if (!query) throw new Error('知识库目录检索内容不能为空')
+
+  const bouncer = new Bouncer(() => input.user, { access })
+  if (!(await bouncer.allows('access', 'knowledge:read'))) {
+    throw new Error('当前账号没有执行此操作的权限')
+  }
+  await loadUserAccess(input.user)
+  const accessState = getKnowledgeAccess(input.user)
+  const limit = Math.min(Math.max(input.limit ?? 12, 1), 12)
+
+  return getKnowledgeProvider().searchCatalog({
     query,
     access: input.publicOnly
       ? { isSuperAdmin: false, roleIds: [] }

@@ -58,7 +58,7 @@ route meta
 
 AI 查询、工具和操作必须使用现有 registry。查询只能使用注册模板，服务端负责参数校验、授权、范围推导、结果限量和脱敏；有副作用的操作只能先创建 proposal，经过确认后重新校验再执行。
 
-AI 的详细运行时分层、持久化和 SSE 说明见[AI 助手架构](ai-assistant-architecture.md)；提示词和文案清单见[AI 助手提示词参考](reference/ai-assistant-prompts.md)。
+AI 的详细运行时分层、持久化和 SSE 说明见[AI 助手架构](ai-assistant-architecture.md)；知识文档字段、目录/正文两阶段检索和审计见[知识库实现说明](knowledge-base.md)；提示词和文案清单见[AI 助手提示词参考](reference/ai-assistant-prompts.md)。
 
 ## 数据与部署
 

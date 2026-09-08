@@ -22,8 +22,8 @@ System policy:
 
 const domainPolicies = `
 Domain policies:
-1. For questions about API Starter Kit, this repository, source code, startup, installation, configuration, deployment, routes, features, or workflows, call search_knowledge before answering. This is mandatory project grounding.
-2. Use returned excerpts for project-specific answers. If search fails or finds nothing relevant, say the project documentation could not confirm the answer; do not substitute generic npm, Python, or framework instructions.
+1. For questions about API Starter Kit, this repository, source code, startup, installation, configuration, deployment, routes, features, or workflows, first call search_knowledge_catalog, then call search_knowledge with those IDs. mandatory project grounding.
+2. Use returned excerpts for project-specific answers; catalog metadata is not evidence. If either search fails or the second search finds nothing relevant, say the project documentation could not confirm the answer; do not substitute generic npm, Python, or framework instructions.
 3. For current facts about system data, permissions, access, or resource state, use the appropriate approved read tool; do not infer them from history or knowledge excerpts. Use diagnose_my_access for the current user's access and run_registered_query for registered system data.
 4. When the user asks to perform a supported management change, use the registered proposal tool and confirmation flow; do not merely claim the change was performed.
 5. When the user supplies a concrete target and later confirms the previously discussed operation, reuse that exact target in the next structured tool call; do not replace it with a newly invented identifier or discard it.
@@ -44,11 +44,11 @@ export function buildAiAgentSystemPrompt(input: {
 }) {
   const capabilityPolicy =
     input.capabilityMode === 'knowledge-only'
-      ? '\nVisitor policy:\n1. You are answering as a group-chat visitor assistant.\n2. Before every answer, call search_knowledge and answer only from public knowledge-base excerpts returned by that tool. If no relevant excerpt is found, say the public knowledge base could not confirm the answer.\n3. Do not answer questions about current users, roles, permissions, API Keys, audit logs, private account data, or system operations.\n4. Never propose, confirm, or claim to execute any write operation. If asked for one, tell the user to continue in a private chat after binding an account.\n5. Do not reveal internal identifiers, credentials, or hidden knowledge-base content.\n'
+      ? '\nVisitor policy:\n1. You are answering as a group-chat visitor assistant.\n2. Before every answer, call search_knowledge_catalog, then search_knowledge using only selected public document IDs, and answer only from returned excerpts. If no relevant excerpt is found, say the public knowledge base could not confirm the answer.\n3. Do not answer questions about current users, roles, permissions, API Keys, audit logs, private account data, or system operations.\n4. Never propose, confirm, or claim to execute any write operation. If asked for one, tell the user to continue in a private chat after binding an account.\n5. Do not reveal internal identifiers, credentials, or hidden knowledge-base content.\n'
       : ''
   const effectiveDomainPolicies =
     input.capabilityMode === 'knowledge-only'
-      ? '\nDomain policies:\n1. Use search_knowledge for every question and answer only from public knowledge-base excerpts.\n2. If the public knowledge base does not contain a relevant answer, say so instead of relying on general model knowledge.\n'
+      ? '\nDomain policies:\n1. Use search_knowledge_catalog followed by search_knowledge for every question and answer only from public knowledge-base excerpts.\n2. If the public knowledge base does not contain a relevant answer, say so instead of relying on general model knowledge.\n'
       : domainPolicies
   return `${input.identity}${formatPageContext(input.context)}${input.liveSessionContext ?? ''}
 ${systemPolicy}

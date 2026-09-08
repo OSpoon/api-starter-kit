@@ -100,6 +100,10 @@ node ace migration:run --force
 迁移成功后才启动 API。backend 依赖 PostgreSQL healthcheck；三个 Bot 又
 依赖 backend healthcheck，因此首次启动时应等待服务进入 healthy 状态。
 
+包含知识库字段收敛的迁移完成后，已有文档的正文仍然保留，但旧目录向量可能
+包含迁移前的元数据。升级后应在知识库管理台对已有文档执行一次“重建索引”，
+让目录向量按当前的标题、知识源说明和可检索主题重新生成。
+
 ## 4. 服务、端口和网络
 
 | 服务           | 容器内职责                               | 默认对外端口/状态                         |

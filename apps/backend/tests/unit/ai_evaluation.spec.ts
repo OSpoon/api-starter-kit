@@ -4,7 +4,7 @@ import { evaluateAiAssistantTurn } from '#ai/evaluation/ai_evaluation'
 
 const evaluation = {
   question: 'test',
-  expectedTools: ['search_knowledge'],
+  expectedTools: ['search_knowledge_catalog', 'search_knowledge'],
 }
 
 test.group('AI assistant evaluation', () => {
@@ -12,7 +12,7 @@ test.group('AI assistant evaluation', () => {
     assert.deepEqual(
       evaluateAiAssistantTurn({
         evaluation,
-        calledTools: ['search_knowledge'],
+        calledTools: ['search_knowledge_catalog', 'search_knowledge'],
       }),
       { passed: true, toolsPassed: true }
     )
@@ -21,7 +21,7 @@ test.group('AI assistant evaluation', () => {
   test('fails when an unexpected tool is called', ({ assert }) => {
     const result = evaluateAiAssistantTurn({
       evaluation: { ...evaluation, expectedTools: [] },
-      calledTools: ['search_knowledge'],
+      calledTools: ['search_knowledge_catalog', 'search_knowledge'],
     })
 
     assert.deepEqual(result, { passed: false, toolsPassed: false })

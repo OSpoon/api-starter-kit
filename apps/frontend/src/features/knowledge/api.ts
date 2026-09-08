@@ -5,7 +5,8 @@ export interface KnowledgeDocument {
   id: number
   title: string
   content: string
-  requiredPermission: string | null
+  summary: string | null
+  topics: string[]
   contentHash: string
   chunkCount: number
   roles: Array<{ id: number; code: string; name: string }>
@@ -20,8 +21,14 @@ export interface KnowledgeDocumentPage {
 
 export type KnowledgeDocumentInput = {
   file?: File | null
-  files?: File[]
   roleIds: number[]
+  summary?: string | null
+  topics?: string[]
+}
+
+export type KnowledgeMetadataSuggestion = {
+  summary: string | null
+  topics: string[]
 }
 
 export type KnowledgeDocumentBatchResult = {
@@ -47,7 +54,24 @@ function asFormData(input: KnowledgeDocumentInput, requireFile: boolean) {
   const form = new FormData()
   if (input.file) form.append('file', input.file)
   form.append('roleIds', JSON.stringify(input.roleIds))
+  form.append('summary', input.summary ?? '')
+  form.append('topics', JSON.stringify(input.topics ?? []))
   return form
+}
+
+export async function previewKnowledgeMetadata(token: string | null, file: File) {
+  const form = new FormData()
+  form.append('file', file)
+  return readItem(
+    await apiRequest<KnowledgeMetadataSuggestion>(
+      '/api/v1/system/knowledge-documents/metadata-preview',
+      {
+        ...authOptions(token),
+        method: 'POST',
+        body: form,
+      }
+    )
+  )
 }
 
 export async function createKnowledgeDocument(token: string | null, input: KnowledgeDocumentInput) {
@@ -56,25 +80,6 @@ export async function createKnowledgeDocument(token: string | null, input: Knowl
       ...authOptions(token),
       method: 'POST',
       body: asFormData(input, true),
-    })
-  )
-}
-
-export async function createKnowledgeDocuments(
-  token: string | null,
-  input: KnowledgeDocumentInput
-) {
-  const files = input.files ?? []
-  if (!files.length) throw new Error('请选择纯文本文件')
-  const form = new FormData()
-  files.forEach((file) => form.append('files', file))
-  form.append('roleIds', JSON.stringify(input.roleIds))
-
-  return readItem(
-    await apiRequest<KnowledgeDocumentBatchResult>('/api/v1/system/knowledge-documents/batch', {
-      ...authOptions(token),
-      method: 'POST',
-      body: form,
     })
   )
 }

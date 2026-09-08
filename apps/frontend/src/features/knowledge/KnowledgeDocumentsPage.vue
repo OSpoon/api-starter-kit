@@ -12,11 +12,12 @@ import { Dialog } from '@/components/ui/dialog'
 import { listSystemRoleCatalog, type SystemRoleOption } from '@/features/access-control/api'
 import { badgeToneClass } from '@/features/api-keys/api'
 import {
-  createKnowledgeDocuments,
+  createKnowledgeDocument,
   deleteKnowledgeDocument,
   type KnowledgeDocument,
   type KnowledgeDocumentInput,
   listKnowledgeDocuments,
+  previewKnowledgeMetadata,
   reindexKnowledgeDocument,
   updateKnowledgeDocument,
 } from '@/features/knowledge/api'
@@ -32,6 +33,8 @@ const page = ref(1)
 const pageCount = ref(1)
 const loading = ref(false)
 const saving = ref(false)
+const metadataLoading = ref(false)
+const metadataSuggestion = ref<Awaited<ReturnType<typeof previewKnowledgeMetadata>> | null>(null)
 const selectedDocument = ref<KnowledgeDocument | null>(null)
 const pendingDelete = ref<KnowledgeDocument | null>(null)
 const deleteDialogOpen = ref(false)
@@ -155,12 +158,26 @@ async function fetchDocuments(nextPage = page.value) {
 
 function openCreateDialog() {
   selectedDocument.value = null
+  metadataSuggestion.value = null
   showDialog()
 }
 
 function openEditDialog(document: KnowledgeDocument) {
   selectedDocument.value = document
+  metadataSuggestion.value = null
   showDialog()
+}
+
+async function previewMetadata(file: File) {
+  metadataLoading.value = true
+  try {
+    metadataSuggestion.value = await previewKnowledgeMetadata(auth.token, file)
+  } catch (error) {
+    metadataSuggestion.value = null
+    toast.warning(error instanceof Error ? error.message : t('knowledge.metadata_failed'))
+  } finally {
+    metadataLoading.value = false
+  }
 }
 
 function requestDelete(document: KnowledgeDocument) {
@@ -176,24 +193,14 @@ function requestReindex(document: KnowledgeDocument) {
 async function saveDocument(input: KnowledgeDocumentInput) {
   saving.value = true
   try {
-    let batchResult: Awaited<ReturnType<typeof createKnowledgeDocuments>> | null = null
     if (selectedDocument.value) {
       await updateKnowledgeDocument(auth.token, selectedDocument.value.id, input)
     } else {
-      batchResult = await createKnowledgeDocuments(auth.token, input)
+      await createKnowledgeDocument(auth.token, input)
     }
     closeDialog()
     await fetchDocuments()
-    if (batchResult?.failed.length) {
-      toast.warning(
-        t('knowledge.batch_partial_success', {
-          success: batchResult.items.length,
-          failed: batchResult.failed.length,
-        })
-      )
-    } else {
-      toast.success(t('knowledge.save_success'))
-    }
+    toast.success(t('knowledge.save_success'))
   } catch (error) {
     toast.error(error instanceof Error ? error.message : t('knowledge.save_failed'))
   } finally {
@@ -272,7 +279,10 @@ watch(page, (nextPage) => void fetchDocuments(nextPage))
           :document="selectedDocument"
           :roles="roles"
           :saving="saving"
+          :metadata-loading="metadataLoading"
+          :metadata-suggestion="metadataSuggestion"
           @save="saveDocument"
+          @preview="previewMetadata"
         />
       </Dialog>
       <ConfirmDialog

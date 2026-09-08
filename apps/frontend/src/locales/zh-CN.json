@@ -118,7 +118,7 @@
     "chat_title": "对话模型",
     "chat_description": "用于 AI 助手对话和工具调用的 OpenAI-compatible 服务。",
     "asr_title": "语音转写（ASR）",
-    "asr_description": "用于 AI 助手语音输入的 OpenAI-compatible 音频转写服务。默认模型为 Qwen3-ASR-0.6B-4bit。",
+    "asr_description": "用于 AI 助手语音输入的 OpenAI-compatible 音频转写服务。",
     "embedding_title": "Embedding 模型",
     "embedding_description": "用于知识库分块和语义检索。切换模型或维度后需要重建知识库索引。",
     "base_url": "Base URL",
@@ -233,6 +233,11 @@
         "done": "已完成知识文档检索",
         "error": "知识文档检索未完成"
       },
+      "search_knowledge_catalog": {
+        "running": "正在检索知识目录…",
+        "done": "已完成知识目录检索",
+        "error": "知识目录检索未完成"
+      },
       "propose_api_key_revocation": {
         "running": "正在准备吊销确认…",
         "done": "已生成吊销确认",
@@ -313,6 +318,7 @@
       "tools": {
         "run_registered_query": "查询数据",
         "search_knowledge": "检索知识",
+        "search_knowledge_catalog": "检索知识目录",
         "diagnose_my_access": "检查权限",
         "propose_api_key_revocation": "准备吊销提案",
         "propose_api_key_deletion": "准备删除提案",
@@ -363,8 +369,8 @@
       "generic": "目标对象"
     },
     "knowledge_status": {
-      "running": "正在检索知识文档",
-      "done": "已完成知识检索",
+      "running": "正在分步检索知识",
+      "done": "已完成分步知识检索",
       "error": "知识检索失败"
     },
     "actions": {
@@ -658,14 +664,18 @@
     "content": "文档内容",
     "file": "纯文本文档",
     "upload_prompt": "点击选择文本文件",
-    "upload_hint": "支持多选 · TXT / MD / RST · 单个 ≤ 2 MB · 最多 20 个",
-    "selected_files": "已选择 {count} 份文件（{size} KB）",
+    "upload_hint": "TXT / MD / RST · 单个 ≤ 5 MB",
+    "selected_files": "已选择文件（{size} KB）",
     "replace_file_hint": "不选择文件时保留当前文本内容。",
     "index_status": "索引",
     "indexed": "已索引（{count} 个分块）",
     "not_indexed": "未建立索引",
-    "required_permission": "访问所需权限",
-    "required_permission_hint": "留空则所有知识库读者可见",
+    "summary": "知识源说明",
+    "topics": "可检索主题",
+    "topics_hint": "使用逗号分隔多个主题",
+    "extracting": "正在提取目录信息…",
+    "metadata_failed": "目录信息提取失败，请手动补充",
+    "validation_failed": "请检查表单内容",
     "all_readers": "所有知识库读者",
     "roles": "可访问角色",
     "roles_hint": "选择任一角色即可检索；留空则所有拥有知识库读取权限的用户可见。",
@@ -677,7 +687,6 @@
     "empty": "尚未创建知识文档。",
     "fetch_failed": "获取知识文档失败",
     "save_success": "知识文档已保存并完成索引",
-    "batch_partial_success": "已成功创建 {success} 份文档，{failed} 份失败",
     "save_failed": "保存知识文档失败",
     "reindex": "重建索引",
     "reindex_title": "重建知识文档索引",
@@ -804,10 +813,23 @@
       "llm_config": {
         "updated": "更新 LLM 配置"
       },
+      "im_config": {
+        "updated": "更新 IM 配置"
+      },
       "wecom_template": {
         "created": "创建消息模板",
         "updated": "更新消息模板",
         "deleted": "删除消息模板"
+      },
+      "knowledge_document": {
+        "created": "创建知识文档",
+        "updated": "更新知识文档",
+        "deleted": "删除知识文档",
+        "reindexed": "重建知识文档索引"
+      },
+      "knowledge": {
+        "catalog_searched": "检索知识目录",
+        "searched": "检索知识文档"
       },
       "agent": {
         "access_diagnosed": "AI 权限诊断",
@@ -831,9 +853,13 @@
       "api_key": "API 密钥",
       "agent_action": "AI 操作",
       "llm_configuration": "LLM 配置",
+      "im_configuration": "IM 配置",
       "channel_identity": "渠道身份",
       "wecom_message_template": "企业微信消息模板",
-      "ai_query_template": "AI 查询模板"
+      "ai_query_template": "AI 查询模板",
+      "knowledge_document": "知识文档",
+      "knowledge_catalog": "知识目录",
+      "knowledge_search": "知识文档检索"
     }
   },
   "profile": {

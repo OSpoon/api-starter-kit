@@ -15,6 +15,7 @@ test.group('AI agent tool registry', () => {
       [
         'diagnose_my_access',
         'run_registered_query',
+        'search_knowledge_catalog',
         'search_knowledge',
         'propose_api_key_revocation',
         'propose_api_key_deletion',
@@ -56,7 +57,7 @@ test.group('AI agent tool registry', () => {
 
     assert.deepEqual(
       tools.map((tool) => tool.name),
-      ['search_knowledge']
+      ['search_knowledge_catalog', 'search_knowledge']
     )
   })
 
@@ -95,8 +96,11 @@ test.group('AI agent tool registry', () => {
       agentRunId: 'test-run',
     })
 
-    for (const name of ['diagnose_my_access', 'run_registered_query', 'search_knowledge']) {
+    for (const name of ['diagnose_my_access', 'run_registered_query']) {
       assert.equal(tools.find((tool) => tool.name === name)?.executionMode, 'parallel')
+    }
+    for (const name of ['search_knowledge_catalog', 'search_knowledge']) {
+      assert.equal(tools.find((tool) => tool.name === name)?.executionMode, 'sequential')
     }
     for (const tool of tools.filter((candidate) => candidate.name.startsWith('propose_'))) {
       assert.equal(tool.executionMode, 'sequential')

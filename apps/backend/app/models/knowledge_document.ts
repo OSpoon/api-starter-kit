@@ -18,7 +18,10 @@ export default class KnowledgeDocument extends BaseModel {
   declare content: string
 
   @column()
-  declare requiredPermission: string | null
+  declare summary: string | null
+
+  @column()
+  declare topics: string[]
 
   @column()
   declare contentHash: string

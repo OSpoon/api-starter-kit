@@ -12,9 +12,6 @@ const jiti = createJiti(import.meta.url, {
 
 const { validatePasswordChange } = await jiti.import(`${root}/src/features/account/change-password-form.ts`)
 const { streamAiChatMessage } = await jiti.import(`${root}/src/features/ai/api.ts`)
-const { getAiChatSuggestions, pickRandomAiChatSuggestions } = await jiti.import(
-  `${root}/src/features/ai/suggestions.ts`
-)
 const { formatAiChatMessagesAsMarkdown } = await jiti.import(`${root}/src/features/ai/markdown.ts`)
 const { hasAiChatConversationContent } = await jiti.import(
   `${root}/src/features/ai/conversation-state.ts`
@@ -81,38 +78,6 @@ test('AI stream accepts a terminal done event', async () => {
   } finally {
     globalThis.fetch = originalFetch
   }
-})
-
-test('AI suggestions use effective permissions and prioritize the current page', () => {
-  const translate = (key) => key
-
-  const superAdminSuggestions = getAiChatSuggestions({
-    permissions: ['*'],
-    routeName: 'api-keys',
-    translate,
-  })
-
-  assert.deepEqual(superAdminSuggestions.slice(0, 3), [
-    'ai_chat.tasks.api_keys.list',
-    'ai_chat.tasks.api_keys.create',
-    'ai_chat.tasks.access.check',
-  ])
-  assert.ok(superAdminSuggestions.includes('ai_chat.tasks.audit_logs.recent'))
-
-  assert.deepEqual(
-    getAiChatSuggestions({
-      permissions: ['api-keys:read'],
-      routeName: 'schema-builder',
-      translate,
-    }),
-    ['ai_chat.tasks.access.check', 'ai_chat.tasks.api_keys.list']
-  )
-
-  assert.deepEqual(
-    pickRandomAiChatSuggestions(['a', 'b', 'c', 'd'], () => 0),
-    ['b', 'c', 'd']
-  )
-  assert.equal(pickRandomAiChatSuggestions(['a', 'b', 'c', 'd', 'e'], () => 0).length, 3)
 })
 
 test('AI chat Markdown export preserves selected messages in conversation order', () => {

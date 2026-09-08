@@ -20,7 +20,7 @@ test.group('AI agent prompt', () => {
     assert.notInclude(prompt, '仪表盘助手')
     assert.include(prompt, "Reply in the user's language, briefly and practically.")
     assert.include(prompt, 'Use returned excerpts for project-specific answers')
-    assert.include(prompt, 'call search_knowledge before answering')
+    assert.include(prompt, 'first call search_knowledge_catalog, then call search_knowledge')
     assert.include(prompt, 'mandatory project grounding')
     assert.include(prompt, 'do not substitute generic npm, Python, or framework instructions')
     assert.include(
@@ -53,7 +53,7 @@ test.group('AI agent prompt', () => {
     const prompt = createAiAgentSystemPrompt(undefined, '', 'knowledge-only')
 
     assert.include(prompt, 'group-chat visitor assistant')
-    assert.include(prompt, 'Before every answer, call search_knowledge')
+    assert.include(prompt, 'Before every answer, call search_knowledge_catalog')
     assert.include(prompt, 'Never propose, confirm, or claim to execute any write operation')
     assert.notInclude(prompt, 'run_registered_query')
   })

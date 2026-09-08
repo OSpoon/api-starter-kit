@@ -15,6 +15,14 @@
 - 前端路由与控件显隐只改善体验，后端始终重新鉴权。
 - 管理操作和已确认 AI 操作均写入审计日志。
 
+### 知识库权限与审计
+
+- 文档管理统一需要 `knowledge:manage`；AI 目录和正文检索统一需要 `knowledge:read`。管理权限不因拥有检索权限而自动获得。
+- 文档角色关系由后端过滤。群聊访客强制使用公开范围，只能读取没有角色限制的文档；模型不能通过文档 ID 绕过角色校验。
+- AI 知识检索必须先执行目录阶段，再执行限定文档的正文阶段；第二阶段只能使用本轮目录返回的文档 ID，目录结果本身不是回答证据。
+- 文档创建、更新、重建索引和删除记录 `knowledge_document.*` 审计事件；目录和正文检索分别记录 `knowledge.catalog_searched` 与 `knowledge.searched`。
+- 检索审计只保留查询 SHA-256 哈希、授权结果、候选/选中文档数量、结果数量、公开模式和耗时，不保存原始查询、正文摘录或敏感参数。
+
 ## 应用与部署加固
 
 - 生产错误响应不会暴露 SQL、堆栈或内部异常细节。
@@ -30,4 +38,4 @@
 - 敏感变更只会创建持久化 proposal；执行前重新校验归属、权限、有效期和目标状态。
 - 模型文本、Markdown、浏览器状态与会话历史都不是授权渠道。
 
-面向产品的说明见 [AI 助手能力](ai-assistant-capabilities.md)，实现细节见 [AI 助手架构](ai-assistant-architecture.md)。
+面向产品的说明见 [AI 助手能力](ai-assistant-capabilities.md)，实现细节见 [AI 助手架构](ai-assistant-architecture.md) 和 [知识库实现说明](knowledge-base.md)。

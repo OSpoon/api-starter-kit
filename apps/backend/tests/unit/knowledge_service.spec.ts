@@ -1,6 +1,8 @@
 import { test } from '@japa/runner'
 
+import { buildKnowledgeSearchAuditMetadata } from '#services/knowledge_audit'
 import {
+  buildKnowledgeCatalogText,
   buildSemanticKnowledgeChunks,
   canReadKnowledgeDocument,
   extractKnowledgeSearchTerms,
@@ -9,6 +11,35 @@ import {
 } from '#services/knowledge_service'
 
 test.group('knowledge service', () => {
+  test('redacts raw knowledge search queries from audit metadata', ({ assert }) => {
+    const query = '客户订单退款规则和审批流程'
+    const metadata = buildKnowledgeSearchAuditMetadata({
+      query,
+      stage: 'catalog',
+      authorization: 'allowed',
+      resultCount: 2,
+      durationMs: 12.4,
+    })
+
+    assert.notProperty(metadata, 'query')
+    assert.notInclude(JSON.stringify(metadata), query)
+    assert.match(metadata.queryHash, /^[a-f0-9]{64}$/)
+    assert.equal(metadata.resultCount, 2)
+  })
+
+  test('builds catalog text from confirmed metadata without inventing content', ({ assert }) => {
+    assert.equal(
+      buildKnowledgeCatalogText({
+        title: '发送规则',
+        metadata: {
+          summary: '说明消息发送限制',
+          topics: ['发送', '限制'],
+        },
+      }),
+      '发送规则\n说明消息发送限制\n发送\n限制'
+    )
+  })
+
   test('extracts multilingual terms without a hard-coded stop-word policy', ({ assert }) => {
     assert.deepEqual(extractKnowledgeSearchTerms('如何启动 API Starter Kit 项目？'), [
       '如何',

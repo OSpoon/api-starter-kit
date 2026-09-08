@@ -13,7 +13,8 @@ flowchart TB
   D --> E["Pi Agent"]
   E --> F["Pi Agent tools"]
   F --> G["注册查询"]
-  F --> H["知识检索"]
+  F --> H["知识源目录检索"]
+  H --> H2["限定文档正文精检索"]
   F --> I["变更提议"]
   I --> J["确认 API"]
   D --> K["Pi steering / follow-up queues"]
@@ -29,7 +30,7 @@ flowchart TB
 - Pi 生命周期钩子在工具调用前校验输入，在调用后识别错误和终止结果；确认提议及终止性业务错误使用原生 `terminate` 结束本轮。
 - Pi 的 `prepareCompaction`/`compact` 按 token 预算压缩长上下文，摘要写入 `AiChatConversation.contextSummary`，完整消息历史不变；`shouldStopAfterTurn` 防止终态工具结果触发无意义的下一轮推理。
 - Pi 的 `prepareNextTurnWithContext` 在每轮模型调用前刷新待确认提议和 pending query 上下文；`tool_execution_update` 仅转发白名单进度字段到 `agent_status` SSE 事件。
-- 只读诊断、注册查询和知识检索工具允许并行执行；变更提议保持顺序执行，避免并行产生多个需要确认的状态。
+- 只读诊断、注册查询和知识源目录检索可以并行；知识源目录检索完成后，正文精检索必须顺序执行，并且只能使用本轮目录返回的文档 ID。变更提议保持顺序执行，避免并行产生多个需要确认的状态。
 
 ## 工具边界
 
@@ -37,13 +38,16 @@ flowchart TB
 | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `diagnose_my_access`               | 只诊断当前认证用户的服务端权限。                                                                                                                  |
 | `run_registered_query`             | 只调用 `ai_agent_query_registry` 中的固定模板；禁止自由 SQL。所有列表固定最多返回 20 条，不提供分页或继续查询协议，更多数据需到对应管理模块查看。 |
-| `search_knowledge`                 | 只检索已授权的知识文档，用于产品说明和流程指导，不用于实时系统数据。                                                                              |
+| `search_knowledge_catalog`         | 两阶段检索第一步。按当前角色或公开范围检索知识源目录，最多返回 12 个候选文档的标题、说明和主题，不返回正文片段。                                  |
+| `search_knowledge`                 | 两阶段检索第二步。必须限定在本轮目录返回的 1 至 10 个文档 ID 内检索正文分块；返回的摘录才是回答知识库事实的证据。                                 |
 | `propose_system_management_change` | 只创建非 API Key 的持久化变更提议（如用户、角色、权限），不执行破坏性操作。执行必须经过确认 API。                                                 |
 | `propose_api_key_creation`         | 只创建 API Key 的持久化变更提议；不执行，必须经过确认 API。                                                                                       |
 | `propose_api_key_revocation`       | 只创建吊销活跃 API Key 的持久化提议，与删除工具解耦；不执行。执行必须经过确认 API。                                                               |
 | `propose_api_key_deletion`         | 只创建删除已吊销 API Key 的持久化提议；不执行。执行必须经过确认 API。                                                                             |
 
 查询模板具有稳定 code/version、参数 schema、权限码、服务端作用域、字段脱敏和固定 20 条结果上限。缺少必要参数时，`AiAgentPendingQuery` 只保存参数收集状态，下一轮会话重新校验模板、归属、权限和有效期。
+
+知识库的管理字段、LLM 元数据预览、文件限制、角色范围、两阶段检索和审计事件见[知识库实现说明](knowledge-base.md)。目录元数据仅用于选源，模型必须使用第二阶段返回的正文摘录回答，不得把目录摘要或通用模型知识当作证据。
 
 变更提议由 `prepare` 创建安全目标摘要和 payload；`confirmAiAgentAction` 在执行前重新校验会话归属、权限、proposal 状态、有效期和目标当前状态，并记录审计。
 
@@ -58,7 +62,7 @@ flowchart TB
 
 客户端断开、用户停止生成或请求超时会调用 Pi Agent 的 `abort`；系统保留已持久化消息，下一次用户消息会创建新的 Agent 运行。运行中的人工输入使用 `steer` 或 `followUp`，受控管理操作仍必须经过结构化确认。
 
-AI 请求完成时间由现有审计日志和运行状态记录，不依赖外部观测服务。
+AI 请求完成时间由现有审计日志和运行状态记录，不依赖外部观测服务。知识库目录和正文检索分别记录 `knowledge.catalog_searched` 与 `knowledge.searched`，只保存查询哈希、授权结果、数量和耗时，不保存原始查询或正文摘录。
 
 ## SSE 与前端
 

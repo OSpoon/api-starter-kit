@@ -166,6 +166,10 @@ router
     router
       .group(() => {
         router.get('knowledge-documents', [KnowledgeDocumentsController, 'index'])
+        router.post('knowledge-documents/metadata-preview', [
+          KnowledgeDocumentsController,
+          'metadataPreview',
+        ])
         router.post('knowledge-documents', [KnowledgeDocumentsController, 'store'])
         router.post('knowledge-documents/batch', [KnowledgeDocumentsController, 'storeBatch'])
         router.put('knowledge-documents/:id', [KnowledgeDocumentsController, 'update'])

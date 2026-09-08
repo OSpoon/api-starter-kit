@@ -221,7 +221,7 @@ channel + externalTenantId + externalUserId → system user
 channel + externalTenantId + externalConversationKey + externalUserId
 ```
 
-同一群中的不同外部用户拥有隔离的多轮上下文；用户发送 `/new` 只会重置自己的访客会话。群聊访客仅注册 `search_knowledge` 工具，并且只检索未绑定角色限制的公开知识库文档。实时系统查询、个人或敏感数据查询、所有写操作和确认卡片都必须转到私聊，并先完成身份绑定。
+同一群中的不同外部用户拥有隔离的多轮上下文；用户发送 `/new` 只会重置自己的访客会话。群聊访客仅注册 `search_knowledge_catalog` 和 `search_knowledge` 两个顺序工具，并且只检索未绑定角色限制的公开知识库文档。实时系统查询、个人或敏感数据查询、所有写操作和确认卡片都必须转到私聊，并先完成身份绑定。
 
 三个机器人均支持精确发送 `/new` 新建会话。系统会保留旧会话历史，但将当前渠道映射切换到新的 AI 会话，后续消息不会继续携带旧会话上下文；旧确认卡也不会在新会话中执行。
 

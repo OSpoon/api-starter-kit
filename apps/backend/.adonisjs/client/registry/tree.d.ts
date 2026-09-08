@@ -80,6 +80,7 @@ export interface ApiDefinition {
   }
   knowledgeDocuments: {
     index: typeof routes['knowledge_documents.index']
+    metadataPreview: typeof routes['knowledge_documents.metadata_preview']
     store: typeof routes['knowledge_documents.store']
     storeBatch: typeof routes['knowledge_documents.store_batch']
     update: typeof routes['knowledge_documents.update']

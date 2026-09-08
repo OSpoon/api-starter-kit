@@ -26,16 +26,16 @@
 
 根据页面意图选择唯一的根页面 primitive：
 
-| 页面 | `meta.pageKind` | 根组件 |
-| --- | --- | --- |
-| 管理列表 | `list` | `ListPage` + `DataTable` |
-| 资源详情 | `detail` | `DetailPageTemplate` |
-| 设置 | `settings` | `SettingsPageTemplate` |
-| 概览 | `dashboard` | `DashboardPageTemplate` 或 `PageShell` |
-| 多步流程 | `wizard` | `WizardPageTemplate` |
-| 流程操作 | `workflow` | `WorkflowPageTemplate` |
-| 分析 | `analytics` | `AnalyticsPageTemplate` |
-| 领域工具 | `utility` | `PageShell` |
+| 页面     | `meta.pageKind` | 根组件                                 |
+| -------- | --------------- | -------------------------------------- |
+| 管理列表 | `list`          | `ListPage` + `DataTable`               |
+| 资源详情 | `detail`        | `DetailPageTemplate`                   |
+| 设置     | `settings`      | `SettingsPageTemplate`                 |
+| 概览     | `dashboard`     | `DashboardPageTemplate` 或 `PageShell` |
+| 多步流程 | `wizard`        | `WizardPageTemplate`                   |
+| 流程操作 | `workflow`      | `WorkflowPageTemplate`                 |
+| 分析     | `analytics`     | `AnalyticsPageTemplate`                |
+| 领域工具 | `utility`       | `PageShell`                            |
 
 管理列表复用 `apps/frontend/src/views/ApiKeysView.vue` 的结构；角色和权限相关页面参考 `AccessControlView.vue`。不要在 view 中重新实现表头、搜索、分页、空状态、弹窗宿主或确认逻辑。
 
@@ -58,7 +58,7 @@
 
 - 认证、2FA、用户和角色：复用现有 account/access-control 模块。
 - 审计：在服务层记录管理操作和安全敏感副作用。
-- 知识库：参考 `features/knowledge` 的 feature 组织方式。
+- 知识库：参考 `features/knowledge` 的 feature 组织方式，并阅读[知识库实现说明](knowledge-base.md)了解通用字段、LLM 元数据预览、两阶段检索和权限审计边界。
 - AI 查询和操作：只能扩展现有 registry 与确认流程，先阅读 [AI 助手架构](ai-assistant-architecture.md)。
 - 外部渠道：先阅读 [渠道 Bot 参考](reference/ai-channel-bots.md)，不要在业务模块中复制 provider client。
 

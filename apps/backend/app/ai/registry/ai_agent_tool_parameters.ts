@@ -15,7 +15,11 @@ export const piToolParameters = {
     ),
     params: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
   }),
-  searchKnowledge: Type.Object({ query: Type.String() }),
+  searchKnowledge: Type.Object({
+    query: Type.String(),
+    documentIds: Type.Array(Type.Integer({ minimum: 1 }), { minItems: 1, maxItems: 10 }),
+  }),
+  searchKnowledgeCatalog: Type.Object({ query: Type.String() }),
   apiKeyTarget: Type.Union([
     Type.Object({ apiKeyId: Type.Integer({ minimum: 1 }) }),
     Type.Object({ id: Type.Integer({ minimum: 1 }) }),

@@ -9,6 +9,14 @@ export type KnowledgeProviderSearchResult = {
   similarity: number
 }
 
+export type KnowledgeCatalogSearchResult = {
+  documentId: number
+  title: string
+  summary: string | null
+  topics: string[]
+  similarity: number
+}
+
 export type KnowledgeProviderAccess = {
   isSuperAdmin: boolean
   roleIds: number[]
@@ -16,10 +24,16 @@ export type KnowledgeProviderAccess = {
 
 export interface KnowledgeProvider {
   prepareDocument(content: string): Promise<string[]>
-  indexDocument(input: { documentId: number; chunks: string[] }): Promise<void>
+  indexDocument(input: { documentId: number; chunks: string[]; catalogText: string }): Promise<void>
   deleteDocument(input: { documentId: number }): Promise<void>
+  searchCatalog(input: {
+    query: string
+    access: KnowledgeProviderAccess
+    limit: number
+  }): Promise<KnowledgeCatalogSearchResult[]>
   search(input: {
     query: string
+    documentIds: number[]
     access: KnowledgeProviderAccess
     limit: number
   }): Promise<KnowledgeProviderSearchResult[]>

@@ -240,6 +240,12 @@ const routes = {
     tokens: [{"old":"/api/v1/system/knowledge-documents","type":0,"val":"api","end":""},{"old":"/api/v1/system/knowledge-documents","type":0,"val":"v1","end":""},{"old":"/api/v1/system/knowledge-documents","type":0,"val":"system","end":""},{"old":"/api/v1/system/knowledge-documents","type":0,"val":"knowledge-documents","end":""}],
     types: placeholder as Registry['knowledge_documents.index']['types'],
   },
+  'knowledge_documents.metadata_preview': {
+    methods: ["POST"],
+    pattern: '/api/v1/system/knowledge-documents/metadata-preview',
+    tokens: [{"old":"/api/v1/system/knowledge-documents/metadata-preview","type":0,"val":"api","end":""},{"old":"/api/v1/system/knowledge-documents/metadata-preview","type":0,"val":"v1","end":""},{"old":"/api/v1/system/knowledge-documents/metadata-preview","type":0,"val":"system","end":""},{"old":"/api/v1/system/knowledge-documents/metadata-preview","type":0,"val":"knowledge-documents","end":""},{"old":"/api/v1/system/knowledge-documents/metadata-preview","type":0,"val":"metadata-preview","end":""}],
+    types: placeholder as Registry['knowledge_documents.metadata_preview']['types'],
+  },
   'knowledge_documents.store': {
     methods: ["POST"],
     pattern: '/api/v1/system/knowledge-documents',

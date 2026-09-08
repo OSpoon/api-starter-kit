@@ -233,6 +233,11 @@
         "done": "Knowledge-document search completed",
         "error": "Knowledge-document search did not complete"
       },
+      "search_knowledge_catalog": {
+        "running": "Searching the knowledge catalog…",
+        "done": "Knowledge-catalog search completed",
+        "error": "Knowledge-catalog search did not complete"
+      },
       "propose_api_key_revocation": {
         "running": "Preparing revocation confirmation…",
         "done": "Revocation confirmation created",
@@ -313,6 +318,7 @@
       "tools": {
         "run_registered_query": "Query data",
         "search_knowledge": "Search knowledge",
+        "search_knowledge_catalog": "Search knowledge catalog",
         "diagnose_my_access": "Check permissions",
         "propose_api_key_revocation": "Prepare revoke proposal",
         "propose_api_key_deletion": "Prepare delete proposal",
@@ -363,8 +369,8 @@
       "generic": "target"
     },
     "knowledge_status": {
-      "running": "Searching knowledge",
-      "done": "Knowledge search completed",
+      "running": "Running staged knowledge search",
+      "done": "Staged knowledge search completed",
       "error": "Knowledge search failed"
     },
     "actions": {
@@ -658,14 +664,18 @@
     "content": "Document content",
     "file": "Text document",
     "upload_prompt": "Choose text files",
-    "upload_hint": "Multi-select · TXT / MD / RST · ≤ 2 MB each · up to 20 files",
-    "selected_files": "{count} files selected ({size} KB)",
+    "upload_hint": "TXT / MD / RST · ≤ 5 MB",
+    "selected_files": "File selected ({size} KB)",
     "replace_file_hint": "Leave empty to keep the current text content.",
     "index_status": "Index",
     "indexed": "Indexed ({count} chunks)",
     "not_indexed": "Not indexed",
-    "required_permission": "Required permission",
-    "required_permission_hint": "Leave empty for all knowledge readers",
+    "summary": "Knowledge source description",
+    "topics": "Search topics",
+    "topics_hint": "Separate multiple topics with commas",
+    "extracting": "Extracting catalog metadata…",
+    "metadata_failed": "Metadata extraction failed; please complete it manually",
+    "validation_failed": "Check the form values",
     "all_readers": "All knowledge readers",
     "roles": "Allowed roles",
     "roles_hint": "Any selected role can retrieve this document. Leave empty for all users with knowledge read access.",
@@ -677,7 +687,6 @@
     "empty": "No knowledge documents yet.",
     "fetch_failed": "Failed to load knowledge documents",
     "save_success": "Knowledge document saved and indexed",
-    "batch_partial_success": "Created {success} documents; {failed} files failed",
     "save_failed": "Failed to save knowledge document",
     "reindex": "Rebuild index",
     "reindex_title": "Rebuild knowledge-document index",
@@ -804,10 +813,23 @@
       "llm_config": {
         "updated": "LLM configuration updated"
       },
+      "im_config": {
+        "updated": "IM configuration updated"
+      },
       "wecom_template": {
         "created": "Message template created",
         "updated": "Message template updated",
         "deleted": "Message template deleted"
+      },
+      "knowledge_document": {
+        "created": "Knowledge document created",
+        "updated": "Knowledge document updated",
+        "deleted": "Knowledge document deleted",
+        "reindexed": "Knowledge document reindexed"
+      },
+      "knowledge": {
+        "catalog_searched": "Knowledge catalog searched",
+        "searched": "Knowledge documents searched"
       },
       "agent": {
         "access_diagnosed": "AI access diagnosed",
@@ -831,9 +853,13 @@
       "api_key": "API key",
       "agent_action": "AI action",
       "llm_configuration": "LLM configuration",
+      "im_configuration": "IM configuration",
       "channel_identity": "Channel identity",
       "wecom_message_template": "WeCom message template",
-      "ai_query_template": "AI query template"
+      "ai_query_template": "AI query template",
+      "knowledge_document": "Knowledge document",
+      "knowledge_catalog": "Knowledge catalog",
+      "knowledge_search": "Knowledge search"
     }
   },
   "profile": {
