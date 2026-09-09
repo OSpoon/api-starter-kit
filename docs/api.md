@@ -37,6 +37,16 @@
 
 具体请求参数和响应字段以 OpenAPI 为准。系统管理与 API Key 操作需要对应的命名权限，详见[安全与治理](security.md)。
 
+### LLM 连接测试
+
+`POST /system/llm-config/test` 会并行测试对话模型、ASR 和 Embedding 配置，返回各项失败服务：
+
+```json
+{ "data": { "ok": true, "failedServices": [] } }
+```
+
+`failedServices` 可能包含 `chat`、`asr` 或 `embedding`；即使其中一项失败，其他服务仍会继续测试。
+
 ## 知识库接口
 
 知识库管理接口位于 `/api/v1/system/knowledge-documents`，统一要求 Bearer 认证和 `knowledge:manage` 权限。单文件支持 `txt`、`md`、`markdown`、`rst`，大小上限为 5 MB；批量上传最多 20 个文件。

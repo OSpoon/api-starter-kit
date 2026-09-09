@@ -1,14 +1,13 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import { ApiOperation, ApiResponse, ApiSecurity } from '@foadonis/openapi/decorators'
-import OpenAI from 'openai'
 
 import { recordAuditEvent } from '#services/audit_log'
 import {
   getLlmConfiguration,
-  readRuntimeLlmConfiguration,
   serializeLlmConfiguration,
   updateLlmConfiguration,
 } from '#services/llm_configuration_service'
+import { testLlmConnections } from '#services/llm_connection_test_service'
 import { updateLlmConfigurationValidator } from '#validators/llm_configuration'
 
 @ApiSecurity('bearerAuth')
@@ -36,13 +35,6 @@ export default class LlmConfigurationsController {
 
   @ApiOperation({ summary: '测试 LLM 连接' })
   async test() {
-    const config = await readRuntimeLlmConfiguration()
-    const client = new OpenAI({
-      apiKey: config.chat.apiKey,
-      baseURL: config.chat.baseURL ?? undefined,
-      timeout: config.requestTimeoutMs,
-    })
-    await client.models.list()
-    return { data: { ok: true } }
+    return { data: await testLlmConnections() }
   }
 }

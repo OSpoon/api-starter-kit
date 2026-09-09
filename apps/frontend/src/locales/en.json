@@ -133,6 +133,7 @@
     "save_failed": "Failed to save LLM configuration",
     "test_success": "LLM connection succeeded",
     "test_failed": "LLM connection failed",
+    "test_failed_services": "Connection tests failed for: {services}",
     "wecom_title": "WeCom bot",
     "wecom_description": "Configure the WeCom bot WebSocket connection at runtime. Restart the bot worker after saving.",
     "wecom_bot_id": "Bot ID",

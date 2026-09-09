@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { BrainCircuit, LoaderCircle, Save, TestTube } from '@lucide/vue'
+import { AudioLines, BrainCircuit, LoaderCircle, Network, Save, TestTube } from '@lucide/vue'
 import { toast } from 'vue-sonner'
 
 import SettingsPageTemplate from '@/components/templates/SettingsPageTemplate.vue'
@@ -73,8 +73,15 @@ async function save() {
 async function testConnection() {
   testing.value = true
   try {
-    await testLlmConfiguration(auth.token)
-    toast.success(t('llm_config.test_success'))
+    const result = await testLlmConfiguration(auth.token)
+    if (!result.ok) {
+      const labels = result.failedServices
+        .map((service) => t(`llm_config.${service}_title`))
+        .join('、')
+      toast.error(t('llm_config.test_failed_services', { services: labels }))
+    } else {
+      toast.success(t('llm_config.test_success'))
+    }
   } catch (error) {
     toast.error(error instanceof Error ? error.message : t('llm_config.test_failed'))
   } finally {
@@ -121,7 +128,8 @@ onMounted(load)
       </Card>
       <Card>
         <CardHeader
-          ><CardTitle>{{ t('llm_config.asr_title') }}</CardTitle
+          ><CardTitle class="flex items-center gap-2"
+            ><AudioLines class="size-5" />{{ t('llm_config.asr_title') }}</CardTitle
           ><CardDescription>{{ t('llm_config.asr_description') }}</CardDescription></CardHeader
         >
         <CardContent class="grid items-start gap-4 md:grid-cols-2">
@@ -150,7 +158,8 @@ onMounted(load)
       </Card>
       <Card>
         <CardHeader
-          ><CardTitle>{{ t('llm_config.embedding_title') }}</CardTitle
+          ><CardTitle class="flex items-center gap-2"
+            ><Network class="size-5" />{{ t('llm_config.embedding_title') }}</CardTitle
           ><CardDescription>{{
             t('llm_config.embedding_description')
           }}</CardDescription></CardHeader

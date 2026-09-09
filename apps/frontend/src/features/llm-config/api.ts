@@ -15,6 +15,13 @@ export interface LlmConfiguration {
   updatedAt: string | null
 }
 
+export type LlmServiceName = 'chat' | 'asr' | 'embedding'
+
+export interface LlmConnectionTestResult {
+  ok: boolean
+  failedServices: LlmServiceName[]
+}
+
 export async function getLlmConfiguration(token: string | null) {
   return readItem(
     await apiRequest<ApiEnvelope<LlmConfiguration>>('/api/v1/system/llm-config', { token })
@@ -35,5 +42,10 @@ export async function updateLlmConfiguration(
 }
 
 export async function testLlmConfiguration(token: string | null) {
-  await apiRequest('/api/v1/system/llm-config/test', { method: 'POST', token })
+  return readItem(
+    await apiRequest<ApiEnvelope<LlmConnectionTestResult>>('/api/v1/system/llm-config/test', {
+      method: 'POST',
+      token,
+    })
+  )
 }

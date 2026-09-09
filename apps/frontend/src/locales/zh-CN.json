@@ -133,6 +133,7 @@
     "save_failed": "保存 LLM 配置失败",
     "test_success": "LLM 连接测试成功",
     "test_failed": "LLM 连接测试失败",
+    "test_failed_services": "以下服务连接测试失败：{services}",
     "wecom_title": "企微机器人",
     "wecom_description": "运行时配置企业微信机器人 WebSocket 长连接。保存后，重启 bot 服务即可使用新配置。",
     "wecom_bot_id": "机器人 Bot ID",
