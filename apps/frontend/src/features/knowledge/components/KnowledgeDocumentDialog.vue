@@ -189,7 +189,7 @@ const onSubmit = form.handleSubmit(submit, invalidSubmit)
             <p v-if="document" class="text-sm text-muted-foreground">
               {{ t('knowledge.replace_file_hint') }}
             </p>
-            <p class="text-sm leading-6 text-muted-foreground">
+            <p v-if="!document" class="text-sm leading-6 text-muted-foreground">
               <Lightbulb class="mr-1 inline-block size-4 align-[-0.15em]" aria-hidden="true" />
               {{ t('knowledge.mineru_tip_desc') }}
               <a
