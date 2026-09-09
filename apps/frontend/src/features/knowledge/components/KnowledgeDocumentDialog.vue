@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { FileText, Upload } from '@lucide/vue'
+import { FileText, Lightbulb, Upload } from '@lucide/vue'
 import { toTypedSchema } from '@vee-validate/zod'
 import { useForm } from 'vee-validate'
 import { toast } from 'vue-sonner'
@@ -188,6 +188,20 @@ const onSubmit = form.handleSubmit(submit, invalidSubmit)
             </div>
             <p v-if="document" class="text-sm text-muted-foreground">
               {{ t('knowledge.replace_file_hint') }}
+            </p>
+            <p class="text-sm leading-6 text-muted-foreground">
+              <Lightbulb class="mr-1 inline-block size-4 align-[-0.15em]" aria-hidden="true" />
+              {{ t('knowledge.mineru_tip_desc') }}
+              <a
+                href="https://mineru.net/OpenSourceTools/Extractor"
+                target="_blank"
+                rel="noopener noreferrer"
+                :aria-label="t('knowledge.mineru_tip_link')"
+                class="ml-1 inline-flex items-center gap-1 text-primary underline-offset-4 hover:underline"
+              >
+                {{ t('knowledge.mineru_tip_link') }}
+              </a>
+              {{ t('knowledge.mineru_tip_suffix') }}
             </p>
           </div>
           <div class="grid gap-4">
