@@ -384,6 +384,12 @@ const routes = {
     tokens: [{"old":"/api/v1/ai-chat/conversations","type":0,"val":"api","end":""},{"old":"/api/v1/ai-chat/conversations","type":0,"val":"v1","end":""},{"old":"/api/v1/ai-chat/conversations","type":0,"val":"ai-chat","end":""},{"old":"/api/v1/ai-chat/conversations","type":0,"val":"conversations","end":""}],
     types: placeholder as Registry['ai_chat.index']['types'],
   },
+  'ai_chat.usage': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/v1/ai-chat/usage',
+    tokens: [{"old":"/api/v1/ai-chat/usage","type":0,"val":"api","end":""},{"old":"/api/v1/ai-chat/usage","type":0,"val":"v1","end":""},{"old":"/api/v1/ai-chat/usage","type":0,"val":"ai-chat","end":""},{"old":"/api/v1/ai-chat/usage","type":0,"val":"usage","end":""}],
+    types: placeholder as Registry['ai_chat.usage']['types'],
+  },
   'ai_chat.store': {
     methods: ["POST"],
     pattern: '/api/v1/ai-chat/conversations',

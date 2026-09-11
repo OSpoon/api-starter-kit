@@ -763,6 +763,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['index']>>>
     }
   }
+  'ai_chat.usage': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/ai-chat/usage'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['usage']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['usage']>>>
+    }
+  }
   'ai_chat.store': {
     methods: ["POST"]
     pattern: '/api/v1/ai-chat/conversations'

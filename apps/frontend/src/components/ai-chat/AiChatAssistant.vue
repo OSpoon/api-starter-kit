@@ -11,6 +11,7 @@ import {
   MessageCirclePlus,
   Mic,
   Minus,
+  RefreshCw,
   Sparkles,
   Square,
   Trash2,
@@ -38,11 +39,19 @@ import {
   MessageScrollerProvider,
   MessageScrollerViewport,
 } from '@/components/ui/message-scroller'
+import {
+  Popover,
+  PopoverContent,
+  PopoverDescription,
+  PopoverHeader,
+  PopoverTrigger,
+} from '@/components/ui/popover'
 import { Textarea } from '@/components/ui/textarea'
 import type {
   AiChatConfirmation,
   AiChatCredentialDisclosure,
   AiChatTimelineItem,
+  AiChatUsageSummary,
 } from '@/features/ai/api'
 import { useAiChatMessageSelection } from '@/features/ai/composables/useAiChatMessageSelection'
 import { useAiChatResize } from '@/features/ai/composables/useAiChatResize'
@@ -70,6 +79,9 @@ const props = withDefaults(
     approvalLoading?: boolean
     credentialDisclosure?: AiChatCredentialDisclosure | null
     voiceTranscribing?: boolean
+    usage?: AiChatUsageSummary | null
+    usageLoading?: boolean
+    usageError?: string | null
   }>(),
   {
     modelValue: undefined,
@@ -87,6 +99,9 @@ const props = withDefaults(
     approvalLoading: false,
     credentialDisclosure: null,
     voiceTranscribing: false,
+    usage: null,
+    usageLoading: false,
+    usageError: null,
   }
 )
 
@@ -105,9 +120,10 @@ const emit = defineEmits<{
   dismissConfirmation: []
   dismissCredential: []
   copyCredential: [credential: AiChatCredentialDisclosure]
+  usageOpen: []
 }>()
 
-const { t, te } = useI18n()
+const { t, te, locale } = useI18n()
 
 const internalOpen = ref(false)
 const input = ref('')
@@ -115,6 +131,7 @@ const isComposingInput = ref(false)
 const compositionEndedAt = ref(0)
 const isRecording = ref(false)
 const isPreparingRecording = ref(false)
+const usagePopoverOpen = ref(false)
 let mediaRecorder: MediaRecorder | null = null
 let recordingChunks: Blob[] = []
 let discardRecording = false
@@ -126,6 +143,42 @@ let lastWaveformSampleAt = 0
 const waveformHeights = ref<number[]>(Array.from({ length: 56 }, () => 8))
 
 const MAX_RECORDING_DURATION_MS = 60_000
+
+const usageCloseTimer = useTimeoutFn(
+  () => {
+    usagePopoverOpen.value = false
+  },
+  180,
+  { immediate: false }
+)
+
+const usageNumberFormatter = computed(() => new Intl.NumberFormat(locale.value))
+
+function formatUsageTokens(value: number) {
+  return usageNumberFormatter.value.format(value)
+}
+
+function formatUsageCost(value: number) {
+  return new Intl.NumberFormat(locale.value, {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 4,
+    maximumFractionDigits: 4,
+  }).format(value)
+}
+
+function openUsagePopover() {
+  usageCloseTimer.stop()
+  if (!usagePopoverOpen.value) {
+    usagePopoverOpen.value = true
+    emit('usageOpen')
+  }
+}
+
+function scheduleCloseUsagePopover() {
+  usageCloseTimer.stop()
+  usageCloseTimer.start()
+}
 
 function preferredAudioMimeType() {
   return ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg'].find((type) =>
@@ -412,11 +465,129 @@ watch(
 
       <div class="flex items-center justify-between border-b bg-card px-4 py-3">
         <div class="flex min-w-0 items-center gap-2">
-          <div
-            class="flex size-8 shrink-0 items-center justify-center rounded-md border bg-background"
-          >
-            <MessageCircleDashedIcon class="size-4 text-primary" />
-          </div>
+          <Popover v-model:open="usagePopoverOpen">
+            <PopoverTrigger as-child>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                class="size-8 shrink-0 rounded-md border bg-background p-0 transition-colors hover:bg-muted"
+                :title="t('ai_chat.usage.open')"
+                :aria-label="t('ai_chat.usage.open')"
+                @mouseenter="openUsagePopover"
+                @mouseleave="scheduleCloseUsagePopover"
+              >
+                <MessageCircleDashedIcon class="size-4 text-primary" aria-hidden="true" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent
+              side="bottom"
+              align="start"
+              class="w-80"
+              @mouseenter="openUsagePopover"
+              @mouseleave="scheduleCloseUsagePopover"
+            >
+              <PopoverHeader>
+                <PopoverDescription>
+                  {{ t('ai_chat.usage.current_month') }}
+                </PopoverDescription>
+              </PopoverHeader>
+
+              <div v-if="usageLoading" class="space-y-3" aria-live="polite">
+                <div class="grid grid-cols-2 gap-2">
+                  <div class="space-y-2 rounded-md border p-3">
+                    <div class="h-3 w-16 animate-pulse rounded bg-muted" />
+                    <div class="h-5 w-24 animate-pulse rounded bg-muted" />
+                  </div>
+                  <div class="space-y-2 rounded-md border p-3">
+                    <div class="h-3 w-16 animate-pulse rounded bg-muted" />
+                    <div class="h-5 w-24 animate-pulse rounded bg-muted" />
+                  </div>
+                </div>
+                <p class="text-xs text-muted-foreground">{{ t('common.loading') }}</p>
+              </div>
+              <div v-else-if="usageError" class="space-y-3" role="alert">
+                <p class="text-sm text-destructive">{{ usageError }}</p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  class="w-full"
+                  @click="emit('usageOpen')"
+                >
+                  <RefreshCw class="mr-2 size-3.5" aria-hidden="true" />
+                  {{ t('ai_chat.usage.retry') }}
+                </Button>
+              </div>
+              <div v-else-if="usage" class="space-y-3">
+                <div class="grid grid-cols-2 gap-2">
+                  <div class="rounded-md border bg-muted/30 p-3">
+                    <p class="text-xs text-muted-foreground">
+                      {{ t('ai_chat.usage.total_tokens') }}
+                    </p>
+                    <p class="mt-1 text-lg font-semibold tabular-nums">
+                      {{ formatUsageTokens(usage.totalTokens) }}
+                    </p>
+                  </div>
+                  <div class="rounded-md border bg-muted/30 p-3">
+                    <p class="text-xs text-muted-foreground">
+                      {{ t('ai_chat.usage.estimated_cost') }}
+                    </p>
+                    <p
+                      v-if="usage.estimatedCostUsd !== null"
+                      class="mt-1 text-lg font-semibold tabular-nums"
+                    >
+                      {{ formatUsageCost(usage.estimatedCostUsd) }}
+                    </p>
+                    <p v-else class="mt-1 text-sm font-medium text-muted-foreground">
+                      {{ t('ai_chat.usage.amount_placeholder') }}
+                    </p>
+                  </div>
+                </div>
+
+                <dl class="space-y-1.5 border-t pt-3 text-xs">
+                  <div class="flex justify-between gap-3">
+                    <dt class="text-muted-foreground">{{ t('ai_chat.usage.input_tokens') }}</dt>
+                    <dd class="font-medium tabular-nums">
+                      {{ formatUsageTokens(usage.inputTokens) }}
+                    </dd>
+                  </div>
+                  <div class="flex justify-between gap-3">
+                    <dt class="text-muted-foreground">{{ t('ai_chat.usage.output_tokens') }}</dt>
+                    <dd class="font-medium tabular-nums">
+                      {{ formatUsageTokens(usage.outputTokens) }}
+                    </dd>
+                  </div>
+                  <div class="flex justify-between gap-3">
+                    <dt class="text-muted-foreground">{{ t('ai_chat.usage.model_calls') }}</dt>
+                    <dd class="font-medium tabular-nums">
+                      {{ formatUsageTokens(usage.modelCalls) }}
+                    </dd>
+                  </div>
+                </dl>
+
+                <div v-if="usage.models.length" class="space-y-2 border-t pt-3">
+                  <p class="text-xs font-medium">{{ t('ai_chat.usage.by_model') }}</p>
+                  <div
+                    v-for="model in usage.models"
+                    :key="`${model.providerId}:${model.modelId}`"
+                    class="flex items-start justify-between gap-3 text-xs"
+                  >
+                    <span class="min-w-0 break-all text-muted-foreground">{{ model.modelId }}</span>
+                    <span class="shrink-0 text-right font-medium tabular-nums">
+                      <span class="block">{{ formatUsageTokens(model.totalTokens) }}</span>
+                      <span
+                        v-if="model.estimatedCostUsd !== null"
+                        class="block font-normal text-muted-foreground"
+                      >
+                        {{ formatUsageCost(model.estimatedCostUsd) }}
+                      </span>
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
           <span class="truncate text-sm font-medium">{{ assistantTitle }}</span>
         </div>
         <div class="flex items-center gap-1">

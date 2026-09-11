@@ -184,6 +184,18 @@
     "welcome_title": "你好，我是 AI 助手",
     "welcome_subtitle": "你可以询问当前系统的功能、API 接入或配置方式。",
     "input_placeholder": "输入问题，Enter 发送，Shift + Enter 换行",
+    "usage": {
+      "open": "查看本月用量",
+      "current_month": "当前账号本月的 Pi 对话模型调用",
+      "total_tokens": "总 tokens",
+      "estimated_cost": "估算消费（USD）",
+      "input_tokens": "输入 tokens",
+      "output_tokens": "输出 tokens",
+      "model_calls": "模型调用次数",
+      "amount_placeholder": "—",
+      "by_model": "按模型",
+      "retry": "重新加载"
+    },
     "voice": {
       "start": "开始语音输入",
       "stop": "停止录音并转写",

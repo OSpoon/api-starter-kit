@@ -13,6 +13,9 @@ const {
   aiConversation,
   aiStreamingMessageId,
   aiLoading,
+  aiUsage,
+  aiUsageError,
+  aiUsageLoading,
   aiCredentialDisclosure,
   aiApprovalDismissed,
   aiVoiceTranscribing,
@@ -31,6 +34,7 @@ const {
   handleAiVoiceSend,
   handleAiSelectConversation,
   handleAiStop,
+  refreshAiUsage,
 } = useAiChat()
 
 const breadcrumbs = computed(() => {
@@ -64,6 +68,9 @@ const breadcrumbs = computed(() => {
         :current-conversation-id="aiConversation?.id"
         :streaming-message-id="aiStreamingMessageId"
         :loading="aiLoading"
+        :usage="aiUsage"
+        :usage-error="aiUsageError"
+        :usage-loading="aiUsageLoading"
         :approval="aiApprovalDismissed ? null : pendingAiConfirmation"
         :approval-loading="aiConfirming"
         :credential-disclosure="aiCredentialDisclosure"
@@ -81,6 +88,7 @@ const breadcrumbs = computed(() => {
         @voice-send="handleAiVoiceSend"
         @select-conversation="handleAiSelectConversation"
         @stop="handleAiStop"
+        @usage-open="refreshAiUsage"
       />
     </SidebarInset>
   </SidebarProvider>

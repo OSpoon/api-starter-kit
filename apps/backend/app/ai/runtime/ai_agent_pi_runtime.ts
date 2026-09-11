@@ -26,6 +26,7 @@ import {
 import { openAICompletionsApi } from '@earendil-works/pi-ai/api/openai-completions.lazy'
 
 import { readRuntimeLlmConfiguration } from '#services/llm_configuration_service'
+import { resolveModelsDevPricing } from '#services/models_dev_pricing_service'
 
 /**
  * Pi runtime boundary for the backend AI assistant.
@@ -124,15 +125,17 @@ function createAuthContext(): AuthContext {
 async function createModel(): Promise<Model<'openai-completions'>> {
   const config = await getRuntimeConfig()
   const modelName = config.chat.model
+  const baseUrl = config.chat.baseURL ?? 'https://api.openai.com/v1'
+  const pricing = await resolveModelsDevPricing(modelName, baseUrl)
   return {
     id: modelName,
     name: modelName,
     api: 'openai-completions',
     provider: 'api-starter-openai',
-    baseUrl: config.chat.baseURL ?? 'https://api.openai.com/v1',
+    baseUrl,
     reasoning: /qwen|deepseek|reason/i.test(modelName),
     input: ['text'],
-    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+    cost: pricing?.cost ?? { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
     contextWindow: 128_000,
     maxTokens: 16_384,
   }

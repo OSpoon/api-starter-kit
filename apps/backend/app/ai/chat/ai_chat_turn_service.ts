@@ -19,6 +19,7 @@ import AiChatMessage, {
   type AiChatCitation,
   type AiChatRuntimeDetail,
 } from '#models/ai_chat_message'
+import { recordAiUsageEvent } from '#services/ai_usage_service'
 import {
   serializeAiChatConversation,
   serializeAiChatConversationWithMessages,
@@ -179,7 +180,15 @@ export async function runAiChatAssistantTurn(input: {
     })
     agentRunId = run.agentRunId
     const streamStartedAt = Date.now()
-    const usage = { inputTokens: 0, outputTokens: 0, totalTokens: 0, modelCalls: 0 }
+    const usage = {
+      inputTokens: 0,
+      outputTokens: 0,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+      totalTokens: 0,
+      modelCalls: 0,
+    }
+    let modelCallSequence = 0
     aiFailureStage = 'message_stream'
     for await (const event of streamAiAgentTurnEvents(run, input.signal)) {
       if (input.signal.aborted) {
@@ -245,10 +254,37 @@ export async function runAiChatAssistantTurn(input: {
         continue
       }
       if (event.source === 'message_end') {
-        if (event.value.error) throw event.value.error
         usage.inputTokens += event.value.inputTokens
         usage.outputTokens += event.value.outputTokens
+        usage.cacheReadTokens += event.value.cacheReadTokens
+        usage.cacheWriteTokens += event.value.cacheWriteTokens
         usage.totalTokens += event.value.totalTokens
+        try {
+          await recordAiUsageEvent({
+            userId,
+            conversationId: conversation.id,
+            agentRunId: run.agentRunId,
+            callSequence: modelCallSequence,
+            providerId: event.value.providerId,
+            modelId: event.value.modelId,
+            baseUrl: event.value.baseUrl,
+            usage: {
+              input: event.value.inputTokens,
+              output: event.value.outputTokens,
+              cacheRead: event.value.cacheReadTokens,
+              cacheWrite: event.value.cacheWriteTokens,
+              totalTokens: event.value.totalTokens,
+            },
+            status: event.value.error ? 'failed' : 'completed',
+          })
+        } catch (error) {
+          logger.warn(
+            { err: error, conversationId: conversation.id, agentRunId: run.agentRunId },
+            'AI usage event could not be recorded'
+          )
+        }
+        modelCallSequence += 1
+        if (event.value.error) throw event.value.error
         await persistAssistantMessage()
       }
     }

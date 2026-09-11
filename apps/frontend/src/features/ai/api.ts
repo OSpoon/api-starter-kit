@@ -118,8 +118,37 @@ export interface AiChatAgentActivity {
 export interface AiChatRunUsage {
   inputTokens: number
   outputTokens: number
+  cacheReadTokens?: number
+  cacheWriteTokens?: number
   totalTokens: number
   modelCalls: number
+}
+
+export interface AiChatUsageModel {
+  modelId: string
+  providerId: string
+  inputTokens: number
+  outputTokens: number
+  totalTokens: number
+  modelCalls: number
+  estimatedCostUsd: number | null
+  priced: boolean
+}
+
+export interface AiChatUsageSummary {
+  period: 'current_month'
+  periodStart: string
+  periodEnd: string
+  inputTokens: number
+  outputTokens: number
+  cacheReadTokens: number
+  cacheWriteTokens: number
+  totalTokens: number
+  modelCalls: number
+  estimatedCostUsd: number | null
+  pricingSource: 'models.dev' | 'mixed' | 'unavailable'
+  unpricedModelCount: number
+  models: AiChatUsageModel[]
 }
 
 export interface AiChatRunMeta {
@@ -166,6 +195,11 @@ export async function listAiChatConversations(token: string | null) {
     authOptions(token)
   )
   return readList(response)
+}
+
+export async function getAiChatUsage(token: string | null) {
+  const response = await apiRequest<AiChatUsageSummary>('/api/v1/ai-chat/usage', authOptions(token))
+  return readItem(response)
 }
 
 export async function createAiChatConversation(token: string | null) {

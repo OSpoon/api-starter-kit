@@ -76,5 +76,5 @@ export async function createAiAgentStream(
     agentRunId,
     control: stream.control,
   })
-  return { stream, agentRunId }
+  return { stream, agentRunId, model: stream.model }
 }

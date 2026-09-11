@@ -184,6 +184,18 @@
     "welcome_title": "Hi, I am the AI Assistant",
     "welcome_subtitle": "Ask about system features, API integration, or configuration.",
     "input_placeholder": "Type a question. Enter to send, Shift + Enter for a new line",
+    "usage": {
+      "open": "View this month's usage",
+      "current_month": "This account's Pi chat-model calls this month",
+      "total_tokens": "Total tokens",
+      "estimated_cost": "Estimated cost (USD)",
+      "input_tokens": "Input tokens",
+      "output_tokens": "Output tokens",
+      "model_calls": "Model calls",
+      "amount_placeholder": "—",
+      "by_model": "By model",
+      "retry": "Reload"
+    },
     "voice": {
       "start": "Start voice input",
       "stop": "Stop recording and transcribe",

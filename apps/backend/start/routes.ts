@@ -236,6 +236,9 @@ router
     router
       .group(() => {
         router.get('conversations', [AiChatController, 'index'])
+        router
+          .get('usage', [AiChatController, 'usage'])
+          .use(middleware.permission(['ai-usage:read']))
         router.post('conversations', [AiChatController, 'store'])
         router.get('conversations/:id', [AiChatController, 'show'])
         router.post('transcribe', [AiChatController, 'transcribe'])

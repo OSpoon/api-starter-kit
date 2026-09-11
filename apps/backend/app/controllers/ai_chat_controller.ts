@@ -19,6 +19,7 @@ import {
 import AiChatConversation from '#models/ai_chat_conversation'
 import AiChatMessage from '#models/ai_chat_message'
 import { getAudioMimeType, transcribeAudio } from '#services/ai_speech_service'
+import { getAiUsageSummary } from '#services/ai_usage_service'
 import {
   serializeAiChatConversation,
   serializeAiChatConversationWithMessages,
@@ -77,6 +78,16 @@ export default class AiChatController {
       .orderBy('updated_at', 'desc')
 
     return serialize(conversations.map(serializeAiChatConversation))
+  }
+
+  @ApiOperation({
+    summary: '获取当前用户的 AI 用量',
+    description: '仅返回当前登录用户本月 Pi 对话模型的 token 用量和估算消费。',
+  })
+  @ApiResponse({ status: 200, description: '当前用户的 AI 用量汇总' })
+  async usage({ auth, serialize }: HttpContext) {
+    const user = auth.getUserOrFail()
+    return serialize(await getAiUsageSummary(user.id))
   }
 
   @ApiOperation({

@@ -36,8 +36,13 @@ export type AiAgentTurnEvent =
   | {
       source: 'message_end'
       value: {
+        providerId: string
+        modelId: string
+        baseUrl: string
         inputTokens: number
         outputTokens: number
+        cacheReadTokens: number
+        cacheWriteTokens: number
         totalTokens: number
         error?: Error
       }
@@ -221,8 +226,13 @@ export async function* streamAiAgentTurnEvents(
       yield {
         source: 'message_end',
         value: {
+          providerId: event.message.provider,
+          modelId: event.message.model,
+          baseUrl: run.model.baseUrl,
           inputTokens: event.message.usage.input,
           outputTokens: event.message.usage.output,
+          cacheReadTokens: event.message.usage.cacheRead,
+          cacheWriteTokens: event.message.usage.cacheWrite,
           totalTokens: event.message.usage.totalTokens,
           ...(event.message.stopReason === 'error' || event.message.stopReason === 'aborted'
             ? {

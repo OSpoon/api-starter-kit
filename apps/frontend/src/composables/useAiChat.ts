@@ -10,7 +10,9 @@ import {
   type AiChatConversation,
   type AiChatConversationSummary,
   type AiChatMessage,
+  type AiChatUsageSummary,
   confirmAiAgentAction,
+  getAiChatUsage,
   transcribeAiChatAudio,
 } from '@/features/ai/api'
 import { useAiChatConversations } from '@/features/ai/composables/useAiChatConversations'
@@ -41,6 +43,26 @@ export function useAiChat() {
   const aiCredentialDisclosure = ref<AiChatCredentialDisclosure | null>(null)
   const aiRunMeta = ref<AiChatRunMeta | null>(null)
   const aiVoiceTranscribing = ref(false)
+  const aiUsage = ref<AiChatUsageSummary | null>(null)
+  const aiUsageLoading = ref(false)
+  const aiUsageError = ref<string | null>(null)
+
+  async function refreshAiUsage() {
+    if (!auth.token) {
+      aiUsage.value = null
+      return
+    }
+
+    aiUsageLoading.value = true
+    aiUsageError.value = null
+    try {
+      aiUsage.value = await getAiChatUsage(auth.token)
+    } catch (error) {
+      aiUsageError.value = error instanceof Error ? error.message : t('common.error')
+    } finally {
+      aiUsageLoading.value = false
+    }
+  }
 
   const conversationManager = useAiChatConversations(
     () => auth.token,
@@ -254,7 +276,17 @@ export function useAiChat() {
 
   onMounted(() => {
     void conversationManager.refresh().catch(() => undefined)
+    void refreshAiUsage()
   })
+
+  watch(
+    () => aiRunMeta.value?.agentRunId,
+    (agentRunId, previousAgentRunId) => {
+      if (agentRunId && agentRunId !== previousAgentRunId) {
+        void refreshAiUsage()
+      }
+    }
+  )
 
   return {
     aiLoading,
@@ -268,10 +300,14 @@ export function useAiChat() {
     aiApprovalDismissed,
     aiCredentialDisclosure,
     aiRunMeta,
+    aiUsage,
+    aiUsageLoading,
+    aiUsageError,
     aiVoiceTranscribing,
     displayedAiChatMessages,
     aiPageContext,
     refreshAiConversations: conversationManager.refresh,
+    refreshAiUsage,
     ensureAiConversation: conversationManager.ensure,
     handleAiNewChat: conversationManager.createNew,
     handleAiSelectConversation: conversationManager.select,

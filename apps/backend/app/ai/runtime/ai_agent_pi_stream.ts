@@ -141,5 +141,6 @@ export async function createAiAgentPiStream(
   return {
     events,
     control,
+    model: agent.state.model,
   }
 }

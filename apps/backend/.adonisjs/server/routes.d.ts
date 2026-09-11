@@ -67,6 +67,7 @@ export type ScannedRoutes = {
     'permissions.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'audit_logs.index': { paramsTuple?: []; params?: {} }
     'ai_chat.index': { paramsTuple?: []; params?: {} }
+    'ai_chat.usage': { paramsTuple?: []; params?: {} }
     'ai_chat.store': { paramsTuple?: []; params?: {} }
     'ai_chat.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'ai_chat.transcribe': { paramsTuple?: []; params?: {} }
@@ -133,6 +134,7 @@ export type ScannedRoutes = {
     'permissions.index': { paramsTuple?: []; params?: {} }
     'audit_logs.index': { paramsTuple?: []; params?: {} }
     'ai_chat.index': { paramsTuple?: []; params?: {} }
+    'ai_chat.usage': { paramsTuple?: []; params?: {} }
     'ai_chat.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
   }
   HEAD: {
@@ -155,6 +157,7 @@ export type ScannedRoutes = {
     'permissions.index': { paramsTuple?: []; params?: {} }
     'audit_logs.index': { paramsTuple?: []; params?: {} }
     'ai_chat.index': { paramsTuple?: []; params?: {} }
+    'ai_chat.usage': { paramsTuple?: []; params?: {} }
     'ai_chat.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
   }
   PUT: {
