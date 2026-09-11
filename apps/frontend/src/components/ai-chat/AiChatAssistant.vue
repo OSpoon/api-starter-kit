@@ -584,13 +584,6 @@ watch(
                     <span class="min-w-0 break-all text-muted-foreground">{{ model.modelId }}</span>
                     <span class="shrink-0 text-right font-medium tabular-nums">
                       <span class="block">{{ formatUsageTokens(model.totalTokens) }}</span>
-                      <span class="block font-normal text-muted-foreground">
-                        {{ t('ai_chat.usage.cache_read_short') }}
-                        {{ formatUsageTokens(model.cacheReadTokens) }}
-                        <span aria-hidden="true">·</span>
-                        {{ t('ai_chat.usage.cache_write_short') }}
-                        {{ formatUsageTokens(model.cacheWriteTokens) }}
-                      </span>
                       <span
                         v-if="model.estimatedCostUsd !== null"
                         class="block font-normal text-muted-foreground"

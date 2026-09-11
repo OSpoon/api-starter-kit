@@ -192,8 +192,6 @@
       "output_tokens": "输出 tokens",
       "cache_read_tokens": "缓存命中 tokens",
       "cache_write_tokens": "缓存写入 tokens",
-      "cache_read_short": "命中",
-      "cache_write_short": "写入",
       "model_calls": "模型调用次数",
       "amount_placeholder": "—",
       "by_model": "按模型",
