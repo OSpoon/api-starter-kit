@@ -129,6 +129,8 @@ export interface AiChatUsageModel {
   providerId: string
   inputTokens: number
   outputTokens: number
+  cacheReadTokens: number
+  cacheWriteTokens: number
   totalTokens: number
   modelCalls: number
   estimatedCostUsd: number | null

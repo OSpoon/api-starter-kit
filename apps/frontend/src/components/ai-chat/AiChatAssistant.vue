@@ -42,8 +42,6 @@ import {
 import {
   Popover,
   PopoverContent,
-  PopoverDescription,
-  PopoverHeader,
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { Textarea } from '@/components/ui/textarea'
@@ -487,12 +485,6 @@ watch(
               @mouseenter="openUsagePopover"
               @mouseleave="scheduleCloseUsagePopover"
             >
-              <PopoverHeader>
-                <PopoverDescription>
-                  {{ t('ai_chat.usage.current_month') }}
-                </PopoverDescription>
-              </PopoverHeader>
-
               <div v-if="usageLoading" class="space-y-3" aria-live="polite">
                 <div class="grid grid-cols-2 gap-2">
                   <div class="space-y-2 rounded-md border p-3">
@@ -559,6 +551,22 @@ watch(
                     </dd>
                   </div>
                   <div class="flex justify-between gap-3">
+                    <dt class="text-muted-foreground">
+                      {{ t('ai_chat.usage.cache_read_tokens') }}
+                    </dt>
+                    <dd class="font-medium tabular-nums">
+                      {{ formatUsageTokens(usage.cacheReadTokens) }}
+                    </dd>
+                  </div>
+                  <div class="flex justify-between gap-3">
+                    <dt class="text-muted-foreground">
+                      {{ t('ai_chat.usage.cache_write_tokens') }}
+                    </dt>
+                    <dd class="font-medium tabular-nums">
+                      {{ formatUsageTokens(usage.cacheWriteTokens) }}
+                    </dd>
+                  </div>
+                  <div class="flex justify-between gap-3">
                     <dt class="text-muted-foreground">{{ t('ai_chat.usage.model_calls') }}</dt>
                     <dd class="font-medium tabular-nums">
                       {{ formatUsageTokens(usage.modelCalls) }}
@@ -576,6 +584,13 @@ watch(
                     <span class="min-w-0 break-all text-muted-foreground">{{ model.modelId }}</span>
                     <span class="shrink-0 text-right font-medium tabular-nums">
                       <span class="block">{{ formatUsageTokens(model.totalTokens) }}</span>
+                      <span class="block font-normal text-muted-foreground">
+                        {{ t('ai_chat.usage.cache_read_short') }}
+                        {{ formatUsageTokens(model.cacheReadTokens) }}
+                        <span aria-hidden="true">·</span>
+                        {{ t('ai_chat.usage.cache_write_short') }}
+                        {{ formatUsageTokens(model.cacheWriteTokens) }}
+                      </span>
                       <span
                         v-if="model.estimatedCostUsd !== null"
                         class="block font-normal text-muted-foreground"

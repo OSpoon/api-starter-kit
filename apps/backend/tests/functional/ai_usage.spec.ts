@@ -47,8 +47,8 @@ test.group('AI usage', (group) => {
       modelId: 'openai/gpt-4o-mini',
       inputTokens: 10,
       outputTokens: 5,
-      cacheReadTokens: 0,
-      cacheWriteTokens: 0,
+      cacheReadTokens: 3,
+      cacheWriteTokens: 2,
       totalTokens: 15,
       estimatedCostUsd: '0.000100000000',
       pricingSource: 'models.dev',
@@ -79,18 +79,29 @@ test.group('AI usage', (group) => {
     const body = response.body().data as {
       inputTokens: number
       outputTokens: number
+      cacheReadTokens: number
+      cacheWriteTokens: number
       totalTokens: number
       modelCalls: number
       estimatedCostUsd: number
-      models: Array<{ modelId: string; totalTokens: number }>
+      models: Array<{
+        modelId: string
+        cacheReadTokens: number
+        cacheWriteTokens: number
+        totalTokens: number
+      }>
     }
     assert.equal(body.inputTokens, 10)
     assert.equal(body.outputTokens, 5)
+    assert.equal(body.cacheReadTokens, 3)
+    assert.equal(body.cacheWriteTokens, 2)
     assert.equal(body.totalTokens, 15)
     assert.equal(body.modelCalls, 1)
     assert.equal(body.estimatedCostUsd, 0.0001)
     assert.lengthOf(body.models, 1)
     assert.equal(body.models[0].modelId, 'openai/gpt-4o-mini')
+    assert.equal(body.models[0].cacheReadTokens, 3)
+    assert.equal(body.models[0].cacheWriteTokens, 2)
     assert.equal(body.models[0].totalTokens, 15)
   })
 

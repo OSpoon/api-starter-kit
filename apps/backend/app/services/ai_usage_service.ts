@@ -66,6 +66,8 @@ type UsageModelRow = {
   providerId: string
   inputTokens: string | number
   outputTokens: string | number
+  cacheReadTokens: string | number
+  cacheWriteTokens: string | number
   totalTokens: string | number
   modelCalls: string | number
   estimatedCostUsd: string | number | null
@@ -104,6 +106,8 @@ export async function getAiUsageSummary(userId: number) {
     .select('model_id as modelId', 'provider_id as providerId')
     .sum({ inputTokens: 'input_tokens' })
     .sum({ outputTokens: 'output_tokens' })
+    .sum({ cacheReadTokens: 'cache_read_tokens' })
+    .sum({ cacheWriteTokens: 'cache_write_tokens' })
     .sum({ totalTokens: 'total_tokens' })
     .count({ modelCalls: '*' })
     .sum({ estimatedCostUsd: 'estimated_cost_usd' })
@@ -137,6 +141,8 @@ export async function getAiUsageSummary(userId: number) {
       providerId: row.providerId,
       inputTokens: numberValue(row.inputTokens),
       outputTokens: numberValue(row.outputTokens),
+      cacheReadTokens: numberValue(row.cacheReadTokens),
+      cacheWriteTokens: numberValue(row.cacheWriteTokens),
       totalTokens: numberValue(row.totalTokens),
       modelCalls: numberValue(row.modelCalls),
       estimatedCostUsd: row.estimatedCostUsd === null ? null : numberValue(row.estimatedCostUsd),
