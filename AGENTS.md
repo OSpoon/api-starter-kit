@@ -377,10 +377,28 @@ chore(deps): update AdonisJS packages
 
 ## 8. Delivery and Reporting
 
+### 8.1 Documentation ownership
+
+- Keep the root `README.md` as the concise public entry point: project
+  positioning, high-level capabilities, and getting-started links belong
+  there. Operational setup, deployment, and security prerequisites belong in
+  the relevant documents under `docs/`.
+- Never add development logs, change records, implementation diaries, task
+  summaries, or commit-specific notes to the root `README.md`.
+- Put durable implementation, API, deployment, configuration, and feature
+  details in the relevant authoritative document under `docs/`. Update that
+  document in the same change when the behavior it describes changes; do not
+  duplicate the detail in the root README.
+
 The final summary must state:
 
 1. Implemented behavior and key files.
 2. Verification commands actually run and their results.
 3. Every verification that was not run, failed, or was blocked, with the reason.
 4. Any exception, its technical rationale, impact, and removal path.
-5. Update `README.md` when a change affects documented setup, environment variables, Docker, migrations, API behavior, or template capabilities.
+5. Update the relevant authoritative documentation when a change affects
+   documented setup, environment variables, Docker, migrations, API behavior,
+   or template capabilities. Update the root `README.md` only when its concise
+   project overview or entry points are affected; keep operational setup and
+   security prerequisites in the relevant documents under `docs/`, and never
+   use the root README as a development record.
