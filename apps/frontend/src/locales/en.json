@@ -514,7 +514,19 @@
     "node": "Node",
     "heap": "Heap",
     "pid": "PID",
-    "load_error": "Server status is temporarily unavailable. Try again shortly."
+    "load_error": "Server status is temporarily unavailable. Try again shortly.",
+    "ai_overview_title": "AI usage overview",
+    "ai_overview_period": "Current month · Service-wide",
+    "ai_overview_total_tokens": "Total tokens",
+    "ai_overview_model_calls": "Model calls",
+    "ai_overview_estimated_cost": "Estimated cost (USD)",
+    "ai_overview_unpriced_models": "Unpriced models",
+    "ai_overview_cost_unavailable": "Unavailable",
+    "ai_overview_mixed_pricing": "{count} model(s) without pricing",
+    "ai_overview_unavailable_pricing": "Pricing is unavailable for the current usage.",
+    "ai_overview_updated": "Statistics through {time}",
+    "ai_overview_load_error": "AI usage overview is temporarily unavailable.",
+    "ai_overview_retry": "Reload AI overview"
   },
   "api_keys": {
     "title": "API Access",

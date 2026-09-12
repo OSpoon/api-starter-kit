@@ -26,6 +26,21 @@ export interface SystemStatus {
   updatedAt: string
 }
 
+export interface AiUsageOverview {
+  period: 'current_month'
+  periodStart: string
+  periodEnd: string
+  totalTokens: number
+  modelCalls: number
+  estimatedCostUsd: number | null
+  pricingSource: 'models.dev' | 'mixed' | 'unavailable'
+  unpricedModelCount: number
+}
+
 export async function getSystemStatus(token: string | null) {
   return readItem(await apiRequest<SystemStatus>('/api/v1/system/status', { token }))
+}
+
+export async function getAiUsageOverview(token: string | null) {
+  return readItem(await apiRequest<AiUsageOverview>('/api/v1/system/ai-overview', { token }))
 }

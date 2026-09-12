@@ -8,7 +8,26 @@ import { BaseModel, column } from '@adonisjs/lucid/orm'
 import { DateTime } from 'luxon'
 
 export class AiAgentConfirmationSchema extends BaseModel {
-  static $columns = ['action', 'agentRunId', 'assistantMessageId', 'confirmedAt', 'confirmedByUserId', 'conversationId', 'createdAt', 'executionStartedAt', 'executionToken', 'expiresAt', 'id', 'payload', 'requestedByUserId', 'status', 'targetId', 'targetSummary', 'targetType', 'updatedAt'] as const
+  static $columns = [
+    'action',
+    'agentRunId',
+    'assistantMessageId',
+    'confirmedAt',
+    'confirmedByUserId',
+    'conversationId',
+    'createdAt',
+    'executionStartedAt',
+    'executionToken',
+    'expiresAt',
+    'id',
+    'payload',
+    'requestedByUserId',
+    'status',
+    'targetId',
+    'targetSummary',
+    'targetType',
+    'updatedAt',
+  ] as const
   $columns = AiAgentConfirmationSchema.$columns
   @column()
   declare action: string
@@ -49,7 +68,19 @@ export class AiAgentConfirmationSchema extends BaseModel {
 }
 
 export class AiAgentPendingQuerySchema extends BaseModel {
-  static $columns = ['completedAt', 'conversationId', 'createdAt', 'expiresAt', 'id', 'params', 'requestedByUserId', 'status', 'templateCode', 'templateVersion', 'updatedAt'] as const
+  static $columns = [
+    'completedAt',
+    'conversationId',
+    'createdAt',
+    'expiresAt',
+    'id',
+    'params',
+    'requestedByUserId',
+    'status',
+    'templateCode',
+    'templateVersion',
+    'updatedAt',
+  ] as const
   $columns = AiAgentPendingQuerySchema.$columns
   @column.dateTime()
   declare completedAt: DateTime | null
@@ -93,7 +124,16 @@ export class AiChatConversationSchema extends BaseModel {
 }
 
 export class AiChatMessageSchema extends BaseModel {
-  static $columns = ['citations', 'content', 'conversationId', 'createdAt', 'id', 'role', 'runtimeDetails', 'updatedAt'] as const
+  static $columns = [
+    'citations',
+    'content',
+    'conversationId',
+    'createdAt',
+    'id',
+    'role',
+    'runtimeDetails',
+    'updatedAt',
+  ] as const
   $columns = AiChatMessageSchema.$columns
   @column()
   declare citations: any
@@ -113,8 +153,75 @@ export class AiChatMessageSchema extends BaseModel {
   declare updatedAt: DateTime
 }
 
+export class AiUsageEventSchema extends BaseModel {
+  static $columns = [
+    'agentRunId',
+    'cacheReadTokens',
+    'cacheWriteTokens',
+    'callSequence',
+    'conversationId',
+    'createdAt',
+    'estimatedCostUsd',
+    'id',
+    'inputTokens',
+    'modelId',
+    'outputTokens',
+    'pricingSource',
+    'pricingVersion',
+    'providerId',
+    'status',
+    'totalTokens',
+    'userId',
+  ] as const
+  $columns = AiUsageEventSchema.$columns
+  @column()
+  declare agentRunId: string
+  @column()
+  declare cacheReadTokens: number
+  @column()
+  declare cacheWriteTokens: number
+  @column()
+  declare callSequence: number
+  @column()
+  declare conversationId: number | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare estimatedCostUsd: string | null
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare inputTokens: number
+  @column()
+  declare modelId: string
+  @column()
+  declare outputTokens: number
+  @column()
+  declare pricingSource: string
+  @column()
+  declare pricingVersion: string | null
+  @column()
+  declare providerId: string
+  @column()
+  declare status: string
+  @column()
+  declare totalTokens: number
+  @column()
+  declare userId: number
+}
+
 export class ApiKeySchema extends BaseModel {
-  static $columns = ['createdAt', 'expiresAt', 'id', 'keyHash', 'lastUsedAt', 'name', 'prefix', 'revokedAt', 'updatedAt'] as const
+  static $columns = [
+    'createdAt',
+    'expiresAt',
+    'id',
+    'keyHash',
+    'lastUsedAt',
+    'name',
+    'prefix',
+    'revokedAt',
+    'updatedAt',
+  ] as const
   $columns = ApiKeySchema.$columns
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
@@ -137,7 +244,18 @@ export class ApiKeySchema extends BaseModel {
 }
 
 export class AuditLogSchema extends BaseModel {
-  static $columns = ['action', 'actorUserId', 'createdAt', 'id', 'ipAddress', 'metadata', 'requestId', 'targetId', 'targetType', 'userAgent'] as const
+  static $columns = [
+    'action',
+    'actorUserId',
+    'createdAt',
+    'id',
+    'ipAddress',
+    'metadata',
+    'requestId',
+    'targetId',
+    'targetType',
+    'userAgent',
+  ] as const
   $columns = AuditLogSchema.$columns
   @column()
   declare action: string
@@ -162,7 +280,18 @@ export class AuditLogSchema extends BaseModel {
 }
 
 export class AuthAccessTokenSchema extends BaseModel {
-  static $columns = ['abilities', 'createdAt', 'expiresAt', 'hash', 'id', 'lastUsedAt', 'name', 'tokenableId', 'type', 'updatedAt'] as const
+  static $columns = [
+    'abilities',
+    'createdAt',
+    'expiresAt',
+    'hash',
+    'id',
+    'lastUsedAt',
+    'name',
+    'tokenableId',
+    'type',
+    'updatedAt',
+  ] as const
   $columns = AuthAccessTokenSchema.$columns
   @column()
   declare abilities: string
@@ -187,7 +316,16 @@ export class AuthAccessTokenSchema extends BaseModel {
 }
 
 export class ChannelBindingChallengeSchema extends BaseModel {
-  static $columns = ['channel', 'codeHash', 'createdAt', 'expiresAt', 'externalTenantId', 'externalUserId', 'id', 'usedAt'] as const
+  static $columns = [
+    'channel',
+    'codeHash',
+    'createdAt',
+    'expiresAt',
+    'externalTenantId',
+    'externalUserId',
+    'id',
+    'usedAt',
+  ] as const
   $columns = ChannelBindingChallengeSchema.$columns
   @column()
   declare channel: string
@@ -208,7 +346,16 @@ export class ChannelBindingChallengeSchema extends BaseModel {
 }
 
 export class ChannelConversationSchema extends BaseModel {
-  static $columns = ['channel', 'conversationId', 'createdAt', 'externalConversationKey', 'externalTenantId', 'id', 'updatedAt', 'userId'] as const
+  static $columns = [
+    'channel',
+    'conversationId',
+    'createdAt',
+    'externalConversationKey',
+    'externalTenantId',
+    'id',
+    'updatedAt',
+    'userId',
+  ] as const
   $columns = ChannelConversationSchema.$columns
   @column()
   declare channel: string
@@ -229,7 +376,18 @@ export class ChannelConversationSchema extends BaseModel {
 }
 
 export class ChannelIdentitySchema extends BaseModel {
-  static $columns = ['boundAt', 'channel', 'createdAt', 'externalTenantId', 'externalUserId', 'id', 'revokedAt', 'status', 'updatedAt', 'userId'] as const
+  static $columns = [
+    'boundAt',
+    'channel',
+    'createdAt',
+    'externalTenantId',
+    'externalUserId',
+    'id',
+    'revokedAt',
+    'status',
+    'updatedAt',
+    'userId',
+  ] as const
   $columns = ChannelIdentitySchema.$columns
   @column.dateTime()
   declare boundAt: DateTime
@@ -288,7 +446,16 @@ export class GithubLinkStateSchema extends BaseModel {
 }
 
 export class GithubLoginChallengeSchema extends BaseModel {
-  static $columns = ['codeHash', 'createdAt', 'expiresAt', 'githubEmail', 'githubId', 'githubLogin', 'id', 'usedAt'] as const
+  static $columns = [
+    'codeHash',
+    'createdAt',
+    'expiresAt',
+    'githubEmail',
+    'githubId',
+    'githubLogin',
+    'id',
+    'usedAt',
+  ] as const
   $columns = GithubLoginChallengeSchema.$columns
   @column()
   declare codeHash: string
@@ -326,7 +493,15 @@ export class GithubLoginExchangeSchema extends BaseModel {
 }
 
 export class KnowledgeChunkSchema extends BaseModel {
-  static $columns = ['chunkIndex', 'content', 'createdAt', 'documentId', 'embedding', 'embeddingModel', 'id'] as const
+  static $columns = [
+    'chunkIndex',
+    'content',
+    'createdAt',
+    'documentId',
+    'embedding',
+    'embeddingModel',
+    'id',
+  ] as const
   $columns = KnowledgeChunkSchema.$columns
   @column()
   declare chunkIndex: number
@@ -356,7 +531,20 @@ export class KnowledgeDocumentRoleSchema extends BaseModel {
 }
 
 export class KnowledgeDocumentSchema extends BaseModel {
-  static $columns = ['catalogEmbedding', 'catalogEmbeddingModel', 'catalogIndexedAt', 'content', 'contentHash', 'createdAt', 'id', 'requiredPermission', 'summary', 'title', 'topics', 'updatedAt'] as const
+  static $columns = [
+    'catalogEmbedding',
+    'catalogEmbeddingModel',
+    'catalogIndexedAt',
+    'content',
+    'contentHash',
+    'createdAt',
+    'id',
+    'requiredPermission',
+    'summary',
+    'title',
+    'topics',
+    'updatedAt',
+  ] as const
   $columns = KnowledgeDocumentSchema.$columns
   @column()
   declare catalogEmbedding: any | null
@@ -385,7 +573,33 @@ export class KnowledgeDocumentSchema extends BaseModel {
 }
 
 export class LlmConfigurationSchema extends BaseModel {
-  static $columns = ['asrApiKey', 'asrBaseUrl', 'asrModel', 'chatApiKey', 'chatBaseUrl', 'chatModel', 'createdAt', 'dingtalkCardTemplateId', 'dingtalkClientId', 'dingtalkClientSecret', 'dingtalkStreamingCardTemplateId', 'embeddingApiKey', 'embeddingBaseUrl', 'embeddingDimensions', 'embeddingModel', 'feishuAppId', 'feishuAppSecret', 'feishuDomain', 'id', 'requestTimeoutMs', 'updatedAt', 'wecomBotId', 'wecomBotSecret', 'wecomBotTenantId', 'wecomBotWsUrl'] as const
+  static $columns = [
+    'asrApiKey',
+    'asrBaseUrl',
+    'asrModel',
+    'chatApiKey',
+    'chatBaseUrl',
+    'chatModel',
+    'createdAt',
+    'dingtalkCardTemplateId',
+    'dingtalkClientId',
+    'dingtalkClientSecret',
+    'dingtalkStreamingCardTemplateId',
+    'embeddingApiKey',
+    'embeddingBaseUrl',
+    'embeddingDimensions',
+    'embeddingModel',
+    'feishuAppId',
+    'feishuAppSecret',
+    'feishuDomain',
+    'id',
+    'requestTimeoutMs',
+    'updatedAt',
+    'wecomBotId',
+    'wecomBotSecret',
+    'wecomBotTenantId',
+    'wecomBotWsUrl',
+  ] as const
   $columns = LlmConfigurationSchema.$columns
   @column()
   declare asrApiKey: string | null
@@ -440,7 +654,16 @@ export class LlmConfigurationSchema extends BaseModel {
 }
 
 export class PermissionSchema extends BaseModel {
-  static $columns = ['code', 'createdAt', 'description', 'groupName', 'id', 'isSystem', 'name', 'updatedAt'] as const
+  static $columns = [
+    'code',
+    'createdAt',
+    'description',
+    'groupName',
+    'id',
+    'isSystem',
+    'name',
+    'updatedAt',
+  ] as const
   $columns = PermissionSchema.$columns
   @column()
   declare code: string
@@ -472,7 +695,15 @@ export class RolePermissionSchema extends BaseModel {
 }
 
 export class RoleSchema extends BaseModel {
-  static $columns = ['code', 'createdAt', 'description', 'id', 'isSystem', 'name', 'updatedAt'] as const
+  static $columns = [
+    'code',
+    'createdAt',
+    'description',
+    'id',
+    'isSystem',
+    'name',
+    'updatedAt',
+  ] as const
   $columns = RoleSchema.$columns
   @column()
   declare code: string
@@ -502,7 +733,21 @@ export class UserRoleSchema extends BaseModel {
 }
 
 export class UserSchema extends BaseModel {
-  static $columns = ['createdAt', 'disabledAt', 'email', 'failedLoginAttempts', 'fullName', 'id', 'lockedUntil', 'password', 'passwordChangedAt', 'twoFactorEnabled', 'twoFactorRecoveryCodes', 'twoFactorSecret', 'updatedAt'] as const
+  static $columns = [
+    'createdAt',
+    'disabledAt',
+    'email',
+    'failedLoginAttempts',
+    'fullName',
+    'id',
+    'lockedUntil',
+    'password',
+    'passwordChangedAt',
+    'twoFactorEnabled',
+    'twoFactorRecoveryCodes',
+    'twoFactorSecret',
+    'updatedAt',
+  ] as const
   $columns = UserSchema.$columns
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
@@ -533,7 +778,18 @@ export class UserSchema extends BaseModel {
 }
 
 export class WecomMessageTemplateSchema extends BaseModel {
-  static $columns = ['createdAt', 'description', 'enabled', 'id', 'msgtype', 'name', 'parameters', 'payload', 'updatedAt', 'webhookUrl'] as const
+  static $columns = [
+    'createdAt',
+    'description',
+    'enabled',
+    'id',
+    'msgtype',
+    'name',
+    'parameters',
+    'payload',
+    'updatedAt',
+    'webhookUrl',
+  ] as const
   $columns = WecomMessageTemplateSchema.$columns
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime

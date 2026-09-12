@@ -105,6 +105,72 @@ test.group('AI usage', (group) => {
     assert.equal(body.models[0].totalTokens, 15)
   })
 
+  test('returns a service-wide current month AI usage overview', async ({ client, assert }) => {
+    const first = await createSuperAdmin()
+    const second = await createSuperAdmin()
+    const firstConversation = await AiChatConversation.create({
+      userId: first.user.id,
+      title: 'First overview conversation',
+    })
+    const secondConversation = await AiChatConversation.create({
+      userId: second.user.id,
+      title: 'Second overview conversation',
+    })
+
+    await AiUsageEvent.create({
+      userId: first.user.id,
+      conversationId: firstConversation.id,
+      agentRunId: `overview-run-${first.user.id}`,
+      callSequence: 0,
+      providerId: 'api-starter-openai',
+      modelId: 'openai/gpt-4o-mini',
+      inputTokens: 10,
+      outputTokens: 5,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+      totalTokens: 15,
+      estimatedCostUsd: '0.000100000000',
+      pricingSource: 'models.dev',
+      pricingVersion: '2026-09-01',
+      status: 'completed',
+    })
+    await AiUsageEvent.create({
+      userId: second.user.id,
+      conversationId: secondConversation.id,
+      agentRunId: `overview-run-${second.user.id}`,
+      callSequence: 0,
+      providerId: 'api-starter-openai',
+      modelId: 'private/deployment',
+      inputTokens: 20,
+      outputTokens: 0,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+      totalTokens: 20,
+      estimatedCostUsd: null,
+      pricingSource: 'unavailable',
+      pricingVersion: null,
+      status: 'completed',
+    })
+
+    const response = await client.get('/api/v1/system/ai-overview').bearerToken(first.bearerToken)
+
+    response.assertStatus(200)
+    const body = response.body().data as {
+      period: string
+      totalTokens: number
+      modelCalls: number
+      estimatedCostUsd: number | null
+      pricingSource: string
+      unpricedModelCount: number
+    }
+    assert.equal(body.period, 'current_month')
+    assert.equal(body.totalTokens, 35)
+    assert.equal(body.modelCalls, 2)
+    assert.equal(body.estimatedCostUsd, 0.0001)
+    assert.equal(body.pricingSource, 'mixed')
+    assert.equal(body.unpricedModelCount, 1)
+  })
+
   test('denies usage access without the usage permission', async ({ client }) => {
     const user = await User.create({
       fullName: 'Usage Reader Without Permission',

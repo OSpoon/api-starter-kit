@@ -559,6 +559,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/system_status_controller').default['show']>>>
     }
   }
+  'system_status.ai_overview': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/system/ai-overview'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/system_status_controller').default['aiOverview']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/system_status_controller').default['aiOverview']>>>
+    }
+  }
   'users.index': {
     methods: ["GET","HEAD"]
     pattern: '/api/v1/system/users'

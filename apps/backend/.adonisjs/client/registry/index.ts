@@ -282,6 +282,12 @@ const routes = {
     tokens: [{"old":"/api/v1/system/status","type":0,"val":"api","end":""},{"old":"/api/v1/system/status","type":0,"val":"v1","end":""},{"old":"/api/v1/system/status","type":0,"val":"system","end":""},{"old":"/api/v1/system/status","type":0,"val":"status","end":""}],
     types: placeholder as Registry['system_status.show']['types'],
   },
+  'system_status.ai_overview': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/v1/system/ai-overview',
+    tokens: [{"old":"/api/v1/system/ai-overview","type":0,"val":"api","end":""},{"old":"/api/v1/system/ai-overview","type":0,"val":"v1","end":""},{"old":"/api/v1/system/ai-overview","type":0,"val":"system","end":""},{"old":"/api/v1/system/ai-overview","type":0,"val":"ai-overview","end":""}],
+    types: placeholder as Registry['system_status.ai_overview']['types'],
+  },
   'users.index': {
     methods: ["GET","HEAD"],
     pattern: '/api/v1/system/users',

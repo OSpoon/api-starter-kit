@@ -1,5 +1,14 @@
 <script setup lang="ts">
-import { Activity, Cpu, HardDrive, MemoryStick, RefreshCw, Server, Terminal } from '@lucide/vue'
+import {
+  Activity,
+  Cpu,
+  HardDrive,
+  MemoryStick,
+  RefreshCw,
+  Server,
+  Sparkles,
+  Terminal,
+} from '@lucide/vue'
 import { useIntervalFn } from '@vueuse/core'
 
 import PageShell from '@/components/common/PageShell.vue'
@@ -9,14 +18,19 @@ import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAuthStore } from '@/stores/auth'
 
-import { getSystemStatus, type SystemStatus } from './api'
+import { type AiUsageOverview, getAiUsageOverview, getSystemStatus, type SystemStatus } from './api'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const auth = useAuthStore()
 const status = ref<SystemStatus | null>(null)
 const loading = ref(true)
 const error = ref(false)
+const aiOverview = ref<AiUsageOverview | null>(null)
+const aiOverviewLoading = ref(true)
+const aiOverviewError = ref(false)
 const now = ref(new Date())
+
+const refreshing = computed(() => loading.value || aiOverviewLoading.value)
 
 const disk = computed(() => status.value?.disks[0])
 const cards = computed(() => [
@@ -54,7 +68,22 @@ function formatUptime(seconds: number) {
   return days ? `${days}d ${hours}h` : `${hours}h ${minutes}m`
 }
 
-async function refresh() {
+const usageNumberFormatter = computed(() => new Intl.NumberFormat(locale.value))
+
+function formatUsageTokens(value: number) {
+  return usageNumberFormatter.value.format(value)
+}
+
+function formatUsageCost(value: number) {
+  return new Intl.NumberFormat(locale.value, {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 4,
+    maximumFractionDigits: 4,
+  }).format(value)
+}
+
+async function refreshStatus() {
   loading.value = true
   error.value = false
   try {
@@ -67,7 +96,24 @@ async function refresh() {
   }
 }
 
-useIntervalFn(() => void refresh(), 10_000, { immediateCallback: true })
+async function refreshAiOverview() {
+  aiOverviewLoading.value = true
+  aiOverviewError.value = false
+  try {
+    aiOverview.value = await getAiUsageOverview(auth.token)
+  } catch {
+    aiOverviewError.value = true
+  } finally {
+    aiOverviewLoading.value = false
+  }
+}
+
+async function refresh() {
+  await Promise.all([refreshStatus(), refreshAiOverview()])
+}
+
+useIntervalFn(() => void refreshStatus(), 10_000, { immediateCallback: true })
+useIntervalFn(() => void refreshAiOverview(), 60_000, { immediateCallback: true })
 </script>
 
 <template>
@@ -77,8 +123,8 @@ useIntervalFn(() => void refresh(), 10_000, { immediateCallback: true })
     class="gap-4"
   >
     <template #actions>
-      <Button variant="outline" size="sm" :disabled="loading" @click="refresh">
-        <RefreshCw class="size-4" :class="loading ? 'animate-spin' : ''" />
+      <Button variant="outline" size="sm" :disabled="refreshing" @click="refresh">
+        <RefreshCw class="size-4" :class="refreshing ? 'animate-spin' : ''" />
         {{ t('common.refresh') }}
       </Button>
     </template>
@@ -236,5 +282,109 @@ useIntervalFn(() => void refresh(), 10_000, { immediateCallback: true })
         </div>
       </div>
     </div>
+
+    <Card class="order-4">
+      <CardHeader class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div class="flex items-start gap-3">
+          <Sparkles class="mt-0.5 size-5 shrink-0 text-primary" />
+          <div>
+            <CardTitle>{{ t('system_status.ai_overview_title') }}</CardTitle>
+            <p class="mt-1 text-sm text-muted-foreground">
+              {{ t('system_status.ai_overview_period') }}
+            </p>
+          </div>
+        </div>
+        <span v-if="aiOverview" class="text-sm text-muted-foreground">
+          {{
+            t('system_status.ai_overview_updated', {
+              time: new Date(aiOverview.periodEnd).toLocaleTimeString(),
+            })
+          }}
+        </span>
+      </CardHeader>
+      <CardContent>
+        <div
+          v-if="aiOverviewLoading && !aiOverview"
+          class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"
+        >
+          <div v-for="item in 4" :key="item" class="space-y-2 rounded-md border p-3">
+            <Skeleton class="h-3 w-24" />
+            <Skeleton class="h-8 w-28" />
+          </div>
+        </div>
+
+        <div v-else-if="aiOverview" class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div class="rounded-md border bg-muted/30 p-3">
+            <p class="text-sm text-muted-foreground">
+              {{ t('system_status.ai_overview_total_tokens') }}
+            </p>
+            <p class="mt-1 text-2xl font-semibold">
+              {{ formatUsageTokens(aiOverview.totalTokens) }}
+            </p>
+          </div>
+          <div class="rounded-md border bg-muted/30 p-3">
+            <p class="text-sm text-muted-foreground">
+              {{ t('system_status.ai_overview_model_calls') }}
+            </p>
+            <p class="mt-1 text-2xl font-semibold">
+              {{ formatUsageTokens(aiOverview.modelCalls) }}
+            </p>
+          </div>
+          <div class="rounded-md border bg-muted/30 p-3">
+            <p class="text-sm text-muted-foreground">
+              {{ t('system_status.ai_overview_estimated_cost') }}
+            </p>
+            <p class="mt-1 text-2xl font-semibold">
+              {{
+                aiOverview.estimatedCostUsd === null
+                  ? t('system_status.ai_overview_cost_unavailable')
+                  : formatUsageCost(aiOverview.estimatedCostUsd)
+              }}
+            </p>
+          </div>
+          <div class="rounded-md border bg-muted/30 p-3">
+            <p class="text-sm text-muted-foreground">
+              {{ t('system_status.ai_overview_unpriced_models') }}
+            </p>
+            <p class="mt-1 text-2xl font-semibold">
+              {{ formatUsageTokens(aiOverview.unpricedModelCount) }}
+            </p>
+          </div>
+        </div>
+
+        <div
+          v-if="aiOverviewError"
+          class="mt-4 flex flex-col gap-3 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive sm:flex-row sm:items-center sm:justify-between"
+          role="alert"
+        >
+          <span>{{ t('system_status.ai_overview_load_error') }}</span>
+          <Button
+            variant="outline"
+            size="sm"
+            :disabled="aiOverviewLoading"
+            @click="refreshAiOverview"
+          >
+            {{ t('system_status.ai_overview_retry') }}
+          </Button>
+        </div>
+
+        <p
+          v-if="aiOverview && aiOverview.pricingSource === 'mixed'"
+          class="mt-4 text-xs text-muted-foreground"
+        >
+          {{
+            t('system_status.ai_overview_mixed_pricing', {
+              count: aiOverview.unpricedModelCount,
+            })
+          }}
+        </p>
+        <p
+          v-else-if="aiOverview && aiOverview.pricingSource === 'unavailable'"
+          class="mt-4 text-xs text-muted-foreground"
+        >
+          {{ t('system_status.ai_overview_unavailable_pricing') }}
+        </p>
+      </CardContent>
+    </Card>
   </PageShell>
 </template>

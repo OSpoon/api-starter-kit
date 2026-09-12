@@ -185,6 +185,9 @@ router
         router
           .get('status', [SystemStatusController, 'show'])
           .use(middleware.permission(['system-status:read']))
+        router
+          .get('ai-overview', [SystemStatusController, 'aiOverview'])
+          .use(middleware.permission(['system-status:read']))
         router.get('users', [UsersController, 'index']).use(middleware.permission(['users:read']))
         router
           .post('users', [UsersController, 'store'])

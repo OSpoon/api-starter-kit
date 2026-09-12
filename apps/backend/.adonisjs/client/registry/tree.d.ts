@@ -89,6 +89,7 @@ export interface ApiDefinition {
   }
   systemStatus: {
     show: typeof routes['system_status.show']
+    aiOverview: typeof routes['system_status.ai_overview']
   }
   users: {
     index: typeof routes['users.index']

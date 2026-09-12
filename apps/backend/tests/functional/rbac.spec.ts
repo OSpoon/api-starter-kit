@@ -83,6 +83,11 @@ test.group('rbac', (group) => {
       .bearerToken(readerToken.value!.release())
     allowedResponse.assertStatus(200)
 
+    const allowedAiOverviewResponse = await client
+      .get('/api/v1/system/ai-overview')
+      .bearerToken(readerToken.value!.release())
+    allowedAiOverviewResponse.assertStatus(200)
+
     const dashboardPermission = await Permission.findByOrFail('code', 'dashboard:view')
     const dashboardRole = await Role.create({
       code: `dashboard-${Date.now()}`,
@@ -101,6 +106,11 @@ test.group('rbac', (group) => {
       .get('/api/v1/system/status')
       .bearerToken(dashboardToken.value!.release())
     deniedResponse.assertStatus(403)
+
+    const deniedAiOverviewResponse = await client
+      .get('/api/v1/system/ai-overview')
+      .bearerToken(dashboardToken.value!.release())
+    deniedAiOverviewResponse.assertStatus(403)
   })
 
   test('generates a 15-character password that satisfies the strength requirements', async ({

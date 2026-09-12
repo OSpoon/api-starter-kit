@@ -74,8 +74,59 @@ type UsageModelRow = {
   priced: boolean
 }
 
+export type AiUsageOverview = {
+  period: 'current_month'
+  periodStart: string
+  periodEnd: string
+  totalTokens: number
+  modelCalls: number
+  estimatedCostUsd: number | null
+  pricingSource: 'models.dev' | 'mixed' | 'unavailable'
+  unpricedModelCount: number
+}
+
 function numberValue(value: string | number | null | undefined) {
   return value === null || value === undefined ? 0 : Number(value)
+}
+
+export async function getAiUsageOverview(): Promise<AiUsageOverview> {
+  const periodStart = DateTime.now().startOf('month')
+  const periodEnd = DateTime.now()
+  const row = (await db
+    .from('ai_usage_events')
+    .where('created_at', '>=', periodStart.toJSDate())
+    .where('created_at', '<=', periodEnd.toJSDate())
+    .select(
+      db.raw('COALESCE(SUM(total_tokens), 0)::text AS "totalTokens"'),
+      db.raw('COUNT(*)::text AS "modelCalls"'),
+      db.raw('SUM(estimated_cost_usd)::text AS "estimatedCostUsd"'),
+      db.raw(
+        `COUNT(DISTINCT CASE WHEN estimated_cost_usd IS NULL THEN model_id END)::text AS "unpricedModelCount"`
+      )
+    )
+    .first()) as
+    | {
+        totalTokens: string | number
+        modelCalls: string | number
+        estimatedCostUsd: string | number | null
+        unpricedModelCount: string | number
+      }
+    | undefined
+
+  const estimatedCostUsd = row?.estimatedCostUsd
+  const unpricedModelCount = numberValue(row?.unpricedModelCount)
+
+  return {
+    period: 'current_month',
+    periodStart: periodStart.toISO(),
+    periodEnd: periodEnd.toISO(),
+    totalTokens: numberValue(row?.totalTokens),
+    modelCalls: numberValue(row?.modelCalls),
+    estimatedCostUsd: estimatedCostUsd === null ? null : numberValue(estimatedCostUsd),
+    pricingSource:
+      estimatedCostUsd === null ? 'unavailable' : unpricedModelCount > 0 ? 'mixed' : 'models.dev',
+    unpricedModelCount,
+  }
 }
 
 export async function getAiUsageSummary(userId: number) {

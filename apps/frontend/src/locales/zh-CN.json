@@ -514,7 +514,19 @@
     "node": "Node",
     "heap": "堆",
     "pid": "PID",
-    "load_error": "服务器状态暂时无法获取，请稍后重试。"
+    "load_error": "服务器状态暂时无法获取，请稍后重试。",
+    "ai_overview_title": "AI 服务概览",
+    "ai_overview_period": "当前月份 · 全服务",
+    "ai_overview_total_tokens": "总 tokens",
+    "ai_overview_model_calls": "模型调用次数",
+    "ai_overview_estimated_cost": "估算消费（USD）",
+    "ai_overview_unpriced_models": "未计价模型",
+    "ai_overview_cost_unavailable": "暂不可估算",
+    "ai_overview_mixed_pricing": "{count} 个模型缺少价格信息",
+    "ai_overview_unavailable_pricing": "当前用量暂无可用价格信息。",
+    "ai_overview_updated": "统计至 {time}",
+    "ai_overview_load_error": "AI 用量概览暂时无法获取。",
+    "ai_overview_retry": "重新加载 AI 概览"
   },
   "api_keys": {
     "title": "API 密钥",

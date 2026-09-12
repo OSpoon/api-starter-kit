@@ -37,6 +37,15 @@
 
 具体请求参数和响应字段以 OpenAPI 为准。系统管理与 API Key 操作需要对应的命名权限，详见[安全与治理](security.md)。
 
+### 服务状态与 AI 概览
+
+| 方法  | 路径                  | 权限                 | 说明                                                        |
+| ----- | --------------------- | -------------------- | ----------------------------------------------------------- |
+| `GET` | `/system/status`      | `system-status:read` | 返回 CPU、内存、磁盘和运行时状态                            |
+| `GET` | `/system/ai-overview` | `system-status:read` | 返回当前月份全服务的 token 消耗、模型调用次数和估算消费概览 |
+
+AI 概览的 `estimatedCostUsd` 在没有可用价格信息时为 `null`；`pricingSource` 为 `mixed` 时，`unpricedModelCount` 表示缺少价格信息的模型数量。该接口只提供聚合统计，不返回用户、会话或模型明细。
+
 ### LLM 连接测试
 
 `POST /system/llm-config/test` 会并行测试对话模型、ASR 和 Embedding 配置，返回各项失败服务：
