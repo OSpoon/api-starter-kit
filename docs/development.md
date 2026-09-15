@@ -40,6 +40,25 @@ pnpm --dir apps/frontend build
 
 `lint` 和 `format` 会修改文件；只检查现有改动时使用 `lint:check`。
 
+## 发布版本
+
+根工作区使用 `bumpp` 统一管理版本发布。执行发布前，确认工作区干净、版本号符合
+SemVer，并且本地 Git 已配置提交、创建 tag 和推送权限：
+
+```bash
+pnpm release
+```
+
+`bumpp` 会递归更新根工作区、后端和前端的 `package.json` 版本，随后触发 `version`
+生命周期脚本，由 `changelogen` 根据上一个 Git tag 到当前提交之间的 Conventional
+Commits 更新根目录 `CHANGELOG.md`。最后创建 `chore: release v<version>` 提交、带 `v`
+前缀的 annotated tag，并推送提交和 tag。
+
+发布配置位于根目录的 [`bump.config.ts`](../bump.config.ts) 和
+[`changelog.config.ts`](../changelog.config.ts)。发布流程会自动执行一次 `pnpm install`，
+以便在版本或 workspace 清单变化时同步锁文件；`CHANGELOG.md` 的发布条目由工具生成，
+不要手动维护。
+
 ## 实现入口
 
 后端路由集中在 `apps/backend/start/routes.ts`。controller 负责 HTTP 协调，validator 负责输入，service 负责领域逻辑和外部副作用，model 负责持久化关系，transformer 或 serializer 负责输出字段。

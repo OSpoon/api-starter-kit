@@ -5,6 +5,10 @@
   "type": "module",
   "description": "A batteries-included AdonisJS starter kit for building modern APIs with type-safe frontend integration",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/OSpoon/api-starter-kit.git"
+  },
   "engines": {
     "node": "24.15.0"
   },
@@ -12,6 +16,8 @@
     "docker:up": "node scripts/docker-up.mjs",
     "dev": "turbo dev bot:wecom bot:feishu bot:dingtalk",
     "build": "turbo build",
+    "release": "bumpp",
+    "version": "changelogen --output CHANGELOG.md",
     "test": "turbo test",
     "lint": "turbo lint",
     "format": "turbo format",
@@ -20,6 +26,8 @@
   },
   "devDependencies": {
     "@adonisjs/prettier-config": "^1.5.0",
+    "bumpp": "^10.4.1",
+    "changelogen": "^0.6.2",
     "eslint-plugin-simple-import-sort": "^13.0.0",
     "lint-staged": "^17.0.8",
     "prettier": "^3.8.3",
