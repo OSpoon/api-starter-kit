@@ -4,7 +4,7 @@ export default defineConfig({
   recursive: true,
   commit: 'chore: release v%s',
   tag: 'v%s',
-  push: true,
+  push: false,
   install: true,
   all: true,
 })
