@@ -38,6 +38,7 @@ export default class HttpLoggingMiddleware {
     const method = request.method()
     const url = request.url()
     const queryKeys = Object.keys(request.qs())
+    const clientIp = request.ip()
 
     logger.info(
       {
@@ -45,6 +46,7 @@ export default class HttpLoggingMiddleware {
         method,
         url,
         queryKeys,
+        clientIp,
         userAgent: request.header('user-agent')?.slice(0, 160) ?? null,
       },
       'HTTP request started'
