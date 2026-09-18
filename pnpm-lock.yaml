@@ -33,7 +33,7 @@ importers:
         specifier: ^2.9.16
         version: 2.10.0
 
-  apps/assistant:
+  apps/assistant-web:
     dependencies:
       '@lucide/vue':
         specifier: ^1.21.0

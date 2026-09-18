@@ -106,7 +106,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: apps/assistant
+        working-directory: apps/assistant-web
     steps:
       - uses: actions/checkout@v7
 
@@ -126,16 +126,16 @@ jobs:
         working-directory: .
 
       - name: Type-check
-        run: pnpm --filter @api-starter-kit/assistant type-check
+        run: pnpm --filter @api-starter-kit/assistant-web type-check
 
       - name: Lint
-        run: pnpm --filter @api-starter-kit/assistant lint:check
+        run: pnpm --filter @api-starter-kit/assistant-web lint:check
 
       - name: Test
-        run: pnpm --filter @api-starter-kit/assistant test
+        run: pnpm --filter @api-starter-kit/assistant-web test
 
       - name: Build
-        run: pnpm --filter @api-starter-kit/assistant build
+        run: pnpm --filter @api-starter-kit/assistant-web build
 
   diff-check:
     name: Git diff --check

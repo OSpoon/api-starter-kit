@@ -72,13 +72,13 @@ AI 请求完成时间由现有审计日志和运行状态记录，不依赖外�
 
 ## 独立 Web 客户端
 
-`apps/assistant` 是 AI 助手的独立 Web 客户端入口。它复用 `apps/frontend` 中的
+`apps/assistant-web` 是 AI 助手的独立 Web 客户端入口。它复用 `apps/frontend` 中的
 `AiChatAssistant.vue`、`useAiChat.ts`、AI feature API、认证、locale 和 UI primitives，
 因此不会复制或分叉聊天协议、SSE 事件、确认操作、一次性凭据展示、语音转写和用量统计实现。
 独立客户端通过 `AiChatAssistant` 的 `page` 模式使用全屏工作区布局；后台应用继续使用默认的
 浮动模式。独立客户端的页面外框、侧栏宽度、色彩 token、间距和用户入口状态以管理端
 `AppLayout`、`Sidebar`、`SidebarInset` 和 `NavUser` 为唯一视觉基准；会话侧栏底部复用管理平台
-用户入口，展示当前用户信息并提供退出登录操作。`apps/assistant/AGENTS.md` 与
+用户入口，展示当前用户信息并提供退出登录操作。`apps/assistant-web/AGENTS.md` 与
 `apps/frontend/AGENTS.md` 保持逐字同步，独立客户端不维护一套分叉的前端约束。
 
 客户端自己的路由只保留 AI 会话、登录、2FA、密码过期处理和账户页面；后端仍是认证、
@@ -86,10 +86,10 @@ AI 请求完成时间由现有审计日志和运行状态记录，不依赖外�
 将 `/api/v1` 代理到后端，生产部署时通过 `VITE_API_URL` 指向 API 服务。
 
 ```bash
-pnpm --dir apps/assistant dev
-pnpm --dir apps/assistant typecheck
-pnpm --dir apps/assistant lint:check
-pnpm --dir apps/assistant build
+pnpm --dir apps/assistant-web dev
+pnpm --dir apps/assistant-web typecheck
+pnpm --dir apps/assistant-web lint:check
+pnpm --dir apps/assistant-web build
 ```
 
 ## 验证

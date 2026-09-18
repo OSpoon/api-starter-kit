@@ -7,7 +7,7 @@ function quotePath(path) {
 function isScopedCodeFile(file) {
   return file.startsWith('apps/backend/') && file.endsWith('.ts')
     || file.startsWith('apps/frontend/') && /\.(ts|vue)$/.test(file)
-    || file.startsWith('apps/assistant/') && /\.(ts|vue)$/.test(file)
+    || file.startsWith('apps/assistant-web/') && /\.(ts|vue)$/.test(file)
 }
 
 function formatFiles(files) {
@@ -37,6 +37,7 @@ function formatAndCheckScopedFiles(files, packageDir) {
 module.exports = {
   '*.{js,ts,vue,json,css,md,yml,yaml}': formatFiles,
   'apps/frontend/**/*.{ts,vue}': (files) => formatAndCheckScopedFiles(files, 'apps/frontend'),
-  'apps/assistant/**/*.{ts,vue}': (files) => formatAndCheckScopedFiles(files, 'apps/assistant'),
+  'apps/assistant-web/**/*.{ts,vue}': (files) =>
+    formatAndCheckScopedFiles(files, 'apps/assistant-web'),
   'apps/backend/**/*.ts': (files) => formatAndCheckScopedFiles(files, 'apps/backend'),
 }
