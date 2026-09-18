@@ -15,6 +15,7 @@ declare module 'vue' {
     AiChatApprovalCard: typeof import('./components/ai-chat/AiChatApprovalCard.vue')['default']
     AiChatAssistant: typeof import('./components/ai-chat/AiChatAssistant.vue')['default']
     AiChatCredentialCard: typeof import('./components/ai-chat/AiChatCredentialCard.vue')['default']
+    AiChatLogo: typeof import('./components/ai-chat/AiChatLogo.vue')['default']
     AiChatMessageItem: typeof import('./components/ai-chat/AiChatMessageItem.vue')['default']
     AiMessageContent: typeof import('./components/ai-chat/AiMessageContent.vue')['default']
     AnalyticsPageTemplate: typeof import('./components/templates/AnalyticsPageTemplate.vue')['default']

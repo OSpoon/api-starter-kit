@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { Activity } from '@lucide/vue'
 import type { Component } from 'vue'
 import type { RouteRecordNormalized } from 'vue-router'
 
+import AiChatLogo from '@/components/ai-chat/AiChatLogo.vue'
 import NavMain from '@/components/NavMain.vue'
 import NavUser from '@/components/NavUser.vue'
 import {
@@ -114,7 +114,7 @@ async function handleLogout() {
               <div
                 class="flex aspect-square size-8 items-center justify-center rounded-lg border bg-background shadow-xs"
               >
-                <Activity class="size-5 text-primary" />
+                <AiChatLogo />
               </div>
               <div class="grid flex-1 text-left text-sm/tight">
                 <span class="truncate font-medium">{{ settingsStore.platformName }}</span>

@@ -12,10 +12,10 @@
     "windows": [
       {
         "title": "AI Assistant",
-        "width": 1280,
-        "height": 800,
-        "minWidth": 960,
-        "minHeight": 640,
+        "width": 960,
+        "height": 640,
+        "minWidth": 840,
+        "minHeight": 560,
         "resizable": true
       }
     ],

@@ -7,12 +7,10 @@ import {
   ListChecks,
   LoaderCircle,
   MessageCircle,
-  MessageCircleDashedIcon,
   MessageCirclePlus,
   Mic,
   Minus,
   RefreshCw,
-  Sparkles,
   Square,
   Trash2,
   X,
@@ -22,6 +20,7 @@ import { toast } from 'vue-sonner'
 
 import AiChatApprovalCard from '@/components/ai-chat/AiChatApprovalCard.vue'
 import AiChatCredentialCard from '@/components/ai-chat/AiChatCredentialCard.vue'
+import AiChatLogo from '@/components/ai-chat/AiChatLogo.vue'
 import AiChatMessageItem from '@/components/ai-chat/AiChatMessageItem.vue'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -498,7 +497,9 @@ watch(
                 @mouseenter="openUsagePopover"
                 @mouseleave="scheduleCloseUsagePopover"
               >
-                <MessageCircleDashedIcon class="size-4 text-primary" aria-hidden="true" />
+                <span class="size-5 shrink-0" aria-hidden="true">
+                  <AiChatLogo />
+                </span>
               </Button>
             </PopoverTrigger>
             <PopoverContent
@@ -1002,8 +1003,9 @@ watch(
         @click="openAssistant"
         class="relative z-10 size-14 rounded-full bg-card p-0 text-foreground shadow-md"
       >
-        <MessageCircle v-if="!loading" class="size-6" />
-        <Sparkles v-else class="size-6 animate-pulse text-primary" />
+        <span class="size-8" :class="{ 'animate-pulse': loading }" aria-hidden="true">
+          <AiChatLogo />
+        </span>
         <div
           v-if="loading"
           class="absolute -top-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full border-2 border-background bg-primary shadow-sm"

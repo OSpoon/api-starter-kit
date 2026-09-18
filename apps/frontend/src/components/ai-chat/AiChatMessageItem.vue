@@ -11,7 +11,6 @@ import {
   Gauge,
   ListChecks,
   LoaderCircle,
-  MessageCircleDashedIcon,
   RotateCcw,
   Search,
   ShieldCheck,
@@ -21,6 +20,7 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import type { AiChatAgentActivity, AiChatPlanStep, AiChatTimelineItem } from '@/features/ai/api'
 
+import AiChatLogo from './AiChatLogo.vue'
 import AiMessageContent from './AiMessageContent.vue'
 
 export type AiChatMessageItemStatus = 'pending' | 'streaming' | 'done' | 'error' | 'interrupted'
@@ -242,10 +242,9 @@ function getTimelineSections(timeline: AiChatTimelineItem[]) {
           v-if="isWelcomeMessage"
           class="flex flex-col items-center gap-1.5 px-4 pt-10 pb-4 text-center"
         >
-          <MessageCircleDashedIcon
-            class="mb-1.5 size-10 shrink-0 text-primary"
-            aria-hidden="true"
-          />
+          <span class="mb-1.5 size-12 shrink-0" aria-hidden="true">
+            <AiChatLogo />
+          </span>
           <p class="text-base font-semibold text-primary">{{ t('ai_chat.welcome_title') }}</p>
           <p class="text-xs/5 text-muted-foreground">{{ t('ai_chat.welcome_subtitle') }}</p>
         </div>
