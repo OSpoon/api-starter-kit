@@ -70,6 +70,28 @@ AI 请求完成时间由现有审计日志和运行状态记录，不依赖外�
 
 前端 `ai-chat-api.ts` 解析事件并请求 ASR，`useAiChat.ts` 管理流式消息、确认状态和转写状态，`AiChatAssistant.vue` 提供会话、工具状态、确认、语音录音、实时波形、重试、停止生成和快捷建议。AI 查询没有“继续查看”按钮；完整数据由业务模块自身的列表分页提供。
 
+## 独立 Web 客户端
+
+`apps/assistant` 是 AI 助手的独立 Web 客户端入口。它复用 `apps/frontend` 中的
+`AiChatAssistant.vue`、`useAiChat.ts`、AI feature API、认证、locale 和 UI primitives，
+因此不会复制或分叉聊天协议、SSE 事件、确认操作、一次性凭据展示、语音转写和用量统计实现。
+独立客户端通过 `AiChatAssistant` 的 `page` 模式使用全屏工作区布局；后台应用继续使用默认的
+浮动模式。独立客户端的页面外框、侧栏宽度、色彩 token、间距和用户入口状态以管理端
+`AppLayout`、`Sidebar`、`SidebarInset` 和 `NavUser` 为唯一视觉基准；会话侧栏底部复用管理平台
+用户入口，展示当前用户信息并提供退出登录操作。`apps/assistant/AGENTS.md` 与
+`apps/frontend/AGENTS.md` 保持逐字同步，独立客户端不维护一套分叉的前端约束。
+
+客户端自己的路由只保留 AI 会话、登录、2FA、密码过期处理和账户页面；后端仍是认证、
+权限、模型调用、持久化和敏感操作的唯一边界。开发时使用 `VITE_DEV_API_PROXY_TARGET`
+将 `/api/v1` 代理到后端，生产部署时通过 `VITE_API_URL` 指向 API 服务。
+
+```bash
+pnpm --dir apps/assistant dev
+pnpm --dir apps/assistant typecheck
+pnpm --dir apps/assistant lint:check
+pnpm --dir apps/assistant build
+```
+
 ## 验证
 
 修改 Agent、工具协议、提示词或确认流程后运行：

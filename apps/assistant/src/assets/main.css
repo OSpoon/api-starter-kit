@@ -1,0 +1,10 @@
+@import '../../../frontend/src/assets/main.css';
+
+@source '../../../frontend/src';
+@source '../';
+
+html,
+body,
+#app {
+  min-height: 100%;
+}

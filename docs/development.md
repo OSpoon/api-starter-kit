@@ -7,11 +7,12 @@
 ```text
 apps/backend/   AdonisJS API、模型、迁移、服务和测试
 apps/frontend/  Vue 应用、路由、页面、feature、状态和共享 UI
+apps/assistant/  独立 AI 助手 Web 客户端，复用 frontend 的 AI 实现
 docs/           项目使用、开发、部署和能力参考
 docker/         Compose、镜像和 Nginx 配置
 ```
 
-根工作区使用 pnpm 与 Turborepo。修改代码前阅读根目录 [AGENTS.md](../AGENTS.md) 以及目标目录最近的 `AGENTS.md`。
+根工作区使用 pnpm 与 Turborepo。修改代码前阅读根目录 [AGENTS.md](../AGENTS.md) 以及目标目录最近的 `AGENTS.md`；独立助手的 [AGENTS.md](../apps/assistant/AGENTS.md) 与管理端前端约束保持同步。
 
 ## 常用命令
 
@@ -36,9 +37,19 @@ pnpm --dir apps/frontend typecheck
 pnpm --dir apps/frontend lint:check
 pnpm --dir apps/frontend test
 pnpm --dir apps/frontend build
+
+pnpm --dir apps/assistant typecheck
+pnpm --dir apps/assistant lint
+pnpm --dir apps/assistant format
+pnpm --dir apps/assistant lint:check
+pnpm --dir apps/assistant test
+pnpm --dir apps/assistant build
 ```
 
 `lint` 和 `format` 会修改文件；只检查现有改动时使用 `lint:check`。
+首次安装依赖时，根项目的 `prepare` 会安装 `simple-git-hooks`；提交包含前端代码时，
+`pre-commit` 会通过 `lint-staged` 自动格式化并运行对应应用的 Lint 和 typecheck，包含
+`apps/assistant`。
 
 ## 发布版本
 

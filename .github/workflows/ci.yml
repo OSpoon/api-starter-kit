@@ -101,6 +101,42 @@ jobs:
       - name: Build
         run: pnpm --filter frontend build
 
+  assistant:
+    name: Assistant (type-check, lint, test, build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/assistant
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6.0.10
+        # Version is read from package.json's "packageManager" field.
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: '.nvmrc'
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install
+        run: pnpm install --frozen-lockfile --ignore-scripts
+        working-directory: .
+
+      - name: Type-check
+        run: pnpm --filter @api-starter-kit/assistant type-check
+
+      - name: Lint
+        run: pnpm --filter @api-starter-kit/assistant lint:check
+
+      - name: Test
+        run: pnpm --filter @api-starter-kit/assistant test
+
+      - name: Build
+        run: pnpm --filter @api-starter-kit/assistant build
+
   diff-check:
     name: Git diff --check
     runs-on: ubuntu-latest

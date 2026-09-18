@@ -39,11 +39,7 @@ import {
   MessageScrollerProvider,
   MessageScrollerViewport,
 } from '@/components/ui/message-scroller'
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Textarea } from '@/components/ui/textarea'
 import type {
   AiChatConfirmation,
@@ -63,6 +59,7 @@ interface ChatConversation {
 const props = withDefaults(
   defineProps<{
     modelValue?: boolean
+    mode?: 'floating' | 'page'
     title?: string
     placeholder?: string
     welcomeMessage?: string
@@ -83,6 +80,7 @@ const props = withDefaults(
   }>(),
   {
     modelValue: undefined,
+    mode: 'floating',
     title: undefined,
     placeholder: undefined,
     welcomeMessage: undefined,
@@ -217,9 +215,10 @@ const { pause: stopWaveformFrame, resume: startWaveformFrame } = useRafFn(update
 })
 
 function startWaveform(stream: MediaStream) {
-  const browserWindow = window as Window & typeof globalThis & {
-    webkitAudioContext?: typeof AudioContext
-  }
+  const browserWindow = window as Window &
+    typeof globalThis & {
+      webkitAudioContext?: typeof AudioContext
+    }
   const AudioContextConstructor = browserWindow.AudioContext || browserWindow.webkitAudioContext
   if (!AudioContextConstructor) return
   audioContext = new AudioContextConstructor()
@@ -263,7 +262,11 @@ async function toggleRecording() {
       stream.getTracks().forEach((track) => track.stop())
       stopWaveform()
       const blob = new Blob(recordingChunks, { type: mediaRecorder?.mimeType || 'audio/webm' })
-      const extension = blob.type.includes('mp4') ? 'mp4' : blob.type.includes('ogg') ? 'ogg' : 'webm'
+      const extension = blob.type.includes('mp4')
+        ? 'mp4'
+        : blob.type.includes('ogg')
+          ? 'ogg'
+          : 'webm'
       if (blob.size > 10 * 1024 * 1024) toast.error(t('ai_chat.voice.too_large'))
       else if (!discardRecording && blob.size) emit('voiceSend', blob, `voice-message.${extension}`)
       isRecording.value = false
@@ -310,8 +313,16 @@ const displayMessages = computed(() => {
 
 const assistantTitle = computed(() => props.title || t('ai_chat.title'))
 const inputPlaceholder = computed(() => props.placeholder || t('ai_chat.input_placeholder'))
+const isStandalone = computed(() => props.mode === 'page')
 
 const { chatHeight, chatWidth, startResize } = useAiChatResize()
+
+const panelStyle = computed(() =>
+  isStandalone.value
+    ? undefined
+    : { height: `${chatHeight.value}px`, width: `${chatWidth.value}px` }
+)
+
 const {
   isSelecting: isSelectingMessages,
   selectedKeys: selectedMessageKeys,
@@ -444,13 +455,25 @@ watch(
 </script>
 
 <template>
-  <div class="fixed right-4 bottom-4 z-50 flex flex-col items-end gap-2">
+  <div
+    :class="
+      isStandalone
+        ? 'flex size-full flex-col'
+        : 'fixed right-4 bottom-4 z-50 flex flex-col items-end gap-2'
+    "
+  >
     <div
       v-if="isOpen"
-      class="relative flex max-w-[calc(100vw-32px)] animate-in flex-col overflow-hidden rounded-lg border bg-card text-card-foreground shadow-lg slide-in-from-bottom-5 fade-in"
-      :style="{ height: `${chatHeight}px`, width: `${chatWidth}px` }"
+      :class="[
+        'relative flex flex-col overflow-hidden border bg-card text-card-foreground',
+        isStandalone
+          ? 'size-full max-w-none rounded-none border-0 shadow-none'
+          : 'max-w-[calc(100vw-32px)] animate-in rounded-lg shadow-lg slide-in-from-bottom-5 fade-in',
+      ]"
+      :style="panelStyle"
     >
       <div
+        v-if="!isStandalone"
         class="group absolute top-0 left-0 z-60 hidden size-4 cursor-nwse-resize items-center justify-center sm:flex"
         role="separator"
         :aria-label="t('ai_chat.resize_both')"
@@ -616,6 +639,7 @@ watch(
             class="text-muted-foreground"
             size="icon-sm"
             :title="t('ai_chat.new_chat')"
+            :class="{ 'md:hidden': isStandalone }"
             @click="clearChat"
           >
             <MessageCirclePlus class="size-4" />
@@ -627,6 +651,7 @@ watch(
                 size="icon-sm"
                 class="text-muted-foreground"
                 :title="t('ai_chat.history')"
+                :class="{ 'md:hidden': isStandalone }"
               >
                 <History class="size-4" />
               </Button>
@@ -663,6 +688,7 @@ watch(
             </DropdownMenuContent>
           </DropdownMenu>
           <Button
+            v-if="!isStandalone"
             variant="ghost"
             size="icon-sm"
             class="text-muted-foreground"
@@ -672,6 +698,7 @@ watch(
             <Minus class="size-4" />
           </Button>
           <Button
+            v-if="!isStandalone"
             variant="ghost"
             size="icon-sm"
             class="text-muted-foreground"
@@ -683,194 +710,279 @@ watch(
         </div>
       </div>
 
-      <div
-        v-if="isSelectingMessages"
-        class="flex items-center gap-2 border-b bg-muted/30 px-4 py-2"
-      >
-        <Checkbox
-          :model-value="
-            selectedMessages.length === selectableMessageCount && selectableMessageCount > 0
-          "
-          :aria-label="t('ai_chat.select_all_messages')"
-          @update:model-value="toggleAllMessages($event === true)"
-        />
-        <span class="min-w-0 flex-1 text-xs text-muted-foreground">
-          {{ t('ai_chat.selected_messages', { count: selectedMessages.length }) }}
-        </span>
-        <Button type="button" variant="ghost" size="sm" @click="cancelMessageSelection">
-          {{ t('common.cancel') }}
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          :disabled="selectedMessages.length === 0"
-          @click="copySelectedMessagesAsMarkdown"
+      <div class="flex min-h-0 flex-1">
+        <aside
+          v-if="isStandalone"
+          class="hidden w-64 shrink-0 flex-col border-r bg-sidebar text-sidebar-foreground md:flex"
         >
-          {{ t('ai_chat.copy_as_markdown') }}
-        </Button>
-      </div>
-
-      <div class="relative min-h-0 flex-1 p-4">
-        <MessageScrollerProvider auto-scroll default-scroll-position="end">
-          <MessageScroller>
-            <MessageScrollerViewport>
-              <MessageScrollerContent class="px-3">
-                <template v-for="(message, index) in displayMessages" :key="message.id ?? index">
-                  <MessageScrollerItem
-                    :message-id="String(message.id ?? index)"
-                    :scroll-anchor="message.role === 'user'"
-                    class="space-y-3"
-                  >
-                    <AiChatMessageItem
-                      :message="message"
-                      :all-messages="displayMessages"
-                      :streaming-message-id="streamingMessageId"
-                      :loading="loading"
-                      :show-message-actions="showMessageActions && !isSelectingMessages"
-                      :selectable="isSelectingMessages"
-                      :selected="selectedMessageKeys.has(getMessageKey(message, index))"
-                      @copy="emit('copyMessage', $event)"
-                      @retry="emit('retryMessage', $event)"
-                      @select="
-                        (selectedMessage, selected) =>
-                          selectMessage(selectedMessage, index, selected)
-                      "
-                    />
-                    <div
-                      v-if="getConversationBoundaryLabel(message)"
-                      class="my-4 flex w-full items-center gap-3 px-2 text-xs text-muted-foreground"
-                      role="status"
-                    >
-                      <div class="h-px flex-1 bg-border/70" />
-                      <CircleCheck class="size-3.5 shrink-0 text-emerald-600" aria-hidden="true" />
-                      <span class="shrink-0">{{ getConversationBoundaryLabel(message) }}</span>
-                      <div class="h-px flex-1 bg-border/70" />
-                    </div>
-                  </MessageScrollerItem>
-                </template>
-              </MessageScrollerContent>
-            </MessageScrollerViewport>
-            <MessageScrollerButton>
-              <ChevronDown class="size-3.5" />
-              <span class="sr-only">{{ t('ai_chat.scroll_to_latest') }}</span>
-            </MessageScrollerButton>
-          </MessageScroller>
-        </MessageScrollerProvider>
-      </div>
-
-      <div class="p-3 pt-0">
-        <AiChatCredentialCard
-          v-if="credentialDisclosure"
-          :credential="credentialDisclosure"
-          @copy="emit('copyCredential', $event)"
-          @dismiss="emit('dismissCredential')"
-        />
-        <AiChatApprovalCard
-          v-if="approval"
-          :approval="approval"
-          :loading="approvalLoading"
-          :disabled="disabled"
-          @approve="emit('approveConfirmation')"
-          @dismiss="emit('dismissConfirmation')"
-        />
-        <div
-          v-if="isRecording || voiceTranscribing"
-          class="flex min-h-10 items-center gap-2 rounded-full border bg-background px-2 py-1.5"
-          role="status"
-          :aria-label="
-            voiceTranscribing ? t('ai_chat.voice.transcribing') : t('ai_chat.voice.recording')
-          "
-        >
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            class="shrink-0 rounded-full text-muted-foreground"
-            :title="t('ai_chat.voice.cancel')"
-            :aria-label="t('ai_chat.voice.cancel')"
-            :disabled="voiceTranscribing"
-            @click="cancelRecording"
-          >
-            <X class="size-4" />
-          </Button>
-          <div v-if="voiceTranscribing" class="flex min-w-0 flex-1 items-center justify-center">
-            <span class="text-sm text-muted-foreground">{{ t('ai_chat.voice.transcribing') }}</span>
-          </div>
-          <div v-else class="flex min-w-0 flex-1 items-center justify-center gap-0.5 px-2" aria-hidden="true">
-            <span
-              v-for="index in 56"
-              :key="index"
-              class="w-1 rounded-full bg-muted-foreground/25 transition-[height] duration-75"
-              :style="{ height: `${waveformHeights[index - 1]}px` }"
-            />
-          </div>
-          <Button
-            v-if="isRecording"
-            type="button"
-            variant="secondary"
-            size="icon-sm"
-            class="shrink-0 rounded-full"
-            :title="t('ai_chat.voice.stop')"
-            :aria-label="t('ai_chat.voice.stop')"
-            @click="toggleRecording"
-          >
-            <Square class="size-3.5 fill-current" />
-          </Button>
-          <Button
-            type="button"
-            size="icon-sm"
-            class="shrink-0 rounded-full"
-            :disabled="voiceTranscribing"
-            :title="voiceTranscribing ? t('ai_chat.voice.transcribing') : t('ai_chat.voice.send')"
-            :aria-label="voiceTranscribing ? t('ai_chat.voice.transcribing') : t('ai_chat.voice.send')"
-          >
-            <LoaderCircle v-if="voiceTranscribing" class="size-3.5 animate-spin" />
-            <ArrowUpIcon v-else class="size-3.5" />
-          </Button>
-        </div>
-        <form v-else class="flex items-end gap-2" @submit.prevent="handleSubmit">
-          <div class="relative flex-1">
-            <Textarea
-              v-model="input"
-              rows="1"
-              :placeholder="inputPlaceholder"
-              class="max-h-50 min-h-10 w-full resize-none py-3 pr-12"
-              :disabled="disabled"
-              @compositionstart="handleCompositionStart"
-              @compositionend="handleCompositionEnd"
-              @keydown="handleKeydown"
-              @paste="handlePaste"
-            />
+          <div class="flex h-16 shrink-0 items-center justify-between border-b px-2">
+            <h2 class="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+              {{ t('ai_chat.history') }}
+            </h2>
             <Button
               type="button"
               variant="ghost"
               size="icon-sm"
-              class="absolute right-11 bottom-2"
-              :class="{ 'text-destructive': isRecording, 'text-primary': isPreparingRecording }"
-              :disabled="disabled || loading || isPreparingRecording"
-              :title="isRecording ? t('ai_chat.voice.stop') : t('ai_chat.voice.start')"
-              :aria-label="isRecording ? t('ai_chat.voice.stop') : t('ai_chat.voice.start')"
-              @click="toggleRecording"
+              class="text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+              :title="t('ai_chat.new_chat')"
+              :aria-label="t('ai_chat.new_chat')"
+              @click="clearChat"
             >
-              <LoaderCircle v-if="isPreparingRecording" class="size-3.5 animate-spin" />
-              <Mic v-else class="size-3.5" />
-            </Button>
-            <Button
-              :type="loading ? 'button' : 'submit'"
-              size="icon-sm"
-              class="absolute right-2 bottom-2"
-              :disabled="(!input.trim() && !loading) || disabled"
-              :title="loading ? t('ai_chat.stop_generating') : undefined"
-              @click="loading ? stopGeneration() : undefined"
-            >
-              <Square v-if="loading" class="size-3.5 fill-current" />
-              <ArrowUpIcon v-else class="size-3.5" />
+              <MessageCirclePlus class="size-4" aria-hidden="true" />
             </Button>
           </div>
-        </form>
-        <p class="mt-2 px-1 text-center text-[11px] leading-4 text-muted-foreground">
-          {{ t('ai_chat.response_disclaimer') }}
-        </p>
+          <div class="min-h-0 flex-1 overflow-y-auto p-2">
+            <div
+              v-if="conversations.length === 0"
+              class="rounded-lg px-3 py-6 text-center text-xs text-muted-foreground"
+            >
+              {{ t('ai_chat.no_history') }}
+            </div>
+            <div v-else class="space-y-1">
+              <div
+                v-for="conversation in conversations"
+                :key="conversation.id"
+                class="group flex min-w-0 items-center gap-1 rounded-lg"
+              >
+                <Button
+                  type="button"
+                  variant="ghost"
+                  class="h-8 min-w-0 flex-1 justify-start gap-2 rounded-md p-2 text-left text-sm text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                  :class="{
+                    'bg-sidebar-accent font-medium text-sidebar-accent-foreground':
+                      conversation.id === currentConversationId,
+                  }"
+                  @click="emit('selectConversation', conversation.id)"
+                >
+                  <MessageCircle class="size-3.5 shrink-0" aria-hidden="true" />
+                  <span class="min-w-0 flex-1 truncate">{{ conversation.title }}</span>
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  class="shrink-0 text-sidebar-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:opacity-100"
+                  :title="t('common.delete')"
+                  :aria-label="t('common.delete')"
+                  @click="emit('deleteConversation', conversation.id)"
+                >
+                  <Trash2 class="size-3.5" aria-hidden="true" />
+                </Button>
+              </div>
+            </div>
+          </div>
+          <div v-if="$slots.sidebarFooter" class="shrink-0 border-t p-2">
+            <slot name="sidebarFooter" />
+          </div>
+        </aside>
+
+        <div class="flex min-h-0 min-w-0 flex-1 flex-col">
+          <div
+            v-if="isSelectingMessages"
+            class="flex items-center gap-2 border-b bg-muted/30 px-4 py-2"
+          >
+            <Checkbox
+              :model-value="
+                selectedMessages.length === selectableMessageCount && selectableMessageCount > 0
+              "
+              :aria-label="t('ai_chat.select_all_messages')"
+              @update:model-value="toggleAllMessages($event === true)"
+            />
+            <span class="min-w-0 flex-1 text-xs text-muted-foreground">
+              {{ t('ai_chat.selected_messages', { count: selectedMessages.length }) }}
+            </span>
+            <Button type="button" variant="ghost" size="sm" @click="cancelMessageSelection">
+              {{ t('common.cancel') }}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              :disabled="selectedMessages.length === 0"
+              @click="copySelectedMessagesAsMarkdown"
+            >
+              {{ t('ai_chat.copy_as_markdown') }}
+            </Button>
+          </div>
+
+          <div class="relative min-h-0 flex-1 p-4">
+            <MessageScrollerProvider auto-scroll default-scroll-position="end">
+              <MessageScroller>
+                <MessageScrollerViewport>
+                  <MessageScrollerContent class="px-3">
+                    <template
+                      v-for="(message, index) in displayMessages"
+                      :key="message.id ?? index"
+                    >
+                      <MessageScrollerItem
+                        :message-id="String(message.id ?? index)"
+                        :scroll-anchor="message.role === 'user'"
+                        class="space-y-3"
+                      >
+                        <AiChatMessageItem
+                          :message="message"
+                          :all-messages="displayMessages"
+                          :streaming-message-id="streamingMessageId"
+                          :loading="loading"
+                          :show-message-actions="showMessageActions && !isSelectingMessages"
+                          :selectable="isSelectingMessages"
+                          :selected="selectedMessageKeys.has(getMessageKey(message, index))"
+                          @copy="emit('copyMessage', $event)"
+                          @retry="emit('retryMessage', $event)"
+                          @select="
+                            (selectedMessage, selected) =>
+                              selectMessage(selectedMessage, index, selected)
+                          "
+                        />
+                        <div
+                          v-if="getConversationBoundaryLabel(message)"
+                          class="my-4 flex w-full items-center gap-3 px-2 text-xs text-muted-foreground"
+                          role="status"
+                        >
+                          <div class="h-px flex-1 bg-border/70" />
+                          <CircleCheck
+                            class="size-3.5 shrink-0 text-emerald-600"
+                            aria-hidden="true"
+                          />
+                          <span class="shrink-0">{{ getConversationBoundaryLabel(message) }}</span>
+                          <div class="h-px flex-1 bg-border/70" />
+                        </div>
+                      </MessageScrollerItem>
+                    </template>
+                  </MessageScrollerContent>
+                </MessageScrollerViewport>
+                <MessageScrollerButton>
+                  <ChevronDown class="size-3.5" />
+                  <span class="sr-only">{{ t('ai_chat.scroll_to_latest') }}</span>
+                </MessageScrollerButton>
+              </MessageScroller>
+            </MessageScrollerProvider>
+          </div>
+
+          <div class="p-3 pt-0">
+            <AiChatCredentialCard
+              v-if="credentialDisclosure"
+              :credential="credentialDisclosure"
+              @copy="emit('copyCredential', $event)"
+              @dismiss="emit('dismissCredential')"
+            />
+            <AiChatApprovalCard
+              v-if="approval"
+              :approval="approval"
+              :loading="approvalLoading"
+              :disabled="disabled"
+              @approve="emit('approveConfirmation')"
+              @dismiss="emit('dismissConfirmation')"
+            />
+            <div
+              v-if="isRecording || voiceTranscribing"
+              class="flex min-h-10 items-center gap-2 rounded-full border bg-background px-2 py-1.5"
+              role="status"
+              :aria-label="
+                voiceTranscribing ? t('ai_chat.voice.transcribing') : t('ai_chat.voice.recording')
+              "
+            >
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                class="shrink-0 rounded-full text-muted-foreground"
+                :title="t('ai_chat.voice.cancel')"
+                :aria-label="t('ai_chat.voice.cancel')"
+                :disabled="voiceTranscribing"
+                @click="cancelRecording"
+              >
+                <X class="size-4" />
+              </Button>
+              <div v-if="voiceTranscribing" class="flex min-w-0 flex-1 items-center justify-center">
+                <span class="text-sm text-muted-foreground">{{
+                  t('ai_chat.voice.transcribing')
+                }}</span>
+              </div>
+              <div
+                v-else
+                class="flex min-w-0 flex-1 items-center justify-center gap-0.5 px-2"
+                aria-hidden="true"
+              >
+                <span
+                  v-for="index in 56"
+                  :key="index"
+                  class="w-1 rounded-full bg-muted-foreground/25 transition-[height] duration-75"
+                  :style="{ height: `${waveformHeights[index - 1]}px` }"
+                />
+              </div>
+              <Button
+                v-if="isRecording"
+                type="button"
+                variant="secondary"
+                size="icon-sm"
+                class="shrink-0 rounded-full"
+                :title="t('ai_chat.voice.stop')"
+                :aria-label="t('ai_chat.voice.stop')"
+                @click="toggleRecording"
+              >
+                <Square class="size-3.5 fill-current" />
+              </Button>
+              <Button
+                type="button"
+                size="icon-sm"
+                class="shrink-0 rounded-full"
+                :disabled="voiceTranscribing"
+                :title="
+                  voiceTranscribing ? t('ai_chat.voice.transcribing') : t('ai_chat.voice.send')
+                "
+                :aria-label="
+                  voiceTranscribing ? t('ai_chat.voice.transcribing') : t('ai_chat.voice.send')
+                "
+              >
+                <LoaderCircle v-if="voiceTranscribing" class="size-3.5 animate-spin" />
+                <ArrowUpIcon v-else class="size-3.5" />
+              </Button>
+            </div>
+            <form v-else class="flex items-end gap-2" @submit.prevent="handleSubmit">
+              <div class="relative flex-1">
+                <Textarea
+                  v-model="input"
+                  rows="1"
+                  :placeholder="inputPlaceholder"
+                  class="max-h-50 min-h-10 w-full resize-none py-3 pr-12"
+                  :disabled="disabled"
+                  @compositionstart="handleCompositionStart"
+                  @compositionend="handleCompositionEnd"
+                  @keydown="handleKeydown"
+                  @paste="handlePaste"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  class="absolute right-11 bottom-2"
+                  :class="{ 'text-destructive': isRecording, 'text-primary': isPreparingRecording }"
+                  :disabled="disabled || loading || isPreparingRecording"
+                  :title="isRecording ? t('ai_chat.voice.stop') : t('ai_chat.voice.start')"
+                  :aria-label="isRecording ? t('ai_chat.voice.stop') : t('ai_chat.voice.start')"
+                  @click="toggleRecording"
+                >
+                  <LoaderCircle v-if="isPreparingRecording" class="size-3.5 animate-spin" />
+                  <Mic v-else class="size-3.5" />
+                </Button>
+                <Button
+                  :type="loading ? 'button' : 'submit'"
+                  size="icon-sm"
+                  class="absolute right-2 bottom-2"
+                  :disabled="(!input.trim() && !loading) || disabled"
+                  :title="loading ? t('ai_chat.stop_generating') : undefined"
+                  @click="loading ? stopGeneration() : undefined"
+                >
+                  <Square v-if="loading" class="size-3.5 fill-current" />
+                  <ArrowUpIcon v-else class="size-3.5" />
+                </Button>
+              </div>
+            </form>
+            <p class="mt-2 px-1 text-center text-[11px] leading-4 text-muted-foreground">
+              {{ t('ai_chat.response_disclaimer') }}
+            </p>
+          </div>
+        </div>
       </div>
     </div>
 
