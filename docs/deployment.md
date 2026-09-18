@@ -1,7 +1,9 @@
 # 部署指南
 
 生产栈由支持 pgvector 的 PostgreSQL、AdonisJS API、三个独立的 AI 渠道 Bot
-worker 和 Nginx 前端组成。认证、授权、迁移和运行时配置仍由 backend 负责。
+worker 和 Nginx 管理端组成。独立助手 Web 与桌面端是额外的客户端交付物：Web
+客户端作为独立静态站点部署，桌面端按 macOS、Windows 或 Linux 目标构建安装包。
+认证、授权、迁移和运行时配置仍由 backend 负责。
 
 ## 1. 部署前准备
 
@@ -39,17 +41,17 @@ frontend 环境变量。管理员密码至少 15 位，并满足项目密码强�
 
 生产环境至少检查以下 backend 变量：
 
-| 变量                                                 | 生产要求                                                                                                        |
-| ---------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| `NODE_ENV`                                           | 设置为 `production`；Compose 会再次覆盖为 `production`。                                                        |
-| `HOST` / `PORT`                                      | 容器内应为 `0.0.0.0` / `13333`；Compose 会覆盖 `HOST`，端口不要改成与 Dockerfile/Compose 不一致的值。           |
-| `APP_KEY`                                            | 必须填写高强度、稳定且只保存在服务端的密钥；更换会影响加密数据。                                                |
-| `APP_URL`                                            | 填写对外可访问的 backend URL。                                                                                  |
-| `ADMIN_EMAIL` / `ADMIN_PASSWORD` / `ADMIN_FULL_NAME` | 首次启动时用于自动创建首个管理员；必须使用未在其他环境复用的高强度密码，至少 15 位并满足项目密码强度要求。     |
+| 变量                                                 | 生产要求                                                                                                                                       |
+| ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `NODE_ENV`                                           | 设置为 `production`；Compose 会再次覆盖为 `production`。                                                                                       |
+| `HOST` / `PORT`                                      | 容器内应为 `0.0.0.0` / `13333`；Compose 会覆盖 `HOST`，端口不要改成与 Dockerfile/Compose 不一致的值。                                          |
+| `APP_KEY`                                            | 必须填写高强度、稳定且只保存在服务端的密钥；更换会影响加密数据。                                                                               |
+| `APP_URL`                                            | 填写对外可访问的 backend URL。                                                                                                                 |
+| `ADMIN_EMAIL` / `ADMIN_PASSWORD` / `ADMIN_FULL_NAME` | 首次启动时用于自动创建首个管理员；必须使用未在其他环境复用的高强度密码，至少 15 位并满足项目密码强度要求。                                     |
 | `DB_USER` / `DB_PASSWORD` / `DB_DATABASE`            | PostgreSQL 初始化凭据；必须使用未与管理员或其他服务复用的高强度密码。Compose 会把它们传给 PostgreSQL，并让 backend 连接内部主机名 `postgres`。 |
-| `CORS_ORIGIN`                                        | 填写允许跨域访问 API 的前端 origin，多个值用逗号分隔，例如 `https://app.example.com`。同源访问仍由 Nginx 代理。 |
-| `SESSION_DRIVER`                                     | 当前示例使用 `cookie`；按认证部署策略配置。                                                                     |
-| `OPENAPI_DOCS_ENABLED`                               | 生产默认建议为 `false`；仅在确实需要 `/api-docs` 时开启，并限制 backend 暴露范围。                              |
+| `CORS_ORIGIN`                                        | 填写允许跨域访问 API 的前端 origin，多个值用逗号分隔，例如 `https://app.example.com`。同源访问仍由 Nginx 代理。                                |
+| `SESSION_DRIVER`                                     | 当前示例使用 `cookie`；按认证部署策略配置。                                                                                                    |
+| `OPENAPI_DOCS_ENABLED`                               | 生产默认建议为 `false`；仅在确实需要 `/api-docs` 时开启，并限制 backend 暴露范围。                                                             |
 
 可选能力的配置也来自 `apps/backend/.env.example`：GitHub OAuth 使用
 `GITHUB_CLIENT_ID`、`GITHUB_CLIENT_SECRET` 和正确的
@@ -78,6 +80,27 @@ frontend 是在镜像构建阶段生成的静态文件，Nginx 不会在容器�
 `VITE_PLATFORM_TAGLINE`，必须在构建 frontend 静态产物前注入这些变量，
 并重新构建镜像。不要把运行时 `env_file` 当作静态 frontend 配置注入方式。
 
+### 独立助手 Web 与桌面端的配置边界
+
+独立助手 Web 使用同一套 `VITE_API_URL` 和 `VITE_TURNSTILE_SITE_KEY` 构建变量，但不属于生产
+Compose 中的 `frontend` 服务。它可以部署到独立域名、CDN 或另一套 Nginx 静态站点；当它与 API
+不在同源时，必须把 Web origin 加入 backend 的 `CORS_ORIGIN`，并使用 HTTPS。
+
+```bash
+VITE_API_URL=https://api.example.com pnpm --dir apps/assistant-web build
+```
+
+桌面端构建会先执行 `apps/assistant-web` 的构建，再将 `apps/assistant-web/dist` 打包进 Tauri
+安装包。桌面端生产构建同样必须注入可被 WebView 访问的 `VITE_API_URL`；安装包运行时不依赖
+`17070`，`17070` 只属于本地开发服务。
+
+```bash
+VITE_API_URL=https://api.example.com pnpm --dir apps/assistant-desktop build
+```
+
+桌面端安装包必须在对应操作系统或受支持的构建 runner 上生成，并按平台完成代码签名和公证/发布配置。
+当前 updater 自动更新未启用；在配置发布 endpoint、签名密钥和 updater 公钥前，不应把未签名安装包当作正式自动更新渠道。
+
 ## 3. 首次生产部署
 
 先检查 Compose 展开的配置，确认没有把 secret、端口或路径展开错误：
@@ -99,6 +122,9 @@ Compose 不会为每个 Bot 重复构建一份镜像。可通过 `BACKEND_IMAGE`
 `FRONTEND_IMAGE` 覆盖默认镜像标签，例如在多套环境中使用不同的仓库或版本
 标签。
 
+独立助手 Web 不使用 `api-starter-kit-frontend:latest` 管理端镜像；它应由自己的静态站点构建流程
+发布。独立助手桌面端也不作为 Compose 服务运行，而是由发布流水线生成各平台安装包。
+
 backend 容器启动时会执行 `apps/backend/docker-entrypoint.js`。在生产
 Compose 中 `MIGRATE=true`，所以它会先运行：
 
@@ -115,14 +141,18 @@ node ace migration:run --force
 
 ## 4. 服务、端口和网络
 
-| 服务           | 容器内职责                               | 默认对外端口/状态                         |
-| -------------- | ---------------------------------------- | ----------------------------------------- |
-| `postgres`     | `pgvector/pgvector:pg15`，持久化应用数据 | 仅 Compose 内部网络，无宿主机端口         |
-| `backend`      | AdonisJS API、迁移、健康检查             | 宿主机 `13333`，可由 `BACKEND_PORT` 覆盖  |
-| `wecom-bot`    | 企业微信 WebSocket AI worker             | 不暴露宿主机端口                          |
-| `feishu-bot`   | 飞书长连接 AI worker                     | 不暴露宿主机端口                          |
-| `dingtalk-bot` | 钉钉 Stream AI worker                    | 不暴露宿主机端口                          |
-| `frontend`     | Nginx 静态文件和 `/api/` 反向代理        | 宿主机 `18080`，可由 `FRONTEND_PORT` 覆盖 |
+下表同时列出生产 Compose 服务和独立客户端交付物；`assistant-web` 与 `assistant-desktop` 两行不由 Compose 启动。
+
+| 服务/交付物         | 职责                                     | 默认对外端口/状态                         |
+| ------------------- | ---------------------------------------- | ----------------------------------------- |
+| `postgres`          | `pgvector/pgvector:pg15`，持久化应用数据 | 仅 Compose 内部网络，无宿主机端口         |
+| `backend`           | AdonisJS API、迁移、健康检查             | 宿主机 `13333`，可由 `BACKEND_PORT` 覆盖  |
+| `wecom-bot`         | 企业微信 WebSocket AI worker             | 不暴露宿主机端口                          |
+| `feishu-bot`        | 飞书长连接 AI worker                     | 不暴露宿主机端口                          |
+| `dingtalk-bot`      | 钉钉 Stream AI worker                    | 不暴露宿主机端口                          |
+| `frontend`          | Nginx 静态文件和 `/api/` 反向代理        | 宿主机 `18080`，可由 `FRONTEND_PORT` 覆盖 |
+| `assistant-web`     | 独立助手 Web 静态文件                    | 独立部署，端口由静态站点或 Nginx 配置     |
+| `assistant-desktop` | Tauri 桌面安装包                         | 无服务端口，按操作系统发布                |
 
 访问入口默认为 `http://localhost:18080`。frontend 的 Nginx 配置将
 `/api/` 转发到 `http://backend:13333`，并设置了 10 MB 请求体上限和
@@ -216,6 +246,8 @@ ASR/LLM 地址。渠道平台的应用发布、长连接、权限、绑定和卡
 
 - `APP_KEY`、管理员密码、数据库密码和外部 secret 已替换示例值；
 - `CORS_ORIGIN` 与真实前端 origin 一致，未使用不必要的通配配置；
+- 如果发布独立助手 Web，`CORS_ORIGIN` 同时包含其正式 origin，且 Web 构建使用正确的 `VITE_API_URL`；
+- 如果发布桌面端，安装包使用正式 HTTPS API 地址，Tauri CSP 已按实际 API origin 收紧，且代码签名/公证策略已确认；
 - `OPENAPI_DOCS_ENABLED` 按需设置，未将不必要的 backend 管理端口暴露到公网；
 - PostgreSQL 未映射宿主机端口，`postgres-data` 已纳入备份策略；
 - `docker compose ... config`、容器状态和 `/api/v1/health/ready` 均正常；
@@ -232,7 +264,7 @@ ASR/LLM 地址。渠道平台的应用发布、长连接、权限、绑定和卡
 | frontend 打开但 API 失败        | 确认 backend healthy、frontend 与 backend 在同一 Compose 网络，浏览器请求使用 `/api/`，并检查 Nginx/backend 日志。                                                            |
 | 直接访问 backend 出现 CORS 错误 | 将浏览器 origin 加入 `CORS_ORIGIN`，或使用 frontend 的同源入口；修改 backend `.env` 后重建/重启 backend。                                                                     |
 | `/api-docs` 404                 | 只有 `OPENAPI_DOCS_ENABLED=true` 时才注册该路由；修改后需要重启 backend。                                                                                                     |
-| Bot 已连接但配置未生效          | 检查对应 worker 日志中的配置通知、重载和连接错误；确认 PostgreSQL 可用且不要重复启动同一渠道的多个 worker。                                                                     |
+| Bot 已连接但配置未生效          | 检查对应 worker 日志中的配置通知、重载和连接错误；确认 PostgreSQL 可用且不要重复启动同一渠道的多个 worker。                                                                   |
 | 迁移未执行                      | 检查 Compose backend 是否使用 `MIGRATE=true`（生产文件会设置），再查看 backend 日志和 `node ace migration:status`。                                                           |
 
 开发环境使用 `pnpm docker:up` 或 `docker/docker-compose.dev.yml`，会额外

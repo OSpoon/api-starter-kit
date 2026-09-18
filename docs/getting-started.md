@@ -5,6 +5,7 @@
 - Node.js `>= 24.12.0`
 - pnpm `11.9.0`
 - Docker Desktop（Compose 内的 PostgreSQL），或可访问的 PostgreSQL 15+ 实例
+- 如果启动桌面端：Rust stable、Tauri 所需的 macOS/Windows/Linux 原生构建依赖
 
 ## 安装与配置
 
@@ -34,13 +35,26 @@ pnpm --dir apps/backend exec node ace migration:run
 pnpm dev
 ```
 
-开发命令 `pnpm docker:up` 会启动 PostgreSQL，并映射 PostgreSQL `5432`，以便宿主机运行的后端连接。
+开发命令 `pnpm docker:up` 会启动 PostgreSQL，并映射 PostgreSQL `5432`，以便宿主机运行的后端连接。根目录
+`pnpm dev` 会通过 Turbo 同时启动 backend、管理端 frontend、三个 Bot、独立助手 Web 和 Tauri 桌面端；
+它们共用一套后端服务。独立助手 Web 使用 `17070`，管理端使用 `18080`，桌面端连接已经运行的
+`17070`，不会再启动第二个 Vite 服务。
 
-| 服务       | 默认地址                          |
-| ---------- | --------------------------------- |
-| 前端       | `http://localhost:18080`          |
-| 后端 API   | `http://localhost:13333`          |
-| OpenAPI UI | `http://localhost:13333/api-docs` |
+| 服务         | 默认地址                          |
+| ------------ | --------------------------------- |
+| 管理端 Web   | `http://localhost:18080`          |
+| 独立助手 Web | `http://localhost:17070`          |
+| 后端 API     | `http://localhost:13333`          |
+| OpenAPI UI   | `http://localhost:13333/api-docs` |
+| 桌面端       | 原生窗口，无独立 HTTP 端口        |
+
+如果只调试独立助手 Web，可以在后端运行后执行 `pnpm --dir apps/assistant-web dev`；如果只启动桌面端，
+必须先让 `17070` 上的助手 Web 可访问，再执行 `pnpm --dir apps/assistant-desktop dev`。推荐日常开发使用根目录
+`pnpm dev`，避免遗漏桌面端依赖的 Web 服务。
+
+独立助手 Web 的开发代理默认将 `/api/v1` 转发到 `http://localhost:13333`，也可以通过
+`VITE_DEV_API_PROXY_TARGET` 覆盖。生产构建使用 `VITE_API_URL` 指向 API 服务；桌面端生产构建必须配置
+可被桌面 WebView 访问的 HTTPS API 地址。
 
 OpenAPI UI 需要后端环境变量 `OPENAPI_DOCS_ENABLED=true`。
 

@@ -9,6 +9,14 @@
 - [产品扩展指南](customization.md)：如何替换 starter 示例、添加业务 feature、页面、API 和权限。
 - [系统架构](architecture.md)：前后端分层、系统能力边界和 AI 扩展边界。
 
+## 客户端
+
+- 管理端 Web：`apps/frontend`，承载系统管理能力和内置浮动 AI 助手。
+- 独立助手 Web：[`apps/assistant-web`](../apps/assistant-web/README.md)，承载全屏 AI 对话工作区，可单独部署。
+- 独立助手桌面端：[`apps/assistant-desktop`](../apps/assistant-desktop/README.md)，使用 Tauri 包装独立助手 Web，不复制 Web UI 或 AI 编排。
+- 三个客户端共用 `apps/backend` 的认证、权限、AI 会话、SSE、历史记录和语音转写 API。
+- 桌面端开发与发布细节见[AI 助手架构](ai-assistant-architecture.md)和[部署指南](deployment.md)。
+
 ## 工程与运行
 
 - [工程开发指南](development.md)：monorepo 结构、常用命令、实现入口和提交前检查。

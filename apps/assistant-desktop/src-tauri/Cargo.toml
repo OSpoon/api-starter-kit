@@ -1,5 +1,5 @@
 [package]
-name = "assistant-desktop"
+name = "AssistantDesktop"
 version = "0.0.0"
 description = "AI Assistant desktop client"
 authors = ["OSpoon"]

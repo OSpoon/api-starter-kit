@@ -4,6 +4,18 @@
 
 日常工程命令、代码入口和提交前检查见[工程开发指南](development.md)。
 
+## 三个客户端的修改边界
+
+- 管理端页面、路由、导航和管理功能放在 `apps/frontend`。
+- 独立助手的聊天 UI、会话历史、语音输入和助手交互优先修改 `apps/frontend/src/components/ai-chat/`
+  或对应 AI feature；`apps/assistant-web` 只负责独立客户端路由、页面壳和入口配置，不复制一套聊天实现。
+- 桌面端只在 `apps/assistant-desktop/src-tauri/` 修改窗口、Rust 命令、原生权限和打包配置；不要在桌面壳中
+  重新实现 Web UI、认证或 AI 编排。
+- 后端 API、认证、授权、会话持久化和敏感操作统一放在 `apps/backend`，三个客户端都必须复用同一套契约。
+
+如果业务能力需要同时出现在管理端和独立助手中，先扩展后端 service/API 或共享 AI registry，再分别接入两个
+Web 客户端；只有桌面特有的操作系统能力才进入 Tauri 层。
+
 ## 开始前
 
 先完成[快速开始](getting-started.md)，确认可以登录管理台。然后阅读[系统架构](architecture.md)，了解哪些能力属于模板基础设施，哪些内容应该放进业务 feature。

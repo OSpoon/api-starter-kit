@@ -467,15 +467,15 @@ API Key 删除使用专用工具，仅适用于已吊销的密钥。
 
 ## 附录：提示词分类汇总
 
-| 类别                   | 维护来源                                                |
-| ---------------------- | ------------------------------------------------------- |
-| 系统提示词             | `ai_agent_prompt_policy.ts`                             |
-| 上下文压缩摘要         | `ai_agent_prompt_policy.ts`、`ai_agent_config.ts`       |
-| 页面、权限和会话上下文 | `ai_agent_service.ts`                                   |
-| 工具描述和执行契约     | `ai_agent_tool_registry.ts`                             |
-| 查询模板描述           | `ai_agent_query_registry.ts`                            |
-| 操作错误和确认状态     | `ai_agent_confirmation.ts`、`ai_agent_tool_registry.ts` |
-| 用户界面文案           | `apps/frontend/src/locales/zh-CN.json`、`en.json`       |
-| 评估用例               | `ai_evaluation.ts`                                      |
-| 重生成工具历史注入     | `ai_chat_controller.ts`                                 |
-| AI 错误消息            | `ai_chat_controller.ts`                                 |
+| 类别                   | 维护来源                                                                             |
+| ---------------------- | ------------------------------------------------------------------------------------ |
+| 系统提示词             | `ai_agent_prompt_policy.ts`                                                          |
+| 上下文压缩摘要         | `ai_agent_prompt_policy.ts`、`ai_agent_config.ts`                                    |
+| 页面、权限和会话上下文 | `ai_agent_service.ts`                                                                |
+| 工具描述和执行契约     | `ai_agent_tool_registry.ts`                                                          |
+| 查询模板描述           | `ai_agent_query_registry.ts`                                                         |
+| 操作错误和确认状态     | `ai_agent_confirmation.ts`、`ai_agent_tool_registry.ts`                              |
+| 用户界面文案           | `apps/frontend/src/locales/zh-CN.json`、`en.json`；`assistant-web` 复用同一套 locale |
+| 评估用例               | `ai_evaluation.ts`                                                                   |
+| 重生成工具历史注入     | `ai_chat_controller.ts`                                                              |
+| AI 错误消息            | `ai_chat_controller.ts`                                                              |

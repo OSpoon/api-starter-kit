@@ -28,9 +28,16 @@ pnpm test
 pnpm lint
 ```
 
-根目录 `pnpm dev` 会启动完整的本地开发栈，包括唯一的 `assistant-web` 开发服务（端口
-`17070`）和 Tauri 桌面客户端。桌面端只连接 `17070`，不会自行启动第二个 Web 服务；
-`17070` 被占用时 Vite 会直接报错，不会自动切换到 `17071`。
+根目录 `pnpm dev` 会启动完整的本地开发栈，包括 backend、管理端 frontend、三个 Bot、唯一的
+`assistant-web` 开发服务（端口 `17070`）和 Tauri 桌面客户端。Turbo 负责分别启动 Web 服务和桌面任务；
+桌面端只连接 `17070`，不会自行启动第二个 Web 服务。`17070` 被占用时 Vite 会直接报错，不会自动切换到 `17071`。
+
+四个应用的职责边界如下：
+
+- `apps/backend`：认证、授权、数据、AI 编排、SSE、语音转写和 Bot worker。
+- `apps/frontend`：管理平台 Web 客户端，包含系统管理页面和浮动 AI 助手。
+- `apps/assistant-web`：独立 AI 助手 Web 客户端，复用管理端的 AI 组件、API、认证和 locale。
+- `apps/assistant-desktop`：Tauri 原生壳，只负责窗口、原生权限、Rust 命令和安装包。
 
 验证单个应用时：
 
@@ -61,6 +68,10 @@ pnpm --dir apps/assistant-desktop test
 pnpm --dir apps/assistant-desktop build
 pnpm --dir apps/assistant-desktop build:app
 ```
+
+`apps/assistant-desktop` 的 `dev` 命令只启动 Tauri 窗口并连接 `17070`，不会启动 assistant-web；
+桌面生产构建的 `beforeBuildCommand` 会先生成 `apps/assistant-web/dist`，再把它打进桌面安装包。
+因此桌面端运行时不依赖本地 `17070`，但生产构建必须通过 `VITE_API_URL` 配置可访问的 API 地址。
 
 `lint` 和 `format` 会修改文件；只检查现有改动时使用 `lint:check`。
 首次安装依赖时，根项目的 `prepare` 会安装 `simple-git-hooks`。`pre-commit` 会通过

@@ -22,7 +22,7 @@ flowchart TB
 
 - `app/ai` 集中维护 Pi runtime、会话编排、SSE 适配、提示词策略和工具注册；可复用的领域逻辑仍位于 `app/services`。
 - `ai_chat_controller.ts` 只负责会话归属、输入校验、消息持久化和 HTTP/SSE 生命周期。
-- `ai_chat_controller.ts` 的 `transcribe` 处理 Web AI 助手的 multipart 音频上传；`ai_speech_service.ts` 使用运行时 LLM 配置调用 OpenAI-compatible ASR 服务，并只返回转写文本。转写接口不直接创建聊天消息，前端拿到文本后复用普通消息 SSE 链路。
+- `ai_chat_controller.ts` 的 `transcribe` 处理管理端 Web、独立助手 Web 和桌面 WebView 的 multipart 音频上传；`ai_speech_service.ts` 使用运行时 LLM 配置调用 OpenAI-compatible ASR 服务，并只返回转写文本。转写接口不直接创建聊天消息，客户端拿到文本后复用普通消息 SSE 链路。
 - `ai_chat_sse_adapter.ts` 只负责把单一 Pi `AgentEvent` 流转换为 SSE、keepalive、工具状态详情、阶段和确认事件。
 - `ai_agent_service.ts` 创建 Pi Agent，配置模型、上下文和工具事件流；每个会话使用稳定的 Pi `sessionId`，并显式使用 Pi 的 steer/follow-up 单条队列策略。
 - `ai_agent_pi_stream.ts` 负责创建 Pi Agent、订阅原始事件并暴露控制句柄；消息流和工具流统一通过 Pi 事件处理。
@@ -83,12 +83,15 @@ AI 请求完成时间由现有审计日志和运行状态记录，不依赖外�
 
 客户端自己的路由只保留 AI 会话、登录、2FA、密码过期处理和账户页面；后端仍是认证、
 权限、模型调用、持久化和敏感操作的唯一边界。开发时使用 `VITE_DEV_API_PROXY_TARGET`
-将 `/api/v1` 代理到后端，生产部署时通过 `VITE_API_URL` 指向 API 服务。
+将 `/api/v1` 代理到后端，生产部署时通过 `VITE_API_URL` 指向 API 服务。它默认监听 `17070`，
+与管理端的 `18080` 是两个不同的 Web 客户端入口。
 
 ## 独立桌面客户端
 
-`apps/assistant-desktop` 是 Tauri 桌面壳，不复制 Web UI 或 AI 编排。开发时由 Tauri
-启动 `apps/assistant-web` 的 `17070` 服务；构建时先构建 Web 客户端，再将
+`apps/assistant-desktop` 是 Tauri 桌面壳，不复制 Web UI 或 AI 编排。开发时根目录 Turbo
+分别启动 `apps/assistant-web` 的 `17070` 服务和 Tauri 窗口，Tauri 只连接已有的
+`17070`，不会自行启动第二个 Vite 服务；单独运行桌面端前必须先启动 assistant-web。
+构建时先构建 Web 客户端，再将
 `apps/assistant-web/dist` 作为 Tauri 的前端资源目录。桌面端只负责窗口、Rust 命令、
 原生权限和安装包，当前直接复用 Web 客户端现有登录流程，不额外引入桌面端登录态兼容层。
 生产 API 域名确定后，还需要收紧
@@ -96,6 +99,9 @@ AI 请求完成时间由现有审计日志和运行状态记录，不依赖外�
 路由刷新行为。自动更新暂不启用，必须先确定发布 endpoint、安装包签名和 updater 公钥。
 
 ```bash
+pnpm dev
+
+# 只运行独立助手 Web
 pnpm --dir apps/assistant-web dev
 pnpm --dir apps/assistant-web typecheck
 pnpm --dir apps/assistant-web lint:check
@@ -108,15 +114,32 @@ pnpm --dir apps/assistant-desktop test
 pnpm --dir apps/assistant-desktop build:app
 ```
 
+`pnpm dev` 是推荐的联调入口；它会同时启动后端、管理端、Bot、独立助手 Web 和桌面端。
+`pnpm --dir apps/assistant-desktop dev` 只适合在 `17070` 已经可访问时使用。
+
 ## 验证
 
 修改 Agent、工具协议、提示词或确认流程后运行：
 
 ```bash
+pnpm --dir apps/backend format:check
 pnpm --dir apps/backend typecheck
 pnpm --dir apps/backend lint:check
 pnpm --dir apps/backend exec node ace test --files=tests/functional/ai_agent_query_registry.spec.ts --files=tests/functional/ai_agent_confirmation.spec.ts
 pnpm --dir apps/backend exec node ace ai:evaluate
+pnpm --dir apps/frontend format:check
 pnpm --dir apps/frontend typecheck
 pnpm --dir apps/frontend lint:check
+pnpm --dir apps/frontend test
+pnpm --dir apps/frontend build
+pnpm --dir apps/assistant-web format:check
+pnpm --dir apps/assistant-web typecheck
+pnpm --dir apps/assistant-web lint:check
+pnpm --dir apps/assistant-web test
+pnpm --dir apps/assistant-web build
+pnpm --dir apps/assistant-desktop format:check
+pnpm --dir apps/assistant-desktop typecheck
+pnpm --dir apps/assistant-desktop lint:check
+pnpm --dir apps/assistant-desktop test
+pnpm --dir apps/assistant-desktop build
 ```

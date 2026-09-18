@@ -2,6 +2,10 @@
 
 这份文档面向调用现有 API 或新增业务接口的开发者。后端 API 的基础路径为 `/api/v1`，OpenAPI schema 是请求和响应契约的权威来源。
 
+管理端 Web（`apps/frontend`）、独立助手 Web（`apps/assistant-web`）和桌面端（`apps/assistant-desktop`）均使用这套 API；
+桌面端只是将独立助手 Web 打包进 Tauri WebView，不存在单独的桌面 API。新增或修改接口时，必须同时检查三个客户端的
+API client、类型、认证状态和错误处理是否仍然符合契约。
+
 ## 查看契约
 
 设置 `OPENAPI_DOCS_ENABLED=true` 后，后端提供：
