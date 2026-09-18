@@ -17,18 +17,18 @@
     "lint:check": "eslint . --max-warnings=0"
   },
   "dependencies": {
-    "@lucide/vue": "^1.21.0",
-    "@vueuse/core": "^14.3.0",
+    "@lucide/vue": "^1.46.0",
+    "@vueuse/core": "^14.4.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.0",
-    "markstream-vue": "^1.0.5",
-    "pinia": "^3.0.4",
-    "reka-ui": "^2.10.0",
-    "tailwind-merge": "^3.6.0",
-    "vue": "^3.5.38",
-    "vue-i18n": "^11.4.6",
-    "vue-input-otp": "^0.3.2",
-    "vue-router": "^5.1.0",
+    "markstream-vue": "^2.0.11",
+    "pinia": "^4.0.3",
+    "reka-ui": "^2.10.4",
+    "tailwind-merge": "^3.7.0",
+    "vue": "^3.5.42",
+    "vue-i18n": "^11.4.10",
+    "vue-input-otp": "^0.4.0",
+    "vue-router": "^5.3.1",
     "vue-sonner": "^2.0.9"
   },
   "devDependencies": {
