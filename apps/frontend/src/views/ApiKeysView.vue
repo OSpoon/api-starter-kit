@@ -24,9 +24,13 @@ import { useAuthStore } from '@/stores/auth'
 const auth = useAuthStore()
 const { copy: copyText } = useCopyText()
 const tokenText = ref<HTMLElement | null>(null)
-const copiedReset = useTimeoutFn(() => {
-  copied.value = false
-}, 2000, { immediate: false })
+const copiedReset = useTimeoutFn(
+  () => {
+    copied.value = false
+  },
+  2000,
+  { immediate: false }
+)
 const { can } = usePermission()
 const { t } = useI18n()
 const { runWithToast } = useAsyncToast()

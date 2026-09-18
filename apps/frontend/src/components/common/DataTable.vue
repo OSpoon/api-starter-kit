@@ -70,7 +70,7 @@ const props = withDefaults(
     showSearch: true,
     showView: true,
     filtersLayout: 'inline',
-  },
+  }
 )
 
 const search = defineModel<string>('search', { default: '' })
@@ -91,7 +91,7 @@ const pagination =
   persistedPreferences?.pagination ?? ref<PaginationState>({ pageIndex: 0, pageSize: 10 })
 
 const hasSearch = computed(
-  () => props.showSearch && Boolean(props.searchKeys?.length || props.getSearchableText),
+  () => props.showSearch && Boolean(props.searchKeys?.length || props.getSearchableText)
 )
 const showView = computed(() => props.showView)
 const pageCount = computed(() => props.serverPagination?.pageCount ?? table.getPageCount())

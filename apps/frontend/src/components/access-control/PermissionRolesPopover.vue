@@ -26,7 +26,9 @@ const { t } = useI18n()
         class="cursor-pointer"
         :title="t('rbac.permissions.view_roles')"
       >
-        {{ t('rbac.permissions.in_use', { count: permission.roles?.length ?? permission.roleCount }) }}
+        {{
+          t('rbac.permissions.in_use', { count: permission.roles?.length ?? permission.roleCount })
+        }}
       </Badge>
     </PopoverTrigger>
     <PopoverContent class="w-80">
@@ -48,7 +50,10 @@ const { t } = useI18n()
             <code class="block text-xs text-muted-foreground">{{ role.code }}</code>
           </span>
         </div>
-        <p v-if="!(permission.roles?.length ?? 0)" class="p-4 text-center text-sm text-muted-foreground">
+        <p
+          v-if="!(permission.roles?.length ?? 0)"
+          class="p-4 text-center text-sm text-muted-foreground"
+        >
           {{ t('rbac.permissions.no_roles') }}
         </p>
       </div>

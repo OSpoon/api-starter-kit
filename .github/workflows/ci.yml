@@ -8,7 +8,7 @@ on:
 
 jobs:
   backend:
-    name: Backend (typecheck, lint, test)
+    name: Backend (format, typecheck, lint, test, build)
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -45,6 +45,9 @@ jobs:
         run: pnpm install --frozen-lockfile --ignore-scripts
         working-directory: .
 
+      - name: Format check
+        run: pnpm --filter @api-starter-kit/backend format:check
+
       - name: Typecheck
         run: pnpm --filter @api-starter-kit/backend typecheck
 
@@ -68,8 +71,11 @@ jobs:
           DB_PASSWORD: ci_password
           DB_DATABASE: ci_db
 
+      - name: Build
+        run: pnpm --filter @api-starter-kit/backend build
+
   frontend:
-    name: Frontend (type-check, lint, build)
+    name: Frontend (format, typecheck, lint, test, build)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -92,17 +98,23 @@ jobs:
         run: pnpm install --frozen-lockfile --ignore-scripts
         working-directory: .
 
-      - name: Type-check
-        run: pnpm --filter frontend type-check
+      - name: Format check
+        run: pnpm --filter @api-starter-kit/frontend format:check
+
+      - name: Typecheck
+        run: pnpm --filter @api-starter-kit/frontend typecheck
 
       - name: Lint
-        run: pnpm --filter frontend lint:check
+        run: pnpm --filter @api-starter-kit/frontend lint:check
+
+      - name: Test
+        run: pnpm --filter @api-starter-kit/frontend test
 
       - name: Build
-        run: pnpm --filter frontend build
+        run: pnpm --filter @api-starter-kit/frontend build
 
   assistant:
-    name: Assistant (type-check, lint, test, build)
+    name: Assistant (format, typecheck, lint, test, build)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -125,8 +137,11 @@ jobs:
         run: pnpm install --frozen-lockfile --ignore-scripts
         working-directory: .
 
-      - name: Type-check
-        run: pnpm --filter @api-starter-kit/assistant-web type-check
+      - name: Format check
+        run: pnpm --filter @api-starter-kit/assistant-web format:check
+
+      - name: Typecheck
+        run: pnpm --filter @api-starter-kit/assistant-web typecheck
 
       - name: Lint
         run: pnpm --filter @api-starter-kit/assistant-web lint:check
@@ -136,6 +151,58 @@ jobs:
 
       - name: Build
         run: pnpm --filter @api-starter-kit/assistant-web build
+
+  assistant-desktop:
+    name: Assistant Desktop (format, typecheck, lint, test, build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6.0.10
+        # Version is read from package.json's "packageManager" field.
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: '.nvmrc'
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            curl \
+            file \
+            libayatana-appindicator3-dev \
+            libssl-dev \
+            libwebkit2gtk-4.1-dev \
+            libxdo-dev \
+            librsvg2-dev \
+            wget
+
+      - name: Install
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Format check
+        run: pnpm --filter @api-starter-kit/assistant-desktop format:check
+
+      - name: Typecheck
+        run: pnpm --filter @api-starter-kit/assistant-desktop typecheck
+
+      - name: Lint
+        run: pnpm --filter @api-starter-kit/assistant-desktop lint:check
+
+      - name: Test
+        run: pnpm --filter @api-starter-kit/assistant-desktop test
+
+      - name: Build
+        run: pnpm --filter @api-starter-kit/assistant-desktop build
 
   diff-check:
     name: Git diff --check

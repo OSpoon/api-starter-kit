@@ -858,7 +858,7 @@ watch(
             </MessageScrollerProvider>
           </div>
 
-          <div class="p-3 pt-0">
+          <div :class="isStandalone ? 'px-16 pt-0' : 'p-3 pt-0'">
             <AiChatCredentialCard
               v-if="credentialDisclosure"
               :credential="credentialDisclosure"

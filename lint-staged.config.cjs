@@ -5,9 +5,12 @@ function quotePath(path) {
 }
 
 function isScopedCodeFile(file) {
-  return file.startsWith('apps/backend/') && file.endsWith('.ts')
-    || file.startsWith('apps/frontend/') && /\.(ts|vue)$/.test(file)
-    || file.startsWith('apps/assistant-web/') && /\.(ts|vue)$/.test(file)
+  return (
+    (file.startsWith('apps/backend/') && file.endsWith('.ts')) ||
+    (file.startsWith('apps/frontend/') && /\.(ts|vue)$/.test(file)) ||
+    (file.startsWith('apps/assistant-web/') && /\.(ts|vue)$/.test(file)) ||
+    (file.startsWith('apps/assistant-desktop/') && file.endsWith('.rs'))
+  )
 }
 
 function formatFiles(files) {
@@ -39,5 +42,15 @@ module.exports = {
   'apps/frontend/**/*.{ts,vue}': (files) => formatAndCheckScopedFiles(files, 'apps/frontend'),
   'apps/assistant-web/**/*.{ts,vue}': (files) =>
     formatAndCheckScopedFiles(files, 'apps/assistant-web'),
+  'apps/assistant-desktop/**/*.rs': (files) => {
+    const existingFiles = files.filter((file) => fs.existsSync(file))
+    if (!existingFiles.length) return []
+
+    return [
+      'cargo fmt --manifest-path apps/assistant-desktop/src-tauri/Cargo.toml',
+      'pnpm --dir apps/assistant-desktop lint',
+      'pnpm --dir apps/assistant-desktop typecheck',
+    ]
+  },
   'apps/backend/**/*.ts': (files) => formatAndCheckScopedFiles(files, 'apps/backend'),
 }

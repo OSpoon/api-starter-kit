@@ -8,11 +8,12 @@
 apps/backend/   AdonisJS API、模型、迁移、服务和测试
 apps/frontend/  Vue 应用、路由、页面、feature、状态和共享 UI
 apps/assistant-web/  独立 AI 助手 Web 客户端，复用 frontend 的 AI 实现
+apps/assistant-desktop/  Tauri 桌面壳，复用 assistant-web 的页面和 AI 能力
 docs/           项目使用、开发、部署和能力参考
 docker/         Compose、镜像和 Nginx 配置
 ```
 
-根工作区使用 pnpm 与 Turborepo。修改代码前阅读根目录 [AGENTS.md](../AGENTS.md) 以及目标目录最近的 `AGENTS.md`；独立助手的 [AGENTS.md](../apps/assistant-web/AGENTS.md) 与管理端前端约束保持同步。
+根工作区使用 pnpm 与 Turborepo。修改代码前阅读根目录 [AGENTS.md](../AGENTS.md) 以及目标目录最近的 `AGENTS.md`；独立助手的 [AGENTS.md](../apps/assistant-web/AGENTS.md) 与管理端前端约束保持同步，桌面壳的 [AGENTS.md](../apps/assistant-desktop/AGENTS.md) 只约束 Tauri 与 Rust 边界。
 
 ## 常用命令
 
@@ -21,35 +22,51 @@ pnpm install
 pnpm dev
 pnpm build
 pnpm typecheck
+pnpm lint:check
+pnpm format:check
 pnpm test
 pnpm lint
 ```
+
+根目录 `pnpm dev` 会启动完整的本地开发栈，包括唯一的 `assistant-web` 开发服务（端口
+`17070`）和 Tauri 桌面客户端。桌面端只连接 `17070`，不会自行启动第二个 Web 服务；
+`17070` 被占用时 Vite 会直接报错，不会自动切换到 `17071`。
 
 验证单个应用时：
 
 ```bash
 pnpm --dir apps/backend typecheck
 pnpm --dir apps/backend lint:check
+pnpm --dir apps/backend format:check
 pnpm --dir apps/backend test
+pnpm --dir apps/backend build
 pnpm --dir apps/backend exec node ace migration:status
 
+pnpm --dir apps/frontend format:check
 pnpm --dir apps/frontend typecheck
 pnpm --dir apps/frontend lint:check
 pnpm --dir apps/frontend test
 pnpm --dir apps/frontend build
 
+pnpm --dir apps/assistant-web format:check
 pnpm --dir apps/assistant-web typecheck
-pnpm --dir apps/assistant-web lint
-pnpm --dir apps/assistant-web format
 pnpm --dir apps/assistant-web lint:check
 pnpm --dir apps/assistant-web test
 pnpm --dir apps/assistant-web build
+
+pnpm --dir apps/assistant-desktop format:check
+pnpm --dir apps/assistant-desktop typecheck
+pnpm --dir apps/assistant-desktop lint:check
+pnpm --dir apps/assistant-desktop test
+pnpm --dir apps/assistant-desktop build
+pnpm --dir apps/assistant-desktop build:app
 ```
 
 `lint` 和 `format` 会修改文件；只检查现有改动时使用 `lint:check`。
-首次安装依赖时，根项目的 `prepare` 会安装 `simple-git-hooks`；提交包含前端代码时，
-`pre-commit` 会通过 `lint-staged` 自动格式化并运行对应应用的 Lint 和 typecheck，包含
-`apps/assistant-web`。
+首次安装依赖时，根项目的 `prepare` 会安装 `simple-git-hooks`。`pre-commit` 会通过
+`lint-staged` 对暂存文件执行格式化，并按文件所属子项目运行对应的 lint 和 typecheck；
+覆盖 `apps/backend`、`apps/frontend`、`apps/assistant-web` 和
+`apps/assistant-desktop`。未涉及源码的文档、配置文件仍会执行统一的 Prettier 格式化。
 
 ## 发布版本
 

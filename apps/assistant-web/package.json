@@ -13,6 +13,7 @@
     "typecheck": "vue-tsc --build",
     "lint": "eslint . --fix --cache",
     "format": "prettier --write --config ../../prettier.config.cjs --ignore-path ../../.prettierignore .",
+    "format:check": "prettier --check --config ../../prettier.config.cjs --ignore-path ../../.prettierignore .",
     "lint:check": "eslint . --max-warnings=0"
   },
   "dependencies": {

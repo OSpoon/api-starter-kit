@@ -22,6 +22,7 @@
     "lint": "eslint . --fix --cache",
     "lint:check": "eslint . --max-warnings=0",
     "format": "prettier --write --config ../../prettier.config.cjs --ignore-path ../../.prettierignore .",
+    "format:check": "prettier --check --config ../../prettier.config.cjs --ignore-path ../../.prettierignore .",
     "typecheck": "tsc --noEmit"
   },
   "imports": {

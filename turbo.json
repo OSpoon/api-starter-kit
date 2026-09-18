@@ -48,9 +48,15 @@
     "lint": {
       "outputs": []
     },
+    "lint:check": {
+      "outputs": []
+    },
     "format": {
       "outputs": [],
       "cache": false
+    },
+    "format:check": {
+      "outputs": []
     },
     "typecheck": {
       "outputs": []

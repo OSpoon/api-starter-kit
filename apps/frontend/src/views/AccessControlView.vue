@@ -187,18 +187,13 @@ const { userColumns, roleColumns, permissionColumns } = useAccessControlColumns(
                 size="sm"
                 variant="secondary"
                 class="ml-auto shrink-0"
-                :title="
-                  management.initialPasswordCopied ? t('common.copied') : t('common.copy')
-                "
+                :title="management.initialPasswordCopied ? t('common.copied') : t('common.copy')"
                 :aria-label="
                   management.initialPasswordCopied ? t('common.copied') : t('common.copy')
                 "
                 @click="management.copyInitialPassword(initialPasswordText)"
               >
-                <Check
-                  v-if="management.initialPasswordCopied"
-                  class="mr-1 size-4 text-chart-3"
-                />
+                <Check v-if="management.initialPasswordCopied" class="mr-1 size-4 text-chart-3" />
                 <Copy v-else class="mr-1 size-4" />
                 {{ management.initialPasswordCopied ? t('common.copied') : t('common.copy') }}
               </Button>

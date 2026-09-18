@@ -20,7 +20,9 @@
     "version": "changelogen --output CHANGELOG.md",
     "test": "turbo test",
     "lint": "turbo lint",
+    "lint:check": "turbo lint:check",
     "format": "turbo format",
+    "format:check": "turbo format:check",
     "typecheck": "turbo typecheck",
     "prepare": "simple-git-hooks"
   },

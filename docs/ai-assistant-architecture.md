@@ -85,11 +85,27 @@ AI 请求完成时间由现有审计日志和运行状态记录，不依赖外�
 权限、模型调用、持久化和敏感操作的唯一边界。开发时使用 `VITE_DEV_API_PROXY_TARGET`
 将 `/api/v1` 代理到后端，生产部署时通过 `VITE_API_URL` 指向 API 服务。
 
+## 独立桌面客户端
+
+`apps/assistant-desktop` 是 Tauri 桌面壳，不复制 Web UI 或 AI 编排。开发时由 Tauri
+启动 `apps/assistant-web` 的 `17070` 服务；构建时先构建 Web 客户端，再将
+`apps/assistant-web/dist` 作为 Tauri 的前端资源目录。桌面端只负责窗口、Rust 命令、
+原生权限和安装包，当前直接复用 Web 客户端现有登录流程，不额外引入桌面端登录态兼容层。
+生产 API 域名确定后，还需要收紧
+`tauri.conf.json` 的 CSP，并验证桌面 WebView 下的 SSE、麦克风、剪贴板、登录态和历史
+路由刷新行为。自动更新暂不启用，必须先确定发布 endpoint、安装包签名和 updater 公钥。
+
 ```bash
 pnpm --dir apps/assistant-web dev
 pnpm --dir apps/assistant-web typecheck
 pnpm --dir apps/assistant-web lint:check
+pnpm --dir apps/assistant-web format:check
 pnpm --dir apps/assistant-web build
+pnpm --dir apps/assistant-desktop format:check
+pnpm --dir apps/assistant-desktop typecheck
+pnpm --dir apps/assistant-desktop lint:check
+pnpm --dir apps/assistant-desktop test
+pnpm --dir apps/assistant-desktop build:app
 ```
 
 ## 验证

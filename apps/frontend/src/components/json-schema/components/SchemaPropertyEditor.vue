@@ -169,7 +169,6 @@ const inputClass = 'h-8 text-sm'
             >
               {{ displayName }}
             </span>
-
           </div>
 
           <div class="flex shrink-0 items-center justify-end gap-2">

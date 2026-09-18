@@ -80,16 +80,20 @@ export function useSqlWorkspaceValidator(
   }
 
   let scheduledValidation: { id: number; sql: string } | undefined
-  const validationTimeout = useTimeoutFn(() => {
-    if (!scheduledValidation) return
-    const { id, sql } = scheduledValidation
-    if (!sql.trim()) {
-      diagnostics.value = []
-      applyDiagnostics()
-      return
-    }
-    void validateInWorker(id, sql, activeDialect.value)
-  }, 250, { immediate: false })
+  const validationTimeout = useTimeoutFn(
+    () => {
+      if (!scheduledValidation) return
+      const { id, sql } = scheduledValidation
+      if (!sql.trim()) {
+        diagnostics.value = []
+        applyDiagnostics()
+        return
+      }
+      void validateInWorker(id, sql, activeDialect.value)
+    },
+    250,
+    { immediate: false }
+  )
 
   function validateSql(sql: string) {
     validationId += 1
