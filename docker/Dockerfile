@@ -18,6 +18,7 @@ FROM base AS deps
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
 COPY apps/backend/package.json apps/backend/package.json
 COPY apps/frontend/package.json apps/frontend/package.json
+COPY apps/assistant-web/package.json apps/assistant-web/package.json
 RUN --mount=type=cache,id=api-starter-kit-pnpm-store,target=/pnpm/store \
   pnpm install --frozen-lockfile --ignore-scripts
 
@@ -47,6 +48,18 @@ RUN pnpm --filter frontend build
 
 FROM nginx:1.29-alpine AS frontend
 COPY --from=frontend-build /app/apps/frontend/dist /usr/share/nginx/html
+COPY apps/frontend/nginx.conf /etc/nginx/conf.d/default.conf
+EXPOSE 18080
+CMD ["nginx", "-g", "daemon off;"]
+
+FROM deps AS assistant-web-build
+ARG VITE_TURNSTILE_SITE_KEY=
+ENV VITE_TURNSTILE_SITE_KEY=$VITE_TURNSTILE_SITE_KEY
+COPY . .
+RUN pnpm --filter @api-starter-kit/assistant-web build
+
+FROM nginx:1.29-alpine AS assistant-web
+COPY --from=assistant-web-build /app/apps/assistant-web/dist /usr/share/nginx/html
 COPY apps/frontend/nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 18080
 CMD ["nginx", "-g", "daemon off;"]

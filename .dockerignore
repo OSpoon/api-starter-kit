@@ -11,6 +11,7 @@ node_modules
 apps/backend/tmp
 apps/backend/.env
 apps/frontend/.env
+apps/assistant-web/.env
 apps/frontend/.env.local
 **/.env.local
 **/coverage

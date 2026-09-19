@@ -1,9 +1,8 @@
 # 部署指南
 
 生产栈由支持 pgvector 的 PostgreSQL、AdonisJS API、三个独立的 AI 渠道 Bot
-worker 和 Nginx 管理端组成。独立助手 Web 与桌面端是额外的客户端交付物：Web
-客户端作为独立静态站点部署，桌面端按 macOS、Windows 或 Linux 目标构建安装包。
-认证、授权、迁移和运行时配置仍由 backend 负责。
+worker、Nginx 管理端和独立助手 Web 静态站点组成。桌面端按 macOS、Windows
+或 Linux 目标构建安装包。认证、授权、迁移和运行时配置仍由 backend 负责。
 
 ## 1. 部署前准备
 
@@ -82,9 +81,13 @@ frontend 是在镜像构建阶段生成的静态文件，Nginx 不会在容器�
 
 ### 独立助手 Web 与桌面端的配置边界
 
-独立助手 Web 使用同一套 `VITE_API_URL` 和 `VITE_TURNSTILE_SITE_KEY` 构建变量，但不属于生产
-Compose 中的 `frontend` 服务。它可以部署到独立域名、CDN 或另一套 Nginx 静态站点；当它与 API
-不在同源时，必须把 Web origin 加入 backend 的 `CORS_ORIGIN`，并使用 HTTPS。
+独立助手 Web 在生产 Compose 中由单独的 `assistant-web` 服务构建和托管，默认对外端口为
+`17070`。该服务使用自己的静态产物镜像，并复用管理端 Nginx 配置中的安全响应头、静态资源缓存
+和 `/api/` 到 backend 的同源反向代理。可用 `ASSISTANT_WEB_PORT` 修改宿主机端口；如果启用
+Turnstile，可通过构建时变量 `VITE_TURNSTILE_SITE_KEY` 注入公开站点密钥。
+
+若选择将助手 Web 部署到独立域名、CDN 或其他静态站点，则需在构建时设置 `VITE_API_URL`；当
+Web 与 API 不同源时，必须把 Web origin 加入 backend 的 `CORS_ORIGIN`，并使用 HTTPS。
 
 ```bash
 VITE_API_URL=https://api.example.com pnpm --dir apps/assistant-web build
@@ -117,13 +120,13 @@ docker compose --env-file apps/backend/.env -f docker/docker-compose.yml up -d
 ```
 
 backend 和三个 Bot 共用 `api-starter-kit-backend:latest` 运行镜像；frontend
-使用 `api-starter-kit-frontend:latest`。Bot 仍然是独立容器和独立进程，但
-Compose 不会为每个 Bot 重复构建一份镜像。可通过 `BACKEND_IMAGE` 和
-`FRONTEND_IMAGE` 覆盖默认镜像标签，例如在多套环境中使用不同的仓库或版本
-标签。
+和 assistant-web 分别使用 `api-starter-kit-frontend:latest` 与
+`api-starter-kit-assistant-web:latest`。Bot 仍然是独立容器和独立进程，但
+Compose 不会为每个 Bot 重复构建一份镜像。可通过 `BACKEND_IMAGE`、`FRONTEND_IMAGE`
+和 `ASSISTANT_WEB_IMAGE` 覆盖默认镜像标签，例如在多套环境中使用不同的仓库或版本标签。
 
-独立助手 Web 不使用 `api-starter-kit-frontend:latest` 管理端镜像；它应由自己的静态站点构建流程
-发布。独立助手桌面端也不作为 Compose 服务运行，而是由发布流水线生成各平台安装包。
+独立助手 Web 不使用管理端镜像；Compose 会从同一个 Dockerfile 的 `assistant-web` 构建目标生成
+独立镜像。独立助手桌面端不作为 Compose 服务运行，而是由发布流水线生成各平台安装包。
 
 backend 容器启动时会执行 `apps/backend/docker-entrypoint.js`。在生产
 Compose 中 `MIGRATE=true`，所以它会先运行：
@@ -141,22 +144,27 @@ node ace migration:run --force
 
 ## 4. 服务、端口和网络
 
-下表同时列出生产 Compose 服务和独立客户端交付物；`assistant-web` 与 `assistant-desktop` 两行不由 Compose 启动。
+下表列出生产 Compose 服务和桌面客户端交付物；桌面端不由 Compose 启动。
 
-| 服务/交付物         | 职责                                     | 默认对外端口/状态                         |
-| ------------------- | ---------------------------------------- | ----------------------------------------- |
-| `postgres`          | `pgvector/pgvector:pg15`，持久化应用数据 | 仅 Compose 内部网络，无宿主机端口         |
-| `backend`           | AdonisJS API、迁移、健康检查             | 宿主机 `13333`，可由 `BACKEND_PORT` 覆盖  |
-| `wecom-bot`         | 企业微信 WebSocket AI worker             | 不暴露宿主机端口                          |
-| `feishu-bot`        | 飞书长连接 AI worker                     | 不暴露宿主机端口                          |
-| `dingtalk-bot`      | 钉钉 Stream AI worker                    | 不暴露宿主机端口                          |
-| `frontend`          | Nginx 静态文件和 `/api/` 反向代理        | 宿主机 `18080`，可由 `FRONTEND_PORT` 覆盖 |
-| `assistant-web`     | 独立助手 Web 静态文件                    | 独立部署，端口由静态站点或 Nginx 配置     |
-| `assistant-desktop` | Tauri 桌面安装包                         | 无服务端口，按操作系统发布                |
+| 服务/交付物         | 职责                                     | 默认对外端口/状态                              |
+| ------------------- | ---------------------------------------- | ---------------------------------------------- |
+| `postgres`          | `pgvector/pgvector:pg15`，持久化应用数据 | 仅 Compose 内部网络，无宿主机端口              |
+| `backend`           | AdonisJS API、迁移、健康检查             | 宿主机 `13333`，可由 `BACKEND_PORT` 覆盖       |
+| `wecom-bot`         | 企业微信 WebSocket AI worker             | 不暴露宿主机端口                               |
+| `feishu-bot`        | 飞书长连接 AI worker                     | 不暴露宿主机端口                               |
+| `dingtalk-bot`      | 钉钉 Stream AI worker                    | 不暴露宿主机端口                               |
+| `frontend`          | Nginx 静态文件和 `/api/` 反向代理        | 宿主机 `18080`，可由 `FRONTEND_PORT` 覆盖      |
+| `assistant-web`     | 独立助手 Web 静态文件和 `/api/` 反向代理 | 宿主机 `17070`，可由 `ASSISTANT_WEB_PORT` 覆盖 |
+| `assistant-desktop` | Tauri 桌面安装包                         | 无服务端口，按操作系统发布                     |
 
 访问入口默认为 `http://localhost:18080`。frontend 的 Nginx 配置将
 `/api/` 转发到 `http://backend:13333`，并设置了 10 MB 请求体上限和
-安全响应头。backend 就绪检查地址为：
+安全响应头。
+
+独立助手 Web 入口默认为 `http://localhost:17070`，也通过同一 Compose 网络中的
+`backend:13333` 访问 API，因此默认无需额外配置 CORS。
+
+backend 就绪检查地址为：
 
 ```text
 http://<backend-host>:<BACKEND_PORT>/api/v1/health/ready
@@ -180,6 +188,7 @@ docker compose --env-file apps/backend/.env -f docker/docker-compose.yml up -d
 ```bash
 docker compose -f docker/docker-compose.yml ps
 docker compose -f docker/docker-compose.yml logs --tail=200 backend
+docker compose -f docker/docker-compose.yml logs -f assistant-web
 docker compose -f docker/docker-compose.yml logs -f wecom-bot
 docker compose -f docker/docker-compose.yml logs -f feishu-bot
 docker compose -f docker/docker-compose.yml logs -f dingtalk-bot
@@ -261,7 +270,7 @@ ASR/LLM 地址。渠道平台的应用发布、长连接、权限、绑定和卡
 | ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `postgres` 不健康               | 检查 `DB_USER`、`DB_PASSWORD`、`DB_DATABASE` 是否一致；查看 `docker compose logs postgres`。已有 volume 使用旧凭据时，不要直接删除 volume，应按 PostgreSQL 凭据轮换流程处理。 |
 | backend 反复重启                | 查看 `docker compose logs backend`；重点检查 `APP_KEY`、数据库连接、环境变量格式和迁移失败信息。                                                                              |
-| frontend 打开但 API 失败        | 确认 backend healthy、frontend 与 backend 在同一 Compose 网络，浏览器请求使用 `/api/`，并检查 Nginx/backend 日志。                                                            |
+| Web 客户端打开但 API 失败       | 确认 backend healthy、frontend/assistant-web 与 backend 在同一 Compose 网络，浏览器请求使用 `/api/`，并检查对应 Nginx/backend 日志。                                          |
 | 直接访问 backend 出现 CORS 错误 | 将浏览器 origin 加入 `CORS_ORIGIN`，或使用 frontend 的同源入口；修改 backend `.env` 后重建/重启 backend。                                                                     |
 | `/api-docs` 404                 | 只有 `OPENAPI_DOCS_ENABLED=true` 时才注册该路由；修改后需要重启 backend。                                                                                                     |
 | Bot 已连接但配置未生效          | 检查对应 worker 日志中的配置通知、重载和连接错误；确认 PostgreSQL 可用且不要重复启动同一渠道的多个 worker。                                                                   |

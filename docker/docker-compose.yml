@@ -95,5 +95,20 @@ services:
       backend:
         condition: service_healthy
 
+  assistant-web:
+    image: ${ASSISTANT_WEB_IMAGE:-api-starter-kit-assistant-web:latest}
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      target: assistant-web
+      args:
+        NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmmirror.com/}
+        VITE_TURNSTILE_SITE_KEY: ${VITE_TURNSTILE_SITE_KEY:-}
+    ports:
+      - '${ASSISTANT_WEB_PORT:-17070}:18080'
+    depends_on:
+      backend:
+        condition: service_healthy
+
 volumes:
   postgres-data:

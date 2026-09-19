@@ -44,6 +44,11 @@ When Web and API use different origins, add the Web origin to backend
 `CORS_ORIGIN` and use HTTPS. The generated `dist/` directory can be hosted by
 Nginx, a CDN, or another static hosting service.
 
+The production Docker Compose stack also builds and runs this client as the
+`assistant-web` service at `http://localhost:17070` by default. Its Nginx
+container serves the static build and proxies `/api/` to the backend; see the
+repository [deployment guide](../../docs/deployment.md) for configuration.
+
 The Tauri desktop build consumes this same `dist/` output through
 `apps/assistant-desktop` and does not create a parallel UI implementation.
 
