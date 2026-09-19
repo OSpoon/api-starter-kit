@@ -11,7 +11,8 @@ import {
 import { useAiChat } from '@/composables/useAiChat'
 import { useAuthStore } from '@/stores/auth'
 
-import { ChevronsUpDown, LogOut } from '@lucide/vue'
+import { isDesktopRuntime } from '@assistant/lib/desktop-runtime'
+import { ChevronsUpDown, LogOut, Server } from '@lucide/vue'
 import { toast } from 'vue-sonner'
 
 const isOpen = ref(true)
@@ -129,6 +130,13 @@ const {
               :side-offset="4"
               class="w-(--reka-dropdown-menu-trigger-width) min-w-56 rounded-lg"
             >
+              <DropdownMenuItem
+                v-if="isDesktopRuntime()"
+                @click="router.push({ name: 'connection' })"
+              >
+                <Server class="size-4" aria-hidden="true" />
+                {{ t('desktop_connection.change_connection') }}
+              </DropdownMenuItem>
               <DropdownMenuItem @click="handleLogout">
                 <LogOut class="size-4" aria-hidden="true" />
                 {{ t('auth.logout') }}

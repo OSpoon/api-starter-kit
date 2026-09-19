@@ -70,6 +70,23 @@
     "expired_desc": "您的密码已过期，请创建一个新密码。",
     "fill_all": "请填写所有字段"
   },
+  "desktop_connection": {
+    "title": "连接服务端",
+    "description": "输入兼容 API Starter Kit 的服务端地址，将此客户端连接到对应部署。",
+    "server_url": "服务端地址",
+    "url_placeholder": "https://api.example.com",
+    "url_hint": "填写服务端 origin；不要添加路径、查询参数或账号密码。客户端会先检查 /api/v1/health/ready。",
+    "security_notice": "远程服务必须使用 HTTPS。仅 localhost 和回环地址允许使用 HTTP。切换服务端后需要重新登录。",
+    "test_and_connect": "测试并连接",
+    "testing": "正在检查服务端...",
+    "connected": "服务端连接成功",
+    "test_failed": "连接失败，请检查地址、网络和服务端 CORS 配置。",
+    "server_unavailable": "服务端健康检查失败，请确认地址对应兼容的 API 服务。",
+    "url_required": "请输入服务端地址",
+    "url_invalid": "地址无效；请使用 HTTPS 服务端 origin，或本机回环地址。",
+    "change_connection": "连接设置",
+    "return_to_app": "返回助手"
+  },
   "password_strength": {
     "label": "密码强度",
     "length": "长度 ≥ 15",

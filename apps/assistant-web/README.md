@@ -51,6 +51,9 @@ repository [deployment guide](../../docs/deployment.md) for configuration.
 
 The Tauri desktop build consumes this same `dist/` output through
 `apps/assistant-desktop` and does not create a parallel UI implementation.
+Only the Tauri runtime exposes the server connection screen and runtime API
+base URL override; browser deployments continue to use the same-origin default
+or the build-time `VITE_API_URL`.
 
 ## Verification
 

@@ -1,6 +1,7 @@
 import { isPasswordExpired } from '@/lib/password'
 import { useAuthStore } from '@/stores/auth'
 
+import { hasConfiguredAssistantServer, isDesktopRuntime } from '@assistant/lib/desktop-runtime'
 import { createRouter, createWebHistory } from 'vue-router'
 
 const router = createRouter({
@@ -26,7 +27,17 @@ const router = createRouter({
       path: '/login',
       name: 'login',
       component: () => import('@/views/LoginView.vue'),
+      props: () => ({
+        showConnectionLink: isDesktopRuntime(),
+        hideGithubLogin: isDesktopRuntime(),
+      }),
       meta: { guestOnly: true, title: 'auth.title', pageKind: 'auth' },
+    },
+    {
+      path: '/connection',
+      name: 'connection',
+      component: () => import('@assistant/views/ConnectionView.vue'),
+      meta: { desktopOnly: true, title: 'desktop_connection.title', pageKind: 'auth' },
     },
     {
       path: '/change-password',
@@ -49,6 +60,14 @@ const router = createRouter({
 
 router.beforeEach(async (to) => {
   const auth = useAuthStore()
+
+  if (to.meta.desktopOnly && !isDesktopRuntime()) {
+    return { name: auth.isAuthenticated ? 'dashboard' : 'login' }
+  }
+
+  if (isDesktopRuntime() && to.name !== 'connection' && !hasConfiguredAssistantServer()) {
+    return { name: 'connection' }
+  }
 
   if (to.meta.requiresAuth && !auth.isAuthenticated) {
     return { name: 'login', query: { redirect: to.fullPath } }

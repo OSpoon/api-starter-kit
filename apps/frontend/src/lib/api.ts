@@ -1,4 +1,5 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL ?? ''
+const BUILD_API_BASE_URL = import.meta.env.VITE_API_URL ?? ''
+let runtimeApiBaseUrl: string | null = null
 
 export class ApiError extends Error {
   constructor(
@@ -8,6 +9,17 @@ export class ApiError extends Error {
     super(message)
     this.name = 'ApiError'
   }
+}
+
+export function setRuntimeApiBaseUrl(baseUrl: string | null) {
+  runtimeApiBaseUrl = baseUrl
+}
+
+export function apiUrl(path: string) {
+  const baseUrl = runtimeApiBaseUrl ?? BUILD_API_BASE_URL
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`
+
+  return `${baseUrl}${normalizedPath}`
 }
 
 interface RequestOptions extends RequestInit {
@@ -36,7 +48,7 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}) 
     headers.set('Authorization', `Bearer ${options.token}`)
   }
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await fetch(apiUrl(path), {
     ...options,
     credentials: 'include',
     headers,

@@ -94,11 +94,22 @@ VITE_API_URL=https://api.example.com pnpm --dir apps/assistant-web build
 ```
 
 桌面端构建会先执行 `apps/assistant-web` 的构建，再将 `apps/assistant-web/dist` 打包进 Tauri
-安装包。桌面端生产构建同样必须注入可被 WebView 访问的 `VITE_API_URL`；安装包运行时不依赖
-`17070`，`17070` 只属于本地开发服务。
+安装包。桌面端运行时可在首次启动时配置服务端 origin，并通过
+`/api/v1/health/ready` 检查连接；地址保存在本机 WebView 的 localStorage 中，更换服务端会清除
+当前登录 token。客户端要求服务端实现本仓库的 `/api/v1` API 契约，地址只填写 origin（协议、主机和
+可选端口），不能包含路径、查询参数或凭据。远程地址必须使用 HTTPS；仅 localhost/loopback 可用 HTTP。
+
+`VITE_API_URL` 对桌面端构建变为可选项：如果注入则作为首次连接的默认地址，否则首次启动会显示连接配置。
+`17070` 仍只属于本地开发服务。桌面端使用 WebView `fetch` 访问远端 API，因此每个后端部署都必须在
+`CORS_ORIGIN` 中允许对应平台的 Tauri origin，并保持 credentials/Authorization 请求头可用；macOS/Linux
+默认 custom-protocol origin 与 Windows 默认 `http://tauri.localhost` 不同，请以目标构建平台实际发送的
+`Origin` 为准。生产 Tauri CSP 允许 HTTPS API 连接，但不允许远程脚本；不要为接入服务端而放宽脚本策略。
+
+桌面端登录使用邮箱/密码和 2FA。GitHub OAuth 仍可用于独立 Web；桌面版在实现 OAuth callback/deep-link
+回跳前隐藏该入口，避免授权后无法回到原生客户端。
 
 ```bash
-VITE_API_URL=https://api.example.com pnpm --dir apps/assistant-desktop build
+pnpm --dir apps/assistant-desktop build
 ```
 
 桌面端安装包必须在对应操作系统或受支持的构建 runner 上生成，并按平台完成代码签名和公证/发布配置。
@@ -256,7 +267,7 @@ ASR/LLM 地址。渠道平台的应用发布、长连接、权限、绑定和卡
 - `APP_KEY`、管理员密码、数据库密码和外部 secret 已替换示例值；
 - `CORS_ORIGIN` 与真实前端 origin 一致，未使用不必要的通配配置；
 - 如果发布独立助手 Web，`CORS_ORIGIN` 同时包含其正式 origin，且 Web 构建使用正确的 `VITE_API_URL`；
-- 如果发布桌面端，安装包使用正式 HTTPS API 地址，Tauri CSP 已按实际 API origin 收紧，且代码签名/公证策略已确认；
+- 如果发布桌面端，已在每个后端部署的 `CORS_ORIGIN` 中按平台配置 Tauri origin，运行时只连接正式 HTTPS API，Tauri CSP 与代码签名/公证策略已确认；
 - `OPENAPI_DOCS_ENABLED` 按需设置，未将不必要的 backend 管理端口暴露到公网；
 - PostgreSQL 未映射宿主机端口，`postgres-data` 已纳入备份策略；
 - `docker compose ... config`、容器状态和 `/api/v1/health/ready` 均正常；

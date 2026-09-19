@@ -3,6 +3,7 @@ import './assets/main.css'
 import i18n, { loadLocaleMessages } from '@/i18n'
 
 import App from './App.vue'
+import { initializeAssistantDesktopRuntime } from '@assistant/lib/desktop-runtime'
 import router from '@assistant/router'
 import { createPinia, setActivePinia } from 'pinia'
 
@@ -10,6 +11,7 @@ const app = createApp(App)
 const pinia = createPinia()
 
 setActivePinia(pinia)
+initializeAssistantDesktopRuntime()
 app.use(pinia)
 app.use(i18n)
 app.use(router)

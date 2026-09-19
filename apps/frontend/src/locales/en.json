@@ -70,6 +70,23 @@
     "expired_desc": "Your password has expired. Please create a new one.",
     "fill_all": "Please fill in all fields"
   },
+  "desktop_connection": {
+    "title": "Connect to a server",
+    "description": "Connect this client to a deployment compatible with the API Starter Kit contract.",
+    "server_url": "Server URL",
+    "url_placeholder": "https://api.example.com",
+    "url_hint": "Enter the server origin only; do not include a path, query, or credentials. The client checks /api/v1/health/ready first.",
+    "security_notice": "Remote servers must use HTTPS. HTTP is allowed only for localhost and loopback addresses. Switching servers requires signing in again.",
+    "test_and_connect": "Test and connect",
+    "testing": "Checking server...",
+    "connected": "Connected to the server",
+    "test_failed": "Connection failed. Check the URL, network, and server CORS configuration.",
+    "server_unavailable": "The server health check failed. Confirm this is a compatible API server.",
+    "url_required": "Enter a server URL",
+    "url_invalid": "Invalid URL. Use an HTTPS server origin or a local loopback address.",
+    "change_connection": "Connection settings",
+    "return_to_app": "Return to assistant"
+  },
   "password_strength": {
     "label": "Strength",
     "length": "Length >= 15",

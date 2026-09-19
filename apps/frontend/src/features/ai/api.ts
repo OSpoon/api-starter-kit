@@ -1,4 +1,4 @@
-import { ApiError, apiRequest } from '@/lib/api'
+import { ApiError, apiRequest, apiUrl } from '@/lib/api'
 import { readItem, readList } from '@/lib/api-types'
 
 export type AiChatRole = 'user' | 'assistant'
@@ -298,8 +298,9 @@ export async function streamAiChatMessage(
   }
 
   try {
-    const response = await fetch(`/api/v1/ai-chat/conversations/${id}/messages`, {
+    const response = await fetch(apiUrl(`/api/v1/ai-chat/conversations/${id}/messages`), {
       method: 'POST',
+      credentials: 'include',
       headers,
       body: JSON.stringify({
         content,

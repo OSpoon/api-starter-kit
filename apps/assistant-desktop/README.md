@@ -23,10 +23,24 @@ On macOS, `src-tauri/Info.plist` declares the microphone usage description
 required by the WebView voice-recording flow. The first recording attempt will
 trigger the system microphone permission prompt.
 
+The desktop client can connect to any HTTPS deployment that implements this
+repository's `/api/v1` contract. On first launch, enter the server origin in the
+connection screen; the client checks `/api/v1/health/ready` before saving it.
+The address is stored locally in the desktop WebView. Changing it clears the
+current login token and requires signing in again. HTTP is accepted only for
+localhost/loopback development servers.
+
+`VITE_API_URL` remains an optional release default, not a requirement. If it is
+omitted, the packaged client asks for a server address on first launch. The
+Tauri CSP permits HTTPS API connections and local development endpoints; keep
+script and frame sources restricted when changing this policy.
+
+The desktop login currently uses email/password and 2FA. GitHub OAuth remains
+available in `assistant-web`; the desktop client hides that option until an
+OAuth callback/deep-link flow can return to the native app.
+
 Automatic updates are intentionally not enabled until the release endpoint,
-signing key, and public updater key are provided. Production builds must set
-`VITE_API_URL` before running `pnpm build` or `pnpm build:app`; the Tauri CSP
-must then be restricted to that API origin before publishing.
+signing key, and public updater key are provided.
 
 The desktop bundle contains the production build of `apps/assistant-web`; it
 does not need a local `17070` service after packaging. Build each release on a

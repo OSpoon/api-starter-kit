@@ -20,7 +20,8 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src 'self'; connect-src 'self' ipc: http://ipc.localhost https: http://localhost:* http://127.0.0.1:* http://[::1]:* ws://localhost:17070 ws://127.0.0.1:17070 https://challenges.cloudflare.com; img-src 'self' asset: http://asset.localhost data: blob: https:; font-src 'self' data: https:; style-src 'self' 'unsafe-inline' https://challenges.cloudflare.com; script-src 'self' https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com; object-src 'none'; base-uri 'self'; form-action 'self'",
+      "devCsp": "default-src 'self'; connect-src 'self' ipc: http://ipc.localhost https: http://localhost:* http://127.0.0.1:* http://[::1]:* ws://localhost:17070 ws://127.0.0.1:17070 https://challenges.cloudflare.com; img-src 'self' asset: http://asset.localhost data: blob: https:; font-src 'self' data: https:; style-src 'self' 'unsafe-inline' https://challenges.cloudflare.com; script-src 'self' https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com; object-src 'none'; base-uri 'self'; form-action 'self'"
     }
   },
   "bundle": {

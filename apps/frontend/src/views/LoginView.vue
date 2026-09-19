@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Eye, EyeOff } from '@lucide/vue'
+import { Eye, EyeOff, Server } from '@lucide/vue'
 import { toast } from 'vue-sonner'
 
 import CardPageShell from '@/components/common/CardPageShell.vue'
@@ -8,7 +8,7 @@ import TurnstileWidget from '@/components/common/TurnstileWidget.vue'
 import { Button } from '@/components/ui/button'
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
-import { ApiError } from '@/lib/api'
+import { ApiError, apiUrl } from '@/lib/api'
 import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
@@ -29,8 +29,19 @@ const turnstileToken = ref('')
 const turnstileWidget = ref<InstanceType<typeof TurnstileWidget> | null>(null)
 const turnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY ?? ''
 
+const props = withDefaults(
+  defineProps<{
+    showConnectionLink?: boolean
+    hideGithubLogin?: boolean
+  }>(),
+  {
+    showConnectionLink: false,
+    hideGithubLogin: false,
+  }
+)
+
 function githubLoginUrl() {
-  return `${import.meta.env.VITE_API_URL ?? ''}/api/v1/auth/github`
+  return apiUrl('/api/v1/auth/github')
 }
 
 function normalizeGithubCode(value: unknown) {
@@ -289,7 +300,7 @@ function backToLogin() {
         </Button>
       </div>
 
-      <template v-if="!isTwoFactorStep && !githubBindingPending">
+      <template v-if="!props.hideGithubLogin && !isTwoFactorStep && !githubBindingPending">
         <div class="my-4 flex items-center gap-3 text-xs text-muted-foreground">
           <span class="h-px flex-1 bg-border" />
           {{ t('auth.or_continue_with') }}
@@ -318,5 +329,13 @@ function backToLogin() {
         </Button>
       </div>
     </form>
+    <div v-if="props.showConnectionLink" class="mt-3 text-center">
+      <Button as-child type="button" variant="link" size="sm">
+        <RouterLink :to="{ name: 'connection' }">
+          <Server class="size-4" aria-hidden="true" />
+          {{ t('desktop_connection.change_connection') }}
+        </RouterLink>
+      </Button>
+    </div>
   </CardPageShell>
 </template>
