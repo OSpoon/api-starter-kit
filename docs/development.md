@@ -9,6 +9,7 @@ apps/backend/   AdonisJS API、模型、迁移、服务和测试
 apps/frontend/  Vue 应用、路由、页面、feature、状态和共享 UI
 apps/assistant-web/  独立 AI 助手 Web 客户端，复用 frontend 的 AI 实现
 apps/assistant-desktop/  Tauri 桌面壳，复用 assistant-web 的页面和 AI 能力
+apps/assistant-extension/  Extension.js + Vue 3 的 Chrome MV3 侧边栏客户端，复用 assistant-web
 docs/           项目使用、开发、部署和能力参考
 docker/         Compose、镜像和 Nginx 配置
 ```
@@ -29,15 +30,34 @@ pnpm lint
 ```
 
 根目录 `pnpm dev` 会启动完整的本地开发栈，包括 backend、管理端 frontend、三个 Bot、唯一的
-`assistant-web` 开发服务（端口 `17070`）和 Tauri 桌面客户端。Turbo 负责分别启动 Web 服务和桌面任务；
+`assistant-web` 开发服务（端口 `17070`）、Tauri 桌面客户端和 Chrome 扩展。Extension.js 会启动独立的
+Chrome 开发配置文件并加载扩展；
 桌面端只连接 `17070`，不会自行启动第二个 Web 服务。`17070` 被占用时 Vite 会直接报错，不会自动切换到 `17071`。
 
-四个应用的职责边界如下：
+各应用的职责边界如下：
 
 - `apps/backend`：认证、授权、数据、AI 编排、SSE、语音转写和 Bot worker。
 - `apps/frontend`：管理平台 Web 客户端，包含系统管理页面和浮动 AI 助手。
 - `apps/assistant-web`：独立 AI 助手 Web 客户端，复用管理端的 AI 组件、API、认证和 locale。
 - `apps/assistant-desktop`：Tauri 原生壳，只负责窗口、原生权限、Rust 命令和安装包。
+- `apps/assistant-extension`：Extension.js 管理 Chrome MV3 清单、侧边栏和构建；复用 `assistant-web` 的 AI 会话、认证和 API 客户端。首次连接时由用户输入 API origin，扩展仅在连接操作中申请该地址的可选主机权限，不注入脚本或读取当前网页内容。
+
+扩展通过 `extension.config.js` 将共享的 `vue-router` 导入统一到
+`assistant-web` 的运行时入口。pnpm 会为不同 peer dependency 上下文安装独立的物理包，
+即使版本一致，`createRouter()` 和自动导入的 `useRoute()` 也必须来自同一模块实例，
+否则路由的 provide/inject key 不匹配。
+
+#### 扩展共享样式
+
+扩展和独立助手共享 `apps/frontend/src/assets/main.css`。由于当前
+Extension.js/Rspack 构建未能稳定打包共享 Vue SFC 的 `<style>` 块，扩展可达的
+AI 组件样式统一维护在 `apps/frontend/src/assets/assistant-components.css`，由
+`main.css` 单次导入。新增规则应使用组件专属 class 前缀，避免通用选择器和样式泄漏；
+不要在这些共享组件中使用 `<style scoped>` 或 `<style src>`。
+
+修改后构建 `assistant-extension`、`assistant-web` 和 `frontend`，并检查生产扩展
+CSS 中包含新增组件选择器。完整约束和恢复条件见根目录 [AGENTS.md](../AGENTS.md)
+的“Shared assistant styles in the Chrome extension”。
 
 验证单个应用时：
 
@@ -67,6 +87,11 @@ pnpm --dir apps/assistant-desktop lint:check
 pnpm --dir apps/assistant-desktop test
 pnpm --dir apps/assistant-desktop build
 pnpm --dir apps/assistant-desktop build:app
+
+pnpm --dir apps/assistant-extension format:check
+pnpm --dir apps/assistant-extension typecheck
+pnpm --dir apps/assistant-extension lint:check
+pnpm --dir apps/assistant-extension build
 ```
 
 `apps/assistant-desktop` 的 `dev` 命令只启动 Tauri 窗口并连接 `17070`，不会启动 assistant-web；
@@ -76,8 +101,8 @@ pnpm --dir apps/assistant-desktop build:app
 `lint` 和 `format` 会修改文件；只检查现有改动时使用 `lint:check`。
 首次安装依赖时，根项目的 `prepare` 会安装 `simple-git-hooks`。`pre-commit` 会通过
 `lint-staged` 对暂存文件执行格式化，并按文件所属子项目运行对应的 lint 和 typecheck；
-覆盖 `apps/backend`、`apps/frontend`、`apps/assistant-web` 和
-`apps/assistant-desktop`。未涉及源码的文档、配置文件仍会执行统一的 Prettier 格式化。
+覆盖 `apps/backend`、`apps/frontend`、`apps/assistant-web`、`apps/assistant-desktop` 和
+`apps/assistant-extension`。未涉及源码的文档、配置文件仍会执行统一的 Prettier 格式化。
 
 ## 发布版本
 

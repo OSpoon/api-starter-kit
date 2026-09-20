@@ -12,16 +12,17 @@ API Starter Kit 为团队构建可运营业务系统提供统一的治理基础�
 
 ## 项目定位
 
-这是一个 pnpm/Turborepo 全栈 monorepo：后端使用 AdonisJS 7，管理端和独立助手客户端使用 Vue 3，桌面端使用 Tauri。仓库提供系统级能力，不预设具体业务领域，适合从产品需求出发构建新的管理应用和独立 AI 助手产品。
+这是一个 pnpm/Turborepo 全栈 monorepo：后端使用 AdonisJS 7，管理端和独立助手客户端使用 Vue 3，桌面端使用 Tauri，Chrome 扩展使用 Extension.js。仓库提供系统级能力，不预设具体业务领域，适合从产品需求出发构建新的管理应用和独立 AI 助手产品。
 
 ## 应用入口
 
-| 应用           | 目录                     | 定位                                                              |
-| -------------- | ------------------------ | ----------------------------------------------------------------- |
-| 管理端 Web     | `apps/frontend`          | 系统管理、知识库、模型配置、权限和内置浮动 AI 助手                |
-| 独立助手 Web   | `apps/assistant-web`     | 全屏、独立部署的 AI 助手客户端，复用管理端的 AI 会话实现          |
-| 独立助手桌面端 | `apps/assistant-desktop` | Tauri 原生窗口和安装包，内置独立助手 Web 产物，不复制 AI 业务逻辑 |
-| API 与运行时   | `apps/backend`           | 认证、授权、数据、AI 编排、SSE 和外部渠道能力的唯一服务端边界     |
+| 应用             | 目录                       | 定位                                                              |
+| ---------------- | -------------------------- | ----------------------------------------------------------------- |
+| 管理端 Web       | `apps/frontend`            | 系统管理、知识库、模型配置、权限和内置浮动 AI 助手                |
+| 独立助手 Web     | `apps/assistant-web`       | 全屏、独立部署的 AI 助手客户端，复用管理端的 AI 会话实现          |
+| 独立助手桌面端   | `apps/assistant-desktop`   | Tauri 原生窗口和安装包，内置独立助手 Web 产物，不复制 AI 业务逻辑 |
+| Chrome 扩展       | `apps/assistant-extension` | 使用 Extension.js 和 Vue 3 承载现有 AI 助手的 Chrome MV3 侧边栏    |
+| API 与运行时    | `apps/backend`             | 认证、授权、数据、AI 编排、SSE 和外部渠道能力的唯一服务端边界     |
 
 管理端、独立助手 Web 和桌面客户端共用同一套后端 API、认证、权限、会话历史、工具确认和语音转写能力。桌面端只是独立助手 Web 的原生承载层，不是另一套客户端实现。
 
@@ -40,7 +41,7 @@ API Starter Kit 为团队构建可运营业务系统提供统一的治理基础�
 ## 从这里开始
 
 1. [快速开始](docs/getting-started.md)：安装依赖并启动本地环境。
-2. [工程开发指南](docs/development.md)：了解四个应用的开发、验证和启动命令。
+2. [工程开发指南](docs/development.md)：了解各应用的开发、验证和启动命令。
 3. [产品扩展指南](docs/customization.md)：基于 starter 新增业务 feature、页面、API 和权限。
 4. [系统架构](docs/architecture.md)：理解管理端、独立助手客户端和后端边界。
 5. [文档总览](docs/README.md)：按场景查找 API、安全、部署和 AI 参考。

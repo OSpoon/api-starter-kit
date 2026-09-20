@@ -1,11 +1,17 @@
 import { isPasswordExpired } from '@/lib/password'
 import { useAuthStore } from '@/stores/auth'
 
-import { hasConfiguredAssistantServer, isDesktopRuntime } from '@assistant/lib/desktop-runtime'
-import { createRouter, createWebHistory } from 'vue-router'
+import {
+  hasConfiguredAssistantServer,
+  isAssistantConnectionRuntime,
+  isExtensionRuntime,
+} from '@assistant/lib/runtime'
+import { createRouter, createWebHashHistory, createWebHistory } from 'vue-router'
 
 const router = createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL),
+  history: isExtensionRuntime()
+    ? createWebHashHistory()
+    : createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
       path: '/',
@@ -28,8 +34,8 @@ const router = createRouter({
       name: 'login',
       component: () => import('@/views/LoginView.vue'),
       props: () => ({
-        showConnectionLink: isDesktopRuntime(),
-        hideGithubLogin: isDesktopRuntime(),
+        showConnectionLink: isAssistantConnectionRuntime(),
+        hideGithubLogin: isAssistantConnectionRuntime(),
       }),
       meta: { guestOnly: true, title: 'auth.title', pageKind: 'auth' },
     },
@@ -37,7 +43,7 @@ const router = createRouter({
       path: '/connection',
       name: 'connection',
       component: () => import('@assistant/views/ConnectionView.vue'),
-      meta: { desktopOnly: true, title: 'desktop_connection.title', pageKind: 'auth' },
+      meta: { connectionOnly: true, title: 'assistant_connection.title', pageKind: 'auth' },
     },
     {
       path: '/change-password',
@@ -61,11 +67,15 @@ const router = createRouter({
 router.beforeEach(async (to) => {
   const auth = useAuthStore()
 
-  if (to.meta.desktopOnly && !isDesktopRuntime()) {
+  if (to.meta.connectionOnly && !isAssistantConnectionRuntime()) {
     return { name: auth.isAuthenticated ? 'dashboard' : 'login' }
   }
 
-  if (isDesktopRuntime() && to.name !== 'connection' && !hasConfiguredAssistantServer()) {
+  if (
+    isAssistantConnectionRuntime() &&
+    to.name !== 'connection' &&
+    !(await hasConfiguredAssistantServer())
+  ) {
     return { name: 'connection' }
   }
 

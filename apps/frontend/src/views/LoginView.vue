@@ -333,7 +333,7 @@ function backToLogin() {
       <Button as-child type="button" variant="link" size="sm">
         <RouterLink :to="{ name: 'connection' }">
           <Server class="size-4" aria-hidden="true" />
-          {{ t('desktop_connection.change_connection') }}
+          {{ t('assistant_connection.change_connection') }}
         </RouterLink>
       </Button>
     </div>

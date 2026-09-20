@@ -11,7 +11,7 @@ import {
 import { useAiChat } from '@/composables/useAiChat'
 import { useAuthStore } from '@/stores/auth'
 
-import { isDesktopRuntime } from '@assistant/lib/desktop-runtime'
+import { isAssistantConnectionRuntime } from '@assistant/lib/runtime'
 import { ChevronsUpDown, LogOut, Server } from '@lucide/vue'
 import { toast } from 'vue-sonner'
 
@@ -131,11 +131,11 @@ const {
               class="w-(--reka-dropdown-menu-trigger-width) min-w-56 rounded-lg"
             >
               <DropdownMenuItem
-                v-if="isDesktopRuntime()"
+                v-if="isAssistantConnectionRuntime()"
                 @click="router.push({ name: 'connection' })"
               >
                 <Server class="size-4" aria-hidden="true" />
-                {{ t('desktop_connection.change_connection') }}
+                {{ t('assistant_connection.change_connection') }}
               </DropdownMenuItem>
               <DropdownMenuItem @click="handleLogout">
                 <LogOut class="size-4" aria-hidden="true" />

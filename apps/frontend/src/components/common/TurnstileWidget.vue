@@ -107,24 +107,3 @@ onBeforeUnmount(() => {
     aria-live="polite"
   />
 </template>
-
-<style scoped>
-.turnstile-container :deep(> div),
-.turnstile-container :deep(> iframe),
-.turnstile-container :deep(iframe) {
-  width: 100% !important;
-  max-width: 100% !important;
-}
-
-.turnstile-container {
-  min-width: 0;
-}
-
-@media (max-width: 380px) {
-  .turnstile-container :deep(> div),
-  .turnstile-container :deep(> iframe),
-  .turnstile-container :deep(iframe) {
-    width: 150px !important;
-  }
-}
-</style>

@@ -6,7 +6,14 @@ import { Input } from '@/components/ui/input'
 import { firstFormError } from '@/lib/form-validation'
 import { useAuthStore } from '@/stores/auth'
 
-import { getAssistantApiBaseUrl, saveAssistantServerUrl } from '@assistant/lib/desktop-runtime'
+import {
+  getAssistantApiBaseUrl,
+  hasConfiguredAssistantServer,
+  isExtensionRuntime,
+  removeAssistantServerPermission,
+  requestAssistantServerPermission,
+  saveAssistantServerUrl,
+} from '@assistant/lib/runtime'
 import { normalizeServerOrigin } from '@assistant/lib/server-url'
 import { Server } from '@lucide/vue'
 import { toTypedSchema } from '@vee-validate/zod'
@@ -18,6 +25,7 @@ const { t } = useI18n()
 const auth = useAuthStore()
 const router = useRouter()
 const isTesting = ref(false)
+const hasActiveConnection = ref(false)
 
 const validationSchema = computed(() =>
   toTypedSchema(
@@ -25,7 +33,7 @@ const validationSchema = computed(() =>
       serverUrl: z
         .string()
         .trim()
-        .min(1, t('desktop_connection.url_required'))
+        .min(1, t('assistant_connection.url_required'))
         .refine((value) => {
           try {
             normalizeServerOrigin(value)
@@ -33,7 +41,7 @@ const validationSchema = computed(() =>
           } catch {
             return false
           }
-        }, t('desktop_connection.url_invalid')),
+        }, t('assistant_connection.url_invalid')),
     })
   )
 )
@@ -43,11 +51,12 @@ const form = useForm({
   initialValues: { serverUrl: getAssistantApiBaseUrl() ?? '' },
 })
 
-const submit = form.handleSubmit(
+const submitValidated = form.handleSubmit(
   async ({ serverUrl }) => {
     isTesting.value = true
     try {
       const normalizedUrl = normalizeServerOrigin(serverUrl)
+      const previousServerUrl = getAssistantApiBaseUrl()
       const response = await fetch(`${normalizedUrl}/api/v1/health/ready`, {
         headers: { Accept: 'application/json' },
         credentials: 'omit',
@@ -58,20 +67,24 @@ const submit = form.handleSubmit(
         payload && typeof payload === 'object' && 'status' in payload ? payload.status : undefined
 
       if (!response.ok || status !== 'ok') {
-        toast.error(t('desktop_connection.server_unavailable'))
+        toast.error(t('assistant_connection.server_unavailable'))
         return
       }
 
-      const serverChanged = getAssistantApiBaseUrl() !== normalizedUrl
+      const serverChanged = previousServerUrl !== normalizedUrl
       if (serverChanged) {
         auth.clearSession()
       }
       saveAssistantServerUrl(normalizedUrl)
-      toast.success(t('desktop_connection.connected'))
+      hasActiveConnection.value = true
+      if (serverChanged && previousServerUrl && isExtensionRuntime()) {
+        void removeAssistantServerPermission(previousServerUrl).catch(() => undefined)
+      }
+      toast.success(t('assistant_connection.connected'))
 
       await router.replace({ name: serverChanged || !auth.isAuthenticated ? 'login' : 'dashboard' })
     } catch {
-      toast.error(t('desktop_connection.test_failed'))
+      toast.error(t('assistant_connection.test_failed'))
     } finally {
       isTesting.value = false
     }
@@ -81,6 +94,43 @@ const submit = form.handleSubmit(
   }
 )
 
+function handleSubmit(event: SubmitEvent) {
+  event.preventDefault()
+
+  let serverOrigin: string
+  try {
+    serverOrigin = normalizeServerOrigin(form.values.serverUrl ?? '')
+  } catch {
+    void submitValidated(event)
+    return
+  }
+
+  if (!isExtensionRuntime()) {
+    void submitValidated(event)
+    return
+  }
+
+  // Start the permission request synchronously from the form gesture.
+  isTesting.value = true
+  void requestAssistantServerPermission(serverOrigin)
+    .then((granted) => {
+      if (!granted) {
+        toast.error(t('assistant_connection.permission_denied'))
+        return
+      }
+
+      return submitValidated(event)
+    })
+    .catch(() => toast.error(t('assistant_connection.permission_failed')))
+    .finally(() => {
+      isTesting.value = false
+    })
+}
+
+onMounted(async () => {
+  hasActiveConnection.value = await hasConfiguredAssistantServer().catch(() => false)
+})
+
 function returnToApp() {
   void router.replace({ name: auth.isAuthenticated ? 'dashboard' : 'login' })
 }
@@ -88,13 +138,13 @@ function returnToApp() {
 
 <template>
   <CardPageShell
-    :title="t('desktop_connection.title')"
-    :description="t('desktop_connection.description')"
+    :title="t('assistant_connection.title')"
+    :description="t('assistant_connection.description')"
   >
-    <form class="space-y-5" @submit.prevent="submit">
+    <form class="space-y-5" @submit="handleSubmit">
       <FormField v-slot="{ componentField }" name="serverUrl" :validate-on-blur="false">
         <FormItem>
-          <FormLabel>{{ t('desktop_connection.server_url') }}</FormLabel>
+          <FormLabel>{{ t('assistant_connection.server_url') }}</FormLabel>
           <FormControl>
             <Input
               v-bind="componentField"
@@ -103,7 +153,7 @@ function returnToApp() {
               autocomplete="url"
               autocapitalize="none"
               spellcheck="false"
-              :placeholder="t('desktop_connection.url_placeholder')"
+              :placeholder="t('assistant_connection.url_placeholder')"
               :disabled="isTesting"
             />
           </FormControl>
@@ -111,19 +161,21 @@ function returnToApp() {
         </FormItem>
       </FormField>
 
-      <p class="text-sm text-muted-foreground">{{ t('desktop_connection.url_hint') }}</p>
+      <p class="text-sm text-muted-foreground">{{ t('assistant_connection.url_hint') }}</p>
       <p class="rounded-md border bg-muted/50 p-3 text-sm text-muted-foreground">
-        {{ t('desktop_connection.security_notice') }}
+        {{ t('assistant_connection.security_notice') }}
       </p>
 
       <Button type="submit" class="w-full" :disabled="isTesting">
         <Server v-if="!isTesting" class="size-4" aria-hidden="true" />
-        {{ isTesting ? t('desktop_connection.testing') : t('desktop_connection.test_and_connect') }}
+        {{
+          isTesting ? t('assistant_connection.testing') : t('assistant_connection.test_and_connect')
+        }}
       </Button>
 
-      <div v-if="getAssistantApiBaseUrl()" class="text-center">
+      <div v-if="hasActiveConnection" class="text-center">
         <Button type="button" variant="link" size="sm" :disabled="isTesting" @click="returnToApp">
-          {{ t('desktop_connection.return_to_app') }}
+          {{ t('assistant_connection.return_to_app') }}
         </Button>
       </div>
     </form>

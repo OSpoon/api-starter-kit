@@ -1,0 +1,11 @@
+{
+  "extensionName": {
+    "message": "API Starter Kit AI 助手"
+  },
+  "extensionDescription": {
+    "message": "在 Chrome 侧边栏中打开 AI 助手。"
+  },
+  "openAssistant": {
+    "message": "打开 AI 助手"
+  }
+}

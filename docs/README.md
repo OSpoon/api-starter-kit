@@ -14,7 +14,8 @@
 - 管理端 Web：`apps/frontend`，承载系统管理能力和内置浮动 AI 助手。
 - 独立助手 Web：[`apps/assistant-web`](../apps/assistant-web/README.md)，承载全屏 AI 对话工作区，可单独部署。
 - 独立助手桌面端：[`apps/assistant-desktop`](../apps/assistant-desktop/README.md)，使用 Tauri 包装独立助手 Web，不复制 Web UI 或 AI 编排。
-- 三个客户端共用 `apps/backend` 的认证、权限、AI 会话、SSE、历史记录和语音转写 API。
+- Chrome 扩展：[`apps/assistant-extension`](../apps/assistant-extension/README.md)，使用 Extension.js 和 Vue 3 承载现有助手侧边栏，并按用户配置连接 API 服务。
+- 管理端、独立助手 Web、桌面端与 Chrome 扩展共用 `apps/backend` 的认证、权限、AI 会话、SSE、历史记录和语音转写 API。
 - 桌面端开发与发布细节见[AI 助手架构](ai-assistant-architecture.md)和[部署指南](deployment.md)。
 
 ## 工程与运行

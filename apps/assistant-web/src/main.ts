@@ -1,32 +1,4 @@
-import './assets/main.css'
+import { createAssistantApp } from './create-app'
 
-import i18n, { loadLocaleMessages } from '@/i18n'
-
-import App from './App.vue'
-import { initializeAssistantDesktopRuntime } from '@assistant/lib/desktop-runtime'
-import router from '@assistant/router'
-import { createPinia, setActivePinia } from 'pinia'
-
-const app = createApp(App)
-const pinia = createPinia()
-
-setActivePinia(pinia)
-initializeAssistantDesktopRuntime()
-app.use(pinia)
-app.use(i18n)
-app.use(router)
-
-const fallbackLocale = i18n.global.fallbackLocale.value
-const fallbackLocaleStr =
-  typeof fallbackLocale === 'string'
-    ? fallbackLocale
-    : Array.isArray(fallbackLocale) && fallbackLocale.length > 0
-      ? fallbackLocale[0]!
-      : 'en'
-
-await Promise.all([
-  loadLocaleMessages(i18n.global.locale.value),
-  loadLocaleMessages(fallbackLocaleStr),
-])
-
+const app = await createAssistantApp()
 app.mount('#app')

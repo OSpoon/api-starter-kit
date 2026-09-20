@@ -1,4 +1,6 @@
 import type { PaginationState, VisibilityState } from '@tanstack/vue-table'
+import { useLocalStorage } from '@vueuse/core'
+import { computed } from 'vue'
 
 type TablePreference = {
   columnVisibility?: VisibilityState

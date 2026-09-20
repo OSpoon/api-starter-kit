@@ -1,0 +1,11 @@
+{
+  "extensionName": {
+    "message": "API Starter Kit AI Assistant"
+  },
+  "extensionDescription": {
+    "message": "Open the AI assistant in Chrome's side panel."
+  },
+  "openAssistant": {
+    "message": "Open AI Assistant"
+  }
+}

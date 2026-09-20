@@ -70,8 +70,8 @@
     "expired_desc": "Your password has expired. Please create a new one.",
     "fill_all": "Please fill in all fields"
   },
-  "desktop_connection": {
-    "title": "Connect to a server",
+  "assistant_connection": {
+    "title": "Connect the assistant",
     "description": "Connect this client to a deployment compatible with the API Starter Kit contract.",
     "server_url": "Server URL",
     "url_placeholder": "https://api.example.com",
@@ -80,6 +80,8 @@
     "test_and_connect": "Test and connect",
     "testing": "Checking server...",
     "connected": "Connected to the server",
+    "permission_denied": "Allow access to this server to connect the assistant.",
+    "permission_failed": "Could not request access to this server. Please try again.",
     "test_failed": "Connection failed. Check the URL, network, and server CORS configuration.",
     "server_unavailable": "The server health check failed. Confirm this is a compatible API server.",
     "url_required": "Enter a server URL",

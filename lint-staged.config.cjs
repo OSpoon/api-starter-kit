@@ -9,6 +9,7 @@ function isScopedCodeFile(file) {
     (file.startsWith('apps/backend/') && file.endsWith('.ts')) ||
     (file.startsWith('apps/frontend/') && /\.(ts|vue)$/.test(file)) ||
     (file.startsWith('apps/assistant-web/') && /\.(ts|vue)$/.test(file)) ||
+    (file.startsWith('apps/assistant-extension/') && /\.(ts|vue)$/.test(file)) ||
     (file.startsWith('apps/assistant-desktop/') && file.endsWith('.rs'))
   )
 }
@@ -42,6 +43,8 @@ module.exports = {
   'apps/frontend/**/*.{ts,vue}': (files) => formatAndCheckScopedFiles(files, 'apps/frontend'),
   'apps/assistant-web/**/*.{ts,vue}': (files) =>
     formatAndCheckScopedFiles(files, 'apps/assistant-web'),
+  'apps/assistant-extension/**/*.{ts,vue}': (files) =>
+    formatAndCheckScopedFiles(files, 'apps/assistant-extension'),
   'apps/assistant-desktop/**/*.rs': (files) => {
     const existingFiles = files.filter((file) => fs.existsSync(file))
     if (!existingFiles.length) return []

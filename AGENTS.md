@@ -6,6 +6,8 @@ This repository is a pnpm workspace and Turborepo monorepo:
 
 - `apps/backend`: AdonisJS 7, Lucid, Bouncer, Vine, and OpenAPI.
 - `apps/frontend`: Vue 3, Vite, Pinia, Vue Router, Tailwind CSS, and Reka UI.
+- `apps/assistant-web`: the standalone Vue 3 AI assistant client.
+- `apps/assistant-extension`: Extension.js and Vue 3 for the Chrome MV3 side panel, reusing `assistant-web` and `frontend`.
 - Core capabilities: authentication and 2FA, RBAC, API keys, audit logging, a knowledge base, and controlled AI conversations, queries, and actions.
 
 ## 1. Rule Priority and Enforcement
@@ -307,6 +309,47 @@ at desktop and narrow widths and verify:
    locale and accessibility patterns.
 5. The applicable frontend typecheck, lint check, build, and focused tests are
    run according to the verification matrix below.
+
+### 4.6 Shared assistant styles in the Chrome extension
+
+The standalone assistant and Chrome extension consume shared Vue components
+from `apps/frontend`. In this repository, Extension.js/Rspack does not reliably
+package Vue SFC `<style>` blocks for those shared components: builds have emitted
+dead virtual CSS references and omitted the component rules from production
+CSS. Until that loader path is repaired and verified, follow this contract:
+
+- Put styles for Vue components reachable from `apps/assistant-extension` in
+  `apps/frontend/src/assets/assistant-components.css`. It is imported by
+  `apps/frontend/src/assets/main.css`, which is also the shared assistant and
+  extension CSS entry. Do not add `<style>`, `<style scoped>`, or `<style src>`
+  blocks to extension-reachable shared components.
+- Prefix selectors with the component's unique root or class namespace. Scope
+  descendant rules under that root where possible; do not add broad global
+  element selectors or generic class names to the shared stylesheet.
+- Keep the single shared import. Do not duplicate assistant component rules in
+  `assistant-web` or extension-specific stylesheets.
+- Verify style changes with production builds of the extension,
+  `assistant-web`, and `frontend`. Confirm representative component selectors
+  appear in the emitted extension CSS; a successful JavaScript build alone does
+  not prove styles were packaged.
+
+This exception applies only to extension-reachable shared components. Remove it
+only after the Vue loader/Rspack pipeline produces the expected component CSS
+in a production extension build without dead virtual CSS references.
+
+### 4.7 Shared assistant runtime modules in the Chrome extension
+
+The extension bundles source modules from both `apps/assistant-web` and
+`apps/frontend`. pnpm can resolve different physical `vue-router` package
+instances for those apps even when their versions match. Vue Router's router
+provider and `useRoute()`/`useRouter()` consumers must resolve to the same
+module instance or their injection keys do not match. Keep the exact
+`vue-router` alias in `apps/assistant-extension/extension.config.js` pointed at
+the assistant-web runtime entry, and keep AutoImport enabled for plain JS/TS
+modules as well as Vue SFCs. A generated type declaration does not provide the
+runtime import. Do not remove or narrow either setting without verifying the
+production extension's route and store modules resolve through the shared
+runtime.
 
 ## 5. Backend Modules and Naming
 

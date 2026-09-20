@@ -457,8 +457,8 @@ watch(
   <div
     :class="
       isStandalone
-        ? 'flex size-full flex-col'
-        : 'fixed right-4 bottom-4 z-50 flex flex-col items-end gap-2'
+        ? 'assistant-chat-root flex size-full flex-col'
+        : 'assistant-chat-root fixed right-4 bottom-4 z-50 flex flex-col items-end gap-2'
     "
   >
     <div
@@ -945,7 +945,7 @@ watch(
                   v-model="input"
                   rows="1"
                   :placeholder="inputPlaceholder"
-                  class="max-h-50 min-h-10 w-full resize-none py-3 pr-12"
+                  class="ai-chat-composer-input w-full resize-none pr-12"
                   :disabled="disabled"
                   @compositionstart="handleCompositionStart"
                   @compositionend="handleCompositionEnd"
@@ -1016,23 +1016,3 @@ watch(
     </div>
   </div>
 </template>
-
-<style scoped>
-:deep([data-slot='scroll-area-viewport']) {
-  scrollbar-width: thin;
-  scrollbar-color: hsl(var(--muted-foreground) / 0.2) transparent;
-}
-
-:deep([data-slot='scroll-area-viewport']::-webkit-scrollbar) {
-  width: 6px;
-}
-
-:deep([data-slot='scroll-area-viewport']::-webkit-scrollbar-track) {
-  background: transparent;
-}
-
-:deep([data-slot='scroll-area-viewport']::-webkit-scrollbar-thumb) {
-  background-color: hsl(var(--muted-foreground) / 0.18);
-  border-radius: 10px;
-}
-</style>
