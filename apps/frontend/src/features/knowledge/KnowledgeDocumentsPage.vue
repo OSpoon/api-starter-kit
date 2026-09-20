@@ -9,6 +9,7 @@ import ListPage from '@/components/common/ListPage.vue'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog } from '@/components/ui/dialog'
+import { useRemoteListSearch } from '@/composables/useRemoteListSearch'
 import { listSystemRoleCatalog, type SystemRoleOption } from '@/features/access-control/api'
 import { badgeToneClass } from '@/features/api-keys/api'
 import {
@@ -142,19 +143,28 @@ const columns = computed<ColumnDef<KnowledgeDocument>[]>(() => [
   },
 ])
 
-async function fetchDocuments(nextPage = page.value) {
+async function fetchDocuments(
+  nextPage = page.value,
+  search = debouncedSearch.value,
+  isCurrent: () => boolean = () => true
+) {
   loading.value = true
   try {
-    const result = await listKnowledgeDocuments(auth.token, nextPage)
+    const result = await listKnowledgeDocuments(auth.token, nextPage, search)
+    if (!isCurrent()) return
     documents.value = result.items
     page.value = result.meta.currentPage
     pageCount.value = result.meta.lastPage
   } catch (error) {
-    toast.error(error instanceof Error ? error.message : t('knowledge.fetch_failed'))
+    if (isCurrent()) {
+      toast.error(error instanceof Error ? error.message : t('knowledge.fetch_failed'))
+    }
   } finally {
-    loading.value = false
+    if (isCurrent()) loading.value = false
   }
 }
+
+const { search, debouncedSearch, runLoad } = useRemoteListSearch(page, fetchDocuments)
 
 function openCreateDialog() {
   selectedDocument.value = null
@@ -199,7 +209,7 @@ async function saveDocument(input: KnowledgeDocumentInput) {
       await createKnowledgeDocument(auth.token, input)
     }
     closeDialog()
-    await fetchDocuments()
+    await runLoad()
     toast.success(t('knowledge.save_success'))
   } catch (error) {
     toast.error(error instanceof Error ? error.message : t('knowledge.save_failed'))
@@ -215,9 +225,7 @@ async function confirmDelete() {
     await deleteKnowledgeDocument(auth.token, pendingDelete.value.id)
     deleteDialogOpen.value = false
     pendingDelete.value = null
-    await fetchDocuments(
-      documents.value.length <= 1 && page.value > 1 ? page.value - 1 : page.value
-    )
+    await runLoad(documents.value.length <= 1 && page.value > 1 ? page.value - 1 : page.value)
     toast.success(t('knowledge.delete_success'))
   } catch (error) {
     toast.error(error instanceof Error ? error.message : t('knowledge.delete_failed'))
@@ -233,7 +241,7 @@ async function confirmReindex() {
     await reindexKnowledgeDocument(auth.token, pendingReindex.value.id)
     reindexDialogOpen.value = false
     pendingReindex.value = null
-    await fetchDocuments()
+    await runLoad()
     toast.success(t('knowledge.reindex_success'))
   } catch (error) {
     toast.error(error instanceof Error ? error.message : t('knowledge.reindex_failed'))
@@ -242,9 +250,7 @@ async function confirmReindex() {
   }
 }
 
-onMounted(() => void fetchDocuments())
 onMounted(() => void listSystemRoleCatalog(auth.token).then((items) => (roles.value = items)))
-watch(page, (nextPage) => void fetchDocuments(nextPage))
 </script>
 
 <template>
@@ -255,7 +261,7 @@ watch(page, (nextPage) => void fetchDocuments(nextPage))
     :refresh-label="t('common.refresh')"
     :action-label="t('knowledge.create')"
     :show-action="true"
-    @refresh="() => void fetchDocuments()"
+    @refresh="runLoad()"
     @action="openCreateDialog"
   >
     <template #refresh-icon
@@ -263,8 +269,10 @@ watch(page, (nextPage) => void fetchDocuments(nextPage))
     /></template>
     <template #action-icon><Plus class="size-4" /></template>
     <DataTable
+      v-model:search="search"
       :columns="columns"
       :data="documents"
+      search-mode="remote"
       :search-keys="['title']"
       :search-placeholder="t('knowledge.search_placeholder')"
       storage-key="knowledge-documents-table"

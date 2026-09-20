@@ -4,17 +4,18 @@
 
 日常工程命令、代码入口和提交前检查见[工程开发指南](development.md)。
 
-## 三个客户端的修改边界
+## 四种客户端交付面的修改边界
 
 - 管理端页面、路由、导航和管理功能放在 `apps/frontend`。
 - 独立助手的聊天 UI、会话历史、语音输入和助手交互优先修改 `apps/frontend/src/components/ai-chat/`
   或对应 AI feature；`apps/assistant-web` 只负责独立客户端路由、页面壳和入口配置，不复制一套聊天实现。
 - 桌面端只在 `apps/assistant-desktop/src-tauri/` 修改窗口、Rust 命令、原生权限和打包配置；不要在桌面壳中
   重新实现 Web UI、认证或 AI 编排。
-- 后端 API、认证、授权、会话持久化和敏感操作统一放在 `apps/backend`，三个客户端都必须复用同一套契约。
+- Chrome 扩展只在 `apps/assistant-extension/` 修改 MV3 manifest、side panel 生命周期、连接配置和扩展构建；复用 `assistant-web` 的客户端实现，不注入页面脚本或读取活动标签页内容。
+- 后端 API、认证、授权、会话持久化和敏感操作统一放在 `apps/backend`，四种客户端交付面都复用同一套契约。
 
-如果业务能力需要同时出现在管理端和独立助手中，先扩展后端 service/API 或共享 AI registry，再分别接入两个
-Web 客户端；只有桌面特有的操作系统能力才进入 Tauri 层。
+如果业务能力需要同时出现在管理端和独立助手中，先扩展后端 service/API 或共享 AI registry，再接入对应客户端；
+只有桌面特有的操作系统能力才进入 Tauri 层，只有 Chrome 集成能力才进入扩展层。
 
 ## 开始前
 

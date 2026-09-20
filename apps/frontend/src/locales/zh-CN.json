@@ -147,6 +147,8 @@
     "dimensions": "向量维度",
     "timeout": "请求超时（毫秒）",
     "test": "测试连接",
+    "save_before_test": "当前有未保存的更改。请先保存，再测试连接。",
+    "test_config_unavailable": "尚无已保存的配置。请先保存，再测试连接。",
     "saved": "LLM 配置已保存",
     "load_failed": "加载 LLM 配置失败",
     "save_failed": "保存 LLM 配置失败",
@@ -495,19 +497,10 @@
   },
   "dashboard": {
     "title": "仪表盘",
-    "desc": "查看当前工作区的关键状态与系统概览。",
-    "structure_title": "导航结构",
-    "structure_desc": "侧边栏分组、菜单项和面包屑均来自路由定义。",
-    "stats": {
-      "auth": "认证方式",
-      "api_keys": "API 密钥接口",
-      "routes": "已注册路由"
-    },
-    "checklist": {
-      "route_nav": "路由 meta 定义菜单分组和图标",
-      "openapi": "帮助菜单直达 OpenAPI 文档",
-      "schema_builder": "Schema 构建器作为工作台示例工具"
-    }
+    "desc": "从这里进入你有权限使用的系统功能。",
+    "quick_access": "快捷入口",
+    "open_module": "打开功能",
+    "no_modules": "当前账户没有可显示的功能入口。"
   },
   "system_status": {
     "title": "服务状态",
@@ -824,6 +817,7 @@
     "desc": "查看安全敏感管理操作的不可变更记录。",
     "time": "时间",
     "actor": "操作者",
+    "search": "搜索操作、目标、IP、请求 ID 或操作者",
     "action": "操作",
     "target": "目标",
     "source": "来源 IP",

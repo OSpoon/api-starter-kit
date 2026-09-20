@@ -1,5 +1,6 @@
 import { apiRequest } from '@/lib/api'
 import { readItem } from '@/lib/api-types'
+import { buildListQuery } from '@/lib/list-query'
 
 export interface KnowledgeDocument {
   id: number
@@ -40,10 +41,10 @@ function authOptions(token: string | null) {
   return { token }
 }
 
-export async function listKnowledgeDocuments(token: string | null, page = 1) {
+export async function listKnowledgeDocuments(token: string | null, page = 1, search = '') {
   return readItem(
     await apiRequest<KnowledgeDocumentPage>(
-      `/api/v1/system/knowledge-documents?page=${page}&limit=20`,
+      `/api/v1/system/knowledge-documents?${buildListQuery(page, search)}`,
       authOptions(token)
     )
   )

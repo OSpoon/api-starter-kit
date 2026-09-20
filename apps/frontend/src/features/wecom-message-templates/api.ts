@@ -1,5 +1,6 @@
 import { apiRequest } from '@/lib/api'
 import { readItem } from '@/lib/api-types'
+import { buildListQuery } from '@/lib/list-query'
 
 import type {
   WecomMessageTemplate,
@@ -10,10 +11,10 @@ import type {
 
 const auth = (token: string | null) => ({ token })
 
-export async function listWecomTemplates(token: string | null, page = 1) {
+export async function listWecomTemplates(token: string | null, page = 1, search = '') {
   return readItem(
     await apiRequest<WecomTemplatePage>(
-      `/api/v1/system/wecom-message-templates?page=${page}&limit=20`,
+      `/api/v1/system/wecom-message-templates?${buildListQuery(page, search)}`,
       auth(token)
     )
   )

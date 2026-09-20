@@ -7,8 +7,9 @@ This repository is a pnpm workspace and Turborepo monorepo:
 - `apps/backend`: AdonisJS 7, Lucid, Bouncer, Vine, and OpenAPI.
 - `apps/frontend`: Vue 3, Vite, Pinia, Vue Router, Tailwind CSS, and Reka UI.
 - `apps/assistant-web`: the standalone Vue 3 AI assistant client.
+- `apps/assistant-desktop`: the Tauri shell that packages the standalone assistant client.
 - `apps/assistant-extension`: Extension.js and Vue 3 for the Chrome MV3 side panel, reusing `assistant-web` and `frontend`.
-- Core capabilities: authentication and 2FA, RBAC, API keys, audit logging, a knowledge base, and controlled AI conversations, queries, and actions.
+- Core capabilities: authentication and 2FA, RBAC, API keys, audit logging, a knowledge base, controlled AI conversations, queries and actions, and WeCom, Feishu, and DingTalk Bot workers.
 
 ## 1. Rule Priority and Enforcement
 

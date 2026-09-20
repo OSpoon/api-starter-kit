@@ -1,7 +1,12 @@
 import type { HttpContext } from '@adonisjs/core/http'
+import { ApiResponse } from '@foadonis/openapi/decorators'
 
-import Permission from '#models/permission'
 import Role from '#models/role'
+import {
+  AccessControlMutationError,
+  createRoleWithPermissions,
+  updateRoleWithPermissions,
+} from '#services/access_control_mutations'
 import { recordAuditEvent } from '#services/audit_log'
 import { clampLimit } from '#support/pagination'
 import { createRoleValidator, updateRoleValidator } from '#validators/rbac'
@@ -18,11 +23,6 @@ function serializeRole(role: Role) {
     createdAt: role.createdAt,
     updatedAt: role.updatedAt,
   }
-}
-
-async function ensurePermissionIds(permissionIds: number[]) {
-  const permissions = await Permission.query().whereIn('id', permissionIds)
-  return permissions.length === permissionIds.length
 }
 
 export default class RolesController {
@@ -51,32 +51,35 @@ export default class RolesController {
     return serialize({ items: paginator.all().map(serializeRole), meta: paginator.getMeta() })
   }
 
+  @ApiResponse({ status: 409, description: '角色代码已存在或引用了不存在的权限' })
   async store(ctx: HttpContext) {
     const { auth, request, response, serialize } = ctx
     const payload = await request.validateUsing(createRoleValidator)
-    const role = await Role.create({
-      code: payload.code,
-      name: payload.name,
-      description: payload.description ?? null,
-    })
-    if (payload.permissionIds && !(await ensurePermissionIds(payload.permissionIds))) {
-      await role.delete()
-      return response.badRequest({ message: '包含不存在的权限' })
-    }
-    if (payload.permissionIds) {
-      await role.related('permissions').sync(payload.permissionIds)
+    let role: Role
+    try {
+      role = await createRoleWithPermissions({
+        ctx,
+        actorUserId: auth.getUserOrFail().id,
+        code: payload.code,
+        name: payload.name,
+        description: payload.description ?? null,
+        permissionIds: payload.permissionIds ?? [],
+        source: 'api',
+      })
+    } catch (error) {
+      if (error instanceof AccessControlMutationError && error.code === 'invalid_permission_ids') {
+        return response.conflict({ message: error.message })
+      }
+      if (error instanceof AccessControlMutationError && error.code === 'duplicate_role_code') {
+        return response.conflict({ message: error.message })
+      }
+      throw error
     }
     await role.load('permissions')
-    await recordAuditEvent(ctx, {
-      actorUserId: auth.getUserOrFail().id,
-      action: 'role.created',
-      targetType: 'role',
-      targetId: role.id,
-      metadata: { permissionIds: payload.permissionIds ?? [] },
-    })
     return serialize(serializeRole(role))
   }
 
+  @ApiResponse({ status: 409, description: '角色引用了不存在的权限' })
   async update(ctx: HttpContext) {
     const { auth, params, request, response, serialize } = ctx
     const role = await Role.findOrFail(params.id)
@@ -84,24 +87,28 @@ export default class RolesController {
       return response.forbidden({ message: '系统内置角色不可编辑' })
     }
     const payload = await request.validateUsing(updateRoleValidator)
-    role.name = payload.name
-    role.description = payload.description ?? null
-    await role.save()
-    if (payload.permissionIds) {
-      if (!(await ensurePermissionIds(payload.permissionIds))) {
-        return response.badRequest({ message: '包含不存在的权限' })
+    let updatedRole: Role
+    try {
+      updatedRole = await updateRoleWithPermissions({
+        ctx,
+        actorUserId: auth.getUserOrFail().id,
+        roleId: role.id,
+        name: payload.name,
+        description: payload.description ?? null,
+        permissionIds: payload.permissionIds,
+        source: 'api',
+      })
+    } catch (error) {
+      if (error instanceof AccessControlMutationError && error.code === 'invalid_permission_ids') {
+        return response.conflict({ message: error.message })
       }
-      await role.related('permissions').sync(payload.permissionIds)
+      if (error instanceof AccessControlMutationError && error.code === 'protected_role') {
+        return response.forbidden({ message: error.message })
+      }
+      throw error
     }
-    await role.load('permissions')
-    await recordAuditEvent(ctx, {
-      actorUserId: auth.getUserOrFail().id,
-      action: 'role.updated',
-      targetType: 'role',
-      targetId: role.id,
-      metadata: { permissionIds: payload.permissionIds ?? [] },
-    })
-    return serialize(serializeRole(role))
+    await updatedRole.load('permissions')
+    return serialize(serializeRole(updatedRole))
   }
 
   async destroy(ctx: HttpContext) {

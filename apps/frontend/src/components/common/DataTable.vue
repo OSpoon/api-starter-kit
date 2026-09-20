@@ -64,6 +64,7 @@ const props = withDefaults(
     storageKey?: string
     searchId?: string
     serverPagination?: ServerPagination
+    searchMode?: 'local' | 'remote'
     filtersLayout?: 'wrap' | 'inline'
   }>(),
   {
@@ -76,7 +77,6 @@ const props = withDefaults(
 const search = defineModel<string>('search', { default: '' })
 
 const emit = defineEmits<{
-  rowClick: [row: TData]
   pageChange: [page: number]
 }>()
 
@@ -112,6 +112,7 @@ const table = useVueTable({
   getFilteredRowModel: getFilteredRowModel(),
   autoResetPageIndex: false,
   manualPagination: Boolean(props.serverPagination),
+  manualFiltering: props.searchMode === 'remote',
   globalFilterFn: (row, _columnId, filterValue) => {
     const keyword = String(filterValue ?? '')
       .trim()
@@ -274,8 +275,6 @@ function handlePageChange(page: number) {
               v-for="row in table.getRowModel().rows"
               :key="row.id"
               :data-state="row.getIsSelected() ? 'selected' : undefined"
-              class="cursor-pointer hover:bg-muted/50"
-              @click="emit('rowClick', row.original)"
             >
               <TableCell v-for="cell in row.getVisibleCells()" :key="cell.id">
                 <FlexRender :render="cell.column.columnDef.cell" :props="cell.getContext()" />

@@ -148,6 +148,194 @@ test.group('rbac', (group) => {
     assert.isAtLeast(body.data.meta.lastPage, 1)
   })
 
+  test('rejects user role assignments with missing IDs without partially mutating users', async ({
+    client,
+    assert,
+  }) => {
+    const superAdminRole = await Role.findByOrFail('code', 'super-admin')
+    const admin = await User.create({
+      fullName: 'Role assignment admin',
+      email: `role-assignment-admin-${Date.now()}@example.com`,
+      password: generateInitialPassword(),
+    })
+    await admin.related('roles').sync([superAdminRole.id])
+    const token = await User.accessTokens.create(admin)
+    const bearerToken = token.value!.release()
+    const targetRole = await Role.create({ code: `target-${Date.now()}`, name: 'Target role' })
+    const target = await User.create({
+      fullName: 'Original target',
+      email: `role-assignment-target-${Date.now()}@example.com`,
+      password: generateInitialPassword(),
+    })
+    await target.related('roles').sync([targetRole.id])
+
+    const updateResponse = await client
+      .put(`/api/v1/system/users/${target.id}`)
+      .bearerToken(bearerToken)
+      .json({ fullName: 'Changed target', email: target.email, roleIds: [999_999_999] })
+
+    updateResponse.assertStatus(409)
+    assert.equal(
+      (updateResponse.body() as unknown as { message: string }).message,
+      '包含不存在的角色'
+    )
+    const unchanged = await User.query().where('id', target.id).preload('roles').firstOrFail()
+    assert.equal(unchanged.fullName, 'Original target')
+    assert.deepEqual(
+      unchanged.roles.map((role) => role.id),
+      [targetRole.id]
+    )
+    assert.isNull(
+      await AuditLog.query()
+        .where('action', 'user.updated')
+        .where('targetId', String(target.id))
+        .first()
+    )
+
+    const email = `invalid-role-target-${Date.now()}@example.com`
+    const createResponse = await client
+      .post('/api/v1/system/users')
+      .bearerToken(bearerToken)
+      .json({ fullName: 'Invalid role target', email, roleIds: [999_999_999] })
+
+    createResponse.assertStatus(409)
+    assert.equal(
+      (createResponse.body() as unknown as { message: string }).message,
+      '包含不存在的角色'
+    )
+    assert.isNull(await User.findBy('email', email))
+  })
+
+  test('validates role permission IDs before updating role fields', async ({ client, assert }) => {
+    const superAdminRole = await Role.findByOrFail('code', 'super-admin')
+    const admin = await User.create({
+      fullName: 'Role update admin',
+      email: `role-update-admin-${Date.now()}@example.com`,
+      password: generateInitialPassword(),
+    })
+    await admin.related('roles').sync([superAdminRole.id])
+    const token = await User.accessTokens.create(admin)
+    const bearerToken = token.value!.release()
+    const role = await Role.create({ code: `role-update-${Date.now()}`, name: 'Original role' })
+    const permission = await Permission.findByOrFail('code', 'dashboard:view')
+    await role.related('permissions').sync([permission.id])
+
+    const response = await client
+      .put(`/api/v1/system/roles/${role.id}`)
+      .bearerToken(bearerToken)
+      .json({ name: 'Changed role', description: 'Changed', permissionIds: [999_999_999] })
+
+    response.assertStatus(409)
+    const unchanged = await Role.query().where('id', role.id).preload('permissions').firstOrFail()
+    assert.equal(unchanged.name, 'Original role')
+    assert.isNull(unchanged.description)
+    assert.deepEqual(
+      unchanged.permissions.map((item) => item.id),
+      [permission.id]
+    )
+    assert.isNull(
+      await AuditLog.query()
+        .where('action', 'role.updated')
+        .where('targetId', String(role.id))
+        .first()
+    )
+
+    const code = `invalid-permission-${Date.now()}`
+    const createResponse = await client
+      .post('/api/v1/system/roles')
+      .bearerToken(bearerToken)
+      .json({ code, name: 'Invalid permission role', permissionIds: [999_999_999] })
+
+    createResponse.assertStatus(409)
+    assert.isNull(await Role.findBy('code', code))
+
+    const validCode = `managed-role-${Date.now()}`
+    const validCreateResponse = await client
+      .post('/api/v1/system/roles')
+      .bearerToken(bearerToken)
+      .json({ code: validCode, name: 'Managed role', permissionIds: [permission.id] })
+
+    validCreateResponse.assertStatus(200)
+    const createdRole = await Role.query()
+      .where('code', validCode)
+      .preload('permissions')
+      .firstOrFail()
+    assert.deepEqual(
+      createdRole.permissions.map((item) => item.id),
+      [permission.id]
+    )
+    assert.isNotNull(
+      await AuditLog.query()
+        .where('action', 'role.created')
+        .where('targetId', String(createdRole.id))
+        .first()
+    )
+  })
+
+  test('applies self role and super-admin grant protections inside the user mutation path', async ({
+    client,
+    assert,
+  }) => {
+    const updatePermission = await Permission.findByOrFail('code', 'users:update')
+    const operatorRole = await Role.create({
+      code: `self-operator-${Date.now()}`,
+      name: 'Operator',
+    })
+    await operatorRole.related('permissions').sync([updatePermission.id])
+    const operator = await User.create({
+      fullName: 'Self role operator',
+      email: `self-role-${Date.now()}@example.com`,
+      password: generateInitialPassword(),
+    })
+    await operator.related('roles').sync([operatorRole.id])
+    const operatorToken = await User.accessTokens.create(operator)
+
+    const selfUpdate = await client
+      .put(`/api/v1/system/users/${operator.id}`)
+      .bearerToken(operatorToken.value!.release())
+      .json({ fullName: 'Changed self', email: operator.email, roleIds: [] })
+
+    selfUpdate.assertStatus(400)
+    const unchangedOperator = await User.query()
+      .where('id', operator.id)
+      .preload('roles')
+      .firstOrFail()
+    assert.equal(unchangedOperator.fullName, 'Self role operator')
+    assert.deepEqual(
+      unchangedOperator.roles.map((role) => role.id),
+      [operatorRole.id]
+    )
+
+    const superAdminRole = await Role.findByOrFail('code', 'super-admin')
+    const admin = await User.create({
+      fullName: 'Role grant admin',
+      email: `role-grant-admin-${Date.now()}@example.com`,
+      password: generateInitialPassword(),
+    })
+    await admin.related('roles').sync([superAdminRole.id])
+    const adminToken = await User.accessTokens.create(admin)
+    const targetRole = await Role.create({ code: `grant-target-${Date.now()}`, name: 'Target' })
+    const target = await User.create({
+      fullName: 'Regular role target',
+      email: `role-grant-target-${Date.now()}@example.com`,
+      password: generateInitialPassword(),
+    })
+    await target.related('roles').sync([targetRole.id])
+
+    const grantResponse = await client
+      .put(`/api/v1/system/users/${target.id}`)
+      .bearerToken(adminToken.value!.release())
+      .json({ fullName: 'Changed target', email: target.email, roleIds: [superAdminRole.id] })
+
+    grantResponse.assertStatus(403)
+    const unchangedTarget = await User.query().where('id', target.id).preload('roles').firstOrFail()
+    assert.equal(unchangedTarget.fullName, 'Regular role target')
+    assert.deepEqual(
+      unchangedTarget.roles.map((role) => role.id),
+      [targetRole.id]
+    )
+  })
+
   test('denies a non-super-admin from maintaining a super-admin account', async ({
     client,
     assert,
@@ -249,6 +437,33 @@ test.group('rbac', (group) => {
       .get('/api/v1/system/audit-logs')
       .bearerToken(adminToken.value!.release())
     allowedResponse.assertStatus(200)
+
+    const searchId = String(Date.now())
+    const searchIp = 'audit-ip-only-192.0.2.9'
+    const searchableLog = await AuditLog.create({
+      actorUserId: admin.id,
+      action: 'search.test',
+      targetType: 'search_target',
+      targetId: searchId,
+      metadata: null,
+      ipAddress: searchIp,
+      userAgent: null,
+      requestId: null,
+    })
+    const searchResponse = await client
+      .get(`/api/v1/system/audit-logs?search=${encodeURIComponent(searchIp)}&page=1&limit=1`)
+      .bearerToken(adminToken.value!.release())
+    searchResponse.assertStatus(200)
+    const searchItems = (
+      searchResponse.body() as {
+        data: { items: Array<{ id: number; ipAddress: string | null }>; meta: { total: number } }
+      }
+    ).data
+    assert.deepEqual(
+      searchItems.items.map((item) => ({ id: item.id, ipAddress: item.ipAddress })),
+      [{ id: searchableLog.id, ipAddress: searchIp }]
+    )
+    assert.equal(searchItems.meta.total, 1)
   })
 
   test('refuses to delete a role that still owns permission grants', async ({ client, assert }) => {

@@ -1,5 +1,6 @@
 import { apiRequest } from '@/lib/api'
 import { readItem } from '@/lib/api-types'
+import { buildListQuery } from '@/lib/list-query'
 
 export interface SystemRole {
   id: number
@@ -57,16 +58,10 @@ export type SystemPermissionOption = Pick<SystemPermission, 'id' | 'code' | 'nam
 
 const authOptions = (token: string | null) => ({ token })
 
-function listQuery(page: number, search = '', extra: Record<string, string> = {}) {
-  const query = new URLSearchParams({ page: String(page), limit: '20', ...extra })
-  if (search.trim()) query.set('search', search.trim())
-  return query.toString()
-}
-
 export async function listSystemUsers(token: string | null, page = 1, search = '') {
   return readItem(
     await apiRequest<SystemPage<SystemUser>>(
-      `/api/v1/system/users?${listQuery(page, search)}`,
+      `/api/v1/system/users?${buildListQuery(page, search)}`,
       authOptions(token)
     )
   )
@@ -125,7 +120,7 @@ export async function resetSystemUserPassword(token: string | null, id: number) 
 export async function listSystemRoles(token: string | null, page = 1, search = '') {
   return readItem(
     await apiRequest<SystemPage<SystemRole>>(
-      `/api/v1/system/roles?${listQuery(page, search)}`,
+      `/api/v1/system/roles?${buildListQuery(page, search)}`,
       authOptions(token)
     )
   )
@@ -181,7 +176,7 @@ export async function listSystemPermissions(
 ) {
   return readItem(
     await apiRequest<SystemPage<SystemPermission>>(
-      `/api/v1/system/permissions?${listQuery(page, search, groupName ? { groupName } : {})}`,
+      `/api/v1/system/permissions?${buildListQuery(page, search, groupName ? { groupName } : {})}`,
       authOptions(token)
     )
   )
@@ -237,10 +232,10 @@ export async function deleteSystemPermission(token: string | null, id: number) {
   )
 }
 
-export async function listAuditLogs(token: string | null, page = 1) {
+export async function listAuditLogs(token: string | null, page = 1, search = '') {
   return readItem(
     await apiRequest<AuditLogPage>(
-      `/api/v1/system/audit-logs?page=${page}&limit=20`,
+      `/api/v1/system/audit-logs?${buildListQuery(page, search)}`,
       authOptions(token)
     )
   )

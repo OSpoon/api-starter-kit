@@ -2,21 +2,21 @@
 
 AI 助手是受后端治理、以工具为驱动的管理控制台助手。它根据项目知识、系统查询和权限诊断回答问题，并准备需要确认的管理变更；不会绕过权限、数据库和确认流程。
 
-当前有六个使用入口：管理台 Web、独立助手 Web、独立助手桌面端，以及企业微信、钉钉、飞书三个渠道入口。
-六个入口共用同一套 backend Agent、知识库、注册查询、受控操作、用户绑定和权限校验；桌面端只是独立助手
-Web 的 Tauri 原生承载层，不复制一套 AI 实现。
+当前正式支持四种 UI 交付面和三个 IM Bot：管理台 Web、独立助手 Web、Tauri 桌面端、Chrome 扩展，以及企业微信、钉钉、飞书机器人。
+它们共用同一套 backend Agent、知识库、注册查询、受控操作、身份绑定和权限校验；桌面端和 Chrome 扩展复用独立助手客户端实现，分别负责原生窗口与浏览器 side panel。
 
-## 独立客户端
+## UI 客户端
 
-| 入口           | 目录                     | 定位                                   | 运行关系                                                                                  |
-| -------------- | ------------------------ | -------------------------------------- | ----------------------------------------------------------------------------------------- |
-| 管理台 Web     | `apps/frontend`          | 系统管理页面和浮动 AI 助手             | 独立管理平台 Web 应用，默认开发端口 `18080`                                               |
-| 独立助手 Web   | `apps/assistant-web`     | 全屏会话、历史会话、语音输入和确认操作 | 复用 `apps/frontend` 的 AI 组件、认证、API、locale 和 UI primitives，默认开发端口 `17070` |
-| 独立助手桌面端 | `apps/assistant-desktop` | macOS、Windows、Linux 原生窗口和安装包 | Tauri 只负责窗口、权限和打包；开发时连接 `17070`，发布时内置 assistant-web 静态产物       |
+| 入口           | 目录                       | 定位                                   | 运行关系                                                                                  |
+| -------------- | -------------------------- | -------------------------------------- | ----------------------------------------------------------------------------------------- |
+| 管理台 Web     | `apps/frontend`            | 系统管理页面和浮动 AI 助手             | 独立管理平台 Web 应用，默认开发端口 `18080`                                               |
+| 独立助手 Web   | `apps/assistant-web`       | 全屏会话、历史会话、语音输入和确认操作 | 复用 `apps/frontend` 的 AI 组件、认证、API、locale 和 UI primitives，默认开发端口 `17070` |
+| 独立助手桌面端 | `apps/assistant-desktop`   | macOS、Windows、Linux 原生窗口和安装包 | Tauri 只负责窗口、权限和打包；开发时连接 `17070`，发布时内置 assistant-web 静态产物       |
+| Chrome 扩展    | `apps/assistant-extension` | Chrome MV3 side panel                  | 复用 `assistant-web` 客户端；连接时按需请求配置的 API origin 权限，不读取当前网页内容     |
 
 独立助手 Web 可以单独作为静态站点部署，生产构建通过 `VITE_API_URL` 连接 backend。桌面端生产构建会先构建
 独立助手 Web，再将 `dist` 打进安装包；桌面端运行时不依赖本地 `17070`。开发启动、环境变量和发布边界见
-[AI 助手架构](ai-assistant-architecture.md)与[部署指南](deployment.md)。
+[AI 助手架构](ai-assistant-architecture.md)、[部署指南](deployment.md)和[Chrome 扩展说明](../apps/assistant-extension/README.md)。
 
 ## 管理台与渠道能力横向对比
 

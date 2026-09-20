@@ -1,4 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http'
+import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 
 import AuditLog from '#models/audit_log'
 import { getRequestCorrelation } from '#support/request_correlation'
@@ -11,18 +12,25 @@ export type AuditEvent = {
   metadata?: Record<string, unknown>
 }
 
-export async function recordAuditEvent(ctx: HttpContext, event: AuditEvent) {
+export async function recordAuditEvent(
+  ctx: HttpContext,
+  event: AuditEvent,
+  transaction?: TransactionClientContract
+) {
   const { requestId } = getRequestCorrelation(ctx)
 
-  await AuditLog.create({
-    actorUserId: event.actorUserId,
-    action: event.action,
-    targetType: event.targetType,
-    targetId:
-      event.targetId === undefined || event.targetId === null ? null : String(event.targetId),
-    metadata: event.metadata ?? null,
-    ipAddress: ctx.request.ip(),
-    userAgent: ctx.request.header('user-agent')?.slice(0, 512) ?? null,
-    requestId: requestId.slice(0, 120),
-  })
+  await AuditLog.create(
+    {
+      actorUserId: event.actorUserId,
+      action: event.action,
+      targetType: event.targetType,
+      targetId:
+        event.targetId === undefined || event.targetId === null ? null : String(event.targetId),
+      metadata: event.metadata ?? null,
+      ipAddress: ctx.request.ip(),
+      userAgent: ctx.request.header('user-agent')?.slice(0, 512) ?? null,
+      requestId: requestId.slice(0, 120),
+    },
+    transaction ? { client: transaction } : undefined
+  )
 }

@@ -19,6 +19,7 @@ import {
   TagsInputItemDelete,
   TagsInputItemText,
 } from '@/components/ui/tags-input'
+import { useRemoteListSearch } from '@/composables/useRemoteListSearch'
 import { useCopyText } from '@/lib/clipboard'
 import { usePermission } from '@/lib/permission'
 import { useDelayedDialog } from '@/lib/use-delayed-dialog'
@@ -165,19 +166,27 @@ const columns = computed<ColumnDef<WecomMessageTemplate>[]>(() => [
       ]),
   },
 ])
-async function fetchTemplates(next = page.value) {
+async function fetchTemplates(
+  next = page.value,
+  search = debouncedSearch.value,
+  isCurrent: () => boolean = () => true
+) {
   loading.value = true
   try {
-    const result = await listWecomTemplates(auth.token, next)
+    const result = await listWecomTemplates(auth.token, next, search)
+    if (!isCurrent()) return
     templates.value = result.items
     page.value = result.meta.currentPage
     pageCount.value = result.meta.lastPage
   } catch (e) {
-    toast.error(e instanceof Error ? e.message : t('wecom_templates.fetch_failed'))
+    if (isCurrent()) {
+      toast.error(e instanceof Error ? e.message : t('wecom_templates.fetch_failed'))
+    }
   } finally {
-    loading.value = false
+    if (isCurrent()) loading.value = false
   }
 }
+const { search, debouncedSearch, runLoad } = useRemoteListSearch(page, fetchTemplates)
 function edit(template: WecomMessageTemplate) {
   editing.value = template
   show()
@@ -204,7 +213,7 @@ async function save(input: WecomTemplateInput) {
     if (editing.value) await updateWecomTemplate(auth.token, editing.value.id, input)
     else await createWecomTemplate(auth.token, input)
     close()
-    await fetchTemplates()
+    await runLoad()
     toast.success(t('wecom_templates.save_success'))
   } catch (e) {
     toast.error(e instanceof Error ? e.message : t('wecom_templates.save_failed'))
@@ -219,7 +228,7 @@ async function confirmDelete() {
     await deleteWecomTemplate(auth.token, pending.value.id)
     deleteOpen.value = false
     pending.value = null
-    await fetchTemplates()
+    await runLoad(templates.value.length <= 1 && page.value > 1 ? page.value - 1 : page.value)
     toast.success(t('wecom_templates.delete_success'))
   } catch (e) {
     toast.error(e instanceof Error ? e.message : t('wecom_templates.delete_failed'))
@@ -227,8 +236,6 @@ async function confirmDelete() {
     deleting.value = false
   }
 }
-onMounted(() => void fetchTemplates())
-watch(page, (value) => void fetchTemplates(value))
 </script>
 <template>
   <ListPage
@@ -238,14 +245,16 @@ watch(page, (value) => void fetchTemplates(value))
     :refresh-label="t('common.refresh')"
     :action-label="t('wecom_templates.create')"
     :show-action="can('wecom-templates:create')"
-    @refresh="fetchTemplates()"
+    @refresh="runLoad()"
     @action="create"
     ><template #refresh-icon
       ><RefreshCw class="size-4" :class="{ 'animate-spin': loading }" /></template
     ><template #action-icon><Plus class="size-4" /></template
     ><DataTable
+      v-model:search="search"
       :columns="columns"
       :data="templates"
+      search-mode="remote"
       :search-keys="['name', 'msgtype']"
       :search-placeholder="t('wecom_templates.search')"
       storage-key="wecom-message-templates-table"

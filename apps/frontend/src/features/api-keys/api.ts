@@ -1,5 +1,6 @@
 import { apiRequest } from '@/lib/api'
 import { readItem } from '@/lib/api-types'
+import { buildListQuery } from '@/lib/list-query'
 
 export interface ApiKeySummary {
   id: number
@@ -35,9 +36,9 @@ function authOptions(token: string | null) {
   return { token }
 }
 
-export async function listApiKeys(token: string | null, page = 1) {
+export async function listApiKeys(token: string | null, page = 1, search = '') {
   const response = await apiRequest<ApiKeyPage>(
-    `/api/v1/api-keys?page=${page}&limit=20`,
+    `/api/v1/api-keys?${buildListQuery(page, search)}`,
     authOptions(token)
   )
   return readItem(response)

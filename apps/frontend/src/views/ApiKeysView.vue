@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog } from '@/components/ui/dialog'
 import ApiKeyForm from '@/components/workbench/ApiKeyForm.vue'
-import { useAsyncToast } from '@/composables/useAsyncToast'
+import { useRemoteListSearch } from '@/composables/useRemoteListSearch'
 import type { ApiKeySummary } from '@/features/api-keys/api'
 import { badgeToneClass, createApiKey, listApiKeys, revokeApiKey } from '@/features/api-keys/api'
 import { useCopyText } from '@/lib/clipboard'
@@ -33,7 +33,6 @@ const copiedReset = useTimeoutFn(
 )
 const { can } = usePermission()
 const { t } = useI18n()
-const { runWithToast } = useAsyncToast()
 
 const keys = ref<ApiKeySummary[]>([])
 const page = ref(1)
@@ -166,26 +165,31 @@ const columns = computed<ColumnDef<ApiKeySummary>[]>(() => [
   },
 ])
 
-async function fetchKeys(nextPage = page.value) {
+async function fetchKeys(
+  nextPage = page.value,
+  search = debouncedSearch.value,
+  isCurrent: () => boolean = () => true
+) {
   loading.value = true
   try {
-    const result = await listApiKeys(auth.token, nextPage)
+    const result = await listApiKeys(auth.token, nextPage, search)
+    if (!isCurrent()) return
     keys.value = result.items
     page.value = result.meta.currentPage
     pageCount.value = result.meta.lastPage
   } catch (error) {
-    toast.error(error instanceof Error ? error.message : t('api_keys.fetch_failed'))
+    if (isCurrent()) {
+      toast.error(error instanceof Error ? error.message : t('api_keys.fetch_failed'))
+    }
   } finally {
-    loading.value = false
+    if (isCurrent()) loading.value = false
   }
 }
 
+const { search, debouncedSearch, runLoad } = useRemoteListSearch(page, fetchKeys)
+
 function refreshKeys() {
-  runWithToast(fetchKeys(), {
-    loading: t('common.loading'),
-    success: t('common.success'),
-    error: t('api_keys.fetch_failed'),
-  })
+  void runLoad()
 }
 
 function openCreateDialog() {
@@ -211,7 +215,7 @@ async function handleCreateKey(values: { name: string; expiresIn: string }) {
     createdToken.value = apiKey.key || ''
     closeDialog()
     showTokenDialog()
-    await fetchKeys()
+    await runLoad()
     toast.success(t('api_keys.create_success'))
   } catch (error) {
     toast.error(error instanceof Error ? error.message : t('api_keys.create_failed'))
@@ -241,14 +245,10 @@ async function confirmRevokeKey() {
 
     if ('deleted' in result && result.deleted) {
       const nextPage = keys.value.length <= 1 && page.value > 1 ? page.value - 1 : page.value
-      if (nextPage !== page.value) {
-        page.value = nextPage
-      } else {
-        await fetchKeys(nextPage)
-      }
+      await runLoad(nextPage)
       toast.success(t('api_keys.remove_success'))
     } else {
-      await fetchKeys()
+      await runLoad()
       toast.success(t('api_keys.revoke_success'))
     }
   } catch (error) {
@@ -269,12 +269,6 @@ async function copyToken() {
     toast.error(t('api_keys.copy_failed'))
   }
 }
-
-onMounted(() => {
-  void fetchKeys()
-})
-
-watch(page, (nextPage) => void fetchKeys(nextPage))
 </script>
 
 <template>
@@ -296,8 +290,10 @@ watch(page, (nextPage) => void fetchKeys(nextPage))
     </template>
 
     <DataTable
+      v-model:search="search"
       :columns="columns"
       :data="keys"
+      search-mode="remote"
       :search-keys="['name']"
       :search-placeholder="t('api_keys.filter_keyword')"
       storage-key="api-keys-table"

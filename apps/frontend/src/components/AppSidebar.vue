@@ -14,6 +14,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar'
+import { hasPermission } from '@/lib/permission'
 import { useAuthStore } from '@/stores/auth'
 import { useSettingsStore } from '@/stores/settings'
 
@@ -69,8 +70,9 @@ const navGroups = computed(() => {
   for (const route of router.getRoutes()) {
     const nav = getRouteNav(route)
     const title = route.meta.title as string | undefined
+    const permission = route.meta.permission as string | string[] | undefined
 
-    if (!nav || !title) {
+    if (!nav || !title || !hasPermission(auth.user?.permissions, permission)) {
       continue
     }
 

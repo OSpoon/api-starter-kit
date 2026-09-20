@@ -31,10 +31,11 @@
 - Adonis Shield 与 Nginx 设置 CSP、`X-Content-Type-Options`、`X-Frame-Options` 和 `Referrer-Policy` 等安全头。
 - 后端容器以非 root 的 `node` 用户运行。
 - 前端 Markdown 渲染器转义 raw HTML，防止 AI 输出 XSS。
-- 管理端、独立助手 Web 和桌面端都不是安全边界；所有认证、授权、校验、脱敏和审计必须由 backend 重新执行。
+- 管理端、独立助手 Web、桌面端和 Chrome 扩展都不是安全边界；所有认证、授权、校验、脱敏和审计必须由 backend 重新执行。
 - 独立助手 Web 通过 `VITE_API_URL` 指向 API 时，必须将其正式 origin 纳入 backend 的 CORS 策略，并只使用 HTTPS。
 - 桌面端安装包不保存 API secret、模型凭据或管理员密码；Tauri capability 只开放实际需要的窗口和系统权限。
 - 桌面端的 WebView CSP 在确定生产 API origin 后必须收紧，不能以 `csp: null` 作为正式发布配置。
+- Chrome 扩展按用户配置的 API origin 请求 host permission；不注入网页脚本、不读取活动标签页内容，也不保存服务端密钥。
 
 ## 仓库安全设置
 

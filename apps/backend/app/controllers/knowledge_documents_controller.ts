@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 
 import type { HttpContext } from '@adonisjs/core/http'
-import { ApiOperation, ApiResponse, ApiSecurity } from '@foadonis/openapi/decorators'
+import { ApiOperation, ApiQuery, ApiResponse, ApiSecurity } from '@foadonis/openapi/decorators'
 
 import KnowledgeDocument from '#models/knowledge_document'
 import Role from '#models/role'
@@ -19,6 +19,7 @@ import {
   knowledgeDocumentValidator,
   knowledgeMetadataPreviewValidator,
 } from '#validators/knowledge_document'
+import { paginationSearchQueryValidator } from '#validators/pagination'
 
 function parseRoleIds(value: unknown) {
   const parsed = typeof value === 'string' ? JSON.parse(value) : value
@@ -81,15 +82,45 @@ async function readTextFiles(ctx: HttpContext) {
 
 @ApiSecurity('bearerAuth')
 export default class KnowledgeDocumentsController {
-  @ApiOperation({ summary: '获取知识文档列表' })
+  @ApiOperation({
+    summary: '获取知识文档列表',
+    description: '返回知识文档分页列表，支持按标题、摘要或正文搜索。',
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    description: '页码，从 1 开始',
+    schema: { type: 'integer', minimum: 1 },
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: '每页数量，默认 20，最大 100',
+    schema: { type: 'integer', minimum: 1 },
+  })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    description: '搜索文档标题、摘要或正文；去除首尾空格，空值不过滤，最多 200 个字符',
+    schema: { type: 'string', maxLength: 200 },
+  })
   @ApiResponse({ status: 200, description: '知识文档分页列表' })
   async index({ request, serialize }: HttpContext) {
-    const page = Math.max(Number(request.input('page', 1)) || 1, 1)
-    const paginator = await KnowledgeDocument.query()
+    const payload = await paginationSearchQueryValidator.validate(request.qs())
+    const search = payload.search ?? ''
+    const query = KnowledgeDocument.query()
       .preload('roles')
       .withCount('chunks')
       .orderBy('updated_at', 'desc')
-      .paginate(page, clampLimit(request.input('limit'), 20, 100))
+    if (search) {
+      query.where((builder) => {
+        builder
+          .whereILike('title', `%${search}%`)
+          .orWhereILike('summary', `%${search}%`)
+          .orWhereILike('content', `%${search}%`)
+      })
+    }
+    const paginator = await query.paginate(payload.page ?? 1, clampLimit(payload.limit, 20, 100))
     return serialize({
       items: paginator.all().map(serializeKnowledgeDocument),
       meta: paginator.getMeta(),

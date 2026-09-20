@@ -10,7 +10,13 @@ import { Label } from '@/components/ui/label'
 import { usePermission } from '@/lib/permission'
 import { useAuthStore } from '@/stores/auth'
 
-import { getLlmConfiguration, testLlmConfiguration, updateLlmConfiguration } from './api'
+import {
+  getLlmConfiguration,
+  type LlmConfiguration,
+  testLlmConfiguration,
+  updateLlmConfiguration,
+} from './api'
+import { hasUnsavedLlmConfiguration } from './form-state'
 
 const { t } = useI18n()
 const auth = useAuthStore()
@@ -18,6 +24,7 @@ const { can } = usePermission()
 const loading = ref(true)
 const saving = ref(false)
 const testing = ref(false)
+const savedConfiguration = ref<LlmConfiguration | null>(null)
 const form = reactive({
   chatApiKey: '',
   chatBaseUrl: '',
@@ -32,17 +39,27 @@ const form = reactive({
   requestTimeoutMs: 180000,
 })
 
+const hasUnsavedChanges = computed(() => hasUnsavedLlmConfiguration(form, savedConfiguration.value))
+const canTestSavedConfiguration = computed(
+  () => savedConfiguration.value !== null && !hasUnsavedChanges.value
+)
+
+function applySavedConfiguration(config: LlmConfiguration) {
+  form.chatBaseUrl = config.chat.baseUrl ?? ''
+  form.chatModel = config.chat.model
+  form.asrBaseUrl = config.asr.baseUrl ?? ''
+  form.asrModel = config.asr.model
+  form.embeddingBaseUrl = config.embedding.baseUrl ?? ''
+  form.embeddingModel = config.embedding.model ?? ''
+  form.embeddingDimensions = config.embedding.dimensions
+  form.requestTimeoutMs = config.requestTimeoutMs
+  savedConfiguration.value = config
+}
+
 async function load() {
   try {
     const config = await getLlmConfiguration(auth.token)
-    form.chatBaseUrl = config.chat.baseUrl ?? ''
-    form.chatModel = config.chat.model
-    form.asrBaseUrl = config.asr.baseUrl ?? ''
-    form.asrModel = config.asr.model
-    form.embeddingBaseUrl = config.embedding.baseUrl ?? ''
-    form.embeddingModel = config.embedding.model ?? ''
-    form.embeddingDimensions = config.embedding.dimensions
-    form.requestTimeoutMs = config.requestTimeoutMs
+    applySavedConfiguration(config)
   } catch (error) {
     toast.error(error instanceof Error ? error.message : t('llm_config.load_failed'))
   } finally {
@@ -53,7 +70,7 @@ async function load() {
 async function save() {
   saving.value = true
   try {
-    await updateLlmConfiguration(auth.token, {
+    const config = await updateLlmConfiguration(auth.token, {
       ...form,
       chatApiKey: form.chatApiKey || undefined,
       asrApiKey: form.asrApiKey || undefined,
@@ -62,6 +79,7 @@ async function save() {
     form.chatApiKey = ''
     form.asrApiKey = ''
     form.embeddingApiKey = ''
+    applySavedConfiguration(config)
     toast.success(t('llm_config.saved'))
   } catch (error) {
     toast.error(error instanceof Error ? error.message : t('llm_config.save_failed'))
@@ -71,6 +89,15 @@ async function save() {
 }
 
 async function testConnection() {
+  if (!savedConfiguration.value) {
+    toast.error(t('llm_config.test_config_unavailable'))
+    return
+  }
+  if (hasUnsavedChanges.value) {
+    toast.info(t('llm_config.save_before_test'))
+    return
+  }
+
   testing.value = true
   try {
     const result = await testLlmConfiguration(auth.token)
@@ -202,11 +229,22 @@ onMounted(load)
               type="number"
             /></div></CardContent
       ></Card>
-      <div class="flex flex-wrap justify-end gap-2">
+      <div class="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-end">
+        <p
+          v-if="!canTestSavedConfiguration"
+          class="mr-auto text-sm text-muted-foreground"
+          role="status"
+        >
+          {{
+            savedConfiguration
+              ? t('llm_config.save_before_test')
+              : t('llm_config.test_config_unavailable')
+          }}
+        </p>
         <Button
           type="button"
           variant="outline"
-          :disabled="testing || saving || !can('llm-config:test')"
+          :disabled="testing || saving || !can('llm-config:test') || !canTestSavedConfiguration"
           @click="testConnection"
           ><LoaderCircle v-if="testing" class="size-4 animate-spin" /><TestTube
             v-else

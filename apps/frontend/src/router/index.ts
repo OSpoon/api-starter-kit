@@ -4,6 +4,7 @@ import { isPasswordExpired } from '@/lib/password'
 import { hasPermission } from '@/lib/permission'
 import { accountRoutes } from '@/router/modules/account'
 import { workbenchPermissionRoutes, workbenchRoutes } from '@/router/modules/workbench'
+import { findFirstAccessibleRoute } from '@/router/route-access'
 import { useAuthStore } from '@/stores/auth'
 
 const router = createRouter({
@@ -30,7 +31,7 @@ function synchronizePermissionRoutes(permissions: string[], userId: number) {
 
   for (const route of workbenchPermissionRoutes) {
     const name = route.name
-    if (!name) {
+    if (!name || name === 'dashboard') {
       continue
     }
     const allowed = hasPermission(permissions, route.meta?.permission)
@@ -42,6 +43,11 @@ function synchronizePermissionRoutes(permissions: string[], userId: number) {
     }
   }
   synchronizedPermissionSignature = signature
+}
+
+function getLandingLocation(permissions: string[]) {
+  const route = findFirstAccessibleRoute(workbenchPermissionRoutes, permissions)
+  return route?.name ? { name: route.name } : { name: 'profile' as const }
 }
 
 router.beforeEach(async (to) => {
@@ -62,6 +68,9 @@ router.beforeEach(async (to) => {
   if (auth.user) {
     const routePermission = to.meta.permission
     if (routePermission && !hasPermission(auth.user.permissions, routePermission)) {
+      if (to.name === 'dashboard') {
+        return getLandingLocation(auth.user.permissions)
+      }
       return { name: 'profile' }
     }
     synchronizePermissionRoutes(auth.user.permissions, auth.user.id)
@@ -79,7 +88,7 @@ router.beforeEach(async (to) => {
   }
 
   if (to.meta.guestOnly && auth.isAuthenticated) {
-    return { name: 'dashboard' }
+    return getLandingLocation(auth.user?.permissions ?? [])
   }
 })
 

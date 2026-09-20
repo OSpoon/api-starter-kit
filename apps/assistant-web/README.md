@@ -57,10 +57,7 @@ or the build-time `VITE_API_URL`.
 
 ## Verification
 
-```bash
-pnpm --dir apps/assistant-web format:check
-pnpm --dir apps/assistant-web typecheck
-pnpm --dir apps/assistant-web lint:check
-pnpm --dir apps/assistant-web test
-pnpm --dir apps/assistant-web build
-```
+Repository-wide application commands and verification requirements are maintained
+in the [development guide](../../docs/development.md). For this client, the
+relevant checks are `format:check`, `typecheck`, `lint:check`, `test`, and
+`build` from the `apps/assistant-web` package.

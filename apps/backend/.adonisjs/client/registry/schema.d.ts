@@ -290,9 +290,9 @@ export interface Registry {
       body: {}
       paramsTuple: []
       params: {}
-      query: {}
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/pagination').paginationSearchQueryValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/api_keys_controller').default['index']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/api_keys_controller').default['index']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/api_keys_controller').default['index']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
   'api_keys.store': {
@@ -398,9 +398,9 @@ export interface Registry {
       body: {}
       paramsTuple: []
       params: {}
-      query: {}
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/pagination').paginationSearchQueryValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/wecom_message_templates_controller').default['index']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/wecom_message_templates_controller').default['index']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/wecom_message_templates_controller').default['index']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
   'wecom_message_templates.store': {
@@ -470,9 +470,9 @@ export interface Registry {
       body: {}
       paramsTuple: []
       params: {}
-      query: {}
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/pagination').paginationSearchQueryValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/knowledge_documents_controller').default['index']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/knowledge_documents_controller').default['index']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/knowledge_documents_controller').default['index']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
   'knowledge_documents.metadata_preview': {
@@ -758,9 +758,9 @@ export interface Registry {
       body: {}
       paramsTuple: []
       params: {}
-      query: {}
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/pagination').paginationSearchQueryValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/audit_logs_controller').default['index']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/audit_logs_controller').default['index']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/audit_logs_controller').default['index']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
   'ai_chat.index': {

@@ -1,7 +1,7 @@
 # 系统架构
 
 API Starter Kit 是一个 pnpm/Turborepo monorepo。模板的边界是提供可复用的系统能力，业务 feature 由使用者按产品需求添加；
-管理端、独立助手 Web 和桌面端是同一套后端能力的三个客户端交付面。
+管理端 Web、独立助手 Web、桌面端和 Chrome 扩展是四种正式客户端交付面，共用同一套后端能力。
 
 ## 应用边界
 
@@ -10,13 +10,14 @@ apps/backend/     AdonisJS API、认证、授权、数据、AI 与渠道 worker
 apps/frontend/    Vue 应用、路由、页面、feature、状态和共享 UI
 apps/assistant-web/     独立 AI 助手 Web 客户端，复用 frontend 的 AI 实现
 apps/assistant-desktop/ Tauri 原生桌面壳，内置 assistant-web 的生产构建产物
+apps/assistant-extension/ Chrome MV3 侧边栏，复用 assistant-web 的客户端实现
 docs/             使用、开发、部署和能力参考
 docker/           本地与生产 Compose、镜像和 Nginx 配置
 ```
 
 后端负责认证、授权、校验、持久化、脱敏、审计和 API 契约。前端不构成安全边界，也不应直接访问数据库或自行决定用户是否有权限。
-三个客户端均通过 `/api/v1` 访问后端；客户端之间不复制认证、权限判断、AI 编排或领域 service。桌面端只增加原生窗口、权限、
-系统集成和安装包能力。
+四种客户端交付面均通过 `/api/v1` 访问后端；桌面端和扩展复用独立助手客户端，不复制认证、权限判断、AI 编排或领域 service。
+桌面端增加原生窗口和系统集成；扩展增加 Chrome side panel 和按需申请 API host 权限。WeCom、飞书和钉钉 worker 通过各自的渠道 adapter 接入共享 AI runtime。
 
 ## 后端请求路径
 
@@ -68,4 +69,4 @@ AI 的详细运行时分层、持久化和 SSE 说明见[AI 助手架构](ai-ass
 ## 数据与部署
 
 PostgreSQL 是应用数据和知识库/AI 会话数据的持久化边界。数据库变更只能通过新增 migration 完成。生产 Docker Compose 默认运行 PostgreSQL、
-backend、管理端 frontend 和可选渠道 worker；独立助手 Web 作为单独静态客户端部署，桌面端作为各平台安装包发布，详见[部署指南](deployment.md)。
+backend、管理端 frontend 和三个渠道 worker；独立助手 Web 作为单独静态客户端部署，桌面端和 Chrome 扩展作为客户端包发布，详见[部署指南](deployment.md)。

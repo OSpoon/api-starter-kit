@@ -1,6 +1,6 @@
 # 企业微信、飞书与钉钉 AI 机器人对接指南
 
-本文说明 API Starter Kit 当前对企微机器人、飞书自建应用机器人和钉钉企业内部应用 Stream 机器人的接入方式、运行时配置、用户绑定、受控操作、消息格式、开发启动和故障排查。管理台 Web、独立助手 Web、独立助手桌面端和三个渠道入口共用的业务能力对比见 [AI 助手能力：管理台与渠道能力横向对比](../ai-assistant-capabilities.md#管理台与渠道能力横向对比)；客户端复用边界见[独立客户端](../ai-assistant-capabilities.md#独立客户端)。
+本文说明 API Starter Kit 当前对企微机器人、飞书自建应用机器人和钉钉企业内部应用 Stream 机器人的接入方式、运行时配置、用户绑定、受控操作、消息格式、开发启动和故障排查。这三个 Bot 与四种正式 UI 交付面共用 backend AI runtime；能力对比见 [AI 助手能力：管理台与渠道能力横向对比](../ai-assistant-capabilities.md#管理台与渠道能力横向对比)，客户端复用边界见 [UI 客户端](../ai-assistant-capabilities.md#ui-客户端)。
 
 ## 1. 设计目标
 

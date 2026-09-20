@@ -6,7 +6,7 @@
 
 知识库用于检索非数据库类的文档信息，例如产品说明、部署指南、操作流程、技术规范和项目约定。它不替代实时数据库查询，也不向 AI 暴露任意 SQL。
 
-知识库由管理端 Web 维护，但检索能力通过 backend 统一提供给管理端 AI 助手、独立助手 Web、桌面端和已绑定权限的渠道 Bot；
+知识库由管理端 Web 维护，但检索能力通过 backend 统一提供给管理端 AI 助手、独立助手 Web、桌面端、Chrome 扩展和已绑定权限的渠道 Bot；
 独立客户端不直接访问数据库，也不维护另一套文档索引或权限逻辑。
 
 知识库有两个相互独立的职责：
@@ -58,15 +58,15 @@ LLM 元数据提取是“预览建议”，不会直接写入数据库、授予�
 
 所有知识文档管理接口均位于 `/api/v1/system`，需要 Bearer 认证、`knowledge:manage` 权限，并由后端完成角色校验、文件校验、持久化和审计。
 
-| 方法     | 路径                                    | 用途                         | 请求体/限制                                                        |
-| -------- | --------------------------------------- | ---------------------------- | ------------------------------------------------------------------ |
-| `GET`    | `/knowledge-documents`                  | 分页获取文档及角色           | `page`、`limit`；服务端限制分页上限                                |
-| `POST`   | `/knowledge-documents/metadata-preview` | 生成待确认的 LLM 元数据建议  | multipart `file`；单文件 ≤ 5 MB                                    |
-| `POST`   | `/knowledge-documents`                  | 创建并索引单个文档           | multipart `file`、`summary`、JSON 字符串 `topics`、`roleIds`       |
-| `POST`   | `/knowledge-documents/batch`            | 批量创建并索引文档           | multipart `files`，最多 20 个；每个文件 ≤ 5 MB；`roleIds` 统一应用 |
-| `PUT`    | `/knowledge-documents/:id`              | 更新文档和元数据             | 可选新 `file`；`summary`、`topics`、`roleIds` 必须按当前表单提交   |
-| `POST`   | `/knowledge-documents/:id/reindex`      | 使用当前正文和元数据重建向量 | 无请求体                                                           |
-| `DELETE` | `/knowledge-documents/:id`              | 删除文档、正文分块和向量     | 需要前端确认                                                       |
+| 方法     | 路径                                    | 用途                         | 请求体/限制                                                                               |
+| -------- | --------------------------------------- | ---------------------------- | ----------------------------------------------------------------------------------------- |
+| `GET`    | `/knowledge-documents`                  | 分页获取文档及角色           | `page`、`limit`、可选 `search`；服务端限制分页上限，搜索语义见[API 指南](api.md#列表搜索) |
+| `POST`   | `/knowledge-documents/metadata-preview` | 生成待确认的 LLM 元数据建议  | multipart `file`；单文件 ≤ 5 MB                                                           |
+| `POST`   | `/knowledge-documents`                  | 创建并索引单个文档           | multipart `file`、`summary`、JSON 字符串 `topics`、`roleIds`                              |
+| `POST`   | `/knowledge-documents/batch`            | 批量创建并索引文档           | multipart `files`，最多 20 个；每个文件 ≤ 5 MB；`roleIds` 统一应用                        |
+| `PUT`    | `/knowledge-documents/:id`              | 更新文档和元数据             | 可选新 `file`；`summary`、`topics`、`roleIds` 必须按当前表单提交                          |
+| `POST`   | `/knowledge-documents/:id/reindex`      | 使用当前正文和元数据重建向量 | 无请求体                                                                                  |
+| `DELETE` | `/knowledge-documents/:id`              | 删除文档、正文分块和向量     | 需要前端确认                                                                              |
 
 成功响应遵循 `{ "data": ... }` envelope；列表响应为 `data.items` 和 `data.meta`。普通读取接口不会返回向量、Provider 内部字段或角色 pivot 数据。
 

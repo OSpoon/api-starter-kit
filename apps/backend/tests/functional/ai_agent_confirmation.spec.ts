@@ -18,6 +18,7 @@ import Role from '#models/role'
 import User from '#models/user'
 import WecomMessageTemplate from '#models/wecom_message_template'
 import { generateInitialPassword } from '#security/user_credentials'
+import { getChannelGuestUser } from '#services/channel_guest_principal'
 
 async function executeTool(tool: AgentTool, input: unknown) {
   const result = await tool.execute('test-call', input)
@@ -60,6 +61,181 @@ test.group('AI agent confirmations', (group) => {
     assert.equal(getAiAgentAction('revoke_api_key')?.impact, 'destructive')
     assert.equal(getAiAgentAction('delete_api_key')?.impact, 'destructive')
     assert.equal(getAiAgentAction('create_api_key')?.impact, 'standard')
+  })
+
+  test('refuses AI proposals to mutate the internal channel guest account', async ({ assert }) => {
+    const superAdminRole = await Role.findByOrFail('code', 'super-admin')
+    const admin = await User.create({
+      fullName: 'Channel guest action admin',
+      email: `channel-guest-action-${Date.now()}@example.com`,
+      password: generateInitialPassword(),
+    })
+    await admin.related('roles').sync([superAdminRole.id])
+    const guest = await getChannelGuestUser()
+    const conversation = await AiChatConversation.create({
+      userId: admin.id,
+      title: 'Protect internal channel guest',
+    })
+    const proposalTool = createAiAgentTools({
+      userId: admin.id,
+      conversationId: conversation.id,
+      agentRunId: crypto.randomUUID(),
+    }).find((tool) => tool.name === 'propose_system_management_change')
+    const changes = [
+      { action: 'reset_user_password', input: { email: guest.email } },
+      { action: 'disable_user', input: { email: guest.email } },
+      { action: 'enable_user', input: { email: guest.email } },
+      {
+        action: 'update_user',
+        input: { email: guest.email, fullName: guest.fullName, roleIds: [] },
+      },
+      { action: 'delete_user', input: { email: guest.email } },
+    ]
+
+    for (const change of changes) {
+      const result = JSON.parse(await executeTool(proposalTool!, change))
+      assert.equal(result.kind, 'action_error', change.action)
+      assert.include(result.message, '系统内部用户不可管理')
+    }
+
+    assert.isNull(
+      await AiAgentConfirmation.query().where('conversationId', conversation.id).first()
+    )
+    assert.isNotNull(await User.find(guest.id))
+  })
+
+  test('rechecks the channel guest restriction when an AI action is confirmed', async ({
+    client,
+    assert,
+  }) => {
+    const superAdminRole = await Role.findByOrFail('code', 'super-admin')
+    const admin = await User.create({
+      fullName: 'Channel guest confirmation admin',
+      email: `channel-guest-confirm-${Date.now()}@example.com`,
+      password: generateInitialPassword(),
+    })
+    await admin.related('roles').sync([superAdminRole.id])
+    const token = await User.accessTokens.create(admin)
+    const guest = await getChannelGuestUser()
+    const conversation = await AiChatConversation.create({
+      userId: admin.id,
+      title: 'Revalidate protected user',
+    })
+    const message = await AiChatMessage.create({
+      conversationId: conversation.id,
+      role: 'assistant',
+      content: 'A protected user action confirmation.',
+    })
+    const confirmation = await AiAgentConfirmation.create({
+      conversationId: conversation.id,
+      assistantMessageId: message.id,
+      requestedByUserId: admin.id,
+      agentRunId: crypto.randomUUID(),
+      action: 'delete_user',
+      targetType: 'user',
+      targetId: String(guest.id),
+      targetSummary: { fullName: guest.fullName, email: guest.email },
+      payload: { userId: guest.id },
+      status: 'pending',
+      expiresAt: DateTime.now().plus({ minutes: 5 }),
+    })
+
+    const response = await client
+      .post(
+        `/api/v1/ai-chat/conversations/${conversation.id}/confirmations/${confirmation.id}/confirm`
+      )
+      .bearerToken(token.value!.release())
+
+    response.assertStatus(409)
+    assert.isNotNull(await User.find(guest.id))
+    const failedConfirmation = await AiAgentConfirmation.findOrFail(confirmation.id)
+    assert.equal(failedConfirmation.status, 'failed')
+  })
+
+  test('rechecks self-role and super-admin protections through the shared AI mutation service', async ({
+    client,
+    assert,
+  }) => {
+    const updatePermission = await Permission.findByOrFail('code', 'users:update')
+    const operatorRole = await Role.create({
+      code: `ai-role-operator-${Date.now()}`,
+      name: 'AI operator',
+    })
+    await operatorRole.related('permissions').sync([updatePermission.id])
+    const operator = await User.create({
+      fullName: 'AI role operator',
+      email: `ai-role-operator-${Date.now()}@example.com`,
+      password: generateInitialPassword(),
+    })
+    await operator.related('roles').sync([operatorRole.id])
+    const token = await User.accessTokens.create(operator)
+    const superAdminRole = await Role.findByOrFail('code', 'super-admin')
+    const protectedAdmin = await User.create({
+      fullName: 'AI protected admin',
+      email: `ai-protected-admin-${Date.now()}@example.com`,
+      password: generateInitialPassword(),
+    })
+    await protectedAdmin.related('roles').sync([superAdminRole.id])
+    const conversation = await AiChatConversation.create({
+      userId: operator.id,
+      title: 'Shared role protections',
+    })
+    const proposalTool = createAiAgentTools({
+      userId: operator.id,
+      conversationId: conversation.id,
+      agentRunId: crypto.randomUUID(),
+    }).find((tool) => tool.name === 'propose_system_management_change')
+
+    const selfProposal = JSON.parse(
+      await executeTool(proposalTool!, {
+        action: 'update_user',
+        input: {
+          userId: operator.id,
+          fullName: operator.fullName,
+          email: operator.email,
+          roleIds: [],
+        },
+      })
+    )
+    assert.equal(selfProposal.kind, 'confirmation')
+    const selfResponse = await client
+      .post(
+        `/api/v1/ai-chat/conversations/${conversation.id}/confirmations/${selfProposal.confirmation.id}/confirm`
+      )
+      .bearerToken(token.value!.release())
+    selfResponse.assertStatus(409)
+    const unchangedOperator = await User.query()
+      .where('id', operator.id)
+      .preload('roles')
+      .firstOrFail()
+    assert.equal(unchangedOperator.roles[0]?.id, operatorRole.id)
+
+    const adminProposal = JSON.parse(
+      await executeTool(proposalTool!, {
+        action: 'update_user',
+        input: {
+          userId: protectedAdmin.id,
+          fullName: protectedAdmin.fullName,
+          email: protectedAdmin.email,
+          roleIds: [superAdminRole.id],
+        },
+      })
+    )
+    assert.equal(adminProposal.kind, 'confirmation')
+    const adminResponse = await client
+      .post(
+        `/api/v1/ai-chat/conversations/${conversation.id}/confirmations/${adminProposal.confirmation.id}/confirm`
+      )
+      .bearerToken(token.value!.release())
+    adminResponse.assertStatus(409)
+    const unchangedAdmin = await User.query()
+      .where('id', protectedAdmin.id)
+      .preload('roles')
+      .firstOrFail()
+    assert.deepEqual(
+      unchangedAdmin.roles.map((role) => role.id),
+      [superAdminRole.id]
+    )
   })
 
   test('prepares API Key creation through direct fields and one confirmation', async ({
@@ -196,7 +372,7 @@ test.group('AI agent confirmations', (group) => {
     )
     assert.exists(
       await AuditLog.query()
-        .where('action', 'agent.api_key_revoked')
+        .where('action', 'api_key.revoked')
         .where('target_id', String(apiKey.id))
         .first()
     )
@@ -256,7 +432,7 @@ test.group('AI agent confirmations', (group) => {
     const revokedApiKey = await ApiKey.findOrFail(apiKey.id)
     assert.isNotNull(revokedApiKey.revokedAt)
     const auditEvents = await AuditLog.query()
-      .where('action', 'agent.api_key_revoked')
+      .where('action', 'api_key.revoked')
       .where('target_id', apiKey.id)
     assert.equal(auditEvents.length, 1)
   })
@@ -493,7 +669,7 @@ test.group('AI agent confirmations', (group) => {
     assert.equal(confirmedRequest.status, 'confirmed')
     assert.exists(
       await AuditLog.query()
-        .where('action', 'agent.api_key_deleted')
+        .where('action', 'api_key.deleted')
         .where('target_id', String(apiKey.id))
         .first()
     )

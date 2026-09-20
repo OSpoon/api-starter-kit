@@ -14,7 +14,7 @@ docs/           项目使用、开发、部署和能力参考
 docker/         Compose、镜像和 Nginx 配置
 ```
 
-根工作区使用 pnpm 与 Turborepo。修改代码前阅读根目录 [AGENTS.md](../AGENTS.md) 以及目标目录最近的 `AGENTS.md`；独立助手的 [AGENTS.md](../apps/assistant-web/AGENTS.md) 与管理端前端约束保持同步，桌面壳的 [AGENTS.md](../apps/assistant-desktop/AGENTS.md) 只约束 Tauri 与 Rust 边界。
+根工作区使用 pnpm 与 Turborepo。修改代码前阅读根目录 [AGENTS.md](../AGENTS.md) 以及目标目录最近的 `AGENTS.md`；独立助手的 [AGENTS.md](../apps/assistant-web/AGENTS.md) 引用共享前端约束并补充客户端边界，桌面壳的 [AGENTS.md](../apps/assistant-desktop/AGENTS.md) 只约束 Tauri 与 Rust 边界。
 
 ## 常用命令
 

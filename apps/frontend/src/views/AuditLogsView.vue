@@ -6,6 +6,7 @@ import { toast } from 'vue-sonner'
 import DataTable from '@/components/common/DataTable.vue'
 import ListPage from '@/components/common/ListPage.vue'
 import { Badge } from '@/components/ui/badge'
+import { useRemoteListSearch } from '@/composables/useRemoteListSearch'
 import { type AuditLogEntry, listAuditLogs } from '@/features/access-control/api'
 import { useAuthStore } from '@/stores/auth'
 
@@ -74,21 +75,40 @@ function targetTypeLabel(targetType: string) {
   return te(key) ? t(key) : targetType
 }
 
-async function load(nextPage = page.value) {
+function getAuditSearchableText(entry: AuditLogEntry) {
+  return [
+    entry.action,
+    entry.targetType,
+    entry.targetId,
+    entry.ipAddress,
+    entry.requestId,
+    entry.actor?.fullName,
+    entry.actor?.email,
+  ]
+    .filter(Boolean)
+    .join(' ')
+}
+
+async function load(
+  nextPage = page.value,
+  search = debouncedSearch.value,
+  isCurrent: () => boolean = () => true
+) {
   loading.value = true
   try {
-    const result = await listAuditLogs(auth.token, nextPage)
+    const result = await listAuditLogs(auth.token, nextPage, search)
+    if (!isCurrent()) return
     entries.value = result.items
     page.value = result.meta.currentPage
     pageCount.value = result.meta.lastPage
   } catch (error) {
-    toast.error(error instanceof Error ? error.message : t('common.error'))
+    if (isCurrent()) toast.error(error instanceof Error ? error.message : t('common.error'))
   } finally {
-    loading.value = false
+    if (isCurrent()) loading.value = false
   }
 }
 
-watch(page, (nextPage) => load(nextPage), { immediate: true })
+const { search, debouncedSearch, runLoad } = useRemoteListSearch(page, load)
 </script>
 
 <template>
@@ -99,16 +119,18 @@ watch(page, (nextPage) => load(nextPage), { immediate: true })
     :refresh-label="t('common.refresh')"
     action-label=""
     :show-action="false"
-    @refresh="load(1)"
+    @refresh="runLoad(1)"
   >
     <template #refresh-icon
       ><RefreshCw class="size-4" :class="{ 'animate-spin': loading }"
     /></template>
     <DataTable
+      v-model:search="search"
       :columns="columns"
       :data="entries"
-      :search-keys="['action', 'targetType', 'targetId', 'ipAddress']"
-      :search-placeholder="t('common.search_placeholder')"
+      search-mode="remote"
+      :get-searchable-text="getAuditSearchableText"
+      :search-placeholder="t('audit_logs.search')"
       storage-key="audit-logs-table"
       :empty-message="loading ? t('common.loading') : t('common.no_data')"
       :server-pagination="{ page, pageCount }"

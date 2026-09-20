@@ -88,6 +88,7 @@ const { userColumns, roleColumns, permissionColumns } = useAccessControlColumns(
     <DataTable
       v-if="mode === 'users'"
       v-model:search="management.search"
+      search-mode="remote"
       :columns="userColumns"
       :data="management.users"
       :search-keys="['fullName', 'email']"
@@ -100,6 +101,7 @@ const { userColumns, roleColumns, permissionColumns } = useAccessControlColumns(
     <DataTable
       v-else-if="mode === 'roles'"
       v-model:search="management.search"
+      search-mode="remote"
       :columns="roleColumns"
       :data="management.roles"
       :search-keys="['name', 'code', 'description']"
@@ -112,6 +114,7 @@ const { userColumns, roleColumns, permissionColumns } = useAccessControlColumns(
     <DataTable
       v-else
       v-model:search="management.search"
+      search-mode="remote"
       :columns="permissionColumns"
       :data="management.permissions"
       :search-keys="['name', 'code', 'groupName', 'description']"

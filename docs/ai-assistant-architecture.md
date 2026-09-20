@@ -78,8 +78,8 @@ AI 请求完成时间由现有审计日志和运行状态记录，不依赖外�
 独立客户端通过 `AiChatAssistant` 的 `page` 模式使用全屏工作区布局；后台应用继续使用默认的
 浮动模式。独立客户端的页面外框、侧栏宽度、色彩 token、间距和用户入口状态以管理端
 `AppLayout`、`Sidebar`、`SidebarInset` 和 `NavUser` 为唯一视觉基准；会话侧栏底部复用管理平台
-用户入口，展示当前用户信息并提供退出登录操作。`apps/assistant-web/AGENTS.md` 与
-`apps/frontend/AGENTS.md` 保持逐字同步，独立客户端不维护一套分叉的前端约束。
+用户入口，展示当前用户信息并提供退出登录操作。独立客户端复用根目录和管理端前端约束，
+其 `AGENTS.md` 只补充客户端边界，避免复制维护整套通用规则。
 
 客户端自己的路由只保留 AI 会话、登录、2FA、密码过期处理和账户页面；后端仍是认证、
 权限、模型调用、持久化和敏感操作的唯一边界。开发时使用 `VITE_DEV_API_PROXY_TARGET`
@@ -98,48 +98,25 @@ AI 请求完成时间由现有审计日志和运行状态记录，不依赖外�
 `tauri.conf.json` 的 CSP，并验证桌面 WebView 下的 SSE、麦克风、剪贴板、登录态和历史
 路由刷新行为。自动更新暂不启用，必须先确定发布 endpoint、安装包签名和 updater 公钥。
 
-```bash
-pnpm dev
+## Chrome 扩展
 
-# 只运行独立助手 Web
-pnpm --dir apps/assistant-web dev
-pnpm --dir apps/assistant-web typecheck
-pnpm --dir apps/assistant-web lint:check
-pnpm --dir apps/assistant-web format:check
-pnpm --dir apps/assistant-web build
-pnpm --dir apps/assistant-desktop format:check
-pnpm --dir apps/assistant-desktop typecheck
-pnpm --dir apps/assistant-desktop lint:check
-pnpm --dir apps/assistant-desktop test
-pnpm --dir apps/assistant-desktop build:app
-```
+`apps/assistant-extension` 使用 Extension.js 将同一套 assistant-web Vue 应用装入 Chrome MV3 side panel，
+不另建聊天界面、认证状态或 API client。扩展只在用户连接时申请已配置 API origin 的可选 host permission，
+不注入页面脚本，也不读取活动标签页内容。扩展构建和发布边界见[扩展 README](../apps/assistant-extension/README.md)。
 
-`pnpm dev` 是推荐的联调入口；它会同时启动后端、管理端、Bot、独立助手 Web 和桌面端。
-`pnpm --dir apps/assistant-desktop dev` 只适合在 `17070` 已经可访问时使用。
+扩展与独立助手共享的 Vue 组件样式集中在
+`apps/frontend/src/assets/assistant-components.css`；构建配置将 `vue-router` 收敛到同一运行时，并对普通
+JS/TS 模块启用 AutoImport。修改这些共享模块时遵守根目录 [AGENTS.md](../AGENTS.md) 中的扩展运行时和样式约束。
 
-## 验证
+日常开发、各应用命令和提交前检查统一见[工程开发指南](development.md)。根目录 `pnpm dev` 会启动完整栈，
+包括 backend、管理端、三个 Bot、assistant-web、Tauri 桌面端和 Chrome 扩展；单独启动桌面端时，需先让
+`17070` 上的 assistant-web 可访问。
 
-修改 Agent、工具协议、提示词或确认流程后运行：
+## AI 专项验证
+
+修改 Agent、工具协议、提示词或确认流程后，除[工程开发指南](development.md)中的对应应用检查外，运行：
 
 ```bash
-pnpm --dir apps/backend format:check
-pnpm --dir apps/backend typecheck
-pnpm --dir apps/backend lint:check
 pnpm --dir apps/backend exec node ace test --files=tests/functional/ai_agent_query_registry.spec.ts --files=tests/functional/ai_agent_confirmation.spec.ts
 pnpm --dir apps/backend exec node ace ai:evaluate
-pnpm --dir apps/frontend format:check
-pnpm --dir apps/frontend typecheck
-pnpm --dir apps/frontend lint:check
-pnpm --dir apps/frontend test
-pnpm --dir apps/frontend build
-pnpm --dir apps/assistant-web format:check
-pnpm --dir apps/assistant-web typecheck
-pnpm --dir apps/assistant-web lint:check
-pnpm --dir apps/assistant-web test
-pnpm --dir apps/assistant-web build
-pnpm --dir apps/assistant-desktop format:check
-pnpm --dir apps/assistant-desktop typecheck
-pnpm --dir apps/assistant-desktop lint:check
-pnpm --dir apps/assistant-desktop test
-pnpm --dir apps/assistant-desktop build
 ```

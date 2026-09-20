@@ -60,6 +60,7 @@ const { t, locale } = useI18n()
 
 const repositoryUrl = 'https://github.com/OSpoon/api-starter-kit'
 const menuOpen = ref(false)
+const showDevelopmentTools = import.meta.env.DEV
 const colorMode = useColorMode({ attribute: 'class' })
 const apiDocsUrl = import.meta.env.VITE_API_DOCS_URL || ''
 
@@ -175,15 +176,15 @@ function setTheme(mode: 'light' | 'dark' | 'auto') {
                   <BookOpenText />
                   {{ t('nav.api_docs') }}
                 </DropdownMenuItem>
-                <DropdownMenuItem @click="navigateTo('/schema-builder')">
+                <DropdownMenuItem v-if="showDevelopmentTools" @click="navigateTo('/schema-builder')">
                   <FileJson />
                   {{ t('nav.schema_builder') }}
                 </DropdownMenuItem>
-                <DropdownMenuItem @click="navigateTo('/sql-editor')">
+                <DropdownMenuItem v-if="showDevelopmentTools" @click="navigateTo('/sql-editor')">
                   <SquareCode />
                   {{ t('nav.sql_editor') }}
                 </DropdownMenuItem>
-                <DropdownMenuItem @click="navigateTo('/sql-workspace')">
+                <DropdownMenuItem v-if="showDevelopmentTools" @click="navigateTo('/sql-workspace')">
                   <FileCode2 />
                   {{ t('nav.sql_workspace') }}
                 </DropdownMenuItem>

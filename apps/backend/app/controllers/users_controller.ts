@@ -1,14 +1,16 @@
 import type { HttpContext } from '@adonisjs/core/http'
+import { ApiResponse } from '@foadonis/openapi/decorators'
 
 import User from '#models/user'
 import { generateInitialPassword } from '#security/user_credentials'
+import {
+  AccessControlMutationError,
+  createManagedUser,
+  updateManagedUser,
+} from '#services/access_control_mutations'
 import { recordAuditEvent } from '#services/audit_log'
 import { CHANNEL_GUEST_USER_EMAIL, isChannelGuestUser } from '#services/channel_guest_principal'
-import {
-  countSuperAdminUsers,
-  includesSuperAdminRole,
-  isSuperAdmin,
-} from '#services/super_admin_access'
+import { countSuperAdminUsers, isSuperAdmin } from '#services/super_admin_access'
 import { loadUserAccess } from '#services/user_access'
 import { clampLimit } from '#support/pagination'
 import UserTransformer from '#transformers/user_transformer'
@@ -32,13 +34,6 @@ function serializeUserListItem(user: User) {
   }
 }
 
-function hasSameRoleIds(currentRoleIds: number[], nextRoleIds: number[]) {
-  return (
-    currentRoleIds.length === nextRoleIds.length &&
-    currentRoleIds.every((roleId) => nextRoleIds.includes(roleId))
-  )
-}
-
 export default class UsersController {
   async index({ request, serialize }: HttpContext) {
     const page = Math.max(Number(request.input('page', 1)) || 1, 1)
@@ -59,77 +54,88 @@ export default class UsersController {
     })
   }
 
+  @ApiResponse({ status: 409, description: '请求包含不存在的角色 ID' })
   async store(ctx: HttpContext) {
     const { auth, request, response, serialize } = ctx
     const payload = await request.validateUsing(createManagedUserValidator)
-    if (await includesSuperAdminRole(payload.roleIds)) {
-      return response.forbidden({ message: '超级管理员角色不可授予' })
-    }
     if (await User.findBy('email', payload.email)) {
       return response.badRequest({ message: '该邮箱已被使用' })
     }
     const initialPassword = generateInitialPassword()
-    const user = await User.create({
-      fullName: payload.fullName,
-      email: payload.email,
-      password: initialPassword,
-    })
-    await user.related('roles').sync(payload.roleIds)
-    await recordAuditEvent(ctx, {
-      actorUserId: auth.getUserOrFail().id,
-      action: 'user.created',
-      targetType: 'user',
-      targetId: user.id,
-      metadata: { assignedRoleIds: payload.roleIds },
-    })
+    let user: User
+    try {
+      user = await createManagedUser({
+        ctx,
+        actorUserId: auth.getUserOrFail().id,
+        fullName: payload.fullName,
+        email: payload.email,
+        password: initialPassword,
+        roleIds: payload.roleIds,
+        source: 'api',
+      })
+    } catch (error) {
+      if (error instanceof AccessControlMutationError && error.code === 'invalid_role_ids') {
+        return response.conflict({ message: error.message })
+      }
+      if (error instanceof AccessControlMutationError && error.code === 'super_admin_role_grant') {
+        return response.forbidden({ message: error.message })
+      }
+      throw error
+    }
     return serialize({
       user: UserTransformer.transform(await loadUserAccess(user)),
       initialPassword,
     })
   }
 
+  @ApiResponse({ status: 409, description: '请求包含不存在的角色 ID' })
   async update(ctx: HttpContext) {
     const { auth, params, request, response, serialize } = ctx
     const user = await User.findOrFail(params.id)
     if (isChannelGuestUser(user)) {
       return response.forbidden({ message: '系统内部用户不可管理' })
     }
-    await user.load('roles')
     const payload = await request.validateUsing(updateManagedUserValidator)
     const currentUser = auth.getUserOrFail()
-    const currentRoleIds = user.roles.map((role) => role.id)
-    const targetIsSuperAdmin = user.roles.some((role) => role.code === 'super-admin')
-    const actorIsSuperAdmin = await isSuperAdmin(currentUser)
-    if (targetIsSuperAdmin && !actorIsSuperAdmin) {
-      return response.forbidden({ message: '仅超级管理员可以维护超级管理员账户' })
-    }
-    if (targetIsSuperAdmin && !hasSameRoleIds(currentRoleIds, payload.roleIds)) {
-      return response.badRequest({ message: '超级管理员的角色不可修改' })
-    }
-    if (!targetIsSuperAdmin && (await includesSuperAdminRole(payload.roleIds))) {
-      return response.forbidden({ message: '超级管理员角色不可授予' })
-    }
-    if (
-      user.id === currentUser.id &&
-      !user.roles.every((role) => payload.roleIds.includes(role.id))
-    ) {
-      return response.badRequest({ message: '不能移除当前登录账号的已有角色' })
-    }
     const sameEmailUser = await User.findBy('email', payload.email)
     if (sameEmailUser && sameEmailUser.id !== user.id)
       return response.badRequest({ message: '该邮箱已被使用' })
-    user.fullName = payload.fullName
-    user.email = payload.email
-    await user.save()
-    await user.related('roles').sync(payload.roleIds)
-    await recordAuditEvent(ctx, {
-      actorUserId: currentUser.id,
-      action: 'user.updated',
-      targetType: 'user',
-      targetId: user.id,
-      metadata: { assignedRoleIds: payload.roleIds },
-    })
-    return serialize(UserTransformer.transform(await loadUserAccess(user)))
+    let updatedUser: User
+    try {
+      updatedUser = await updateManagedUser({
+        ctx,
+        actorUserId: currentUser.id,
+        userId: user.id,
+        fullName: payload.fullName,
+        email: payload.email,
+        roleIds: payload.roleIds,
+        source: 'api',
+      })
+    } catch (error) {
+      if (error instanceof AccessControlMutationError && error.code === 'invalid_role_ids') {
+        return response.conflict({ message: error.message })
+      }
+      if (error instanceof AccessControlMutationError && error.code === 'protected_user') {
+        return response.forbidden({ message: error.message })
+      }
+      if (
+        error instanceof AccessControlMutationError &&
+        error.code === 'super_admin_target_forbidden'
+      ) {
+        return response.forbidden({ message: error.message })
+      }
+      if (error instanceof AccessControlMutationError && error.code === 'super_admin_role_grant') {
+        return response.forbidden({ message: error.message })
+      }
+      if (
+        error instanceof AccessControlMutationError &&
+        (error.code === 'super_admin_roles_immutable' || error.code === 'self_role_removal')
+      ) {
+        return response.badRequest({ message: error.message })
+      }
+      throw error
+    }
+    return serialize(UserTransformer.transform(await loadUserAccess(updatedUser)))
   }
 
   async resetPassword(ctx: HttpContext) {

@@ -2,9 +2,9 @@
 
 这份文档面向调用现有 API 或新增业务接口的开发者。后端 API 的基础路径为 `/api/v1`，OpenAPI schema 是请求和响应契约的权威来源。
 
-管理端 Web（`apps/frontend`）、独立助手 Web（`apps/assistant-web`）和桌面端（`apps/assistant-desktop`）均使用这套 API；
-桌面端只是将独立助手 Web 打包进 Tauri WebView，不存在单独的桌面 API。新增或修改接口时，必须同时检查三个客户端的
-API client、类型、认证状态和错误处理是否仍然符合契约。
+管理端 Web（`apps/frontend`）、独立助手 Web（`apps/assistant-web`）、Tauri 桌面端和 Chrome 扩展均使用这套 API。
+桌面端和扩展复用独立助手客户端实现，不存在单独的客户端 API。新增或修改接口时，需检查受影响客户端的
+API client、类型、认证状态和错误处理是否仍然符合契约；三个 IM Bot 则通过共享渠道 runtime 接入同一套受控能力。
 
 ## 查看契约
 
@@ -62,19 +62,18 @@ AI 概览的 `estimatedCostUsd` 在没有可用价格信息时为 `null`；`pric
 
 ## 知识库接口
 
-知识库管理接口位于 `/api/v1/system/knowledge-documents`，统一要求 Bearer 认证和 `knowledge:manage` 权限。单文件支持 `txt`、`md`、`markdown`、`rst`，大小上限为 5 MB；批量上传最多 20 个文件。
+知识库管理接口位于 `/api/v1/system/knowledge-documents`，统一要求 Bearer 认证和 `knowledge:manage` 权限。列表支持 `page`、`limit` 和 `search` 查询参数；单文件支持 `txt`、`md`、`markdown`、`rst`，大小上限为 5 MB；批量上传最多 20 个文件。知识库 endpoint 清单、处理流程和管理限制见[知识库实现说明](knowledge-base.md)，请求与响应契约以 OpenAPI 为准。
 
-| 方法     | 路径                                           | 说明                                                                     |
-| -------- | ---------------------------------------------- | ------------------------------------------------------------------------ |
-| `GET`    | `/system/knowledge-documents`                  | 分页获取文档、摘要、主题和角色                                           |
-| `POST`   | `/system/knowledge-documents/metadata-preview` | 读取上传文件并请求 LLM 生成待确认的 `summary`、`topics` 建议，不保存文档 |
-| `POST`   | `/system/knowledge-documents`                  | 创建并索引单个文档                                                       |
-| `POST`   | `/system/knowledge-documents/batch`            | 批量创建并索引文档                                                       |
-| `PUT`    | `/system/knowledge-documents/:id`              | 更新文档并在正文或目录元数据变化时重建索引                               |
-| `POST`   | `/system/knowledge-documents/:id/reindex`      | 使用当前内容重新生成正文和目录向量                                       |
-| `DELETE` | `/system/knowledge-documents/:id`              | 删除文档及其索引                                                         |
+## 列表搜索
 
-创建和更新使用 multipart 表单：`file`（更新时可选）、`summary`、JSON 字符串 `topics` 和 `roleIds`。当前对外不再支持来源机构、文档类型、产品或业务对象等旧字段。知识库字段、索引和 AI 检索规则见[知识库实现说明](knowledge-base.md)。
+以下分页列表在服务端分页前应用可选 `search`，避免只在当前页数据中筛选。参数最多 200 个字符，服务端会去除首尾空白，空字符串等同于未传；分页响应 envelope 保持不变。搜索字段以各 endpoint 的 OpenAPI 定义为准。
+
+| Endpoint                                     | 搜索范围                                          |
+| -------------------------------------------- | ------------------------------------------------- |
+| `GET /api/v1/api-keys`                       | API Key 名称和 prefix                             |
+| `GET /api/v1/system/audit-logs`              | 操作、目标、request ID、IP 地址和 actor 姓名/邮箱 |
+| `GET /api/v1/system/knowledge-documents`     | 文档标题、摘要和正文                              |
+| `GET /api/v1/system/wecom-message-templates` | 模板名称、说明和消息类型                          |
 
 ## 新增或修改接口
 

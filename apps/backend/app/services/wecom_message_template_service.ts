@@ -1,7 +1,9 @@
+import type { HttpContext } from '@adonisjs/core/http'
 import encryption from '@adonisjs/core/services/encryption'
 
 import type WecomMessageTemplate from '#models/wecom_message_template'
 import { type WecomMessageType } from '#models/wecom_message_template'
+import { recordAuditEvent } from '#services/audit_log'
 import env from '#start/env'
 
 export class WecomTemplateValidationError extends Error {
@@ -302,6 +304,36 @@ export async function sendWecomMessageTemplate(
     webhookUrl,
     options
   )
+}
+
+export async function auditWecomMessageSend(
+  ctx: HttpContext,
+  input: {
+    actorUserId: number | null
+    apiKeyId?: number
+    source: 'session' | 'api_key' | 'ai_agent'
+    template: WecomMessageTemplate
+    params: Record<string, unknown>
+    mentionedList?: string[]
+    mentionedMobileList?: string[]
+  }
+) {
+  await recordAuditEvent(ctx, {
+    actorUserId: input.actorUserId,
+    action: 'wecom_message.sent',
+    targetType: 'wecom_message_template',
+    targetId: input.template.id,
+    metadata: {
+      name: input.template.name,
+      msgtype: input.template.msgtype,
+      parameterNames: Object.keys(input.params),
+      mentionedCount: input.mentionedList?.length ?? 0,
+      mentionedMobileCount: input.mentionedMobileList?.length ?? 0,
+      actorType: input.apiKeyId === undefined ? 'user' : 'api_key',
+      ...(input.apiKeyId === undefined ? {} : { apiKeyId: input.apiKeyId }),
+      source: input.source,
+    },
+  })
 }
 
 export function encryptWebhookUrl(value: string) {

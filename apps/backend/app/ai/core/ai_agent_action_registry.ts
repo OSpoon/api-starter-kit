@@ -11,15 +11,18 @@ import Role from '#models/role'
 import User from '#models/user'
 import WecomMessageTemplate from '#models/wecom_message_template'
 import { generateInitialPassword } from '#security/user_credentials'
-import { createApiKey } from '#services/api_key_service'
-import { recordAuditEvent } from '#services/audit_log'
 import {
-  countSuperAdminUsers,
-  includesSuperAdminRole,
-  isSuperAdmin,
-} from '#services/super_admin_access'
+  createRoleWithPermissions,
+  updateManagedUser,
+  updateRoleWithPermissions,
+} from '#services/access_control_mutations'
+import { createApiKey, deleteRevokedApiKey, revokeApiKey } from '#services/api_key_service'
+import { recordAuditEvent } from '#services/audit_log'
+import { isChannelGuestUser } from '#services/channel_guest_principal'
+import { countSuperAdminUsers, isSuperAdmin } from '#services/super_admin_access'
 import {
   applyWecomRuntimeMentions,
+  auditWecomMessageSend,
   renderWecomPayload,
   sendWecomMessageTemplate,
   validateTemplateParameters,
@@ -295,16 +298,10 @@ const revokeApiKeyAction: AiAgentActionImplementation = {
   },
   async execute({ confirmation, ctx }) {
     const actor = await ensurePermission(ctx, 'api-keys:delete')
-    const apiKey = await ApiKey.find(integer(confirmation.payload, 'apiKeyId'))
-    if (!apiKey || apiKey.revokedAt) throw new Error('API Key 已不存在或已被吊销')
-    apiKey.revokedAt = DateTime.now()
-    await apiKey.save()
-    await recordAuditEvent(ctx, {
+    await revokeApiKey(ctx, {
       actorUserId: actor.id,
-      action: 'agent.api_key_revoked',
-      targetType: 'api_key',
-      targetId: apiKey.id,
-      metadata: { name: apiKey.name, prefix: apiKey.prefix, source: 'ai_agent' },
+      apiKeyId: integer(confirmation.payload, 'apiKeyId'),
+      source: 'ai_agent',
     })
   },
 }
@@ -325,15 +322,10 @@ const deleteApiKeyAction: AiAgentActionImplementation = {
   },
   async execute({ confirmation, ctx }) {
     const actor = await ensurePermission(ctx, 'api-keys:delete')
-    const apiKey = await ApiKey.find(integer(confirmation.payload, 'apiKeyId'))
-    if (!apiKey || !apiKey.revokedAt) throw new Error('API Key 不存在或未被吊销')
-    await apiKey.delete()
-    await recordAuditEvent(ctx, {
+    await deleteRevokedApiKey(ctx, {
       actorUserId: actor.id,
-      action: 'agent.api_key_deleted',
-      targetType: 'api_key',
-      targetId: apiKey.id,
-      metadata: { name: apiKey.name, prefix: apiKey.prefix, source: 'ai_agent' },
+      apiKeyId: integer(confirmation.payload, 'apiKeyId'),
+      source: 'ai_agent',
     })
   },
 }
@@ -354,17 +346,15 @@ const createApiKeyAction: AiAgentActionImplementation = {
   },
   async execute({ confirmation, ctx }) {
     const actor = await ensurePermission(ctx, 'api-keys:create')
-    const { apiKey, secret } = await createApiKey({
-      name: string(confirmation.payload, 'name', 120),
-      expiresIn: confirmation.payload.expiresIn as '30d' | '90d' | '180d' | 'long' | undefined,
-    })
-    await recordAuditEvent(ctx, {
-      actorUserId: actor.id,
-      action: 'agent.api_key_created',
-      targetType: 'api_key',
-      targetId: apiKey.id,
-      metadata: { name: apiKey.name, prefix: apiKey.prefix, source: 'ai_agent' },
-    })
+    const { apiKey, secret } = await createApiKey(
+      ctx,
+      actor.id,
+      {
+        name: string(confirmation.payload, 'name', 120),
+        expiresIn: confirmation.payload.expiresIn as '30d' | '90d' | '180d' | 'long' | undefined,
+      },
+      'ai_agent'
+    )
     return {
       credential: { kind: 'api_key', value: secret, label: apiKey.name },
       apiKeyId: apiKey.id,
@@ -381,6 +371,7 @@ const resetUserPasswordAction: AiAgentActionImplementation = {
   async prepare(input) {
     const user = await User.find(await resolveUserId(input))
     if (!user) throw new Error('用户不存在')
+    if (isChannelGuestUser(user)) throw new Error('系统内部用户不可管理')
     return {
       targetType: 'user',
       targetId: String(user.id),
@@ -392,6 +383,7 @@ const resetUserPasswordAction: AiAgentActionImplementation = {
     const actor = await ensurePermission(ctx, 'users:update')
     const user = await User.find(integer(confirmation.payload, 'userId'))
     if (!user) throw new Error('用户不存在')
+    if (isChannelGuestUser(user)) throw new Error('系统内部用户不可管理')
     if (user.id === actor.id) throw new Error('请通过个人资料页面修改当前账号的密码')
     if ((await isSuperAdmin(user)) && !(await isSuperAdmin(actor)))
       throw new Error('仅超级管理员可以重置超级管理员的密码')
@@ -415,6 +407,7 @@ function userEnabledAction(disabled: boolean): AiAgentActionImplementation {
     async prepare(input) {
       const user = await User.find(await resolveUserId(input))
       if (!user) throw new Error('用户不存在')
+      if (isChannelGuestUser(user)) throw new Error('系统内部用户不可管理')
       if (Boolean(user.disabledAt) === disabled)
         throw new Error(disabled ? '用户已被禁用' : '用户未被禁用')
       return {
@@ -428,6 +421,7 @@ function userEnabledAction(disabled: boolean): AiAgentActionImplementation {
       const actor = await ensurePermission(ctx, 'users:update')
       const user = await User.find(integer(confirmation.payload, 'userId'))
       if (!user) throw new Error('用户不存在')
+      if (isChannelGuestUser(user)) throw new Error('系统内部用户不可管理')
       if (user.id === actor.id) throw new Error('不能修改当前登录账号的启用状态')
       if ((await isSuperAdmin(user)) && !(await isSuperAdmin(actor)))
         throw new Error('仅超级管理员可以维护超级管理员账户')
@@ -452,7 +446,7 @@ const updateUserAction: AiAgentActionImplementation = {
     const user = await User.find(await resolveUserId(input))
     const nextRoleIds = roleIds(input)
     if (!user) throw new Error('用户不存在')
-    if (await includesSuperAdminRole(nextRoleIds)) throw new Error('超级管理员角色不可授予')
+    if (isChannelGuestUser(user)) throw new Error('系统内部用户不可管理')
     return {
       targetType: 'user',
       targetId: String(user.id),
@@ -471,23 +465,19 @@ const updateUserAction: AiAgentActionImplementation = {
     const user = await User.find(integer(payload, 'userId'))
     const nextRoleIds = roleIds(payload)
     if (!user) throw new Error('用户不存在')
-    await user.load('roles')
-    const targetIsSuperAdmin = user.roles.some((role) => role.code === 'super-admin')
-    if (targetIsSuperAdmin) throw new Error('超级管理员的角色不可修改')
-    if (user.id === actor.id && !user.roles.every((role) => nextRoleIds.includes(role.id)))
-      throw new Error('不能移除当前登录账号的已有角色')
-    const sameEmail = await User.findBy('email', string(payload, 'email', 254))
+    if (isChannelGuestUser(user)) throw new Error('系统内部用户不可管理')
+    const fullName = string(payload, 'fullName', 120)
+    const email = string(payload, 'email', 254)
+    const sameEmail = await User.findBy('email', email)
     if (sameEmail && sameEmail.id !== user.id) throw new Error('该邮箱已被使用')
-    user.fullName = string(payload, 'fullName', 120)
-    user.email = string(payload, 'email', 254)
-    await user.save()
-    await user.related('roles').sync(nextRoleIds)
-    await recordAuditEvent(ctx, {
+    await updateManagedUser({
+      ctx,
       actorUserId: actor.id,
-      action: 'user.updated',
-      targetType: 'user',
-      targetId: user.id,
-      metadata: { assignedRoleIds: nextRoleIds, source: 'ai_agent' },
+      userId: user.id,
+      fullName,
+      email,
+      roleIds: nextRoleIds,
+      source: 'ai_agent',
     })
   },
 }
@@ -497,6 +487,7 @@ const deleteUserAction: AiAgentActionImplementation = {
   async prepare(input) {
     const user = await User.find(await resolveUserId(input))
     if (!user) throw new Error('用户不存在')
+    if (isChannelGuestUser(user)) throw new Error('系统内部用户不可管理')
     return {
       targetType: 'user',
       targetId: String(user.id),
@@ -508,6 +499,7 @@ const deleteUserAction: AiAgentActionImplementation = {
     const actor = await ensurePermission(ctx, 'users:delete')
     const user = await User.find(integer(confirmation.payload, 'userId'))
     if (!user) throw new Error('用户不存在')
+    if (isChannelGuestUser(user)) throw new Error('系统内部用户不可管理')
     if (user.id === actor.id) throw new Error('不能删除当前登录账号')
     if (await isSuperAdmin(user)) {
       if (!(await isSuperAdmin(actor))) throw new Error('仅超级管理员可以删除超级管理员账户')
@@ -548,21 +540,15 @@ const createRoleAction: AiAgentActionImplementation = {
     const actor = await ensurePermission(ctx, 'roles:create')
     const p = confirmation.payload
     const code = string(p, 'code', 100)
-    if (await Role.findBy('code', code)) throw new Error('角色代码已存在')
     const ids = permissionIds(p)
-    if (!(await ensurePermissionIds(ids))) throw new Error('包含不存在的权限')
-    const role = await Role.create({
+    await createRoleWithPermissions({
+      ctx,
+      actorUserId: actor.id,
       code,
       name: string(p, 'name', 120),
       description: optionalDescription(p),
-    })
-    await role.related('permissions').sync(ids)
-    await recordAuditEvent(ctx, {
-      actorUserId: actor.id,
-      action: 'role.created',
-      targetType: 'role',
-      targetId: role.id,
-      metadata: { permissionIds: ids, source: 'ai_agent' },
+      permissionIds: ids,
+      source: 'ai_agent',
     })
   },
 }
@@ -593,17 +579,14 @@ const updateRoleAction: AiAgentActionImplementation = {
     const role = await Role.find(integer(p, 'roleId'))
     if (!role || role.isSystem) throw new Error('角色不存在或不可编辑')
     const ids = permissionIds(p)
-    if (!(await ensurePermissionIds(ids))) throw new Error('包含不存在的权限')
-    role.name = string(p, 'name', 120)
-    role.description = optionalDescription(p)
-    await role.save()
-    await role.related('permissions').sync(ids)
-    await recordAuditEvent(ctx, {
+    await updateRoleWithPermissions({
+      ctx,
       actorUserId: actor.id,
-      action: 'role.updated',
-      targetType: 'role',
-      targetId: role.id,
-      metadata: { permissionIds: ids, source: 'ai_agent' },
+      roleId: role.id,
+      name: string(p, 'name', 120),
+      description: optionalDescription(p),
+      permissionIds: ids,
+      source: 'ai_agent',
     })
   },
 }
@@ -825,19 +808,13 @@ const sendWecomMessageAction: AiAgentActionImplementation = {
       mentionedList: input.mentionedList,
       mentionedMobileList: input.mentionedMobileList,
     })
-    await recordAuditEvent(ctx, {
+    await auditWecomMessageSend(ctx, {
       actorUserId: actor.id,
-      action: 'agent.wecom_message_sent',
-      targetType: 'wecom_message_template',
-      targetId: template.id,
-      metadata: {
-        name: template.name,
-        msgtype: template.msgtype,
-        parameterNames: Object.keys(input.params),
-        mentionedCount: input.mentionedList?.length ?? 0,
-        mentionedMobileCount: input.mentionedMobileList?.length ?? 0,
-        source: 'ai_agent',
-      },
+      source: 'ai_agent',
+      template,
+      params: input.params,
+      mentionedList: input.mentionedList,
+      mentionedMobileList: input.mentionedMobileList,
     })
     return { sent: true, templateId: template.id }
   },

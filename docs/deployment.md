@@ -1,8 +1,8 @@
 # 部署指南
 
-生产栈由支持 pgvector 的 PostgreSQL、AdonisJS API、三个独立的 AI 渠道 Bot
-worker、Nginx 管理端和独立助手 Web 静态站点组成。桌面端按 macOS、Windows
-或 Linux 目标构建安装包。认证、授权、迁移和运行时配置仍由 backend 负责。
+生产服务栈由支持 pgvector 的 PostgreSQL、AdonisJS API、三个独立的 AI 渠道 Bot
+worker、Nginx 管理端和独立助手 Web 静态站点组成。桌面安装包和 Chrome 扩展作为正式客户端交付物
+单独构建，不作为 Compose 服务运行。认证、授权、迁移和运行时配置仍由 backend 负责。
 
 ## 1. 部署前准备
 
@@ -114,6 +114,14 @@ pnpm --dir apps/assistant-desktop build
 
 桌面端安装包必须在对应操作系统或受支持的构建 runner 上生成，并按平台完成代码签名和公证/发布配置。
 当前 updater 自动更新未启用；在配置发布 endpoint、签名密钥和 updater 公钥前，不应把未签名安装包当作正式自动更新渠道。
+
+### Chrome 扩展包
+
+Chrome MV3 扩展通过 `pnpm --dir apps/assistant-extension build` 单独构建，产物位于
+`apps/assistant-extension/dist/chrome`，不由 Docker Compose 托管。扩展只在用户连接时申请其配置的 API origin
+的可选 host permission；远程 API 必须使用 HTTPS，开发环境仅允许 loopback 使用 HTTP。扩展不读取当前网页，
+也不需要活动标签页权限。构建产物由 Chrome Web Store 或企业扩展策略等组织选定的渠道分发；当前仓库负责构建，
+不包含商店上传或发布自动化。详细开发约束见[扩展 README](../apps/assistant-extension/README.md)。
 
 ## 3. 首次生产部署
 

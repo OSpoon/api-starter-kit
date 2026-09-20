@@ -147,6 +147,8 @@
     "dimensions": "Vector dimensions",
     "timeout": "Request timeout (ms)",
     "test": "Test connection",
+    "save_before_test": "There are unsaved changes. Save them before testing the connection.",
+    "test_config_unavailable": "No saved configuration is available. Save the configuration before testing.",
     "saved": "LLM configuration saved",
     "load_failed": "Failed to load LLM configuration",
     "save_failed": "Failed to save LLM configuration",
@@ -495,19 +497,10 @@
   },
   "dashboard": {
     "title": "Dashboard",
-    "desc": "Review the key status and system overview for the current workspace.",
-    "structure_title": "Navigation structure",
-    "structure_desc": "Sidebar groups, menu items, and breadcrumbs are all derived from route definitions.",
-    "stats": {
-      "auth": "Auth mode",
-      "api_keys": "API key endpoints",
-      "routes": "Registered routes"
-    },
-    "checklist": {
-      "route_nav": "Route meta defines menu groups and icons",
-      "openapi": "Help menu links directly to OpenAPI docs",
-      "schema_builder": "Schema Builder acts as a sample workbench tool"
-    }
+    "desc": "Open the system features available to your account.",
+    "quick_access": "Quick access",
+    "open_module": "Open feature",
+    "no_modules": "There are no feature links available for this account."
   },
   "system_status": {
     "title": "Service status",
@@ -824,6 +817,7 @@
     "desc": "Review immutable records of security-sensitive management actions.",
     "time": "Time",
     "actor": "Actor",
+    "search": "Search action, target, IP, request ID, or actor",
     "action": "Action",
     "target": "Target",
     "source": "Source IP",
