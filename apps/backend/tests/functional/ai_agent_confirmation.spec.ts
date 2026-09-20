@@ -5,7 +5,11 @@ import type { AgentTool } from '@earendil-works/pi-agent-core'
 import { test } from '@japa/runner'
 import { DateTime } from 'luxon'
 
-import { getAiAgentAction } from '#ai/core/ai_agent_action_registry'
+import {
+  aiAgentActionNames,
+  genericProposalActionNames,
+  getAiAgentAction,
+} from '#ai/core/ai_agent_action_registry'
 import { proposeAiAgentAction } from '#ai/core/ai_agent_confirmation'
 import { createAiAgentTools } from '#ai/registry/ai_agent_tool_registry'
 import AiAgentConfirmation from '#models/ai_agent_confirmation'
@@ -58,6 +62,10 @@ test.group('AI agent confirmations', (group) => {
   group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
 
   test('classifies registered action impact on the server', ({ assert }) => {
+    for (const action of aiAgentActionNames) {
+      assert.isNotNull(getAiAgentAction(action), `Missing action registration: ${action}`)
+    }
+    assert.notInclude(genericProposalActionNames, 'create_api_key')
     assert.equal(getAiAgentAction('revoke_api_key')?.impact, 'destructive')
     assert.equal(getAiAgentAction('delete_api_key')?.impact, 'destructive')
     assert.equal(getAiAgentAction('create_api_key')?.impact, 'standard')
@@ -252,11 +260,24 @@ test.group('AI agent confirmations', (group) => {
       userId: user.id,
       title: 'Create API Key',
     })
-    const tool = createAiAgentTools({
+    const tools = createAiAgentTools({
       userId: user.id,
       conversationId: conversation.id,
       agentRunId: crypto.randomUUID(),
-    }).find((registeredTool) => registeredTool.name === 'propose_api_key_creation')
+    })
+    const genericTool = tools.find(
+      (registeredTool) => registeredTool.name === 'propose_system_management_change'
+    )
+    const genericOutput = JSON.parse(
+      await executeTool(genericTool!, {
+        action: 'create_api_key',
+        input: { name: 'generic-api-key' },
+      })
+    )
+    assert.equal(genericOutput.kind, 'action_error')
+    assert.equal(genericOutput.code, 'invalid_input')
+
+    const tool = tools.find((registeredTool) => registeredTool.name === 'propose_api_key_creation')
 
     const output = JSON.parse(
       await executeTool(tool!, { name: 'default-api-key', expiresIn: 'long' })

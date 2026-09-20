@@ -979,7 +979,7 @@ watch(
                 </Button>
               </div>
             </form>
-            <p class="mt-2 px-1 text-center text-[11px] leading-4 text-muted-foreground">
+            <p class="my-2 px-1 text-center text-[11px] leading-4 text-muted-foreground">
               {{ t('ai_chat.response_disclaimer') }}
             </p>
           </div>

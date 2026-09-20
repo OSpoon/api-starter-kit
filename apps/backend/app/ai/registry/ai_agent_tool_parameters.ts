@@ -1,6 +1,6 @@
 import { type TSchema, Type } from '@earendil-works/pi-ai'
 
-import { genericProposalActionNames } from '#ai/core/ai_agent_action_registry'
+import { genericProposalActionNames } from '#ai/core/ai_agent_action_contracts'
 import { aiQueryTemplateCodes } from '#ai/registry/ai_agent_query_registry'
 
 export const piToolParameters = {

@@ -1,4 +1,4 @@
-import { aiAgentChangeSchema } from '#ai/core/ai_agent_action_registry'
+import { aiAgentChangeSchema } from '#ai/core/ai_agent_action_contracts'
 import type { AiAgentToolContext } from '#ai/core/ai_agent_tool_context'
 import { type AiAgentToolSupport, createAiAgentTool } from '#ai/registry/ai_agent_tool_helpers'
 import { piToolParameters } from '#ai/registry/ai_agent_tool_parameters'
