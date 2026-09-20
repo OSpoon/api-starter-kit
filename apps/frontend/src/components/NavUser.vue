@@ -176,7 +176,10 @@ function setTheme(mode: 'light' | 'dark' | 'auto') {
                   <BookOpenText />
                   {{ t('nav.api_docs') }}
                 </DropdownMenuItem>
-                <DropdownMenuItem v-if="showDevelopmentTools" @click="navigateTo('/schema-builder')">
+                <DropdownMenuItem
+                  v-if="showDevelopmentTools"
+                  @click="navigateTo('/schema-builder')"
+                >
                   <FileJson />
                   {{ t('nav.schema_builder') }}
                 </DropdownMenuItem>
