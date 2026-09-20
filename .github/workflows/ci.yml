@@ -152,6 +152,42 @@ jobs:
       - name: Build
         run: pnpm --filter @api-starter-kit/assistant-web build
 
+  assistant-extension:
+    name: Chrome Extension (format, typecheck, lint, build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/assistant-extension
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6.0.10
+        # Version is read from package.json's "packageManager" field.
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: '.nvmrc'
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install
+        run: pnpm install --frozen-lockfile --ignore-scripts
+        working-directory: .
+
+      - name: Format check
+        run: pnpm --filter @api-starter-kit/assistant-extension format:check
+
+      - name: Typecheck
+        run: pnpm --filter @api-starter-kit/assistant-extension typecheck
+
+      - name: Lint
+        run: pnpm --filter @api-starter-kit/assistant-extension lint:check
+
+      - name: Build
+        run: pnpm --filter @api-starter-kit/assistant-extension build
+
   assistant-desktop:
     name: Assistant Desktop (format, typecheck, lint, test, build)
     runs-on: ubuntu-latest

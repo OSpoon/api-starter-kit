@@ -21,6 +21,7 @@
 ## 工程与运行
 
 - [工程开发指南](development.md)：monorepo 结构、常用命令、实现入口和提交前检查。
+- [开源技术栈与项目仓库](open-source-tech-stack.md)：本项目使用的主要开源框架、库和工程工具，以及对应 GitHub 仓库链接。
 - [API 指南](api.md)：OpenAPI 文档地址、鉴权、响应格式和接口开发约定。
 - [安全与治理](security.md)：安全模型、凭据保护、授权审计和部署加固。
 - [部署指南](deployment.md)：生产 Docker Compose、环境配置、健康检查和运维检查。
