@@ -1,6 +1,6 @@
 import type { AgentTool } from '@earendil-works/pi-agent-core'
 import type { TSchema } from '@earendil-works/pi-ai'
-import { type z } from 'zod'
+import { type z, ZodError } from 'zod'
 
 import { type AiAgentActionName, getAiAgentAction } from '#ai/core/ai_agent_action_registry'
 import { ensureAiAgentPermission } from '#ai/core/ai_agent_authorization'
@@ -37,7 +37,12 @@ export function createAiAgentTool<TZodSchema extends z.ZodTypeAny, TResult>(
         const message = error instanceof Error ? error.message : '工具参数或执行结果无效'
         details = {
           kind: 'action_error',
-          code: /权限|permission/i.test(message) ? 'permission_denied' : 'invalid_input',
+          code:
+            error instanceof ZodError
+              ? 'invalid_input'
+              : /权限|permission/i.test(message)
+                ? 'permission_denied'
+                : 'invalid_input',
           message,
         } as TResult
       }
