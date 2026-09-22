@@ -15,6 +15,7 @@ import type {
   NormalizedInboundMessage,
   OutboundMessage,
 } from '#channels/channel_types'
+import { LatestContentStream } from '#channels/latest_content_stream'
 
 export interface WecomBotAdapterOptions {
   tenantId: string
@@ -198,14 +199,23 @@ export class WecomBotAdapter implements ChannelAdapter {
 
   private async handleStreamingReply(frame: WsFrame, message: NormalizedInboundMessage) {
     const streamId = this.createStreamId()
-    let latestContent = '正在输入……'
-    await this.client.replyStream(frame, streamId, latestContent, false)
+    const initialContent = '正在输入……'
+    const stream = new LatestContentStream(initialContent, async (content) => {
+      await this.client.replyStream(frame, streamId, content, false)
+    })
+    await this.client.replyStream(frame, streamId, initialContent, false)
 
     try {
       const reply = await this.options.onMessageStream!(message, async (content) => {
-        latestContent = content || latestContent
-        await this.client.replyStream(frame, streamId, latestContent, false)
+        stream.publish(content)
       })
+      const updateError = await stream.finish()
+      if (updateError) {
+        this.logHandlerError(updateError)
+        await this.sendFallbackReply(message, reply)
+        return
+      }
+      const latestContent = stream.latest
       this.logger.info(
         `WeCom stream handler completed: kind=${reply?.kind ?? 'none'}, conversation=${message.conversationKey}`
       )
@@ -230,8 +240,37 @@ export class WecomBotAdapter implements ChannelAdapter {
       )
     } catch (error) {
       this.logHandlerError(error)
-      await this.client.replyStream(frame, streamId, '本次请求处理失败，请稍后重试。', true)
+      await stream.finish()
+      await this.sendFallbackReply(message, {
+        kind: 'text',
+        content: '本次请求处理失败，请稍后重试。',
+      })
     }
+  }
+
+  private async sendFallbackReply(
+    message: NormalizedInboundMessage,
+    reply: OutboundMessage | void
+  ) {
+    if (reply) {
+      await this.send(
+        {
+          channel: this.channel,
+          externalTenantId: message.externalTenantId,
+          conversationKey: message.conversationKey,
+        },
+        reply
+      )
+      return
+    }
+    await this.send(
+      {
+        channel: this.channel,
+        externalTenantId: message.externalTenantId,
+        conversationKey: message.conversationKey,
+      },
+      { kind: 'text', content: '本次请求处理失败，请稍后重试。' }
+    )
   }
 
   private async sendConfirmationCard(

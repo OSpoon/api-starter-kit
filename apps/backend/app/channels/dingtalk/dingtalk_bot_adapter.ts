@@ -11,6 +11,7 @@ import type {
   NormalizedInboundMessage,
   OutboundMessage,
 } from '#channels/channel_types'
+import { LatestContentStream } from '#channels/latest_content_stream'
 
 export interface DingTalkBotAdapterOptions {
   clientId: string
@@ -225,10 +226,10 @@ export class DingTalkBotAdapter implements ChannelAdapter {
   }
 
   private async handleStreamingReply(message: RobotMessage, normalized: NormalizedInboundMessage) {
-    let latestContent = '正在输入……'
+    const initialContent = '正在输入……'
     let outTrackId: string
     try {
-      outTrackId = await this.createStreamingCard(message, latestContent)
+      outTrackId = await this.createStreamingCard(message, initialContent)
     } catch (error) {
       this.logError(error)
       logger.warn(
@@ -238,27 +239,22 @@ export class DingTalkBotAdapter implements ChannelAdapter {
       return this.options.onMessage(normalized)
     }
 
-    let streamingCardFailed = false
-    let lastUpdatedAt = 0
+    const stream = new LatestContentStream(initialContent, (content) =>
+      this.updateStreamingCard(outTrackId, content)
+    )
     const reply = await this.options.onMessageStream!(normalized, async (content) => {
-      latestContent = content || latestContent
-      const elapsed = Date.now() - lastUpdatedAt
-      if (elapsed < 250) await new Promise((resolve) => setTimeout(resolve, 250 - elapsed))
-      if (streamingCardFailed) return
-      try {
-        await this.updateStreamingCard(outTrackId, latestContent)
-        lastUpdatedAt = Date.now()
-      } catch (error) {
-        streamingCardFailed = true
-        this.logError(error)
-        logger.warn(
-          { conversationKey: normalized.conversationKey },
-          'DingTalk streaming card update failed; final reply will use text'
-        )
-      }
+      stream.publish(content)
     })
-    const finalContent = reply?.kind === 'text' ? reply.content : latestContent
-    if (!streamingCardFailed) {
+    const updateError = await stream.finish()
+    let streamingCardFailed = Boolean(updateError)
+    if (streamingCardFailed) {
+      this.logError(updateError)
+      logger.warn(
+        { conversationKey: normalized.conversationKey },
+        'DingTalk streaming card update failed; final reply will use text'
+      )
+    } else {
+      const finalContent = reply?.kind === 'text' ? reply.content : stream.latest
       try {
         await this.updateStreamingCard(outTrackId, finalContent)
         logger.info({ outTrackId }, 'DingTalk streaming card completed')
