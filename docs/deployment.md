@@ -298,3 +298,10 @@ ASR/LLM 地址。渠道平台的应用发布、长连接、权限、绑定和卡
 开发环境使用 `pnpm docker:up` 或 `docker/docker-compose.dev.yml`，会额外
 映射 PostgreSQL `5432` 供宿主机 backend 使用；不要把该开发 override 文件
 用于生产部署。
+# 网页版本更新提示
+
+管理前端和独立助手网页使用 `@plugin-web-update-notification/vite`，仅在生产构建启用。每次构建生成时间戳版本，首次加载、每 10 分钟、窗口重新获得焦点及脚本加载失败时检查更新。提示复用 Sonner 和中英文语言包，用户选择刷新或稍后，不会自动刷新。刷新前应保存未完成内容。
+
+完整发布 `dist`，包括 `pluginWebUpdateNotice` 目录。HTML 入口和 `/pluginWebUpdateNotice/web_version_by_plugin.json` 禁止缓存；仓库 Nginx 配置已包含规则，其他 CDN 或代理需设置相同策略。带内容哈希的脚本可长期缓存。桌面构建通过 Tauri 的 `TAURI_ENV_PLATFORM` 排除插件，Chrome 扩展不接入网页轮询。
+
+验收：部署构建 A 并保持页面打开，再部署构建 B；回到旧标签页应出现提示。“稍后”忽略当前版本，“刷新”加载新版本。开发服务器不启用更新提示。

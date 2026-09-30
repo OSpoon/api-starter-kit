@@ -1,4 +1,10 @@
 {
+  "web_update": {
+    "title": "发现新版本",
+    "description": "刷新以加载最新版本，请先保存未完成的内容。",
+    "refresh": "刷新",
+    "dismiss": "稍后"
+  },
   "common": {
     "confirm": "确认",
     "done": "完成",

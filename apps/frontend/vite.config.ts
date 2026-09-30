@@ -1,5 +1,7 @@
 import { fileURLToPath, URL } from 'node:url'
 
+import { webUpdateNotice } from '@plugin-web-update-notification/vite'
+
 import AutoImport from 'unplugin-auto-import/vite'
 import Components from 'unplugin-vue-components/vite'
 import { defineConfig } from 'vite'
@@ -19,6 +21,12 @@ export default defineConfig(({ command, mode }) => {
   return {
     plugins: [
       vue(),
+      webUpdateNotice({
+        versionType: 'build_timestamp',
+        hiddenDefaultNotification: true,
+        checkInterval: 10 * 60 * 1000,
+        logVersion: false,
+      }),
       vueDevTools(),
       tailwindcss(),
       AutoImport({

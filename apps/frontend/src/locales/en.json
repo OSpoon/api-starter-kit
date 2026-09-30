@@ -1,4 +1,10 @@
 {
+  "web_update": {
+    "title": "An update is available",
+    "description": "Refresh to load the latest version. Save any unfinished work first.",
+    "refresh": "Refresh",
+    "dismiss": "Later"
+  },
   "common": {
     "confirm": "Confirm",
     "done": "Done",

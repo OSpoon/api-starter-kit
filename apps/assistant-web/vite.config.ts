@@ -1,5 +1,7 @@
 import { fileURLToPath, URL } from 'node:url'
 
+import { webUpdateNotice } from '@plugin-web-update-notification/vite'
+
 import AutoImport from 'unplugin-auto-import/vite'
 import Components from 'unplugin-vue-components/vite'
 import { defineConfig } from 'vite'
@@ -13,6 +15,16 @@ const apiProxyTarget = process.env.VITE_DEV_API_PROXY_TARGET ?? 'http://localhos
 export default defineConfig({
   plugins: [
     vue(),
+    ...(process.env.TAURI_ENV_PLATFORM
+      ? []
+      : [
+          webUpdateNotice({
+            versionType: 'build_timestamp',
+            hiddenDefaultNotification: true,
+            checkInterval: 10 * 60 * 1000,
+            logVersion: false,
+          }),
+        ]),
     vueDevTools(),
     tailwindcss(),
     AutoImport({
