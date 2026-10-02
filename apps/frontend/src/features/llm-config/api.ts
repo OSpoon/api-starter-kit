@@ -3,7 +3,13 @@ import type { ApiEnvelope } from '@/lib/api-types'
 import { readItem } from '@/lib/api-types'
 
 export interface LlmConfiguration {
-  chat: { baseUrl: string | null; model: string; apiKeyConfigured: boolean }
+  chat: {
+    baseUrl: string | null
+    model: string
+    contextWindow: number
+    maxTokens: number
+    apiKeyConfigured: boolean
+  }
   asr: { baseUrl: string | null; model: string; apiKeyConfigured: boolean }
   embedding: {
     baseUrl: string | null
@@ -13,6 +19,22 @@ export interface LlmConfiguration {
   }
   requestTimeoutMs: number
   updatedAt: string | null
+}
+
+export interface UpdateLlmConfigurationInput {
+  chatApiKey?: string
+  chatBaseUrl: string
+  chatModel: string
+  chatContextWindow: number
+  chatMaxTokens: number
+  asrApiKey?: string
+  asrBaseUrl: string
+  asrModel: string
+  embeddingApiKey?: string
+  embeddingBaseUrl: string
+  embeddingModel: string
+  embeddingDimensions: number
+  requestTimeoutMs: number
 }
 
 export type LlmServiceName = 'chat' | 'asr' | 'embedding'
@@ -30,7 +52,7 @@ export async function getLlmConfiguration(token: string | null) {
 
 export async function updateLlmConfiguration(
   token: string | null,
-  payload: Record<string, unknown>
+  payload: UpdateLlmConfigurationInput
 ) {
   return readItem(
     await apiRequest<ApiEnvelope<LlmConfiguration>>('/api/v1/system/llm-config', {

@@ -311,7 +311,10 @@ const displayMessages = computed(() => {
 })
 
 const assistantTitle = computed(() => props.title || t('ai_chat.title'))
-const inputPlaceholder = computed(() => props.placeholder || t('ai_chat.input_placeholder'))
+const inputPlaceholder = computed(() =>
+  props.placeholder ||
+  t(props.loading ? 'ai_chat.input_placeholder_while_generating' : 'ai_chat.input_placeholder')
+)
 const isStandalone = computed(() => props.mode === 'page')
 
 const { chatHeight, chatWidth, startResize } = useAiChatResize()
@@ -940,43 +943,61 @@ watch(
               </Button>
             </div>
             <form v-else class="flex items-end gap-2" @submit.prevent="handleSubmit">
-              <div class="relative flex-1">
-                <Textarea
-                  v-model="input"
-                  rows="1"
-                  :placeholder="inputPlaceholder"
-                  class="ai-chat-composer-input w-full resize-none pr-12"
-                  :disabled="disabled"
-                  @compositionstart="handleCompositionStart"
-                  @compositionend="handleCompositionEnd"
-                  @keydown="handleKeydown"
-                  @paste="handlePaste"
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  class="absolute right-11 bottom-2"
-                  :class="{ 'text-destructive': isRecording, 'text-primary': isPreparingRecording }"
-                  :disabled="disabled || loading || isPreparingRecording"
-                  :title="isRecording ? t('ai_chat.voice.stop') : t('ai_chat.voice.start')"
-                  :aria-label="isRecording ? t('ai_chat.voice.stop') : t('ai_chat.voice.start')"
-                  @click="toggleRecording"
-                >
-                  <LoaderCircle v-if="isPreparingRecording" class="size-3.5 animate-spin" />
-                  <Mic v-else class="size-3.5" />
-                </Button>
-                <Button
-                  :type="loading ? 'button' : 'submit'"
-                  size="icon-sm"
-                  class="absolute right-2 bottom-2"
-                  :disabled="(!input.trim() && !loading) || disabled"
-                  :title="loading ? t('ai_chat.stop_generating') : undefined"
-                  @click="loading ? stopGeneration() : undefined"
-                >
-                  <Square v-if="loading" class="size-3.5 fill-current" />
-                  <ArrowUpIcon v-else class="size-3.5" />
-                </Button>
+              <div class="min-w-0 flex-1">
+                <div class="relative">
+                  <Textarea
+                    v-model="input"
+                    rows="1"
+                    :placeholder="inputPlaceholder"
+                    class="ai-chat-composer-input w-full resize-none pr-20"
+                    :disabled="disabled"
+                    @compositionstart="handleCompositionStart"
+                    @compositionend="handleCompositionEnd"
+                    @keydown="handleKeydown"
+                    @paste="handlePaste"
+                  />
+                  <Button
+                    v-if="!loading"
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    class="absolute right-11 bottom-2"
+                    :class="{ 'text-destructive': isRecording, 'text-primary': isPreparingRecording }"
+                    :disabled="disabled || isPreparingRecording"
+                    :title="isRecording ? t('ai_chat.voice.stop') : t('ai_chat.voice.start')"
+                    :aria-label="isRecording ? t('ai_chat.voice.stop') : t('ai_chat.voice.start')"
+                    @click="toggleRecording"
+                  >
+                    <LoaderCircle v-if="isPreparingRecording" class="size-3.5 animate-spin" />
+                    <Mic v-else class="size-3.5" />
+                  </Button>
+                  <Button
+                    :type="loading ? 'button' : 'submit'"
+                    size="icon-sm"
+                    class="absolute right-2 bottom-2"
+                    :disabled="(!input.trim() && !loading) || disabled"
+                    :title="
+                      loading
+                        ? input.trim()
+                          ? t('ai_chat.adjust_current')
+                          : t('ai_chat.stop_generating')
+                        : undefined
+                    "
+                    :aria-label="
+                      loading
+                        ? input.trim()
+                          ? t('ai_chat.adjust_current')
+                          : t('ai_chat.stop_generating')
+                        : undefined
+                    "
+                    @click="
+                      loading ? (input.trim() ? sendMessage() : stopGeneration()) : undefined
+                    "
+                  >
+                    <Square v-if="loading && !input.trim()" class="size-3.5 fill-current" />
+                    <ArrowUpIcon v-else class="size-3.5" />
+                  </Button>
+                </div>
               </div>
             </form>
             <p class="my-2 px-1 text-center text-[11px] leading-4 text-muted-foreground">

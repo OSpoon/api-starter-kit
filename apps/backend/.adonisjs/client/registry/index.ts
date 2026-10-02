@@ -144,6 +144,12 @@ const routes = {
     tokens: [{"old":"/api/v1/account/github/link","type":0,"val":"api","end":""},{"old":"/api/v1/account/github/link","type":0,"val":"v1","end":""},{"old":"/api/v1/account/github/link","type":0,"val":"account","end":""},{"old":"/api/v1/account/github/link","type":0,"val":"github","end":""},{"old":"/api/v1/account/github/link","type":0,"val":"link","end":""}],
     types: placeholder as Registry['profile.github.link']['types'],
   },
+  'dashboard.overview': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/v1/dashboard/overview',
+    tokens: [{"old":"/api/v1/dashboard/overview","type":0,"val":"api","end":""},{"old":"/api/v1/dashboard/overview","type":0,"val":"v1","end":""},{"old":"/api/v1/dashboard/overview","type":0,"val":"dashboard","end":""},{"old":"/api/v1/dashboard/overview","type":0,"val":"overview","end":""}],
+    types: placeholder as Registry['dashboard.overview']['types'],
+  },
   'api_keys.index': {
     methods: ["GET","HEAD"],
     pattern: '/api/v1/api-keys',

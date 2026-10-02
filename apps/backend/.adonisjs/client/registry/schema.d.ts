@@ -283,6 +283,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/github_oauth_controller').default['beginLink']>>>
     }
   }
+  'dashboard.overview': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/dashboard/overview'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/dashboard_controller').default['overview']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/dashboard_controller').default['overview']>>>
+    }
+  }
   'api_keys.index': {
     methods: ["GET","HEAD"]
     pattern: '/api/v1/api-keys'

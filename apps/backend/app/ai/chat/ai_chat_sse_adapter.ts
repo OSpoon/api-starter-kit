@@ -31,6 +31,7 @@ export type AiAgentToolFrame =
   | { event: 'agent_confirmation'; data: AiAgentConfirmationSummary }
 
 export type AiAgentTurnEvent =
+  | { source: 'queued_user_message' }
   | { source: 'message_start' }
   | { source: 'message_delta'; value: string }
   | {
@@ -203,8 +204,14 @@ export async function* streamAiAgentTurnEvents(
   const toolStartedAt = new Map<string, number>()
   const toolInputs = new Map<string, unknown>()
   let streamedAssistantText = ''
+  let userMessagesSeen = 0
   for await (const event of run.stream.events) {
     if (signal.aborted) throw new DOMException('AI request was cancelled', 'AbortError')
+    if (event.type === 'message_start' && event.message.role === 'user') {
+      userMessagesSeen += 1
+      if (userMessagesSeen > 1) yield { source: 'queued_user_message' }
+      continue
+    }
     if (event.type === 'message_start' && event.message.role === 'assistant') {
       streamedAssistantText = ''
       yield { source: 'message_start' }

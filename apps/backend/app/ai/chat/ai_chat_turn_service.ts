@@ -105,6 +105,9 @@ export async function runAiChatAssistantTurn(input: {
   let lastPersistedContentLength = 0
   const knowledgeCitations = new Map<string, AiChatCitation>()
   const runtimeDetails: AiChatRuntimeDetail[] = []
+  const attachedConfirmations: Array<
+    Awaited<ReturnType<typeof attachAgentRunConfirmations>>[number] & { messageId: number }
+  > = []
   let aiFailureStage = 'initialization'
 
   const persistAssistantMessage = async () => {
@@ -237,6 +240,37 @@ export async function runAiChatAssistantTurn(input: {
         await emit(event.value.event, event.value.data)
         continue
       }
+      if (event.source === 'queued_user_message') {
+        const completedSegment = await persistAssistantMessage()
+        if (completedSegment && agentRunId) {
+          try {
+            const confirmations = await attachAgentRunConfirmations({
+              conversationId: conversation.id,
+              userId,
+              agentRunId,
+              assistantMessageId: completedSegment.id,
+            })
+            attachedConfirmations.push(
+              ...confirmations.map((confirmation) => ({
+                ...confirmation,
+                messageId: completedSegment.id,
+              }))
+            )
+          } catch (error) {
+            logger.error(
+              { err: error, conversationId: conversation.id, agentRunId },
+              'AI confirmation segment attachment failed'
+            )
+          }
+        }
+        assistantContent = ''
+        persistedAssistantMessage = null
+        lastPersistedContentLength = 0
+        knowledgeCitations.clear()
+        runtimeDetails.splice(0)
+        await emit('assistant_segment_start', {})
+        continue
+      }
       if (event.source === 'message_start') {
         usage.modelCalls += 1
         continue
@@ -302,6 +336,12 @@ export async function runAiChatAssistantTurn(input: {
         agentRunId: run.agentRunId,
         assistantMessageId: assistantMessage.id,
       })
+      attachedConfirmations.push(
+        ...confirmations.map((confirmation) => ({
+          ...confirmation,
+          messageId: assistantMessage.id,
+        }))
+      )
     } catch (error) {
       logger.error(
         { err: error, conversationId: conversation.id },
@@ -329,7 +369,7 @@ export async function runAiChatAssistantTurn(input: {
     await emit('done', {
       conversation: serializeAiChatConversationWithMessages(conversation),
       message: serializeAiChatMessage(assistantMessage),
-      confirmations,
+      confirmations: attachedConfirmations,
     })
   } catch (error) {
     logger.error(
@@ -357,6 +397,12 @@ export async function runAiChatAssistantTurn(input: {
             agentRunId,
             assistantMessageId: failedAssistantMessage.id,
           })
+          attachedConfirmations.push(
+            ...confirmations.map((confirmation) => ({
+              ...confirmation,
+              messageId: failedAssistantMessage.id,
+            }))
+          )
         } catch (attachmentError) {
           logger.error(
             { err: attachmentError, conversationId: conversation.id, agentRunId },
@@ -367,7 +413,7 @@ export async function runAiChatAssistantTurn(input: {
       await emit('done', {
         conversation: serializeAiChatConversationWithMessages(conversation),
         message: serializeAiChatMessage(failedAssistantMessage),
-        confirmations,
+        confirmations: attachedConfirmations,
       })
       if (!shouldPreserveInterruptedRun(error)) {
         try {

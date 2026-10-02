@@ -49,6 +49,9 @@ export interface ApiDefinition {
       destroy: typeof routes['profile.access_tokens.destroy']
     }
   }
+  dashboard: {
+    overview: typeof routes['dashboard.overview']
+  }
   apiKeys: {
     index: typeof routes['api_keys.index']
     store: typeof routes['api_keys.store']

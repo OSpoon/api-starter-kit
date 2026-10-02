@@ -14,6 +14,12 @@ export default class LlmConfiguration extends BaseModel {
   @column()
   declare chatModel: string
 
+  @column()
+  declare chatContextWindow: number
+
+  @column()
+  declare chatMaxTokens: number
+
   @column({ serializeAs: null })
   declare asrApiKey: string | null
 

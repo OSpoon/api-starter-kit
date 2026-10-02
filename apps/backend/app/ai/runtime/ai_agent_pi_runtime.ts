@@ -80,9 +80,11 @@ function isTerminalToolResult(result: unknown) {
 }
 
 export function shouldStopPiAfterTurn(
-  input: Pick<ShouldStopAfterTurnContext, 'message' | 'toolResults'>
+  input: Pick<ShouldStopAfterTurnContext, 'message' | 'toolResults'>,
+  hasQueuedMessages = false
 ) {
   if (input.message.stopReason === 'error' || input.message.stopReason === 'aborted') return true
+  if (hasQueuedMessages) return false
   return (
     input.toolResults.length > 0 &&
     input.toolResults.every((result) => isTerminalToolResult(result))
@@ -136,8 +138,8 @@ async function createModel(): Promise<Model<'openai-completions'>> {
     reasoning: /qwen|deepseek|reason/i.test(modelName),
     input: ['text'],
     cost: pricing?.cost ?? { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-    contextWindow: 128_000,
-    maxTokens: 16_384,
+    contextWindow: config.chat.contextWindow,
+    maxTokens: config.chat.maxTokens,
   }
 }
 
@@ -174,6 +176,7 @@ export async function createPiAgent(input: {
   const model = models.getModel('api-starter-openai', modelName)
   if (!model) throw new Error(`Pi model is not configured: ${modelName}`)
 
+  let hasQueuedMessages = () => false
   const agent = new Agent({
     initialState: {
       systemPrompt: input.systemPrompt,
@@ -183,7 +186,7 @@ export async function createPiAgent(input: {
       thinkingLevel: 'off',
     },
     streamFn: models.streamSimple.bind(models),
-    toolExecution: 'parallel',
+    toolExecution: 'sequential',
     steeringMode: 'one-at-a-time',
     followUpMode: 'one-at-a-time',
     sessionId: input.sessionId,
@@ -219,7 +222,7 @@ export async function createPiAgent(input: {
       }
       return trimPiContextToTokenBudget(messages, tokenBudget)
     },
-    shouldStopAfterTurn: shouldStopPiAfterTurn,
+    shouldStopAfterTurn: (context) => shouldStopPiAfterTurn(context, hasQueuedMessages()),
     prepareNextTurnWithContext: async (
       context,
       signal
@@ -239,6 +242,7 @@ export async function createPiAgent(input: {
       terminate: isError || result.terminate === true,
     }),
   })
+  hasQueuedMessages = () => agent.hasQueuedMessages()
 
   if (input.signal) {
     if (input.signal.aborted) agent.abort()

@@ -17,7 +17,7 @@ export function createDiagnoseMyAccessTool(input: AiAgentToolContext, support: A
         'Diagnose only the current authenticated user\u2019s access. For an overall permission review, call with an empty object and summarize effectivePermissions; omit permissionCode. Set permissionCode only when the user explicitly asks whether they have one named permission.',
       schema: z.object({ permissionCode: z.string().optional() }),
       parameters: piToolParameters.diagnoseMyAccess,
-      executionMode: 'parallel',
+      executionMode: 'sequential',
     }
   )
 }

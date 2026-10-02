@@ -41,7 +41,7 @@ export function createRunRegisteredQueryTool(
         params: z.record(z.unknown()).default({}),
       }),
       parameters: piToolParameters.runRegisteredQuery,
-      executionMode: 'parallel',
+      executionMode: 'sequential',
     }
   )
 }

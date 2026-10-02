@@ -236,7 +236,7 @@ export function useAiChat() {
       return
     }
 
-    await handleAiSend(previousUserMessage.content, Number(message.id))
+    await handleAiSend(previousUserMessage.content, 'steer', Number(message.id))
   }
 
   async function handleAiVoiceSend(audio: Blob, fileName: string) {

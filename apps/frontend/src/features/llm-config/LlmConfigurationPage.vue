@@ -1,12 +1,16 @@
 <script setup lang="ts">
 import { AudioLines, BrainCircuit, LoaderCircle, Network, Save, TestTube } from '@lucide/vue'
+import { toTypedSchema } from '@vee-validate/zod'
+import { useForm } from 'vee-validate'
 import { toast } from 'vue-sonner'
+import { z } from 'zod'
 
 import SettingsPageTemplate from '@/components/templates/SettingsPageTemplate.vue'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { firstFormError } from '@/lib/form-validation'
 import { usePermission } from '@/lib/permission'
 import { useAuthStore } from '@/stores/auth'
 
@@ -25,10 +29,12 @@ const loading = ref(true)
 const saving = ref(false)
 const testing = ref(false)
 const savedConfiguration = ref<LlmConfiguration | null>(null)
-const form = reactive({
+const initialValues = {
   chatApiKey: '',
   chatBaseUrl: '',
   chatModel: '',
+  chatContextWindow: 128000,
+  chatMaxTokens: 16384,
   asrApiKey: '',
   asrBaseUrl: '',
   asrModel: 'Qwen3-ASR-0.6B-4bit',
@@ -37,22 +43,99 @@ const form = reactive({
   embeddingModel: '',
   embeddingDimensions: 1024,
   requestTimeoutMs: 180000,
+}
+const formSchema = computed(() =>
+  toTypedSchema(
+    z
+      .object({
+        chatApiKey: z.string().max(500, t('llm_config.validation_api_key_max')),
+        chatBaseUrl: z
+          .string()
+          .trim()
+          .refine((value) => !value || URL.canParse(value), t('llm_config.validation_url')),
+        chatModel: z
+          .string()
+          .trim()
+          .min(1, t('llm_config.validation_model_required'))
+          .max(160, t('llm_config.validation_model_max')),
+        chatContextWindow: z.coerce
+          .number()
+          .int(t('llm_config.validation_integer'))
+          .min(1024, t('llm_config.validation_context_min'))
+          .max(2_000_000, t('llm_config.validation_context_max')),
+        chatMaxTokens: z.coerce
+          .number()
+          .int(t('llm_config.validation_integer'))
+          .min(1, t('llm_config.validation_output_min'))
+          .max(1_000_000, t('llm_config.validation_output_max')),
+        asrApiKey: z.string().max(500, t('llm_config.validation_api_key_max')),
+        asrBaseUrl: z
+          .string()
+          .trim()
+          .refine((value) => !value || URL.canParse(value), t('llm_config.validation_url')),
+        asrModel: z
+          .string()
+          .trim()
+          .min(1, t('llm_config.validation_model_required'))
+          .max(160, t('llm_config.validation_model_max')),
+        embeddingApiKey: z.string().max(500, t('llm_config.validation_api_key_max')),
+        embeddingBaseUrl: z
+          .string()
+          .trim()
+          .refine((value) => !value || URL.canParse(value), t('llm_config.validation_url')),
+        embeddingModel: z.string().trim().max(160, t('llm_config.validation_model_max')),
+        embeddingDimensions: z.coerce
+          .number()
+          .int(t('llm_config.validation_integer'))
+          .min(1, t('llm_config.validation_embedding_dimensions'))
+          .max(8192, t('llm_config.validation_embedding_dimensions')),
+        requestTimeoutMs: z.coerce
+          .number()
+          .int(t('llm_config.validation_integer'))
+          .min(5000, t('llm_config.validation_timeout'))
+          .max(300000, t('llm_config.validation_timeout')),
+      })
+      .superRefine((values, context) => {
+        if (values.chatMaxTokens >= values.chatContextWindow) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['chatMaxTokens'],
+            message: t('llm_config.validation_max_output_below_context'),
+          })
+        }
+      })
+  )
+)
+const form = useForm({
+  validationSchema: formSchema,
+  initialValues,
 })
 
-const hasUnsavedChanges = computed(() => hasUnsavedLlmConfiguration(form, savedConfiguration.value))
+const hasUnsavedChanges = computed(() =>
+  hasUnsavedLlmConfiguration(form.values, savedConfiguration.value)
+)
 const canTestSavedConfiguration = computed(
   () => savedConfiguration.value !== null && !hasUnsavedChanges.value
 )
 
 function applySavedConfiguration(config: LlmConfiguration) {
-  form.chatBaseUrl = config.chat.baseUrl ?? ''
-  form.chatModel = config.chat.model
-  form.asrBaseUrl = config.asr.baseUrl ?? ''
-  form.asrModel = config.asr.model
-  form.embeddingBaseUrl = config.embedding.baseUrl ?? ''
-  form.embeddingModel = config.embedding.model ?? ''
-  form.embeddingDimensions = config.embedding.dimensions
-  form.requestTimeoutMs = config.requestTimeoutMs
+  form.resetForm({
+    values: {
+      chatApiKey: '',
+      chatBaseUrl: config.chat.baseUrl ?? '',
+      chatModel: config.chat.model,
+      chatContextWindow: config.chat.contextWindow,
+      chatMaxTokens: config.chat.maxTokens,
+      asrApiKey: '',
+      asrBaseUrl: config.asr.baseUrl ?? '',
+      asrModel: config.asr.model,
+      embeddingApiKey: '',
+      embeddingBaseUrl: config.embedding.baseUrl ?? '',
+      embeddingModel: config.embedding.model ?? '',
+      embeddingDimensions: config.embedding.dimensions,
+      requestTimeoutMs: config.requestTimeoutMs,
+    },
+  })
   savedConfiguration.value = config
 }
 
@@ -67,18 +150,16 @@ async function load() {
   }
 }
 
-async function save() {
+async function submit(values: typeof form.values) {
   saving.value = true
   try {
+    const completeValues = { ...initialValues, ...values }
     const config = await updateLlmConfiguration(auth.token, {
-      ...form,
-      chatApiKey: form.chatApiKey || undefined,
-      asrApiKey: form.asrApiKey || undefined,
-      embeddingApiKey: form.embeddingApiKey || undefined,
+      ...completeValues,
+      chatApiKey: completeValues.chatApiKey || undefined,
+      asrApiKey: completeValues.asrApiKey || undefined,
+      embeddingApiKey: completeValues.embeddingApiKey || undefined,
     })
-    form.chatApiKey = ''
-    form.asrApiKey = ''
-    form.embeddingApiKey = ''
     applySavedConfiguration(config)
     toast.success(t('llm_config.saved'))
   } catch (error) {
@@ -87,6 +168,10 @@ async function save() {
     saving.value = false
   }
 }
+
+const save = form.handleSubmit(submit, ({ errors }) =>
+  toast.error(firstFormError(errors, t('common.form_check_errors')))
+)
 
 async function testConnection() {
   if (!savedConfiguration.value) {
@@ -130,27 +215,58 @@ onMounted(load)
           ><CardDescription>{{ t('llm_config.chat_description') }}</CardDescription></CardHeader
         >
         <CardContent class="grid items-start gap-4 md:grid-cols-2">
-          <div class="space-y-2 md:col-span-2">
-            <Label for="chat-base-url">{{ t('llm_config.base_url') }}</Label
-            ><Input
-              id="chat-base-url"
-              v-model="form.chatBaseUrl"
-              placeholder="https://api.example.com/v1"
-            />
-          </div>
-          <div class="space-y-2">
-            <Label for="chat-model">{{ t('llm_config.model') }}</Label
-            ><Input id="chat-model" v-model="form.chatModel" />
-          </div>
-          <div class="space-y-2">
-            <Label for="chat-api-key">{{ t('llm_config.api_key') }}</Label
-            ><Input
-              id="chat-api-key"
-              v-model="form.chatApiKey"
-              type="password"
-              :placeholder="t('llm_config.keep_existing')"
-            />
-          </div>
+          <FormField
+            v-slot="{ componentField }"
+            name="chatBaseUrl"
+            :validate-on-blur="false"
+            class="md:col-span-2"
+          >
+            <FormItem>
+              <FormLabel>{{ t('llm_config.base_url') }}</FormLabel>
+              <FormControl>
+                <Input v-bind="componentField" placeholder="https://api.example.com/v1" />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          </FormField>
+          <FormField v-slot="{ componentField }" name="chatModel" :validate-on-blur="false">
+            <FormItem>
+              <FormLabel>{{ t('llm_config.model') }}</FormLabel>
+              <FormControl><Input v-bind="componentField" /></FormControl>
+              <FormMessage />
+            </FormItem>
+          </FormField>
+          <FormField v-slot="{ componentField }" name="chatApiKey" :validate-on-blur="false">
+            <FormItem>
+              <FormLabel>{{ t('llm_config.api_key') }}</FormLabel>
+              <FormControl>
+                <Input
+                  v-bind="componentField"
+                  type="password"
+                  :placeholder="t('llm_config.keep_existing')"
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          </FormField>
+          <FormField v-slot="{ componentField }" name="chatContextWindow" :validate-on-blur="false">
+            <FormItem>
+              <FormLabel>{{ t('llm_config.context_window') }}</FormLabel>
+              <FormControl><Input v-bind="componentField" type="number" /></FormControl>
+              <p class="text-xs text-muted-foreground">{{ t('llm_config.context_window_hint') }}</p>
+              <FormMessage />
+            </FormItem>
+          </FormField>
+          <FormField v-slot="{ componentField }" name="chatMaxTokens" :validate-on-blur="false">
+            <FormItem>
+              <FormLabel>{{ t('llm_config.max_output_tokens') }}</FormLabel>
+              <FormControl><Input v-bind="componentField" type="number" /></FormControl>
+              <p class="text-xs text-muted-foreground">
+                {{ t('llm_config.max_output_tokens_hint') }}
+              </p>
+              <FormMessage />
+            </FormItem>
+          </FormField>
         </CardContent>
       </Card>
       <Card>
@@ -160,27 +276,40 @@ onMounted(load)
           ><CardDescription>{{ t('llm_config.asr_description') }}</CardDescription></CardHeader
         >
         <CardContent class="grid items-start gap-4 md:grid-cols-2">
-          <div class="space-y-2 md:col-span-2">
-            <Label for="asr-base-url">{{ t('llm_config.base_url') }}</Label>
-            <Input
-              id="asr-base-url"
-              v-model="form.asrBaseUrl"
-              placeholder="http://localhost:8000/v1"
-            />
-          </div>
-          <div class="space-y-2">
-            <Label for="asr-model">{{ t('llm_config.model') }}</Label>
-            <Input id="asr-model" v-model="form.asrModel" />
-          </div>
-          <div class="space-y-2">
-            <Label for="asr-api-key">{{ t('llm_config.api_key') }}</Label>
-            <Input
-              id="asr-api-key"
-              v-model="form.asrApiKey"
-              type="password"
-              :placeholder="t('llm_config.keep_existing')"
-            />
-          </div>
+          <FormField
+            v-slot="{ componentField }"
+            name="asrBaseUrl"
+            :validate-on-blur="false"
+            class="md:col-span-2"
+          >
+            <FormItem>
+              <FormLabel>{{ t('llm_config.base_url') }}</FormLabel>
+              <FormControl>
+                <Input v-bind="componentField" placeholder="http://localhost:8000/v1" />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          </FormField>
+          <FormField v-slot="{ componentField }" name="asrModel" :validate-on-blur="false">
+            <FormItem>
+              <FormLabel>{{ t('llm_config.model') }}</FormLabel>
+              <FormControl><Input v-bind="componentField" /></FormControl>
+              <FormMessage />
+            </FormItem>
+          </FormField>
+          <FormField v-slot="{ componentField }" name="asrApiKey" :validate-on-blur="false">
+            <FormItem>
+              <FormLabel>{{ t('llm_config.api_key') }}</FormLabel>
+              <FormControl>
+                <Input
+                  v-bind="componentField"
+                  type="password"
+                  :placeholder="t('llm_config.keep_existing')"
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          </FormField>
         </CardContent>
       </Card>
       <Card>
@@ -192,42 +321,59 @@ onMounted(load)
           }}</CardDescription></CardHeader
         >
         <CardContent class="grid items-start gap-4 md:grid-cols-2">
-          <div class="space-y-2 md:col-span-2">
-            <Label for="embedding-base-url">{{ t('llm_config.base_url') }}</Label
-            ><Input id="embedding-base-url" v-model="form.embeddingBaseUrl" />
-          </div>
-          <div class="space-y-2">
-            <Label for="embedding-model">{{ t('llm_config.model') }}</Label
-            ><Input id="embedding-model" v-model="form.embeddingModel" />
-          </div>
-          <div class="space-y-2">
-            <Label for="embedding-api-key">{{ t('llm_config.api_key') }}</Label
-            ><Input
-              id="embedding-api-key"
-              v-model="form.embeddingApiKey"
-              type="password"
-              :placeholder="t('llm_config.keep_existing')"
-            />
-          </div>
-          <div class="space-y-2">
-            <Label for="embedding-dimensions">{{ t('llm_config.dimensions') }}</Label
-            ><Input
-              id="embedding-dimensions"
-              v-model.number="form.embeddingDimensions"
-              type="number"
-            />
-          </div>
+          <FormField
+            v-slot="{ componentField }"
+            name="embeddingBaseUrl"
+            :validate-on-blur="false"
+            class="md:col-span-2"
+          >
+            <FormItem>
+              <FormLabel>{{ t('llm_config.base_url') }}</FormLabel>
+              <FormControl><Input v-bind="componentField" /></FormControl>
+              <FormMessage />
+            </FormItem>
+          </FormField>
+          <FormField v-slot="{ componentField }" name="embeddingModel" :validate-on-blur="false">
+            <FormItem>
+              <FormLabel>{{ t('llm_config.model') }}</FormLabel>
+              <FormControl><Input v-bind="componentField" /></FormControl>
+              <FormMessage />
+            </FormItem>
+          </FormField>
+          <FormField v-slot="{ componentField }" name="embeddingApiKey" :validate-on-blur="false">
+            <FormItem>
+              <FormLabel>{{ t('llm_config.api_key') }}</FormLabel>
+              <FormControl>
+                <Input
+                  v-bind="componentField"
+                  type="password"
+                  :placeholder="t('llm_config.keep_existing')"
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          </FormField>
+          <FormField
+            v-slot="{ componentField }"
+            name="embeddingDimensions"
+            :validate-on-blur="false"
+          >
+            <FormItem>
+              <FormLabel>{{ t('llm_config.dimensions') }}</FormLabel>
+              <FormControl><Input v-bind="componentField" type="number" /></FormControl>
+              <FormMessage />
+            </FormItem>
+          </FormField>
         </CardContent>
       </Card>
       <Card
         ><CardContent class="grid items-end gap-4 pt-6 md:grid-cols-2"
-          ><div class="space-y-2">
-            <Label for="request-timeout">{{ t('llm_config.timeout') }}</Label
-            ><Input
-              id="request-timeout"
-              v-model.number="form.requestTimeoutMs"
-              type="number"
-            /></div></CardContent
+          ><FormField v-slot="{ componentField }" name="requestTimeoutMs" :validate-on-blur="false">
+            <FormItem>
+              <FormLabel>{{ t('llm_config.timeout') }}</FormLabel>
+              <FormControl><Input v-bind="componentField" type="number" /></FormControl>
+              <FormMessage />
+            </FormItem> </FormField></CardContent
       ></Card>
       <div class="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-end">
         <p

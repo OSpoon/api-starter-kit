@@ -246,6 +246,7 @@ export async function transcribeAiChatAudio(token: string | null, audio: Blob, f
 type AiChatStreamEvent =
   | { type: 'user'; conversation: AiChatConversationSummary; message: AiChatMessage }
   | { type: 'delta'; content: string }
+  | { type: 'assistant_segment_start' }
   | {
       type: 'agent_status'
       name: string
@@ -265,7 +266,7 @@ type AiChatStreamEvent =
       type: 'done'
       conversation: AiChatConversation
       message: AiChatMessage
-      confirmations: Omit<AiChatConfirmation, 'messageId'>[]
+      confirmations: AiChatConfirmation[]
     }
   | { type: 'error'; message: string; assistantMessage?: AiChatMessage }
 
@@ -363,11 +364,13 @@ export async function streamAiChatMessage(
   }
 }
 
+export type AiChatQueueMode = 'steer' | 'followUp'
+
 export async function queueAiChatMessage(
   token: string | null,
   id: number,
   content: string,
-  mode: 'steer' | 'followUp'
+  mode: AiChatQueueMode
 ) {
   const response = await apiRequest<{
     queued: boolean

@@ -9,6 +9,8 @@ type LlmConfigInput = {
   chatApiKey?: string | null
   chatBaseUrl?: string | null
   chatModel: string
+  chatContextWindow: number
+  chatMaxTokens: number
   asrApiKey?: string | null
   asrBaseUrl?: string | null
   asrModel: string
@@ -62,6 +64,8 @@ export async function getLlmConfiguration() {
   return LlmConfiguration.create({
     id: 1,
     chatModel: 'Qwen3.5-4B-MLX-4bit',
+    chatContextWindow: 128000,
+    chatMaxTokens: 16384,
     asrModel: 'Qwen3-ASR-0.6B-4bit',
     embeddingModel: 'Qwen3-Embedding-0.6B-4bit-DWQ',
     embeddingDimensions: 1024,
@@ -80,6 +84,8 @@ export async function readRuntimeLlmConfiguration() {
       apiKey: decryptSecret(config.chatApiKey) ?? 'no-key',
       baseURL: config.chatBaseUrl,
       model: config.chatModel,
+      contextWindow: config.chatContextWindow,
+      maxTokens: config.chatMaxTokens,
     },
     asr: {
       apiKey: decryptSecret(config.asrApiKey),
@@ -161,6 +167,8 @@ export async function updateLlmConfiguration(input: LlmConfigInput) {
   const config = await getLlmConfiguration()
   config.chatBaseUrl = input.chatBaseUrl?.trim() || null
   config.chatModel = input.chatModel.trim()
+  config.chatContextWindow = input.chatContextWindow
+  config.chatMaxTokens = input.chatMaxTokens
   config.asrBaseUrl = input.asrBaseUrl?.trim() || null
   config.asrModel = input.asrModel.trim()
   config.embeddingBaseUrl = input.embeddingBaseUrl?.trim() || null
@@ -199,6 +207,8 @@ export function serializeLlmConfiguration(config: LlmConfiguration) {
     chat: {
       baseUrl: config.chatBaseUrl,
       model: config.chatModel,
+      contextWindow: config.chatContextWindow,
+      maxTokens: config.chatMaxTokens,
       apiKeyConfigured: Boolean(config.chatApiKey),
     },
     asr: {

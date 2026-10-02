@@ -6,6 +6,7 @@ import {
   type AiChatConversation,
   type AiChatPageContext,
   type AiChatPendingConfirmation,
+  type AiChatQueueMode,
   AiChatStreamIncompleteError,
   type AiChatTimelineItem,
   getAiChatConversation,
@@ -24,15 +25,14 @@ export function useAiChatStream(
   refreshConversations: () => Promise<void>,
   presentLatestConfirmation: (confirmations: AiChatConfirmation[]) => void
 ) {
-  async function send(message: string, regenerateAssistantMessageId?: number) {
+  async function send(
+    message: string,
+    mode: AiChatQueueMode = 'steer',
+    regenerateAssistantMessageId?: number
+  ) {
     if (state.loading.value && state.conversation.value && !regenerateAssistantMessageId) {
       try {
-        const queued = await queueAiChatMessage(
-          token(),
-          state.conversation.value.id,
-          message,
-          'steer'
-        )
+        const queued = await queueAiChatMessage(token(), state.conversation.value.id, message, mode)
         state.streamingMessages.value = [
           ...state.streamingMessages.value,
           { id: String(queued.message.id), role: 'user', content: queued.message.content },
@@ -52,13 +52,7 @@ export function useAiChatStream(
     const userMessage = regenerateAssistantMessageId
       ? null
       : { id: `local-user-${Date.now()}`, role: 'user' as const, content: message }
-    const assistantMessage: LocalAiChatMessage = {
-      id: `streaming-assistant-${Date.now()}`,
-      role: 'assistant',
-      content: '',
-      status: 'pending',
-      timeline: [],
-    }
+    let assistantMessage: LocalAiChatMessage = createStreamingAssistantMessage()
     state.streamingMessageId.value = assistantMessage.id
     state.streamingMessages.value = regenerateAssistantMessageId
       ? [
@@ -75,6 +69,16 @@ export function useAiChatStream(
       state.streamingMessages.value = state.streamingMessages.value.map((item) =>
         item.id === assistantMessage.id ? { ...assistantMessage } : item
       )
+    }
+
+    function createStreamingAssistantMessage(): LocalAiChatMessage {
+      return {
+        id: `streaming-assistant-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        role: 'assistant',
+        content: '',
+        status: 'pending',
+        timeline: [],
+      }
     }
 
     try {
@@ -98,6 +102,20 @@ export function useAiChatStream(
             assistantMessage.content += event.content
             assistantMessage.status = 'streaming'
             updateAssistantMessage()
+          }
+
+          if (event.type === 'assistant_segment_start') {
+            if (assistantMessage.content.trim()) {
+              assistantMessage.status = 'done'
+              updateAssistantMessage()
+            } else {
+              state.streamingMessages.value = state.streamingMessages.value.filter(
+                (item) => item.id !== assistantMessage.id
+              )
+            }
+            assistantMessage = createStreamingAssistantMessage()
+            state.streamingMessageId.value = assistantMessage.id
+            state.streamingMessages.value = [...state.streamingMessages.value, assistantMessage]
           }
 
           if (event.type === 'agent_status') {
@@ -172,20 +190,18 @@ export function useAiChatStream(
             )
             state.conversation.value = {
               ...event.conversation,
-              confirmations: [
-                ...state.confirmations.value,
-                ...event.confirmations.map((confirmation) => ({
-                  ...confirmation,
-                  messageId: event.message.id,
-                })),
-              ],
+              confirmations: [...state.confirmations.value, ...event.confirmations],
             }
             state.confirmations.value = state.conversation.value.confirmations ?? []
             state.streamingMessageId.value = null
             state.streamingMessages.value = []
             const confirmation = event.confirmations.at(-1) ?? streamedConfirmation
             if (confirmation) {
-              presentLatestConfirmation([{ ...confirmation, messageId: event.message.id }])
+              const attachedConfirmation =
+                'messageId' in confirmation && typeof confirmation.messageId === 'number'
+                  ? (confirmation as AiChatConfirmation)
+                  : { ...confirmation, messageId: event.message.id }
+              presentLatestConfirmation([attachedConfirmation])
             }
           }
 
