@@ -114,7 +114,7 @@ async function handleLogout() {
           <SidebarMenuButton size="lg" as-child>
             <RouterLink to="/dashboard">
               <div
-                class="flex aspect-square size-8 items-center justify-center rounded-lg border bg-background shadow-xs"
+                class="flex aspect-square size-8 items-center justify-center rounded-lg bg-background shadow-xs"
               >
                 <AiChatLogo />
               </div>

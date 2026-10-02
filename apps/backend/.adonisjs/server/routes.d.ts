@@ -27,6 +27,7 @@ export type ScannedRoutes = {
     'profile.channel_identities.unbind_dingtalk': { paramsTuple?: []; params?: {} }
     'profile.access_tokens.destroy': { paramsTuple?: []; params?: {} }
     'profile.github.link': { paramsTuple?: []; params?: {} }
+    'dashboard.overview': { paramsTuple?: []; params?: {} }
     'api_keys.index': { paramsTuple?: []; params?: {} }
     'api_keys.store': { paramsTuple?: []; params?: {} }
     'api_keys.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
@@ -122,6 +123,7 @@ export type ScannedRoutes = {
     'auth.github.redirect': { paramsTuple?: []; params?: {} }
     'auth.github.callback': { paramsTuple?: []; params?: {} }
     'profile.profile.show': { paramsTuple?: []; params?: {} }
+    'dashboard.overview': { paramsTuple?: []; params?: {} }
     'api_keys.index': { paramsTuple?: []; params?: {} }
     'llm_configurations.show': { paramsTuple?: []; params?: {} }
     'im_configurations.show': { paramsTuple?: []; params?: {} }
@@ -146,6 +148,7 @@ export type ScannedRoutes = {
     'auth.github.redirect': { paramsTuple?: []; params?: {} }
     'auth.github.callback': { paramsTuple?: []; params?: {} }
     'profile.profile.show': { paramsTuple?: []; params?: {} }
+    'dashboard.overview': { paramsTuple?: []; params?: {} }
     'api_keys.index': { paramsTuple?: []; params?: {} }
     'llm_configurations.show': { paramsTuple?: []; params?: {} }
     'im_configurations.show': { paramsTuple?: []; params?: {} }

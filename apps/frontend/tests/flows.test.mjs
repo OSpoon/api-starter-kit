@@ -154,7 +154,7 @@ test('LLM connection test draft comparison detects unsaved fields and secrets', 
   assert.equal(hasUnsavedLlmConfiguration(unchanged, null), true)
 })
 
-test('workbench starter examples are only added to development routes', () => {
+test('workbench template pages are removed while SQL tools stay development-only', () => {
   const productionNames = workbenchRoutes[0].children.map((route) => route.name)
   const developmentNames = developmentWorkbenchRoutes.map((route) => route.name)
 
@@ -163,10 +163,12 @@ test('workbench starter examples are only added to development routes', () => {
     'analytics-template',
     'wizard-template',
     'operations-template',
-    'schema-builder',
-    'sql-editor',
-    'sql-workspace',
   ]) {
+    assert.equal(productionNames.includes(name), false, `${name} should not ship as a route`)
+    assert.equal(developmentNames.includes(name), false, `${name} should be removed`)
+  }
+
+  for (const name of ['schema-builder', 'sql-editor', 'sql-workspace']) {
     assert.equal(productionNames.includes(name), false, `${name} should not ship as a route`)
     assert.equal(developmentNames.includes(name), true, `${name} should remain available in dev`)
   }

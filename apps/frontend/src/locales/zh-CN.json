@@ -114,11 +114,6 @@
     "workbench": "工作台",
     "dashboard": "仪表盘",
     "system_status": "服务状态",
-    "templates": "模板",
-    "workflow_template": "任务流转",
-    "analytics_template": "数据分析",
-    "wizard_template": "分步引导",
-    "operations_template": "操作模式",
     "access_control": "权限管理",
     "permission_management": "权限管理",
     "ai_knowledge": "Agent管理",
@@ -502,11 +497,28 @@
     "demo_response": "已收到。当前组件已作为通用悬浮助手接入，后续可以通过 @send 事件连接真实 AI 服务。"
   },
   "dashboard": {
-    "title": "仪表盘",
-    "desc": "从这里进入你有权限使用的系统功能。",
-    "quick_access": "快捷入口",
-    "open_module": "打开功能",
-    "no_modules": "当前账户没有可显示的功能入口。"
+    "title": "系统总览",
+    "desc": "查看用户、访问控制、知识库、审计及 AI 用量的关键数据。",
+    "no_metrics": "当前账户没有可查看的统计数据。",
+    "last_updated": "数据更新于 {time}",
+    "load_error": "无法加载系统统计数据，请稍后重试。",
+    "retry": "重新加载",
+    "metrics": {
+      "active_users": "启用用户",
+      "roles": "角色",
+      "active_api_keys": "有效 API 密钥",
+      "knowledge_documents": "知识文档",
+      "audit_events": "近 7 天审计事件",
+      "ai_model_calls": "本月模型调用",
+      "ai_tokens_used": "{count} tokens"
+    },
+    "trends": {
+      "title": "近 7 天活动趋势",
+      "audit_title": "审计事件",
+      "audit_description": "每日记录的系统审计事件数量。",
+      "ai_title": "AI 模型调用",
+      "ai_description": "每日发起的模型调用数量。"
+    }
   },
   "system_status": {
     "title": "服务状态",
@@ -855,11 +867,20 @@
         "channel_identity_bound": "绑定 AI 渠道",
         "channel_identity_unbound": "解绑 AI 渠道"
       },
+      "api_key": {
+        "created": "创建 API 密钥",
+        "updated": "更新 API 密钥",
+        "revoked": "吊销 API 密钥",
+        "deleted": "删除 API 密钥"
+      },
       "llm_config": {
         "updated": "更新 LLM 配置"
       },
       "im_config": {
         "updated": "更新 IM 配置"
+      },
+      "wecom_message": {
+        "sent": "企业微信消息已发送"
       },
       "wecom_template": {
         "created": "创建消息模板",

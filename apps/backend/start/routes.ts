@@ -6,6 +6,7 @@ import { controllers } from '#generated/controllers'
 import { middleware } from '#start/kernel'
 
 const ApiKeysController = () => import('#controllers/api_keys_controller')
+const DashboardController = () => import('#controllers/dashboard_controller')
 const AiChatController = () => import('#controllers/ai_chat_controller')
 const ChannelIdentitiesController = () => import('#controllers/channel_identities_controller')
 const AuditLogsController = () => import('#controllers/audit_logs_controller')
@@ -103,6 +104,11 @@ router
       .as('profile')
       .use(middleware.auth())
       .use(middleware.throttle({ max: 30, windowSeconds: 60, key: 'user' }))
+
+    router
+      .get('dashboard/overview', [DashboardController, 'overview'])
+      .use(middleware.auth())
+      .use(middleware.permission(['dashboard:view']))
 
     router
       .get('api-keys', [ApiKeysController, 'index'])

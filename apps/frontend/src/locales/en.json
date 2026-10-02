@@ -114,11 +114,6 @@
     "workbench": "Workbench",
     "dashboard": "Dashboard",
     "system_status": "Service status",
-    "templates": "Templates",
-    "workflow_template": "Task workflow",
-    "analytics_template": "Analytics",
-    "wizard_template": "Guided setup",
-    "operations_template": "Operation patterns",
     "access_control": "Permission management",
     "permission_management": "Permission management",
     "ai_knowledge": "Agent management",
@@ -502,11 +497,28 @@
     "demo_response": "Received. This component is now available as a reusable floating assistant and can be connected to a real AI service through the @send event."
   },
   "dashboard": {
-    "title": "Dashboard",
-    "desc": "Open the system features available to your account.",
-    "quick_access": "Quick access",
-    "open_module": "Open feature",
-    "no_modules": "There are no feature links available for this account."
+    "title": "System overview",
+    "desc": "Review key data across users, access control, knowledge, audit, and AI usage.",
+    "no_metrics": "There are no statistics available to this account.",
+    "last_updated": "Updated {time}",
+    "load_error": "Could not load system statistics. Try again shortly.",
+    "retry": "Reload",
+    "metrics": {
+      "active_users": "Enabled users",
+      "roles": "Roles",
+      "active_api_keys": "Active API keys",
+      "knowledge_documents": "Knowledge documents",
+      "audit_events": "Audit events in the last 7 days",
+      "ai_model_calls": "Model calls this month",
+      "ai_tokens_used": "{count} tokens"
+    },
+    "trends": {
+      "title": "Activity in the last 7 days",
+      "audit_title": "Audit events",
+      "audit_description": "System audit events recorded each day.",
+      "ai_title": "AI model calls",
+      "ai_description": "Model calls made each day."
+    }
   },
   "system_status": {
     "title": "Service status",
@@ -855,11 +867,20 @@
         "channel_identity_bound": "AI channel bound",
         "channel_identity_unbound": "AI channel unbound"
       },
+      "api_key": {
+        "created": "API key created",
+        "updated": "API key updated",
+        "revoked": "API key revoked",
+        "deleted": "API key deleted"
+      },
       "llm_config": {
         "updated": "LLM configuration updated"
       },
       "im_config": {
         "updated": "IM configuration updated"
+      },
+      "wecom_message": {
+        "sent": "WeCom message sent"
       },
       "wecom_template": {
         "created": "Message template created",

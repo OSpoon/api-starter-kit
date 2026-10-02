@@ -9,6 +9,7 @@ export const controllers = {
   ApiKeys: () => import('#controllers/api_keys_controller'),
   AuditLogs: () => import('#controllers/audit_logs_controller'),
   ChannelIdentities: () => import('#controllers/channel_identities_controller'),
+  Dashboard: () => import('#controllers/dashboard_controller'),
   GithubOauth: () => import('#controllers/github_oauth_controller'),
   ImConfigurations: () => import('#controllers/im_configurations_controller'),
   KnowledgeDocuments: () => import('#controllers/knowledge_documents_controller'),

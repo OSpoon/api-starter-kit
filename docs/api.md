@@ -38,8 +38,25 @@ API client、类型、认证状态和错误处理是否仍然符合契约；三�
 | API Key    | `/api-keys/*`                      |
 | 系统管理   | `/system/*`                        |
 | AI 会话    | `/ai-chat/*`                       |
+| 工作台     | `/dashboard/*`                     |
 
 具体请求参数和响应字段以 OpenAPI 为准。系统管理与 API Key 操作需要对应的命名权限，详见[安全与治理](security.md)。
+
+### 系统数据概览
+
+`GET /dashboard/overview` 要求 `dashboard:view`。响应包含启用用户、角色、有效 API Key、知识文档、近 7 天审计事件和本月 AI 用量；每个字段还要求对应模块的读取权限。缺少相应权限时统计字段和趋势为 `null`。
+
+| 字段                 | 指标                        | 额外权限             |
+| -------------------- | --------------------------- | -------------------- |
+| `activeUsers`        | 启用用户数                  | `users:read`         |
+| `roles`              | 角色数                      | `roles:read`         |
+| `activeApiKeys`      | 未吊销且未过期的 API Key 数 | `api-keys:read`      |
+| `knowledgeDocuments` | 知识文档数                  | `knowledge:manage`   |
+| `auditEvents`        | 近 7 天审计事件数           | `audit-logs:read`    |
+| `aiModelCalls`       | 本月模型调用次数            | `system-status:read` |
+| `aiTokensUsed`       | 本月 token 用量             | `system-status:read` |
+
+`auditTrend` 和 `aiCallTrend` 分别返回最近 7 个自然日的每日审计事件和模型调用数量，权限分别为 `audit-logs:read` 和 `system-status:read`。
 
 ### 服务状态与 AI 概览
 
