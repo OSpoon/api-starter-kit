@@ -283,6 +283,219 @@
   min-width: 0;
 }
 
+/* Shared UI motion. Keep these rules in the shared CSS entry for all clients. */
+:root {
+  --ui-motion-fast: 150ms;
+  --ui-motion-normal: 200ms;
+  --ui-motion-slow: 300ms;
+  --ui-motion-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ui-motion-ease-in: cubic-bezier(0.4, 0, 1, 1);
+}
+
+:is(
+  [data-slot='button'],
+  [data-slot='input'],
+  [data-slot='textarea'],
+  [data-slot='select-trigger'],
+  [data-slot='checkbox'],
+  [data-slot='radio-group-item'],
+  [data-slot='switch'],
+  [data-slot='toggle'],
+  [data-slot='tabs-trigger'],
+  [data-slot='accordion-trigger'],
+  [data-slot='sidebar-menu-button'],
+  [data-slot='sidebar-menu-sub-button'],
+  [data-slot='dropdown-menu-item'],
+  [data-slot='dropdown-menu-checkbox-item'],
+  [data-slot='dropdown-menu-radio-item'],
+  [data-slot='dropdown-menu-sub-trigger'],
+  [data-slot='context-menu-item'],
+  [data-slot='context-menu-sub-trigger'],
+  [data-slot='menubar-item'],
+  [data-slot='menubar-trigger'],
+  [data-slot='menubar-sub-trigger'],
+  [data-slot='select-item'],
+  [data-slot='combobox-item']
+) {
+  transition-property: background-color, border-color, color, box-shadow, opacity, scale;
+  transition-duration: var(--ui-motion-fast);
+  transition-timing-function: var(--ui-motion-ease-out);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  :is([data-slot='button'], [data-slot='checkbox'], [data-slot='toggle']):not(:disabled):not(
+      [aria-disabled='true']
+    ):active {
+    scale: 0.97;
+  }
+}
+
+:is([data-slot='checkbox-indicator'], [data-slot='radio-group-indicator']) {
+  animation: ui-motion-check var(--ui-motion-fast) var(--ui-motion-ease-out);
+}
+
+[data-slot='switch-thumb'] {
+  transition-duration: var(--ui-motion-normal);
+  transition-timing-function: var(--ui-motion-ease-out);
+}
+
+[data-slot='sidebar-menu-button'] {
+  transition-property: width, height, padding, background-color, color, box-shadow;
+}
+
+[data-slot='table-row'] {
+  transition: background-color var(--ui-motion-fast) var(--ui-motion-ease-out);
+}
+
+:is(
+  [data-slot='dialog-content'],
+  [data-slot='dialog-overlay'],
+  [data-slot='alert-dialog-content'],
+  [data-slot='alert-dialog-overlay'],
+  [data-slot='sheet-overlay'],
+  [data-slot='accordion-content'],
+  [data-slot='navigation-menu-content'],
+  [data-slot='navigation-menu-viewport']
+) {
+  animation-duration: var(--ui-motion-normal);
+  animation-timing-function: var(--ui-motion-ease-out);
+}
+
+:is(
+  [data-slot='dropdown-menu-content'],
+  [data-slot='dropdown-menu-sub-content'],
+  [data-slot='context-menu-content'],
+  [data-slot='context-menu-sub-content'],
+  [data-slot='menubar-content'],
+  [data-slot='menubar-sub-content'],
+  [data-slot='select-content'],
+  [data-slot='combobox-content'],
+  [data-slot='popover-content'],
+  [data-slot='hover-card-content'],
+  [data-slot='tooltip-content']
+) {
+  animation-duration: var(--ui-motion-fast);
+  animation-timing-function: var(--ui-motion-ease-out);
+}
+
+[data-ui-motion='sheet'],
+[data-slot='drawer-content']:not([data-swiping]),
+[data-slot='drawer-overlay'] {
+  animation-duration: var(--ui-motion-slow);
+  animation-timing-function: var(--ui-motion-ease-out);
+  transition-duration: var(--ui-motion-slow);
+  transition-timing-function: var(--ui-motion-ease-out);
+}
+
+:is(
+  [data-slot='dialog-content'],
+  [data-slot='dialog-overlay'],
+  [data-slot='alert-dialog-content'],
+  [data-slot='alert-dialog-overlay'],
+  [data-slot='sheet-overlay'],
+  [data-ui-motion='sheet'],
+  [data-slot='drawer-content'],
+  [data-slot='drawer-overlay'],
+  [data-slot='dropdown-menu-content'],
+  [data-slot='dropdown-menu-sub-content'],
+  [data-slot='context-menu-content'],
+  [data-slot='context-menu-sub-content'],
+  [data-slot='menubar-content'],
+  [data-slot='menubar-sub-content'],
+  [data-slot='select-content'],
+  [data-slot='combobox-content'],
+  [data-slot='popover-content'],
+  [data-slot='hover-card-content'],
+  [data-slot='tooltip-content']
+)[data-state='closed'] {
+  animation-duration: var(--ui-motion-fast);
+  animation-timing-function: var(--ui-motion-ease-in);
+}
+
+:is([data-slot='sidebar-gap'], [data-slot='sidebar-container'], [data-slot='sidebar-group-label']) {
+  transition-duration: var(--ui-motion-normal);
+  transition-timing-function: var(--ui-motion-ease-out);
+}
+
+.toaster [data-sonner-toast] {
+  transition-timing-function: var(--ui-motion-ease-out);
+}
+
+@keyframes ui-motion-check {
+  from {
+    opacity: 0;
+    transform: scale(0.65);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :is(
+    [data-slot='button'],
+    [data-slot='input'],
+    [data-slot='textarea'],
+    [data-slot='select-trigger'],
+    [data-slot='checkbox'],
+    [data-slot='checkbox-indicator'],
+    [data-slot='radio-group-item'],
+    [data-slot='radio-group-indicator'],
+    [data-slot='switch'],
+    [data-slot='switch-thumb'],
+    [data-slot='toggle'],
+    [data-slot='tabs-trigger'],
+    [data-slot='accordion-trigger'],
+    [data-slot='accordion-content'],
+    [data-slot='sidebar-gap'],
+    [data-slot='sidebar-container'],
+    [data-slot='sidebar-group-label'],
+    [data-slot='sidebar-menu-button'],
+    [data-slot='sidebar-menu-sub-button'],
+    [data-slot='table-row'],
+    [data-slot='dropdown-menu-item'],
+    [data-slot='dropdown-menu-sub-trigger'],
+    [data-slot='dropdown-menu-checkbox-item'],
+    [data-slot='dropdown-menu-radio-item'],
+    [data-slot='context-menu-item'],
+    [data-slot='context-menu-sub-trigger'],
+    [data-slot='menubar-item'],
+    [data-slot='menubar-trigger'],
+    [data-slot='menubar-sub-trigger'],
+    [data-slot='select-item'],
+    [data-slot='combobox-item'],
+    [data-slot='dialog-content'],
+    [data-slot='dialog-overlay'],
+    [data-slot='alert-dialog-content'],
+    [data-slot='alert-dialog-overlay'],
+    [data-slot='sheet-overlay'],
+    [data-ui-motion='sheet'],
+    [data-slot='drawer-content'],
+    [data-slot='drawer-overlay'],
+    [data-slot='dropdown-menu-content'],
+    [data-slot='dropdown-menu-sub-content'],
+    [data-slot='context-menu-content'],
+    [data-slot='context-menu-sub-content'],
+    [data-slot='menubar-content'],
+    [data-slot='menubar-sub-content'],
+    [data-slot='select-content'],
+    [data-slot='combobox-content'],
+    [data-slot='popover-content'],
+    [data-slot='hover-card-content'],
+    [data-slot='tooltip-content'],
+    [data-slot='navigation-menu-content'],
+    [data-slot='navigation-menu-viewport']
+  ) {
+    animation: none;
+    transition: none;
+  }
+
+  .toaster [data-sonner-toast] {
+    transition-duration: 0s;
+  }
+}
+
 @media (max-width: 380px) {
   .turnstile-container > div,
   .turnstile-container > iframe,

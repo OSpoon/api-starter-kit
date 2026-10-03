@@ -1,10 +1,11 @@
 <script setup lang="ts" generic="TData, TValue">
-import { SlidersHorizontal } from '@lucide/vue'
+import { Check, Minus, SlidersHorizontal, X } from '@lucide/vue'
 import type {
   Column,
   ColumnDef,
   ColumnFiltersState,
   PaginationState,
+  RowSelectionState,
   SortingState,
   Updater,
   VisibilityState,
@@ -19,7 +20,9 @@ import {
 } from '@tanstack/vue-table'
 import type { Ref } from 'vue'
 
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -36,6 +39,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from '@/components/ui/pagination'
+import { Separator } from '@/components/ui/separator'
 import {
   Table,
   TableBody,
@@ -44,6 +48,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { useTablePreferences } from '@/lib/browser-preferences'
 
 type ServerPagination = {
@@ -66,11 +71,17 @@ const props = withDefaults(
     serverPagination?: ServerPagination
     searchMode?: 'local' | 'remote'
     filtersLayout?: 'wrap' | 'inline'
+    selectable?: boolean
+    getRowId?: (row: TData) => string
+    isRowSelectable?: (row: TData) => boolean
+    selectionDisabled?: boolean
   }>(),
   {
     showSearch: true,
     showView: true,
     filtersLayout: 'inline',
+    selectable: false,
+    selectionDisabled: false,
   }
 )
 
@@ -78,13 +89,14 @@ const search = defineModel<string>('search', { default: '' })
 
 const emit = defineEmits<{
   pageChange: [page: number]
+  selectionChange: [rows: TData[]]
 }>()
 
 const { t } = useI18n()
 
 const sorting = ref<SortingState>([])
 const columnFilters = ref<ColumnFiltersState>([])
-const rowSelection = ref({})
+const rowSelection = ref<RowSelectionState>({})
 const persistedPreferences = props.storageKey ? useTablePreferences(props.storageKey) : null
 const columnVisibility = persistedPreferences?.columnVisibility ?? ref<VisibilityState>({})
 const pagination =
@@ -106,6 +118,8 @@ const table = useVueTable({
   get columns() {
     return props.columns
   },
+  getRowId: (row, index) => props.getRowId?.(row) ?? String(index),
+  enableRowSelection: (row) => props.selectable && (props.isRowSelectable?.(row.original) ?? true),
   getCoreRowModel: getCoreRowModel(),
   getPaginationRowModel: getPaginationRowModel(),
   getSortedRowModel: getSortedRowModel(),
@@ -166,6 +180,120 @@ const table = useVueTable({
   },
 })
 
+const selectedRows = computed(() => table.getSelectedRowModel().rows.map((row) => row.original))
+const dataTable = useTemplateRef<HTMLDivElement>('dataTable')
+const preferredMotion = usePreferredReducedMotion()
+const selectionToolbarVisible = ref(false)
+const displayedSelectionCount = ref(0)
+const selectionFooter = useTemplateRef<HTMLDivElement>('selectionFooter')
+const selectionActions = useTemplateRef<HTMLDivElement>('selectionActions')
+const paginationContainer = useTemplateRef<HTMLDivElement>('paginationContainer')
+const measurementOptions = { updateTiming: 'next-frame' as const }
+const { width: footerWidth } = useElementBounding(selectionFooter, measurementOptions)
+const { width: actionsWidth } = useElementBounding(selectionActions, measurementOptions)
+const { width: paginationWidth } = useElementBounding(paginationContainer, measurementOptions)
+const selectionSharesFooterRow = computed(
+  () =>
+    props.selectable &&
+    selectionToolbarVisible.value &&
+    footerWidth.value >= actionsWidth.value * 1.05 + paginationWidth.value * 2 + 24
+)
+const pageSelectableRows = computed(() =>
+  table.getRowModel().rows.filter((row) => row.getCanSelect())
+)
+const pageSelectionState = computed(() => {
+  const rows = pageSelectableRows.value
+  const selectedCount = rows.filter((row) => row.getIsSelected()).length
+  if (selectedCount === 0) return false
+  return selectedCount === rows.length ? true : 'indeterminate'
+})
+
+function clearSelection() {
+  if (selectionActions.value?.contains(document.activeElement)) {
+    dataTable.value?.querySelector<HTMLButtonElement>('[data-table-select-page]')?.focus()
+  }
+  table.resetRowSelection()
+}
+
+function finishSelectionLeave() {
+  if (!selectedRows.value.length) selectionToolbarVisible.value = false
+}
+
+function enableSelectionInteraction(element: Element) {
+  ;(element as HTMLElement).inert = false
+}
+
+function disableSelectionInteraction(element: Element) {
+  ;(element as HTMLElement).inert = true
+}
+
+function handleSelectionKeydown(event: KeyboardEvent) {
+  if (event.defaultPrevented || props.selectionDisabled || !selectedRows.value.length) return
+  const target = event.target as HTMLElement
+  if (target.closest('input, textarea, select, [role="combobox"]')) return
+
+  if (event.key === 'Escape') {
+    if (target.closest('[data-slot="dropdown-menu-trigger"], [data-slot="dropdown-menu-content"]'))
+      return
+    event.preventDefault()
+    clearSelection()
+    return
+  }
+
+  const buttons = Array.from(
+    selectionActions.value?.querySelectorAll<HTMLButtonElement>(
+      'button:not(:disabled):not([aria-disabled="true"])'
+    ) ?? []
+  ).filter((button) => button.getClientRects().length > 0)
+  if (!buttons.length) return
+  const index = buttons.findIndex((button) => button === document.activeElement)
+  let nextIndex: number
+  switch (event.key) {
+    case 'ArrowRight':
+      nextIndex = (index + 1) % buttons.length
+      break
+    case 'ArrowLeft':
+      nextIndex = (index - 1 + buttons.length) % buttons.length
+      break
+    case 'Home':
+      nextIndex = 0
+      break
+    case 'End':
+      nextIndex = buttons.length - 1
+      break
+    default:
+      return
+  }
+  event.preventDefault()
+  buttons[nextIndex]?.focus()
+}
+
+watch(selectedRows, (rows) => {
+  if (rows.length) {
+    displayedSelectionCount.value = rows.length
+    selectionToolbarVisible.value = true
+  }
+})
+watch(selectedRows, (rows) => emit('selectionChange', rows))
+watch(() => props.data, clearSelection, { flush: 'sync', deep: true })
+
+// Selection belongs to the current page and dataset, never to stale row indices.
+watch(
+  [
+    () => props.selectable,
+    () => pageSelectableRows.value.map((row) => row.id).join('\0'),
+    currentPage,
+    () => pagination.value.pageSize,
+    search,
+    sorting,
+    columnFilters,
+  ],
+  clearSelection,
+  { flush: 'sync' }
+)
+
+defineExpose({ clearSelection })
+
 watch(search, () => {
   pagination.value = { ...pagination.value, pageIndex: 0 }
 })
@@ -205,6 +333,7 @@ function columnLabel(column: Column<TData, unknown>) {
 }
 
 function handlePageChange(page: number) {
+  clearSelection()
   if (props.serverPagination) {
     emit('pageChange', page)
     return
@@ -214,7 +343,7 @@ function handlePageChange(page: number) {
 </script>
 
 <template>
-  <div class="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
+  <div ref="dataTable" class="data-table flex min-h-0 min-w-0 flex-1 flex-col gap-4">
     <div class="flex shrink-0 flex-col gap-3 md:flex-row md:items-center md:justify-between">
       <div
         :class="
@@ -259,7 +388,28 @@ function handlePageChange(page: number) {
     <div class="min-h-0 min-w-0 flex-1 overflow-auto rounded-md border">
       <Table container-class="h-full overflow-visible">
         <TableHeader class="sticky top-0 z-10 bg-card">
-          <TableRow v-for="headerGroup in table.getHeaderGroups()" :key="headerGroup.id">
+          <TableRow
+            v-for="(headerGroup, groupIndex) in table.getHeaderGroups()"
+            :key="headerGroup.id"
+          >
+            <TableHead
+              v-if="selectable && groupIndex === 0"
+              class="w-12"
+              :rowspan="table.getHeaderGroups().length"
+            >
+              <Checkbox
+                data-table-select-page
+                class="data-table-selection-checkbox size-4 rounded-full data-[state=indeterminate]:border-primary data-[state=indeterminate]:bg-primary data-[state=indeterminate]:text-primary-foreground"
+                :model-value="pageSelectionState"
+                :disabled="selectionDisabled || !pageSelectableRows.length"
+                :aria-label="t('common.select_page')"
+                :title="t('common.select_page')"
+                @update:model-value="table.toggleAllPageRowsSelected($event === true)"
+              >
+                <Minus v-if="pageSelectionState === 'indeterminate'" class="size-3" />
+                <Check v-else class="size-3" />
+              </Checkbox>
+            </TableHead>
             <TableHead v-for="header in headerGroup.headers" :key="header.id">
               <FlexRender
                 v-if="!header.isPlaceholder"
@@ -275,7 +425,18 @@ function handlePageChange(page: number) {
               v-for="row in table.getRowModel().rows"
               :key="row.id"
               :data-state="row.getIsSelected() ? 'selected' : undefined"
+              :aria-selected="selectable ? row.getIsSelected() : undefined"
             >
+              <TableCell v-if="selectable" class="w-12">
+                <Checkbox
+                  class="data-table-selection-checkbox size-4 rounded-full"
+                  :model-value="row.getIsSelected()"
+                  :disabled="selectionDisabled || !row.getCanSelect()"
+                  :aria-label="t('common.select_row', { row: row.id })"
+                  :title="t('common.select_row', { row: row.id })"
+                  @update:model-value="row.toggleSelected($event === true)"
+                />
+              </TableCell>
               <TableCell v-for="cell in row.getVisibleCells()" :key="cell.id">
                 <FlexRender :render="cell.column.columnDef.cell" :props="cell.getContext()" />
               </TableCell>
@@ -284,7 +445,9 @@ function handlePageChange(page: number) {
           <template v-else>
             <TableRow>
               <TableCell
-                :colspan="table.getVisibleLeafColumns().length || columns.length"
+                :colspan="
+                  (table.getVisibleLeafColumns().length || columns.length) + (selectable ? 1 : 0)
+                "
                 class="h-24 p-0 whitespace-normal"
               >
                 <div
@@ -298,30 +461,115 @@ function handlePageChange(page: number) {
         </TableBody>
       </Table>
     </div>
-    <div class="flex shrink-0 items-center justify-end">
-      <Pagination
-        class="justify-end"
-        :page="currentPage"
-        :items-per-page="pagination.pageSize"
-        :total="pageCount * pagination.pageSize"
-        :disabled="pageCount <= 1"
-        @update:page="handlePageChange"
+    <div
+      ref="selectionFooter"
+      class="grid shrink-0 items-center gap-3"
+      :class="
+        selectionSharesFooterRow ? 'grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]' : 'grid-cols-1'
+      "
+    >
+      <div
+        v-show="selectionToolbarVisible"
+        ref="selectionActions"
+        class="max-w-full min-w-0 justify-self-center"
+        :class="selectionSharesFooterRow ? 'col-start-2' : undefined"
       >
-        <PaginationContent v-slot="{ items }">
-          <PaginationPrevious />
-          <template v-for="(item, index) in items" :key="index">
-            <PaginationItem
-              v-if="item.type === 'page'"
-              :value="item.value"
-              :is-active="item.value === currentPage"
-            >
-              {{ item.value }}
-            </PaginationItem>
-            <PaginationEllipsis v-else :index="index" />
-          </template>
-          <PaginationNext />
-        </PaginationContent>
-      </Pagination>
+        <Transition
+          name="data-table-selection"
+          :css="preferredMotion !== 'reduce'"
+          @before-enter="enableSelectionInteraction"
+          @before-leave="disableSelectionInteraction"
+          @leave-cancelled="enableSelectionInteraction"
+          @after-leave="finishSelectionLeave"
+        >
+          <div
+            v-if="selectable && selectedRows.length"
+            role="toolbar"
+            tabindex="-1"
+            :aria-label="t('common.selection_actions')"
+            :inert="!selectedRows.length"
+            class="data-table-selection-panel flex min-w-0 flex-wrap items-center gap-2 rounded-xl border bg-background/95 p-2 shadow-xl backdrop-blur-lg outline-none focus-visible:ring-2 focus-visible:ring-ring/50 supports-backdrop-filter:bg-background/60"
+            @keydown="handleSelectionKeydown"
+          >
+            <TooltipProvider :delay-duration="200">
+              <Tooltip>
+                <TooltipTrigger as-child>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    class="size-7 shrink-0 rounded-full"
+                    :disabled="selectionDisabled"
+                    :aria-label="t('common.clear_selection')"
+                    :title="t('common.clear_selection')"
+                    @click="clearSelection"
+                  >
+                    <X class="size-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{{ t('common.clear_selection') }}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <Separator orientation="vertical" class="h-5" />
+            <span class="flex items-center gap-2 text-sm whitespace-nowrap">
+              <Badge class="min-w-7 justify-center rounded-lg">
+                <Transition
+                  name="data-table-selection-count"
+                  mode="out-in"
+                  :css="preferredMotion !== 'reduce'"
+                >
+                  <span :key="displayedSelectionCount" class="block">{{
+                    displayedSelectionCount
+                  }}</span>
+                </Transition>
+              </Badge>
+              {{ t('common.rows_selected') }}
+            </span>
+            <template v-if="$slots['selection-actions']">
+              <Separator orientation="vertical" class="h-5" />
+              <div class="flex min-w-0 flex-wrap items-center gap-2">
+                <slot
+                  name="selection-actions"
+                  :rows="selectedRows"
+                  :clear-selection="clearSelection"
+                  :disabled="selectionDisabled || !selectedRows.length"
+                />
+              </div>
+            </template>
+          </div>
+        </Transition>
+      </div>
+      <div
+        ref="paginationContainer"
+        class="w-max justify-self-end"
+        :class="selectionSharesFooterRow ? 'col-start-3' : undefined"
+      >
+        <Pagination
+          class="mx-0 w-auto justify-end"
+          :page="currentPage"
+          :items-per-page="pagination.pageSize"
+          :total="pageCount * pagination.pageSize"
+          :disabled="pageCount <= 1"
+          @update:page="handlePageChange"
+        >
+          <PaginationContent v-slot="{ items }">
+            <PaginationPrevious />
+            <template v-for="(item, index) in items" :key="index">
+              <PaginationItem
+                v-if="item.type === 'page'"
+                :value="item.value"
+                :is-active="item.value === currentPage"
+              >
+                {{ item.value }}
+              </PaginationItem>
+              <PaginationEllipsis v-else :index="index" />
+            </template>
+            <PaginationNext />
+          </PaginationContent>
+        </Pagination>
+      </div>
     </div>
+    <p v-if="selectable" role="status" aria-live="polite" aria-atomic="true" class="sr-only">
+      {{ t('common.selection_count', { count: selectedRows.length }) }}
+    </p>
   </div>
 </template>

@@ -54,6 +54,35 @@
 
 管理列表复用 `apps/frontend/src/views/ApiKeysView.vue` 的结构；角色和权限相关页面参考 `AccessControlView.vue`。不要在 view 中重新实现表头、搜索、分页、空状态、弹窗宿主或确认逻辑。
 
+### 表格行选择与批量操作
+
+`DataTable` 可通过 `selectable` 启用圆形复选框、当前页全选/半选、选中行高亮和底部选择操作栏。默认不启用，业务列表按需接入，并通过 `get-row-id` 提供稳定的记录 ID：
+
+```vue
+<DataTable
+  :columns="columns"
+  :data="records"
+  selectable
+  :get-row-id="(record) => String(record.id)"
+  :is-row-selectable="(record) => canSelect(record)"
+  :selection-disabled="loading || saving"
+  @selection-change="selectedRecords = $event"
+>
+  <template #selection-actions="{ rows, clearSelection, disabled }">
+    <!-- 使用共享 Button 和 locale 文本；动作按权限显隐并处理 disabled。 -->
+    <!-- 成功后调用 clearSelection()；破坏性操作先通过 ConfirmDialog 确认。 -->
+  </template>
+</DataTable>
+```
+
+选择列由 `DataTable` 统一管理，不参与排序或列显隐。`is-row-selectable` 可排除不可操作的行；全选只作用于当前页的可选记录。翻页、修改每页数量、搜索、排序、列筛选、数据刷新或关闭选择能力时会清空选择；选择状态不持久化，也不表示选中了服务端的所有查询结果。底部操作栏始终相对表格区域水平居中；可用宽度足够时分页在同一行右侧，否则移到下一行，避免重叠。尺寸测量复用 VueUse `useElementBounding` 并在下一帧更新，随容器和业务操作按钮的宽度变化自动调整。
+
+`selection-change` 返回已选记录数组；`selection-actions` 插槽提供 `rows`、`clearSelection` 和 `disabled`，组件实例也暴露 `clearSelection()`。批量动作的权限、确认、API 调用、成功/失败反馈由业务模块负责，后端必须重新验证每条记录的授权与当前状态。仅启用选择不会增加任何业务写入接口。
+
+选择操作栏借鉴 [shadcn-admin 的批量操作交互](https://github.com/satnaing/shadcn-admin/blob/main/src/components/data-table/bulk-actions.tsx)：半透明背景、模糊和阴影，悬停时以 300ms 缓出、100ms 延迟放大到 1.05 倍。Vue `Transition` 补充 300ms 进入和 150ms 退出；数量变化、复选框和行高亮使用短过渡。动效放在内层面板，外层保持原始布局尺寸，避免影响居中测量；同排判断会为放大效果预留空间。样式集中在 `src/assets/data-table.css`，只作用于 `.data-table` 命名空间。
+
+操作栏支持左右方向键、Home/End 移动焦点，跳过禁用按钮；Esc 清除选择并把焦点返回当前页全选控件。菜单触发器的 Esc 保留给菜单关闭行为。退出过程禁用面板交互，快速取消并重新选择可中断退出。系统启用“减少动态效果”时，取消移动、缩放、数量和勾选动画，保留颜色及状态反馈。
+
 ## API 与权限契约
 
 - 请求使用 Vine validator；不要在 controller 中重复校验。
@@ -65,7 +94,25 @@
 
 ## 表单与交互
 
+### 全局动效
+
+共享 UI 使用 shadcn-admin 的淡入、轻缩放、按弹层方向滑入和侧栏展开模式，通过 Reka UI 的 `data-state="open|closed"` 触发。不要使用只匹配 `data-open` 属性的条件。动效节奏集中在 `src/assets/assistant-components.css`，管理端、独立助手、桌面 Web 客户端和 Chrome 扩展都使用同一入口：
+
+| 场景                              | 时长  | 行为                           |
+| --------------------------------- | ----- | ------------------------------ |
+| 按钮、输入框、选择控件、菜单项    | 150ms | 颜色、边框、焦点和按压反馈     |
+| 菜单、Select、Popover、Tooltip    | 150ms | 淡入、轻缩放和方向滑入         |
+| 对话框、遮罩、Accordion、侧栏宽度 | 200ms | 淡入缩放或展开收起             |
+| Sheet、Drawer                     | 300ms | 面板滑入；手势拖动保持即时响应 |
+| 弹层关闭                          | 150ms | 快速淡出或滑出                 |
+
+时长通过 `--ui-motion-fast`、`--ui-motion-normal`、`--ui-motion-slow` 调整；进入和状态反馈使用 `--ui-motion-ease-out`，退出使用 `--ui-motion-ease-in`。按钮、复选框和 Toggle 的按压缩放为 0.97，禁用状态不响应。减少动态效果时，共享控件取消装饰性动画和过渡，保留开关位置、选中颜色、焦点和加载指示。不要逐页添加平行动效实现，也不要改变弹层 portal、焦点管理或权限契约。
+
+### 表单契约
+
 标准表单使用 `vee-validate`、Zod、`toTypedSchema`、`FormField`、`FormControl` 和 `FormMessage`。表单弹窗参考 `apps/frontend/src/features/wecom-message-templates/components/WecomMessageTemplateForm.vue`；破坏性操作使用 `ConfirmDialog.vue`。
+
+`ConfirmDialog` 的确认按钮只触发 `confirm`，不会自动关闭弹窗。业务处理器在操作完成后更新 `open`，异步执行时传入 `loading` 禁用确认和取消；失败时可以保留弹窗供重试，批量操作可通过描述展示处理进度。
 
 所有可见文本使用 locale key；每个控件都有独立可见标签；加载、空数据、错误、禁用和无权限状态都要有明确反馈。敏感值遵循既有的一次性展示规则，不进入浏览器持久化、日志或普通读取接口。
 

@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -57,9 +56,9 @@ const { t } = useI18n()
       </AlertDialogHeader>
       <AlertDialogFooter>
         <AlertDialogCancel :disabled="loading">{{ t('common.cancel') }}</AlertDialogCancel>
-        <AlertDialogAction :disabled="loading" @click.prevent="$emit('confirm')">
+        <Button :disabled="loading" @click="$emit('confirm')">
           {{ loading ? t('common.loading') : (confirmLabel ?? t('common.delete')) }}
-        </AlertDialogAction>
+        </Button>
       </AlertDialogFooter>
     </AlertDialogContent>
   </AlertDialog>

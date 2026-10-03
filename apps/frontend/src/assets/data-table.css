@@ -1,0 +1,56 @@
+/* Keep selection motion on the panel, separate from its measured layout shell. */
+.data-table .data-table-selection-panel {
+  transition:
+    transform 300ms ease-out 100ms,
+    box-shadow 300ms ease-out 100ms;
+}
+
+@media (hover: hover) {
+  .data-table .data-table-selection-panel:hover {
+    transform: scale(1.05);
+  }
+}
+
+.data-table .data-table-selection-enter-active {
+  transition:
+    opacity 300ms ease-out,
+    transform 300ms ease-out;
+}
+
+.data-table .data-table-selection-leave-active {
+  pointer-events: none;
+  transition:
+    opacity 150ms ease-in,
+    transform 150ms ease-in;
+}
+
+.data-table .data-table-selection-enter-from,
+.data-table .data-table-selection-leave-to {
+  opacity: 0;
+  transform: translateY(8px) scale(0.95);
+}
+
+.data-table .data-table-selection-count-enter-active,
+.data-table .data-table-selection-count-leave-active {
+  transition:
+    opacity 80ms ease-out,
+    transform 80ms ease-out;
+}
+
+.data-table .data-table-selection-count-enter-from {
+  opacity: 0;
+  transform: translateY(4px);
+}
+
+.data-table .data-table-selection-count-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .data-table .data-table-selection-panel,
+  .data-table .data-table-selection-panel:hover {
+    transition: none;
+    transform: none;
+  }
+}

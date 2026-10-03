@@ -103,6 +103,11 @@ function confirmReplaceWorkspace() {
   else if (pickerId) void nextTick(() => openPicker(pickerId))
 }
 
+function confirmCloseWorkspace() {
+  closeDialogOpen.value = false
+  void closeWorkspace()
+}
+
 async function submitRemoteUrl() {
   if (!remoteUrl.value.trim()) return
   remoteUrlDialogOpen.value = false
@@ -263,7 +268,7 @@ onMounted(() => void restoreWorkspace())
       v-model:replace-open="replaceDialogOpen"
       v-model:save-open="saveDialogOpen"
       :loading="loading"
-      @close="closeWorkspace"
+      @close="confirmCloseWorkspace"
       @replace="confirmReplaceWorkspace"
       @save="confirmSave"
       @submit-url="submitRemoteUrl"

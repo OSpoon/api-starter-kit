@@ -1,4 +1,4 @@
-import { apiRequest } from '@/lib/api'
+import { ApiError, apiRequest } from '@/lib/api'
 import { readItem } from '@/lib/api-types'
 import { buildListQuery } from '@/lib/list-query'
 
@@ -106,6 +106,34 @@ export async function reindexKnowledgeDocument(token: string | null, id: number)
       method: 'POST',
     })
   )
+}
+
+export async function reindexKnowledgeDocuments(
+  token: string | null,
+  documentIds: number[],
+  onProgress: (completed: number, total: number) => void = () => undefined
+) {
+  const ids = [...new Set(documentIds)]
+  const items: KnowledgeDocument[] = []
+  const failed: Array<{ id: number; message: string }> = []
+
+  // Bound provider load by reusing the authorized single-document operation sequentially.
+  for (const [index, id] of ids.entries()) {
+    try {
+      items.push(await reindexKnowledgeDocument(token, id))
+    } catch (error) {
+      const message = error instanceof Error ? error.message : ''
+      failed.push({ id, message })
+      if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+        failed.push(...ids.slice(index + 1).map((remainingId) => ({ id: remainingId, message })))
+        onProgress(index + 1, ids.length)
+        break
+      }
+    }
+    onProgress(index + 1, ids.length)
+  }
+
+  return { items, failed }
 }
 
 export async function deleteKnowledgeDocument(token: string | null, id: number) {

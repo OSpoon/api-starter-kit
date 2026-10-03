@@ -20,15 +20,20 @@ import {
   listKnowledgeDocuments,
   previewKnowledgeMetadata,
   reindexKnowledgeDocument,
+  reindexKnowledgeDocuments,
   updateKnowledgeDocument,
 } from '@/features/knowledge/api'
 import KnowledgeDocumentDialog from '@/features/knowledge/components/KnowledgeDocumentDialog.vue'
 import { formatDateTime } from '@/lib/format'
+import { usePermission } from '@/lib/permission'
 import { useDelayedDialog } from '@/lib/use-delayed-dialog'
 import { useAuthStore } from '@/stores/auth'
 
 const auth = useAuthStore()
 const { t } = useI18n()
+const { can } = usePermission()
+const canManage = computed(() => can('knowledge:manage'))
+const documentTable = useTemplateRef<{ clearSelection: () => void }>('documentTable')
 const documents = ref<KnowledgeDocument[]>([])
 const page = ref(1)
 const pageCount = ref(1)
@@ -43,6 +48,13 @@ const deleting = ref(false)
 const pendingReindex = ref<KnowledgeDocument | null>(null)
 const reindexDialogOpen = ref(false)
 const reindexing = ref(false)
+const batchReindexDialogOpen = ref(false)
+const batchReindexing = ref(false)
+const pendingBatchReindex = ref<KnowledgeDocument[]>([])
+const batchReindexCompleted = ref(0)
+const mutationBusy = computed(
+  () => saving.value || deleting.value || reindexing.value || batchReindexing.value
+)
 const roles = ref<SystemRoleOption[]>([])
 const {
   open: dialogOpen,
@@ -112,6 +124,7 @@ const columns = computed<ColumnDef<KnowledgeDocument>[]>(() => [
             size: 'icon',
             title: t('knowledge.reindex'),
             'aria-label': t('knowledge.reindex'),
+            disabled: !canManage.value || mutationBusy.value,
             onClick: () => requestReindex(row.original),
           },
           () => h(RotateCw, { class: 'size-4' })
@@ -123,6 +136,7 @@ const columns = computed<ColumnDef<KnowledgeDocument>[]>(() => [
             size: 'icon',
             title: t('common.edit'),
             'aria-label': t('common.edit'),
+            disabled: mutationBusy.value,
             onClick: () => openEditDialog(row.original),
           },
           () => h(FilePenLine, { class: 'size-4' })
@@ -135,6 +149,7 @@ const columns = computed<ColumnDef<KnowledgeDocument>[]>(() => [
             class: 'text-destructive',
             title: t('common.delete'),
             'aria-label': t('common.delete'),
+            disabled: mutationBusy.value,
             onClick: () => requestDelete(row.original),
           },
           () => h(Trash2, { class: 'size-4' })
@@ -167,12 +182,14 @@ async function fetchDocuments(
 const { search, debouncedSearch, runLoad } = useRemoteListSearch(page, fetchDocuments)
 
 function openCreateDialog() {
+  if (mutationBusy.value) return
   selectedDocument.value = null
   metadataSuggestion.value = null
   showDialog()
 }
 
 function openEditDialog(document: KnowledgeDocument) {
+  if (mutationBusy.value) return
   selectedDocument.value = document
   metadataSuggestion.value = null
   showDialog()
@@ -191,13 +208,68 @@ async function previewMetadata(file: File) {
 }
 
 function requestDelete(document: KnowledgeDocument) {
+  if (mutationBusy.value) return
   pendingDelete.value = document
   deleteDialogOpen.value = true
 }
 
 function requestReindex(document: KnowledgeDocument) {
+  if (!canManage.value || mutationBusy.value) return
   pendingReindex.value = document
   reindexDialogOpen.value = true
+}
+
+function requestBatchReindex(rows: KnowledgeDocument[]) {
+  if (!canManage.value || loading.value || mutationBusy.value || !rows.length) return
+  pendingBatchReindex.value = [...rows]
+  batchReindexCompleted.value = 0
+  batchReindexDialogOpen.value = true
+}
+
+function onBatchReindexOpenChange(open: boolean) {
+  if (!batchReindexing.value) batchReindexDialogOpen.value = open
+}
+
+async function confirmBatchReindex() {
+  if (!canManage.value || mutationBusy.value || !pendingBatchReindex.value.length) return
+  const targets = [...pendingBatchReindex.value]
+  batchReindexing.value = true
+  try {
+    const result = await reindexKnowledgeDocuments(
+      auth.token,
+      targets.map((document) => document.id),
+      (completed) => (batchReindexCompleted.value = completed)
+    )
+    batchReindexDialogOpen.value = false
+    pendingBatchReindex.value = []
+    documentTable.value?.clearSelection()
+    if (result.failed.length) {
+      const description = result.failed
+        .map(({ id, message }) =>
+          t('knowledge.batch_reindex_failure_detail', {
+            title: targets.find((document) => document.id === id)?.title ?? String(id),
+            message: message || t('knowledge.reindex_failed'),
+          })
+        )
+        .join('\n')
+      const summary = t('knowledge.batch_reindex_partial', {
+        success: result.items.length,
+        failed: result.failed.length,
+      })
+      const options = {
+        description,
+        duration: 10000,
+        classes: { description: 'max-h-48 overflow-y-auto whitespace-pre-line break-words' },
+      }
+      if (result.items.length) toast.warning(summary, options)
+      else toast.error(summary, options)
+    } else {
+      toast.success(t('knowledge.batch_reindex_success', { count: result.items.length }))
+    }
+    await runLoad()
+  } finally {
+    batchReindexing.value = false
+  }
 }
 
 async function saveDocument(input: KnowledgeDocumentInput) {
@@ -257,10 +329,10 @@ onMounted(() => void listSystemRoleCatalog(auth.token).then((items) => (roles.va
   <ListPage
     :title="t('knowledge.title')"
     :description="t('knowledge.desc')"
-    :loading="loading"
+    :loading="loading || batchReindexing"
     :refresh-label="t('common.refresh')"
     :action-label="t('knowledge.create')"
-    :show-action="true"
+    :show-action="canManage && !batchReindexing"
     @refresh="runLoad()"
     @action="openCreateDialog"
   >
@@ -269,6 +341,7 @@ onMounted(() => void listSystemRoleCatalog(auth.token).then((items) => (roles.va
     /></template>
     <template #action-icon><Plus class="size-4" /></template>
     <DataTable
+      ref="documentTable"
       v-model:search="search"
       :columns="columns"
       :data="documents"
@@ -278,8 +351,18 @@ onMounted(() => void listSystemRoleCatalog(auth.token).then((items) => (roles.va
       storage-key="knowledge-documents-table"
       :empty-message="loading ? t('common.loading') : t('knowledge.empty')"
       :server-pagination="{ page, pageCount }"
+      :selectable="canManage"
+      :get-row-id="(document) => String(document.id)"
+      :selection-disabled="loading || mutationBusy"
       @page-change="page = $event"
-    />
+    >
+      <template #selection-actions="{ rows, disabled }">
+        <Button v-if="canManage" size="sm" :disabled="disabled" @click="requestBatchReindex(rows)">
+          <RotateCw class="size-4" :class="{ 'animate-spin': batchReindexing }" />
+          {{ t('knowledge.batch_reindex') }}
+        </Button>
+      </template>
+    </DataTable>
     <template #dialogs>
       <Dialog v-if="dialogMounted" :open="dialogOpen" @update:open="onDialogOpenChange">
         <KnowledgeDocumentDialog
@@ -308,6 +391,22 @@ onMounted(() => void listSystemRoleCatalog(auth.token).then((items) => (roles.va
         :confirm-label="t('knowledge.reindex')"
         :loading="reindexing"
         @confirm="confirmReindex"
+      />
+      <ConfirmDialog
+        :open="batchReindexDialogOpen"
+        @update:open="onBatchReindexOpenChange"
+        :title="t('knowledge.batch_reindex_title')"
+        :description="
+          batchReindexing
+            ? t('knowledge.batch_reindex_progress', {
+                completed: batchReindexCompleted,
+                total: pendingBatchReindex.length,
+              })
+            : t('knowledge.batch_reindex_desc', { count: pendingBatchReindex.length })
+        "
+        :confirm-label="t('knowledge.batch_reindex')"
+        :loading="batchReindexing"
+        @confirm="confirmBatchReindex"
       />
     </template>
   </ListPage>
