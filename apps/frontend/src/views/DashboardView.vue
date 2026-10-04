@@ -1,18 +1,11 @@
 <script setup lang="ts">
-import {
-  BookOpen,
-  BrainCircuit,
-  FileClock,
-  KeyRound,
-  RefreshCw,
-  ShieldCheck,
-  UsersRound,
-} from '@lucide/vue'
+import { BookOpen, BrainCircuit, RefreshCw, UsersRound } from '@lucide/vue'
 import type { Component } from 'vue'
 
 import PageShell from '@/components/common/PageShell.vue'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Skeleton } from '@/components/ui/skeleton'
 import { type DashboardOverview, getDashboardOverview } from '@/features/dashboard/api'
 import DashboardTrendChart from '@/features/dashboard/components/DashboardTrendChart.vue'
 import { usePermission } from '@/lib/permission'
@@ -38,43 +31,36 @@ const metricDefinitions: Array<{
   key: MetricKey
   label: string
   permission: string
-  icon: Component
 }> = [
   {
     key: 'activeUsers',
     label: 'dashboard.metrics.active_users',
     permission: 'users:read',
-    icon: UsersRound,
   },
   {
     key: 'roles',
     label: 'dashboard.metrics.roles',
     permission: 'roles:read',
-    icon: ShieldCheck,
   },
   {
     key: 'activeApiKeys',
     label: 'dashboard.metrics.active_api_keys',
     permission: 'api-keys:read',
-    icon: KeyRound,
   },
   {
     key: 'knowledgeDocuments',
     label: 'dashboard.metrics.knowledge_documents',
     permission: 'knowledge:manage',
-    icon: BookOpen,
   },
   {
     key: 'auditEvents',
     label: 'dashboard.metrics.audit_events',
     permission: 'audit-logs:read',
-    icon: FileClock,
   },
   {
     key: 'aiModelCalls',
     label: 'dashboard.metrics.ai_model_calls',
     permission: 'system-status:read',
-    icon: BrainCircuit,
   },
 ]
 
@@ -86,6 +72,43 @@ const visibleMetrics = computed(() =>
   })
 )
 
+const metricGroups: Array<{
+  key: string
+  title: string
+  icon: Component
+  metricKeys: MetricKey[]
+  highlighted: boolean
+}> = [
+  {
+    key: 'access',
+    title: 'dashboard.groups.access',
+    icon: UsersRound,
+    metricKeys: ['activeUsers', 'roles'],
+    highlighted: false,
+  },
+  {
+    key: 'resources',
+    title: 'dashboard.groups.resources',
+    icon: BookOpen,
+    metricKeys: ['activeApiKeys', 'knowledgeDocuments'],
+    highlighted: false,
+  },
+  {
+    key: 'activity',
+    title: 'dashboard.groups.activity',
+    icon: BrainCircuit,
+    metricKeys: ['auditEvents', 'aiModelCalls'],
+    highlighted: true,
+  },
+]
+
+const visibleMetricGroups = computed(() =>
+  metricGroups.flatMap((group) => {
+    const metrics = visibleMetrics.value.filter((metric) => group.metricKeys.includes(metric.key))
+    return metrics.length ? [{ ...group, metrics }] : []
+  })
+)
+
 const visibleTrends = computed(() =>
   [
     {
@@ -93,14 +116,14 @@ const visibleTrends = computed(() =>
       title: 'dashboard.trends.audit_title',
       description: 'dashboard.trends.audit_description',
       permission: 'audit-logs:read',
-      barClass: 'bg-chart-1',
+      lineClass: 'text-chart-1',
     },
     {
       key: 'aiCallTrend' as const,
       title: 'dashboard.trends.ai_title',
       description: 'dashboard.trends.ai_description',
       permission: 'system-status:read',
-      barClass: 'bg-chart-2',
+      lineClass: 'text-chart-2',
     },
   ].flatMap((trend) => {
     if (!can(trend.permission) || !overview.value) return []
@@ -168,28 +191,47 @@ void refresh()
         </Button>
       </div>
 
-      <div v-if="visibleMetrics.length" class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        <Card v-for="metric in visibleMetrics" :key="metric.key" class="h-full">
-          <CardHeader class="flex flex-row items-start justify-between gap-3 space-y-0 pb-2">
-            <CardTitle class="text-sm font-medium text-muted-foreground">
-              {{ t(metric.label) }}
+      <div v-if="visibleMetricGroups.length" class="grid items-stretch gap-3 lg:grid-cols-3">
+        <Card
+          v-for="group in visibleMetricGroups"
+          :key="group.key"
+          class="gap-2 py-3 shadow-none lg:gap-3 lg:py-4"
+          :class="group.highlighted ? 'border-chart-1/20 bg-chart-1/5' : 'border-border/70'"
+        >
+          <CardHeader class="flex flex-row items-center justify-between gap-3 px-5">
+            <CardTitle class="font-sans text-xs font-medium text-muted-foreground">
+              {{ t(group.title) }}
             </CardTitle>
-            <component :is="metric.icon" class="size-4 shrink-0 text-primary" aria-hidden="true" />
-          </CardHeader>
-          <CardContent>
-            <div
-              v-if="loading && !overview"
-              class="h-9 w-24 animate-pulse rounded bg-muted"
+            <component
+              :is="group.icon"
+              class="size-4 shrink-0"
+              :class="group.highlighted ? 'text-chart-1' : 'text-muted-foreground/70'"
               aria-hidden="true"
             />
-            <template v-else>
-              <p class="text-3xl font-semibold tracking-tight tabular-nums">
-                {{ formatMetric(metric.key) }}
-              </p>
-              <p v-if="metric.key === 'aiModelCalls'" class="mt-1 text-xs text-muted-foreground">
-                {{ t('dashboard.metrics.ai_tokens_used', { count: formatAiTokens() }) }}
-              </p>
-            </template>
+          </CardHeader>
+          <CardContent class="px-5">
+            <dl class="grid grid-cols-2 items-start gap-4">
+              <div v-for="metric in group.metrics" :key="metric.key" class="min-w-0">
+                <dt class="text-xs text-muted-foreground">{{ t(metric.label) }}</dt>
+                <dd class="mt-1">
+                  <Skeleton v-if="loading && !overview" class="h-9 w-16" />
+                  <template v-else>
+                    <p
+                      class="text-2xl leading-tight font-semibold tracking-tight break-all tabular-nums lg:text-3xl"
+                      :class="group.highlighted ? 'text-chart-1' : ''"
+                    >
+                      {{ formatMetric(metric.key) }}
+                    </p>
+                    <p
+                      v-if="metric.key === 'aiModelCalls'"
+                      class="mt-1 text-[11px] break-words text-muted-foreground"
+                    >
+                      {{ t('dashboard.metrics.ai_tokens_used', { count: formatAiTokens() }) }}
+                    </p>
+                  </template>
+                </dd>
+              </div>
+            </dl>
           </CardContent>
         </Card>
       </div>
@@ -211,7 +253,7 @@ void refresh()
           :description="t(trend.description)"
           :points="trend.points"
           :locale="locale"
-          :bar-class="trend.barClass"
+          :line-class="trend.lineClass"
         />
       </div>
     </section>

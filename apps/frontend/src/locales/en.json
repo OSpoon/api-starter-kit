@@ -527,6 +527,11 @@
     "last_updated": "Updated {time}",
     "load_error": "Could not load system statistics. Try again shortly.",
     "retry": "Reload",
+    "groups": {
+      "access": "Accounts & permissions",
+      "resources": "Resources & access",
+      "activity": "Activity & AI"
+    },
     "metrics": {
       "active_users": "Enabled users",
       "roles": "Roles",

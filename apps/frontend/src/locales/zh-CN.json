@@ -527,6 +527,11 @@
     "last_updated": "数据更新于 {time}",
     "load_error": "无法加载系统统计数据，请稍后重试。",
     "retry": "重新加载",
+    "groups": {
+      "access": "账户与权限",
+      "resources": "资源与访问",
+      "activity": "活动与 AI"
+    },
     "metrics": {
       "active_users": "启用用户",
       "roles": "角色",
