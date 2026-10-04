@@ -54,6 +54,8 @@
 
 管理列表复用 `apps/frontend/src/views/ApiKeysView.vue` 的结构；角色和权限相关页面参考 `AccessControlView.vue`。不要在 view 中重新实现表头、搜索、分页、空状态、弹窗宿主或确认逻辑。
 
+列表外框由 `ListPage` 提供。`DataTable` 直接复用底层 `Table` 的容器管理横纵滚动和固定表头，只添加表格上下分隔线，不再嵌套额外的圆角边框容器；搜索和分页保留在表格滚动区域之外。
+
 ### 表格行选择与批量操作
 
 `DataTable` 可通过 `selectable` 启用圆形复选框、当前页全选/半选、选中行高亮和底部选择操作栏。默认不启用，业务列表按需接入，并通过 `get-row-id` 提供稳定的记录 ID：

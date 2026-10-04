@@ -385,82 +385,80 @@ function handlePageChange(page: number) {
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
-    <div class="min-h-0 min-w-0 flex-1 overflow-auto rounded-md border">
-      <Table container-class="h-full overflow-visible">
-        <TableHeader class="sticky top-0 z-10 bg-card">
-          <TableRow
-            v-for="(headerGroup, groupIndex) in table.getHeaderGroups()"
-            :key="headerGroup.id"
+    <Table container-class="min-h-0 min-w-0 flex-1 overflow-auto border-y">
+      <TableHeader class="sticky top-0 z-10 bg-card">
+        <TableRow
+          v-for="(headerGroup, groupIndex) in table.getHeaderGroups()"
+          :key="headerGroup.id"
+        >
+          <TableHead
+            v-if="selectable && groupIndex === 0"
+            class="w-12"
+            :rowspan="table.getHeaderGroups().length"
           >
-            <TableHead
-              v-if="selectable && groupIndex === 0"
-              class="w-12"
-              :rowspan="table.getHeaderGroups().length"
+            <Checkbox
+              data-table-select-page
+              class="data-table-selection-checkbox size-4 rounded-full data-[state=indeterminate]:border-primary data-[state=indeterminate]:bg-primary data-[state=indeterminate]:text-primary-foreground"
+              :model-value="pageSelectionState"
+              :disabled="selectionDisabled || !pageSelectableRows.length"
+              :aria-label="t('common.select_page')"
+              :title="t('common.select_page')"
+              @update:model-value="table.toggleAllPageRowsSelected($event === true)"
             >
+              <Minus v-if="pageSelectionState === 'indeterminate'" class="size-3" />
+              <Check v-else class="size-3" />
+            </Checkbox>
+          </TableHead>
+          <TableHead v-for="header in headerGroup.headers" :key="header.id">
+            <FlexRender
+              v-if="!header.isPlaceholder"
+              :render="header.column.columnDef.header"
+              :props="header.getContext()"
+            />
+          </TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        <template v-if="table.getRowModel().rows?.length">
+          <TableRow
+            v-for="row in table.getRowModel().rows"
+            :key="row.id"
+            :data-state="row.getIsSelected() ? 'selected' : undefined"
+            :aria-selected="selectable ? row.getIsSelected() : undefined"
+          >
+            <TableCell v-if="selectable" class="w-12">
               <Checkbox
-                data-table-select-page
-                class="data-table-selection-checkbox size-4 rounded-full data-[state=indeterminate]:border-primary data-[state=indeterminate]:bg-primary data-[state=indeterminate]:text-primary-foreground"
-                :model-value="pageSelectionState"
-                :disabled="selectionDisabled || !pageSelectableRows.length"
-                :aria-label="t('common.select_page')"
-                :title="t('common.select_page')"
-                @update:model-value="table.toggleAllPageRowsSelected($event === true)"
-              >
-                <Minus v-if="pageSelectionState === 'indeterminate'" class="size-3" />
-                <Check v-else class="size-3" />
-              </Checkbox>
-            </TableHead>
-            <TableHead v-for="header in headerGroup.headers" :key="header.id">
-              <FlexRender
-                v-if="!header.isPlaceholder"
-                :render="header.column.columnDef.header"
-                :props="header.getContext()"
+                class="data-table-selection-checkbox size-4 rounded-full"
+                :model-value="row.getIsSelected()"
+                :disabled="selectionDisabled || !row.getCanSelect()"
+                :aria-label="t('common.select_row', { row: row.id })"
+                :title="t('common.select_row', { row: row.id })"
+                @update:model-value="row.toggleSelected($event === true)"
               />
-            </TableHead>
+            </TableCell>
+            <TableCell v-for="cell in row.getVisibleCells()" :key="cell.id">
+              <FlexRender :render="cell.column.columnDef.cell" :props="cell.getContext()" />
+            </TableCell>
           </TableRow>
-        </TableHeader>
-        <TableBody>
-          <template v-if="table.getRowModel().rows?.length">
-            <TableRow
-              v-for="row in table.getRowModel().rows"
-              :key="row.id"
-              :data-state="row.getIsSelected() ? 'selected' : undefined"
-              :aria-selected="selectable ? row.getIsSelected() : undefined"
+        </template>
+        <template v-else>
+          <TableRow>
+            <TableCell
+              :colspan="
+                (table.getVisibleLeafColumns().length || columns.length) + (selectable ? 1 : 0)
+              "
+              class="h-24 p-0 whitespace-normal"
             >
-              <TableCell v-if="selectable" class="w-12">
-                <Checkbox
-                  class="data-table-selection-checkbox size-4 rounded-full"
-                  :model-value="row.getIsSelected()"
-                  :disabled="selectionDisabled || !row.getCanSelect()"
-                  :aria-label="t('common.select_row', { row: row.id })"
-                  :title="t('common.select_row', { row: row.id })"
-                  @update:model-value="row.toggleSelected($event === true)"
-                />
-              </TableCell>
-              <TableCell v-for="cell in row.getVisibleCells()" :key="cell.id">
-                <FlexRender :render="cell.column.columnDef.cell" :props="cell.getContext()" />
-              </TableCell>
-            </TableRow>
-          </template>
-          <template v-else>
-            <TableRow>
-              <TableCell
-                :colspan="
-                  (table.getVisibleLeafColumns().length || columns.length) + (selectable ? 1 : 0)
-                "
-                class="h-24 p-0 whitespace-normal"
+              <div
+                class="flex h-24 w-full items-center justify-center text-center text-muted-foreground"
               >
-                <div
-                  class="flex h-24 w-full items-center justify-center text-center text-muted-foreground"
-                >
-                  {{ emptyMessage || t('common.no_data') }}
-                </div>
-              </TableCell>
-            </TableRow>
-          </template>
-        </TableBody>
-      </Table>
-    </div>
+                {{ emptyMessage || t('common.no_data') }}
+              </div>
+            </TableCell>
+          </TableRow>
+        </template>
+      </TableBody>
+    </Table>
     <div
       ref="selectionFooter"
       class="grid shrink-0 items-center gap-3"
