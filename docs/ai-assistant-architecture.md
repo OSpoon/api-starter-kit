@@ -30,7 +30,7 @@ flowchart TB
 - Pi 生命周期钩子在工具调用前校验输入，在调用后识别错误和终止结果；确认提议及终止性业务错误使用原生 `terminate` 结束本轮。
 - Pi 的 `prepareCompaction`/`compact` 按 token 预算压缩长上下文，摘要写入 `AiChatConversation.contextSummary`，完整消息历史不变；`shouldStopAfterTurn` 防止终态工具结果触发无意义的下一轮推理。
 - Pi 的 `prepareNextTurnWithContext` 在每轮模型调用前刷新待确认提议和 pending query 上下文；`tool_execution_update` 仅转发白名单进度字段到 `agent_status` SSE 事件。
-- 只读诊断、注册查询和知识源目录检索可以并行；知识源目录检索完成后，正文精检索必须顺序执行，并且只能使用本轮目录返回的文档 ID。变更提议保持顺序执行，避免并行产生多个需要确认的状态。
+- Pi 运行时和所有注册工具统一串行执行，包括权限诊断、注册查询、知识源目录检索、正文精检索和变更提议。注册查询会维护待补参数状态；知识源目录检索完成后，正文精检索只能使用本轮目录返回的文档 ID。串行执行使共享会话状态按顺序更新，并避免并行产生多个需要确认的提议。
 
 ## 工具边界
 

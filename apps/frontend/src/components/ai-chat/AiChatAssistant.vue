@@ -311,9 +311,10 @@ const displayMessages = computed(() => {
 })
 
 const assistantTitle = computed(() => props.title || t('ai_chat.title'))
-const inputPlaceholder = computed(() =>
-  props.placeholder ||
-  t(props.loading ? 'ai_chat.input_placeholder_while_generating' : 'ai_chat.input_placeholder')
+const inputPlaceholder = computed(
+  () =>
+    props.placeholder ||
+    t(props.loading ? 'ai_chat.input_placeholder_while_generating' : 'ai_chat.input_placeholder')
 )
 const isStandalone = computed(() => props.mode === 'page')
 
@@ -962,7 +963,10 @@ watch(
                     variant="ghost"
                     size="icon-sm"
                     class="absolute right-11 bottom-2"
-                    :class="{ 'text-destructive': isRecording, 'text-primary': isPreparingRecording }"
+                    :class="{
+                      'text-destructive': isRecording,
+                      'text-primary': isPreparingRecording,
+                    }"
                     :disabled="disabled || isPreparingRecording"
                     :title="isRecording ? t('ai_chat.voice.stop') : t('ai_chat.voice.start')"
                     :aria-label="isRecording ? t('ai_chat.voice.stop') : t('ai_chat.voice.start')"
@@ -990,9 +994,7 @@ watch(
                           : t('ai_chat.stop_generating')
                         : undefined
                     "
-                    @click="
-                      loading ? (input.trim() ? sendMessage() : stopGeneration()) : undefined
-                    "
+                    @click="loading ? (input.trim() ? sendMessage() : stopGeneration()) : undefined"
                   >
                     <Square v-if="loading && !input.trim()" class="size-3.5 fill-current" />
                     <ArrowUpIcon v-else class="size-3.5" />

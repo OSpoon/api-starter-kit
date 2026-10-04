@@ -59,6 +59,7 @@ test.group('AI agent tool registry', () => {
       tools.map((tool) => tool.name),
       ['search_knowledge_catalog', 'search_knowledge']
     )
+    for (const tool of tools) assert.equal(tool.executionMode, 'sequential')
   })
 
   test('documents direct fields for API Key creation', ({ assert }) => {
@@ -89,23 +90,17 @@ test.group('AI agent tool registry', () => {
     assert.include(tool.description, 'code, name')
   })
 
-  test('uses parallel execution only for read-only tools', ({ assert }) => {
+  test('runs all registered tools sequentially', ({ assert }) => {
     const tools = createAiAgentTools({
       userId: 1,
       conversationId: 1,
       agentRunId: 'test-run',
     })
 
-    for (const name of ['diagnose_my_access', 'run_registered_query']) {
-      assert.equal(tools.find((tool) => tool.name === name)?.executionMode, 'parallel')
-    }
-    for (const name of ['search_knowledge_catalog', 'search_knowledge']) {
-      assert.equal(tools.find((tool) => tool.name === name)?.executionMode, 'sequential')
-    }
-    for (const tool of tools.filter((candidate) => candidate.name.startsWith('propose_'))) {
+    for (const tool of tools) {
       assert.equal(tool.executionMode, 'sequential')
+      assert.isObject(tool.parameters)
     }
-    for (const tool of tools) assert.isObject(tool.parameters)
   })
 
   test('rejects an already-aborted tool call before executing business logic', async ({
