@@ -8,6 +8,7 @@ import {
   FileCode2,
   FileJson,
   Languages,
+  LayoutList,
   LogOut,
   Monitor,
   Moon,
@@ -40,6 +41,8 @@ import {
 import { loadLocaleMessages } from '@/i18n'
 import { setStoredLocale } from '@/lib/browser-preferences'
 import { modalLayerVersion } from '@/lib/focus'
+import { usePermission } from '@/lib/permission'
+import { workbenchPermissionRoutes } from '@/router/modules/workbench'
 
 defineProps<{
   user: {
@@ -54,6 +57,8 @@ const emit = defineEmits<{
 }>()
 
 const { isMobile } = useSidebar()
+const todoBoardRoute = workbenchPermissionRoutes.find((route) => route.name === 'todo-board')!
+const { can } = usePermission()
 const router = useRouter()
 const route = useRoute()
 const { t, locale } = useI18n()
@@ -172,6 +177,12 @@ function setTheme(mode: 'light' | 'dark' | 'auto') {
                 <span>{{ t('nav.help') }}</span>
               </DropdownMenuSubTrigger>
               <DropdownMenuSubContent>
+                <DropdownMenuItem
+                  v-if="can(todoBoardRoute.meta?.permission)"
+                  @click="navigateTo(`/${todoBoardRoute.path}`)"
+                >
+                  <LayoutList />{{ t(String(todoBoardRoute.meta?.title)) }}
+                </DropdownMenuItem>
                 <DropdownMenuItem v-if="apiDocsUrl" @click="openApiDocs">
                   <BookOpenText />
                   {{ t('nav.api_docs') }}

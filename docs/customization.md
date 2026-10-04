@@ -137,3 +137,23 @@
 - 若修改 API、迁移或环境变量，已同步更新 API 文档、部署文档或 README。
 
 具体命令和验证矩阵见[工程开发指南](development.md)。
+
+## 通用 Todo 看板
+
+帮助菜单的 Todo 看板是组件交互示例，路由 `/help/todo-board`，读取权限为
+`todo-board:read`。新增权限迁移默认授予 super-admin，其他角色需由管理员授权。
+示例页默认加载 8 条测试任务（待办 3 条、进行中 3 条、已完成 2 条），覆盖无描述、
+长标题和多行描述。任务仅保存在页面内存，刷新或重新进入后恢复初始示例数据，
+不写入浏览器存储或后端。
+
+`components/common/TodoBoard.vue` 使用 SortableJS 的 MIT 许可 Vue 3 封装
+`vuedraggable`，通过 `v-model` 接收 `TodoColumn[]`（列包含 id、title、cards；
+卡片包含 id、title、可选 description）。列和卡片 ID 必须在看板内唯一。
+拖动后发出新的列数据，不修改传入数据。支持 `create`、`edit`、`delete`、
+`retry` 事件，以及 `card`、`card-actions` 插槽；插槽提供 card 和 column。
+支持 disabled、loading、error 状态。每个组件实例隔离拖动分组。
+看板默认填满父容器的可用高度，调用方需提供有界高度或可收缩的 flex 容器。
+列标题固定在顶部，任务过多时各列任务区独立纵向滚动，窄屏下看板整体横向滚动。
+
+业务接入时由调用方负责持久化、权限、保存失败恢复和删除确认；组件本身不调用 API。
+示例页通过共享表单修改状态，提供无需拖动的键盘操作方式。

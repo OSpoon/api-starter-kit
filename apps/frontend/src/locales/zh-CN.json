@@ -1444,5 +1444,62 @@
     "message": "发生了意外错误，请尝试重新加载页面。",
     "reload": "重新加载",
     "go_home": "返回首页"
+  },
+  "todo_board": {
+    "title": "Todo 看板",
+    "description": "通用看板交互示例。拖动卡片可调整状态和顺序，也可通过编辑修改状态；任务仅在当前页面内存中保留。",
+    "add": "新增任务",
+    "edit": "编辑任务",
+    "task_title": "任务标题",
+    "task_description": "任务描述",
+    "status": "状态",
+    "drag": "拖动以排序或移动",
+    "empty": "暂无任务，添加任务或拖动卡片到这里",
+    "add_to": "向「{column}」添加任务",
+    "delete_title": "删除任务",
+    "delete_description": "确定删除「{title}」？",
+    "required": "此项为必填项",
+    "title_max": "标题最多 120 个字符",
+    "description_max": "描述最多 1000 个字符",
+    "retry": "重试",
+    "columns": {
+      "todo": "待办",
+      "doing": "进行中",
+      "done": "已完成"
+    },
+    "form_hint": "填写任务标题，并选择任务状态。",
+    "examples": {
+      "requirements": {
+        "title": "梳理看板需求",
+        "description": "确认任务字段、状态流转与卡片操作，整理首版验收清单。"
+      },
+      "mobile": {
+        "title": "验证窄屏下长任务标题、描述换行与看板横向滚动的布局表现",
+        "description": "在手机尺寸下检查：\n1. 页面整体不出现横向溢出。\n2. 看板可以独立横向滚动。\n3. 新增和编辑弹窗中的表单与按钮完整可见。"
+      },
+      "meeting": {
+        "title": "安排迭代评审会议"
+      },
+      "drag": {
+        "title": "验证跨列拖动与列内排序",
+        "description": "将这张卡片拖到「已完成」，或在本列内调整顺序，体验状态与排序更新。"
+      },
+      "validation": {
+        "title": "检查任务表单校验",
+        "description": "尝试清空标题后保存，再输入新标题，检查错误提示是否即时更新。"
+      },
+      "accessibility": {
+        "title": "完善键盘操作与无障碍体验",
+        "description": "使用 Tab 切换操作按钮，通过编辑弹窗修改任务状态；确认所有字段都有独立标签。"
+      },
+      "layout": {
+        "title": "完成三列看板布局",
+        "description": "待办、进行中、已完成三列已就绪，并展示各列任务数量。"
+      },
+      "locales": {
+        "title": "补齐中英文文案",
+        "description": "看板标题、状态、表单标签及操作提示均已提供中英文版本。"
+      }
+    }
   }
 }

@@ -1444,5 +1444,62 @@
     "message": "An unexpected error occurred. Please try reloading the page.",
     "reload": "Reload",
     "go_home": "Go Home"
+  },
+  "todo_board": {
+    "title": "Todo Board",
+    "description": "Interactive board example. Drag cards to change status or order, or edit their status. Tasks remain only in memory while this page is open.",
+    "add": "Add task",
+    "edit": "Edit task",
+    "task_title": "Task title",
+    "task_description": "Description",
+    "status": "Status",
+    "drag": "Drag to reorder or move",
+    "empty": "No tasks. Add a task or drag a card here.",
+    "add_to": "Add task to {column}",
+    "delete_title": "Delete task",
+    "delete_description": "Delete “{title}”?",
+    "required": "This field is required",
+    "title_max": "Use at most 120 characters",
+    "description_max": "Use at most 1000 characters",
+    "retry": "Retry",
+    "columns": {
+      "todo": "To do",
+      "doing": "In progress",
+      "done": "Done"
+    },
+    "form_hint": "Enter a title and choose the task status.",
+    "examples": {
+      "requirements": {
+        "title": "Define board requirements",
+        "description": "Confirm task fields, status transitions and card actions, then prepare the first acceptance checklist."
+      },
+      "mobile": {
+        "title": "Verify long task titles, description wrapping and horizontal board scrolling on narrow screens",
+        "description": "Check at phone widths:\n1. The page has no horizontal overflow.\n2. The board scrolls horizontally on its own.\n3. Form fields and buttons remain visible in task dialogs."
+      },
+      "meeting": {
+        "title": "Schedule the iteration review"
+      },
+      "drag": {
+        "title": "Verify cross-column dragging and reordering",
+        "description": "Drag this card to Done, or change its position within this column to try status and order updates."
+      },
+      "validation": {
+        "title": "Check task form validation",
+        "description": "Clear the title and save, then enter a new title to check that the validation message updates immediately."
+      },
+      "accessibility": {
+        "title": "Improve keyboard and accessibility support",
+        "description": "Tab through action buttons and use the edit dialog to change task status. Confirm every field has a visible label."
+      },
+      "layout": {
+        "title": "Complete the three-column layout",
+        "description": "To do, In progress and Done columns are ready, each displaying its task count."
+      },
+      "locales": {
+        "title": "Complete Chinese and English translations",
+        "description": "Board titles, statuses, form labels and action hints now have Chinese and English versions."
+      }
+    }
   }
 }

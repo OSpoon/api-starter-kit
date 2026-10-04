@@ -12,6 +12,25 @@ import { generateInitialPassword } from '#security/user_credentials'
 test.group('rbac', (group) => {
   group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
 
+  test('allows Todo board readers and denies users without its permission', async ({ assert }) => {
+    const permission = await Permission.findByOrFail('code', 'todo-board:read')
+    const role = await Role.create({ code: `todo-reader-${Date.now()}`, name: 'Todo reader' })
+    await role.related('permissions').sync([permission.id])
+    const reader = await User.create({
+      fullName: 'Todo reader',
+      email: `todo-reader-${Date.now()}@example.com`,
+      password: generateInitialPassword(),
+    })
+    await reader.related('roles').sync([role.id])
+    const denied = await User.create({
+      fullName: 'No grants',
+      email: `todo-denied-${Date.now()}@example.com`,
+      password: generateInitialPassword(),
+    })
+    assert.isTrue(await new Bouncer(() => reader, { access }).allows('access', 'todo-board:read'))
+    assert.isFalse(await new Bouncer(() => denied, { access }).allows('access', 'todo-board:read'))
+  })
+
   test('writes pivot timestamps when assigning permissions to a role', async ({ assert }) => {
     const role = await Role.create({ code: `role-${Date.now()}`, name: 'Test role' })
     const permission = await Permission.query().firstOrFail()

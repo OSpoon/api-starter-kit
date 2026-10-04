@@ -61,6 +61,7 @@ declare module 'vue' {
     SiteHeader: typeof import('./components/SiteHeader.vue')['default']
     SqlEditor: typeof import('./components/common/SqlEditor.vue')['default']
     StringEditor: typeof import('./components/json-schema/components/types/StringEditor.vue')['default']
+    TodoBoard: typeof import('./components/common/TodoBoard.vue')['default']
     TurnstileWidget: typeof import('./components/common/TurnstileWidget.vue')['default']
     TypeDropdown: typeof import('./components/json-schema/components/TypeDropdown.vue')['default']
     TypeEditor: typeof import('./components/json-schema/components/TypeEditor.vue')['default']
