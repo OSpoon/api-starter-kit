@@ -417,6 +417,7 @@ declare module 'vue' {
     TagsInputItemDelete: typeof import('./../../frontend/src/components/ui/tags-input/TagsInputItemDelete.vue')['default']
     TagsInputItemText: typeof import('./../../frontend/src/components/ui/tags-input/TagsInputItemText.vue')['default']
     Textarea: typeof import('./../../frontend/src/components/ui/textarea/Textarea.vue')['default']
+    TodoBoard: typeof import('./../../frontend/src/components/common/TodoBoard.vue')['default']
     Toggle: typeof import('./../../frontend/src/components/ui/toggle/Toggle.vue')['default']
     ToggleGroup: typeof import('./../../frontend/src/components/ui/toggle-group/ToggleGroup.vue')['default']
     ToggleGroupItem: typeof import('./../../frontend/src/components/ui/toggle-group/ToggleGroupItem.vue')['default']

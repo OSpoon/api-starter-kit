@@ -11,6 +11,7 @@ import {
 } from '@lucide/vue'
 import type { RouteRecordRaw } from 'vue-router'
 
+import type {} from '@/router/meta'
 import { developmentWorkbenchRoutes } from '@/router/modules/workbench-examples'
 
 const workbenchRootRoute = {
