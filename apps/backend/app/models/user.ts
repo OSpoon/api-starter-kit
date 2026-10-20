@@ -2,11 +2,12 @@ import { type AccessToken, DbAccessTokensProvider } from '@adonisjs/auth/access_
 import { withAuthFinder } from '@adonisjs/auth/mixins/lucid'
 import { compose } from '@adonisjs/core/helpers'
 import hash from '@adonisjs/core/services/hash'
-import { column, manyToMany } from '@adonisjs/lucid/orm'
-import type { ManyToMany } from '@adonisjs/lucid/types/relations'
+import { column, hasMany, manyToMany } from '@adonisjs/lucid/orm'
+import type { HasMany, ManyToMany } from '@adonisjs/lucid/types/relations'
 import { DateTime } from 'luxon'
 
 import { UserSchema } from '#database/schema'
+import ChannelIdentity from '#models/channel_identity'
 import Role from '#models/role'
 
 export default class User extends compose(UserSchema, withAuthFinder(hash)) {
@@ -40,6 +41,9 @@ export default class User extends compose(UserSchema, withAuthFinder(hash)) {
     pivotTimestamps: { createdAt: 'created_at', updatedAt: false },
   })
   declare roles: ManyToMany<typeof Role>
+
+  @hasMany(() => ChannelIdentity)
+  declare channelIdentities: HasMany<typeof ChannelIdentity>
 
   get initials() {
     const [first, last] = this.fullName ? this.fullName.split(' ') : this.email.split('@')

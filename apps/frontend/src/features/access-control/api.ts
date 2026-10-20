@@ -58,10 +58,23 @@ export type SystemPermissionOption = Pick<SystemPermission, 'id' | 'code' | 'nam
 
 const authOptions = (token: string | null) => ({ token })
 
-export async function listSystemUsers(token: string | null, page = 1, search = '') {
+export type SystemUserListFilters = {
+  roleIds?: string[]
+  channels?: string[]
+}
+
+export async function listSystemUsers(
+  token: string | null,
+  page = 1,
+  search = '',
+  filters: SystemUserListFilters = {}
+) {
+  const extra: Record<string, string> = {}
+  if (filters.roleIds?.length) extra.roleIds = filters.roleIds.join(',')
+  if (filters.channels?.length) extra.channels = filters.channels.join(',')
   return readItem(
     await apiRequest<SystemPage<SystemUser>>(
-      `/api/v1/system/users?${buildListQuery(page, search)}`,
+      `/api/v1/system/users?${buildListQuery(page, search, extra)}`,
       authOptions(token)
     )
   )

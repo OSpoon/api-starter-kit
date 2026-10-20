@@ -17,6 +17,7 @@
     "delete": "Delete",
     "edit": "Edit",
     "search": "Search",
+    "filters": "Filters",
     "loading": "Loading...",
     "actions": "Actions",
     "success": "Success",
@@ -802,6 +803,13 @@
       "name": "Name",
       "roles": "Roles",
       "security": "Security",
+      "channels_title": "IM channels",
+      "no_bound_channels": "Unbound",
+      "channels": {
+        "wecom": "WeCom bot",
+        "feishu": "Feishu bot",
+        "dingtalk": "DingTalk bot"
+      },
       "password_only": "Password only",
       "password_optional": "Leave empty to keep the current password",
       "form_desc": "Manage account details and roles. Password resets generate a new initial password.",

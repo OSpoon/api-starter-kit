@@ -17,6 +17,7 @@
     "delete": "删除",
     "edit": "编辑",
     "search": "搜索",
+    "filters": "筛选",
     "loading": "加载中...",
     "actions": "操作",
     "success": "操作成功",
@@ -802,6 +803,13 @@
       "name": "姓名",
       "roles": "角色",
       "security": "安全状态",
+      "channels_title": "IM渠道",
+      "no_bound_channels": "未绑定",
+      "channels": {
+        "wecom": "企业微信机器人",
+        "feishu": "飞书机器人",
+        "dingtalk": "钉钉机器人"
+      },
       "password_only": "仅密码",
       "password_optional": "留空则不修改密码",
       "form_desc": "可维护用户资料和角色；重置密码会由系统生成新的初始密码。",

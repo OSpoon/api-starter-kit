@@ -28,6 +28,7 @@ declare module 'vue' {
     ConfirmDialog: typeof import('./components/common/ConfirmDialog.vue')['default']
     DashboardPageTemplate: typeof import('./components/templates/DashboardPageTemplate.vue')['default']
     DataTable: typeof import('./components/common/DataTable.vue')['default']
+    DataTableFacetFilter: typeof import('./components/common/DataTableFacetFilter.vue')['default']
     DescriptionActionRow: typeof import('./components/common/DescriptionActionRow.vue')['default']
     DetailPageTemplate: typeof import('./components/templates/DetailPageTemplate.vue')['default']
     ErrorBoundary: typeof import('./components/common/ErrorBoundary.vue')['default']

@@ -7,11 +7,17 @@ import PermissionDialog from '@/components/access-control/PermissionDialog.vue'
 import RoleDialog from '@/components/access-control/RoleDialog.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import DataTable from '@/components/common/DataTable.vue'
+import DataTableFacetFilter from '@/components/common/DataTableFacetFilter.vue'
 import FormDialogContent from '@/components/common/FormDialogContent.vue'
 import FormDialogFooter from '@/components/common/FormDialogFooter.vue'
 import ListPage from '@/components/common/ListPage.vue'
 import { Button } from '@/components/ui/button'
 import { Dialog } from '@/components/ui/dialog'
+import {
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+} from '@/components/ui/dropdown-menu'
 import { Label } from '@/components/ui/label'
 import {
   Select,
@@ -93,11 +99,40 @@ const { userColumns, roleColumns, permissionColumns } = useAccessControlColumns(
       :data="management.users"
       :search-keys="['fullName', 'email']"
       :search-placeholder="t('common.search_placeholder')"
+      filters-layout="inline"
+      :compact-filter-count="management.roleFilter.length + management.channelFilter.length"
       storage-key="rbac-users-table"
       :empty-message="management.loading ? t('common.loading') : t('common.no_data')"
       :server-pagination="{ page: management.page, pageCount: management.pageCount }"
       @page-change="management.page = $event"
-    />
+    >
+      <template #filters>
+        <DataTableFacetFilter
+          v-model="management.roleFilter"
+          :label="t('rbac.users.roles')"
+          :options="management.roleFilterOptions"
+        />
+        <DataTableFacetFilter
+          v-model="management.channelFilter"
+          :label="t('rbac.users.channels_title')"
+          :options="management.channelFilterOptions"
+        />
+      </template>
+      <template #compact-filters>
+        <DataTableFacetFilter
+          v-model="management.roleFilter"
+          :label="t('rbac.users.roles')"
+          :options="management.roleFilterOptions"
+          compact
+        />
+        <DataTableFacetFilter
+          v-model="management.channelFilter"
+          :label="t('rbac.users.channels_title')"
+          :options="management.channelFilterOptions"
+          compact
+        />
+      </template>
+    </DataTable>
     <DataTable
       v-else-if="mode === 'roles'"
       v-model:search="management.search"
@@ -121,6 +156,7 @@ const { userColumns, roleColumns, permissionColumns } = useAccessControlColumns(
       :search-placeholder="t('common.search_placeholder')"
       storage-key="rbac-permissions-table"
       filters-layout="inline"
+      :compact-filter-count="management.permissionGroupFilter === '__all__' ? 0 : 1"
       :empty-message="management.loading ? t('common.loading') : t('common.no_data')"
       :server-pagination="{ page: management.page, pageCount: management.pageCount }"
       @page-change="management.page = $event"
@@ -140,6 +176,21 @@ const { userColumns, roleColumns, permissionColumns } = useAccessControlColumns(
             </SelectContent>
           </Select>
         </div>
+      </template>
+      <template #compact-filters>
+        <DropdownMenuLabel>{{ t('rbac.permissions.group') }}</DropdownMenuLabel>
+        <DropdownMenuRadioGroup v-model="management.permissionGroupFilter">
+          <DropdownMenuRadioItem value="__all__">
+            {{ t('rbac.permissions.all_groups') }}
+          </DropdownMenuRadioItem>
+          <DropdownMenuRadioItem
+            v-for="group in management.permissionGroups"
+            :key="group"
+            :value="group"
+          >
+            {{ group }}
+          </DropdownMenuRadioItem>
+        </DropdownMenuRadioGroup>
       </template>
     </DataTable>
 

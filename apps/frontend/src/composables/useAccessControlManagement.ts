@@ -51,6 +51,8 @@ export function useAccessControlManagement(mode: Ref<AccessControlMode>) {
   const roleCatalog = ref<SystemRoleOption[]>([])
   const permissionCatalog = ref<SystemPermissionOption[]>([])
   const permissionGroupFilter = ref('__all__')
+  const roleFilter = ref<string[]>([])
+  const channelFilter = ref<string[]>([])
   const search = ref('')
   const loading = ref(false)
   const page = ref(1)
@@ -79,13 +81,25 @@ export function useAccessControlManagement(mode: Ref<AccessControlMode>) {
   const permissionGroups = computed(() =>
     [...new Set(permissionCatalog.value.map((permission) => permission.groupName))].sort()
   )
+  const roleFilterOptions = computed(() =>
+    roleCatalog.value.map((role) => ({ value: String(role.id), label: role.name }))
+  )
+  const channelFilterOptions = computed(() => [
+    { value: 'none', label: t('rbac.users.no_bound_channels') },
+    { value: 'wecom', label: t('rbac.users.channels.wecom') },
+    { value: 'feishu', label: t('rbac.users.channels.feishu') },
+    { value: 'dingtalk', label: t('rbac.users.channels.dingtalk') },
+  ])
 
   async function load(nextPage = page.value) {
     loading.value = true
     try {
       if (mode.value === 'users') {
         const [userPage, catalog] = await Promise.all([
-          listSystemUsers(auth.token, nextPage, search.value),
+          listSystemUsers(auth.token, nextPage, search.value, {
+            roleIds: roleFilter.value,
+            channels: channelFilter.value,
+          }),
           listSystemRoleCatalog(auth.token),
         ])
         users.value = userPage.items
@@ -304,6 +318,9 @@ export function useAccessControlManagement(mode: Ref<AccessControlMode>) {
   watch(permissionGroupFilter, () => {
     if (mode.value === 'permissions') resetPageAndLoad()
   })
+  watch([roleFilter, channelFilter], () => {
+    if (mode.value === 'users') resetPageAndLoad()
+  })
 
   return {
     users,
@@ -313,6 +330,10 @@ export function useAccessControlManagement(mode: Ref<AccessControlMode>) {
     permissionCatalog,
     permissionGroupFilter,
     permissionGroups,
+    roleFilter,
+    channelFilter,
+    roleFilterOptions,
+    channelFilterOptions,
     search,
     loading,
     page,

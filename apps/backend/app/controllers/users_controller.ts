@@ -14,7 +14,11 @@ import { countSuperAdminUsers, isSuperAdmin } from '#services/super_admin_access
 import { loadUserAccess } from '#services/user_access'
 import { clampLimit } from '#support/pagination'
 import UserTransformer from '#transformers/user_transformer'
-import { createManagedUserValidator, updateManagedUserValidator } from '#validators/rbac'
+import {
+  createManagedUserValidator,
+  listManagedUsersValidator,
+  updateManagedUserValidator,
+} from '#validators/rbac'
 
 function serializeUserListItem(user: User) {
   const roles = user.roles ?? []
@@ -36,8 +40,11 @@ function serializeUserListItem(user: User) {
 
 export default class UsersController {
   async index({ request, serialize }: HttpContext) {
-    const page = Math.max(Number(request.input('page', 1)) || 1, 1)
-    const search = String(request.input('search', '')).trim()
+    const filters = await request.validateUsing(listManagedUsersValidator, {
+      data: request.qs(),
+    })
+    const page = Math.max(Number(filters.page ?? 1) || 1, 1)
+    const search = filters.search?.trim() ?? ''
     const query = User.query()
       .orderBy('id')
       .preload('roles', (roles) => roles.preload('permissions'))
@@ -47,7 +54,42 @@ export default class UsersController {
         builder.whereILike('full_name', `%${search}%`).orWhereILike('email', `%${search}%`)
       })
     }
-    const paginator = await query.paginate(page, clampLimit(request.input('limit'), 20, 100))
+
+    const roleIds = (filters.roleIds?.split(',') ?? [])
+      .map((id) => Number(id))
+      .filter((id) => Number.isInteger(id) && id > 0)
+    if (roleIds.length) {
+      query.whereHas('roles', (rolesQuery) => rolesQuery.whereIn('roles.id', roleIds))
+    }
+
+    const channelFilters = filters.channels?.split(',') ?? []
+    if (channelFilters.length) {
+      const channels = channelFilters.filter(
+        (channel): channel is 'wecom' | 'feishu' | 'dingtalk' =>
+          channel === 'wecom' || channel === 'feishu' || channel === 'dingtalk'
+      )
+      const includeUnbound = channelFilters.includes('none')
+      query.where((builder) => {
+        if (channels.length) {
+          builder.whereHas('channelIdentities', (identitiesQuery) => {
+            identitiesQuery.whereIn('channel', channels).where('status', 'active')
+          })
+        }
+        if (includeUnbound) {
+          if (channels.length) {
+            builder.orWhereDoesntHave('channelIdentities', (identitiesQuery) => {
+              identitiesQuery.where('status', 'active')
+            })
+          } else {
+            builder.whereDoesntHave('channelIdentities', (identitiesQuery) => {
+              identitiesQuery.where('status', 'active')
+            })
+          }
+        }
+      })
+    }
+
+    const paginator = await query.paginate(page, clampLimit(filters.limit, 20, 100))
     return serialize({
       items: paginator.all().map(serializeUserListItem),
       meta: paginator.getMeta(),

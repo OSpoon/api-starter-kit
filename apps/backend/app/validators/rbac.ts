@@ -8,6 +8,39 @@ const roleCode = () =>
     .maxLength(100)
     .regex(/^[a-z0-9-]+$/)
 
+const queryPage = vine
+  .string()
+  .trim()
+  .maxLength(5)
+  .regex(/^[1-9]\d*$/)
+  .optional()
+const queryLimit = vine
+  .string()
+  .trim()
+  .maxLength(3)
+  .regex(/^[1-9]\d*$/)
+  .optional()
+
+export const listManagedUsersValidator = vine.compile(
+  vine.object({
+    page: queryPage,
+    limit: queryLimit,
+    search: vine.string().trim().maxLength(200).optional(),
+    roleIds: vine
+      .string()
+      .trim()
+      .maxLength(4000)
+      .regex(/^[1-9]\d*(?:,[1-9]\d*)*$/)
+      .optional(),
+    channels: vine
+      .string()
+      .trim()
+      .maxLength(200)
+      .regex(/^(?:none|wecom|feishu|dingtalk)(?:,(?:none|wecom|feishu|dingtalk))*$/)
+      .optional(),
+  })
+)
+
 export const createRoleValidator = vine.compile(
   vine.object({
     code: roleCode(),

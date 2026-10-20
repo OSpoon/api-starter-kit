@@ -540,6 +540,26 @@ test.group('rbac', (group) => {
     const userItems = (userResponse.body() as { data: { items: Array<{ id: number }> } }).data.items
     assert.isTrue(userItems.some((item) => item.id === user.id))
 
+    await user.related('roles').sync([role.id])
+    const roleFilteredResponse = await client
+      .get(`/api/v1/system/users?roleIds=${role.id}`)
+      .bearerToken(bearerToken)
+    roleFilteredResponse.assertStatus(200)
+    const roleFilteredItems = (
+      roleFilteredResponse.body() as { data: { items: Array<{ id: number }> } }
+    ).data.items
+    assert.isTrue(roleFilteredItems.some((item) => item.id === user.id))
+    assert.isFalse(roleFilteredItems.some((item) => item.id === admin.id))
+
+    const unboundChannelResponse = await client
+      .get('/api/v1/system/users?channels=none')
+      .bearerToken(bearerToken)
+    unboundChannelResponse.assertStatus(200)
+    const unboundChannelItems = (
+      unboundChannelResponse.body() as { data: { items: Array<{ id: number }> } }
+    ).data.items
+    assert.isTrue(unboundChannelItems.some((item) => item.id === user.id))
+
     const roleResponse = await client
       .get(`/api/v1/system/roles?search=${encodeURIComponent(searchId)}`)
       .bearerToken(bearerToken)

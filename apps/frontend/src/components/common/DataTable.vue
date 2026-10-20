@@ -1,5 +1,5 @@
 <script setup lang="ts" generic="TData, TValue">
-import { Check, Minus, SlidersHorizontal, X } from '@lucide/vue'
+import { Check, Funnel, Minus, SlidersHorizontal, X } from '@lucide/vue'
 import type {
   Column,
   ColumnDef,
@@ -71,6 +71,7 @@ const props = withDefaults(
     serverPagination?: ServerPagination
     searchMode?: 'local' | 'remote'
     filtersLayout?: 'wrap' | 'inline'
+    compactFilterCount?: number
     selectable?: boolean
     getRowId?: (row: TData) => string
     isRowSelectable?: (row: TData) => boolean
@@ -80,6 +81,7 @@ const props = withDefaults(
     showSearch: true,
     showView: true,
     filtersLayout: 'inline',
+    compactFilterCount: 0,
     selectable: false,
     selectionDisabled: false,
   }
@@ -93,6 +95,8 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const slots = useSlots()
+const useCompactInlineToolbar = computed(() => Boolean(slots['compact-filters']))
 
 const sorting = ref<SortingState>([])
 const columnFilters = ref<ColumnFiltersState>([])
@@ -344,33 +348,91 @@ function handlePageChange(page: number) {
 
 <template>
   <div ref="dataTable" class="data-table flex min-h-0 min-w-0 flex-1 flex-col gap-4">
-    <div class="flex shrink-0 flex-col gap-3 md:flex-row md:items-center md:justify-between">
+    <div
+      :class="
+        useCompactInlineToolbar
+          ? 'flex min-w-0 shrink-0 flex-nowrap items-center gap-3'
+          : 'flex shrink-0 flex-col gap-3 md:flex-row md:items-center md:justify-between'
+      "
+    >
       <div
         :class="
-          filtersLayout === 'inline'
-            ? 'flex min-w-0 flex-1 flex-nowrap items-center gap-3 overflow-x-auto'
-            : 'flex flex-wrap items-center gap-3'
+          useCompactInlineToolbar
+            ? 'flex min-w-0 flex-1 flex-nowrap items-center gap-3'
+            : filtersLayout === 'inline'
+              ? 'flex min-w-0 flex-1 flex-nowrap items-center gap-3 overflow-x-auto'
+              : 'flex flex-wrap items-center gap-3'
         "
       >
-        <slot name="filters" />
-        <Label v-if="hasSearch" :for="searchId ?? 'data-table-search'">{{
-          t('common.search')
-        }}</Label>
-        <Input
+        <div
           v-if="hasSearch"
-          :id="searchId ?? 'data-table-search'"
-          :class="filtersLayout === 'inline' ? 'shrink-0' : 'max-w-sm min-w-55'"
-          :style="filtersLayout === 'inline' ? { width: '14rem' } : undefined"
-          :placeholder="searchPlaceholderText()"
-          :model-value="search"
-          @update:model-value="table.setGlobalFilter($event)"
-        />
+          :class="
+            useCompactInlineToolbar
+              ? 'flex min-w-0 flex-1 items-center gap-3'
+              : 'flex shrink-0 items-center gap-3'
+          "
+        >
+          <Label :for="searchId ?? 'data-table-search'" class="shrink-0 whitespace-nowrap">
+            {{ t('common.search') }}
+          </Label>
+          <Input
+            :id="searchId ?? 'data-table-search'"
+            :class="
+              useCompactInlineToolbar
+                ? 'min-w-0 flex-1'
+                : filtersLayout === 'inline'
+                  ? 'shrink-0'
+                  : 'max-w-sm min-w-55'
+            "
+            :style="
+              useCompactInlineToolbar
+                ? { width: '14rem', maxWidth: '14rem' }
+                : filtersLayout === 'inline'
+                  ? { width: '14rem' }
+                  : undefined
+            "
+            :placeholder="searchPlaceholderText()"
+            :model-value="search"
+            @update:model-value="table.setGlobalFilter($event)"
+          />
+        </div>
+        <template v-if="useCompactInlineToolbar">
+          <div class="hidden shrink-0 items-center gap-3 xl:flex">
+            <slot name="filters" />
+          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger as-child>
+              <Button variant="outline" class="shrink-0 xl:hidden">
+                <Funnel class="mr-2 size-4" />
+                {{ t('common.filters') }}
+                <span
+                  v-if="compactFilterCount > 0"
+                  class="ml-1 rounded-sm bg-muted px-1.5 py-0.5 text-xs tabular-nums"
+                >
+                  {{ compactFilterCount }}
+                </span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              <slot name="compact-filters" />
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </template>
+        <slot v-else name="filters" />
       </div>
       <DropdownMenu v-if="showView">
         <DropdownMenuTrigger as-child>
-          <Button variant="outline" class="ml-auto">
-            <SlidersHorizontal class="mr-2 size-4" />
-            {{ t('common.view') }}
+          <Button
+            variant="outline"
+            :class="useCompactInlineToolbar ? 'ml-auto shrink-0' : 'ml-auto'"
+            :aria-label="useCompactInlineToolbar ? t('common.view') : undefined"
+          >
+            <SlidersHorizontal
+              :class="useCompactInlineToolbar ? 'mr-0 size-4 sm:mr-2' : 'mr-2 size-4'"
+            />
+            <span :class="useCompactInlineToolbar ? 'hidden sm:inline' : undefined">
+              {{ t('common.view') }}
+            </span>
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
