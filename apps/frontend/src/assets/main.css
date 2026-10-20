@@ -50,128 +50,121 @@
 }
 
 /* ──────────────────────────────────────────────────────────────
- * Design System: Claude (Anthropic)
+ * Design System: Claude (Anthropic) + primary-relative tokens
  *
- * Warm parchment canvas, terracotta accent, exclusively warm-toned
- * neutrals — no cool blue-grays. Typographic identity: serif for
- * headings, sans for UI.
+ * --primary is the single chromatic source. Surfaces, neutrals,
+ * accents, borders, sidebar, and most chart colors derive via
+ * oklch(from var(--primary) …) so theme hue stays coherent.
  *
- * Tokens derived from Claude design standards:
- *   --background:  #f5f4ed (parchment)
- *   --accent:      #c96442 (terracotta)
- *   --fg:          #141413 (near black, warmest "black")
- *   All grays carry yellow-brown undertones.
+ * Interactive surfaces use a low-chroma primary wash — never a
+ * solid gold / mustard fill. Destructive stays semantic and fixed.
+ *
+ * Default --primary remains near-black (unchanged). Typographic
+ * identity: serif for headings, sans for UI.
  * ────────────────────────────────────────────────────────────── */
 
 :root {
   --radius: 0.75rem;
 
-  /* Surface — 3 warm layers */
-  --background: oklch(0.96 0.008 90); /* #f5f4ed parchment — never white */
-  --foreground: oklch(0.145 0.005 85); /* #141413 near black */
-  --card: oklch(0.98 0.005 80); /* #faf9f5 ivory */
-  --card-foreground: oklch(0.145 0.005 85);
-  --popover: oklch(0.98 0.005 80);
-  --popover-foreground: oklch(0.145 0.005 85);
-
-  /* Primary — near black default button */
+  /* Primary — source of truth (brand default unchanged) */
   --primary: oklch(0.145 0.005 85);
   --primary-foreground: oklch(0.98 0.005 80);
 
-  /* Secondary — warm sand */
-  --secondary: oklch(0.93 0.01 85); /* #e8e6dc warm sand */
-  --secondary-foreground: oklch(0.37 0.01 85); /* #4d4c48 charcoal warm */
+  /* Surface — paper white with a light primary hue */
+  --background: oklch(from var(--primary) 0.96 0.008 h);
+  --foreground: oklch(from var(--primary) 0.145 calc(c * 1) h);
+  --card: oklch(from var(--primary) 0.98 0.005 h);
+  --card-foreground: oklch(from var(--primary) 0.145 calc(c * 1) h);
+  --popover: oklch(from var(--primary) 0.98 0.005 h);
+  --popover-foreground: oklch(from var(--primary) 0.145 calc(c * 1) h);
 
-  /* Muted — warm surface layer, between bg and border */
-  --muted: oklch(0.94 0.008 88);
-  --muted-foreground: oklch(0.58 0.01 80); /* #87867f stone gray */
+  /* Secondary / muted — soft primary-tinted neutrals */
+  --secondary: oklch(from var(--primary) 0.93 calc(c * 0.15 + 0.008) h);
+  --secondary-foreground: oklch(from var(--primary) 0.37 calc(c * 0.25 + 0.008) h);
+  --muted: oklch(from var(--primary) 0.94 calc(c * 0.12 + 0.006) h);
+  --muted-foreground: oklch(from var(--primary) 0.58 calc(c * 0.2 + 0.008) h);
 
-  /* Accent — terracotta, the only chromatic element */
-  --accent: oklch(0.58 0.12 40); /* #c96442 terracotta */
-  --accent-foreground: oklch(0.98 0.005 80);
+  /* Accent — light primary wash for hover / selected surfaces */
+  --accent: oklch(from var(--primary) 0.93 calc(c * 0.2 + 0.008) h);
+  --accent-foreground: oklch(from var(--primary) 0.145 calc(c * 1) h);
 
-  /* Semantic — warm red error */
-  --destructive: oklch(0.5 0.18 25); /* #b53333 error crimson */
+  /* Semantic — warm red error (independent of brand primary) */
+  --destructive: oklch(0.5 0.18 25);
   --destructive-foreground: oklch(0.98 0.005 80);
 
-  /* Borders & inputs — cream-tinted, 3 levels of containment.
-     --border   : standard (visible warm cream, ~5% ΔL from background)
-     --border-soft : emphasized (warm sand, for sections & dividers)
-     --input    : input-specific border (warm sand, same prominence as border-soft) */
-  --border: oklch(0.905 0.01 86);
-  --border-soft: oklch(0.87 0.012 84);
-  --input: oklch(0.93 0.01 85); /* #e8e6dc warm sand */
-  --ring: oklch(0.84 0.01 85); /* #d1cfc5 ring warm */
+  /* Borders & inputs */
+  --border: oklch(from var(--primary) 0.905 calc(c * 0.15 + 0.008) h);
+  --border-soft: oklch(from var(--primary) 0.87 calc(c * 0.18 + 0.01) h);
+  --input: oklch(from var(--primary) 0.93 calc(c * 0.15 + 0.008) h);
+  --ring: oklch(from var(--primary) 0.7 calc(c * 0.4 + 0.02) h);
 
-  /* Chart colors — warm monitoring palette */
-  --chart-1: oklch(0.58 0.12 40); /* terracotta — primary series */
-  --chart-2: oklch(0.65 0.1 55); /* coral — secondary series */
-  --chart-3: oklch(0.5 0.04 120); /* muted olive — success series */
-  --chart-4: oklch(0.7 0.08 60); /* warm amber — alert series */
-  --chart-5: oklch(0.45 0.06 30); /* deep warm — tertiary */
+  /* Chart — hue family locked to primary, with small hue offsets */
+  --chart-1: oklch(from var(--primary) 0.58 calc(c * 0.5 + 0.08) h);
+  --chart-2: oklch(from var(--primary) 0.65 calc(c * 0.4 + 0.06) calc(h + 15));
+  --chart-3: oklch(from var(--primary) 0.5 calc(c * 0.25 + 0.04) calc(h + 80));
+  --chart-4: oklch(from var(--primary) 0.7 calc(c * 0.35 + 0.06) calc(h + 25));
+  --chart-5: oklch(from var(--primary) 0.45 calc(c * 0.35 + 0.05) calc(h - 10));
 
-  /* Sidebar — elevated ivory */
-  --sidebar: oklch(0.98 0.005 80);
-  --sidebar-foreground: oklch(0.37 0.01 85);
-  --sidebar-primary: oklch(0.145 0.005 85);
-  --sidebar-primary-foreground: oklch(0.98 0.005 80);
-  --sidebar-accent: oklch(0.93 0.01 85);
-  --sidebar-accent-foreground: oklch(0.145 0.005 85);
-  --sidebar-border: oklch(0.93 0.008 88);
-  --sidebar-ring: oklch(0.84 0.01 85);
+  /* Sidebar */
+  --sidebar: oklch(from var(--primary) 0.98 0.005 h);
+  --sidebar-foreground: oklch(from var(--primary) 0.37 calc(c * 0.25 + 0.008) h);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: oklch(from var(--primary) 0.93 calc(c * 0.2 + 0.008) h);
+  --sidebar-accent-foreground: oklch(from var(--primary) 0.145 calc(c * 1) h);
+  --sidebar-border: oklch(from var(--primary) 0.93 calc(c * 0.12 + 0.006) h);
+  --sidebar-ring: oklch(from var(--primary) 0.7 calc(c * 0.4 + 0.02) h);
 }
 
 .dark {
-  /* Surface */
-  --background: oklch(0.145 0.005 85); /* near black canvas */
-  --foreground: oklch(0.98 0.005 80); /* ivory text */
-  --card: oklch(0.2 0.005 85); /* warm dark surface */
-  --card-foreground: oklch(0.98 0.005 80);
-  --popover: oklch(0.2 0.005 85);
-  --popover-foreground: oklch(0.98 0.005 80);
-
-  /* Primary — ivory button on dark */
+  /* Primary — ivory button on dark (default unchanged) */
   --primary: oklch(0.98 0.005 80);
   --primary-foreground: oklch(0.145 0.005 85);
 
-  /* Secondary */
-  --secondary: oklch(0.2 0.005 85);
-  --secondary-foreground: oklch(0.74 0.01 85); /* warm silver */
+  /* Surface — charcoal with primary hue */
+  --background: oklch(from var(--primary) 0.145 calc(c * 0.5 + 0.004) h);
+  --foreground: oklch(from var(--primary) 0.98 0.005 h);
+  --card: oklch(from var(--primary) 0.2 calc(c * 0.5 + 0.004) h);
+  --card-foreground: oklch(from var(--primary) 0.98 0.005 h);
+  --popover: oklch(from var(--primary) 0.2 calc(c * 0.5 + 0.004) h);
+  --popover-foreground: oklch(from var(--primary) 0.98 0.005 h);
 
-  /* Muted — warm dark surface, lighter than card */
-  --muted: oklch(0.22 0.005 85);
-  --muted-foreground: oklch(0.58 0.01 80);
+  /* Secondary / muted */
+  --secondary: oklch(from var(--primary) 0.2 calc(c * 0.4 + 0.004) h);
+  --secondary-foreground: oklch(from var(--primary) 0.74 calc(c * 0.3 + 0.008) h);
+  --muted: oklch(from var(--primary) 0.22 calc(c * 0.4 + 0.004) h);
+  --muted-foreground: oklch(from var(--primary) 0.58 calc(c * 0.25 + 0.008) h);
 
-  /* Accent — terracotta stays across themes */
-  --accent: oklch(0.58 0.12 40);
-  --accent-foreground: oklch(0.98 0.005 80);
+  /* Accent — dark primary wash */
+  --accent: oklch(from var(--primary) 0.22 calc(c * 0.45 + 0.006) h);
+  --accent-foreground: oklch(from var(--primary) 0.98 0.005 h);
 
   /* Semantic */
   --destructive: oklch(0.55 0.18 25);
   --destructive-foreground: oklch(0.98 0.005 80);
 
-  /* Borders — semi-transparent white reads as structure, not noise */
-  --border: oklch(1 0 0 / 12%);
-  --border-soft: oklch(1 0 0 / 16%);
-  --input: oklch(1 0 0 / 14%);
-  --ring: oklch(0.74 0.01 85);
+  /* Borders — structure with a hint of primary hue */
+  --border: oklch(from var(--primary) 0.4 calc(c * 0.3) h / 35%);
+  --border-soft: oklch(from var(--primary) 0.45 calc(c * 0.35) h / 40%);
+  --input: oklch(from var(--primary) 0.42 calc(c * 0.3) h / 38%);
+  --ring: oklch(from var(--primary) 0.74 calc(c * 0.35 + 0.01) h);
 
-  /* Chart colors — brighter on dark */
-  --chart-1: oklch(0.65 0.14 40); /* terracotta */
-  --chart-2: oklch(0.72 0.12 55); /* coral */
-  --chart-3: oklch(0.55 0.06 120); /* olive */
-  --chart-4: oklch(0.78 0.1 60); /* amber */
-  --chart-5: oklch(0.52 0.08 30); /* deep warm */
+  /* Chart — brighter on dark */
+  --chart-1: oklch(from var(--primary) 0.65 calc(c * 0.5 + 0.1) h);
+  --chart-2: oklch(from var(--primary) 0.72 calc(c * 0.4 + 0.08) calc(h + 15));
+  --chart-3: oklch(from var(--primary) 0.55 calc(c * 0.25 + 0.05) calc(h + 80));
+  --chart-4: oklch(from var(--primary) 0.78 calc(c * 0.35 + 0.08) calc(h + 25));
+  --chart-5: oklch(from var(--primary) 0.52 calc(c * 0.35 + 0.06) calc(h - 10));
 
-  /* Sidebar — dark warm */
-  --sidebar: oklch(0.17 0.005 85);
-  --sidebar-foreground: oklch(0.74 0.01 85);
-  --sidebar-primary: oklch(0.98 0.005 80);
-  --sidebar-primary-foreground: oklch(0.145 0.005 85);
-  --sidebar-accent: oklch(0.22 0.005 85);
-  --sidebar-accent-foreground: oklch(0.98 0.005 80);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(1 0 0 / 14%);
+  /* Sidebar */
+  --sidebar: oklch(from var(--primary) 0.17 calc(c * 0.5 + 0.004) h);
+  --sidebar-foreground: oklch(from var(--primary) 0.74 calc(c * 0.3 + 0.008) h);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: oklch(from var(--primary) 0.22 calc(c * 0.45 + 0.006) h);
+  --sidebar-accent-foreground: oklch(from var(--primary) 0.98 0.005 h);
+  --sidebar-border: oklch(from var(--primary) 0.4 calc(c * 0.3) h / 28%);
+  --sidebar-ring: oklch(from var(--primary) 0.5 calc(c * 0.3) h / 35%);
 }
 
 @layer base {
@@ -240,7 +233,7 @@
     font-family: 'Anthropic Mono', ui-monospace, 'JetBrains Mono', Menlo, 'SF Mono', monospace;
   }
 
-  /* Scrollbar — warm Claude tones, compact 6px */
+  /* Scrollbar — primary-tinted, compact 6px */
   ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
@@ -249,49 +242,43 @@
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: oklch(0.88 0.008 90); /* warm cream — between border and muted */
+    background: oklch(from var(--primary) 0.88 calc(c * 0.12 + 0.006) h);
     border-radius: 6px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: oklch(0.78 0.008 90); /* deeper warm on hover */
+    background: oklch(from var(--primary) 0.78 calc(c * 0.15 + 0.006) h);
   }
 
   /* Firefox */
   * {
     scrollbar-width: thin;
-    scrollbar-color: oklch(0.88 0.008 90) transparent;
+    scrollbar-color: oklch(from var(--primary) 0.88 calc(c * 0.12 + 0.006) h) transparent;
   }
 }
 
-/* Theme variants — adapted to Claude's warm color vocabulary.
-   These keep the same class names for backward compatibility
-   but now express warm tonal shifts instead of cold tech hues. */
+/* Theme variants — only override --primary (+ foreground).
+   All other tokens follow via oklch(from var(--primary) …). */
 .theme-red {
   --primary: oklch(0.58 0.12 40); /* terracotta */
   --primary-foreground: oklch(0.98 0.005 80);
-  --ring: oklch(0.58 0.12 40);
 }
 
 .theme-blue {
   --primary: oklch(0.145 0.005 85); /* near black */
   --primary-foreground: oklch(0.98 0.005 80);
-  --ring: oklch(0.37 0.01 85);
 }
 
 .theme-green {
   --primary: oklch(0.5 0.04 120); /* muted olive */
   --primary-foreground: oklch(0.98 0.005 80);
-  --ring: oklch(0.5 0.04 120);
 }
 
 .theme-orange {
   --primary: oklch(0.65 0.1 55); /* coral accent */
   --primary-foreground: oklch(0.98 0.005 80);
-  --ring: oklch(0.65 0.1 55);
 }
 
 .theme-violet {
   --primary: oklch(0.45 0.08 310); /* warm plum */
   --primary-foreground: oklch(0.98 0.005 80);
-  --ring: oklch(0.45 0.08 310);
 }
