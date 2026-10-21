@@ -1,0 +1,5 @@
+{
+  "appId": "com.osp.authenticator",
+  "appName": "Authenticator",
+  "webDir": "dist"
+}
