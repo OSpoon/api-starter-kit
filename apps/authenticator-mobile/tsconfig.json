@@ -1,9 +1,12 @@
 {
   "extends": "@vue/tsconfig/tsconfig.dom.json",
-  "include": ["src/**/*", "src/**/*.vue"],
+  "include": ["src/**/*", "src/**/*.vue", "../frontend/src/auto-imports.d.ts"],
   "compilerOptions": {
     "strict": true,
     "noUncheckedIndexedAccess": true,
+    "paths": {
+      "@/*": ["../frontend/src/*"]
+    },
     "types": ["vite/client"]
   }
 }
