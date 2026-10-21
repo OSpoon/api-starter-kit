@@ -19,6 +19,8 @@ const authError = ref('')
 const { t } = useI18n()
 
 let appIsActive = true
+let authenticateOnForeground = false
+let unlockOnForeground = false
 let appStateListener: PluginListenerHandle | undefined
 
 async function authenticate(): Promise<void> {
@@ -36,6 +38,7 @@ async function authenticate(): Promise<void> {
       androidSubtitle: t('deviceAuthDescription'),
     })
     if (appIsActive) isUnlocked.value = true
+    else unlockOnForeground = true
   } catch (error) {
     isUnlocked.value = false
     const code =
@@ -57,11 +60,20 @@ async function requestUnlock(): Promise<void> {
     appStateListener ??= await CapacitorApp.addListener('appStateChange', ({ isActive }) => {
       appIsActive = isActive
       if (!isActive) {
-        isUnlocked.value = false
-        authError.value = ''
+        if (isUnlocked.value) {
+          isUnlocked.value = false
+          authenticateOnForeground = true
+          authError.value = ''
+        }
         return
       }
-      void authenticate()
+      if (unlockOnForeground) {
+        unlockOnForeground = false
+        isUnlocked.value = true
+      } else if (authenticateOnForeground) {
+        authenticateOnForeground = false
+        void authenticate()
+      }
     })
   } catch {
     authError.value = t('deviceAuthFailed')
