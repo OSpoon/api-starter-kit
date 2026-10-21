@@ -1,0 +1,3 @@
+"CFBundleDisplayName" = "身份验证器";
+"NSCameraUsageDescription" = "用于扫描项目生成的 2FA 设置二维码。";
+"NSFaceIDUsageDescription" = "用于在身份验证器中确认设备身份。";

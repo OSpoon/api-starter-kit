@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" fill="none">
+  <title>Project authenticator logo</title>
+  <rect width="1024" height="1024" rx="240" fill="#F5F4ED"/>
+  <g transform="translate(512 512) scale(1.08) translate(-512 -512)">
+    <path
+      d="M214 362c0-82.843 67.157-150 150-150h296c82.843 0 150 67.157 150 150v196c0 82.843-67.157 150-150 150H508L368 826V708h-4c-82.843 0-150-67.157-150-150V362Z"
+      fill="#141413"
+    />
+    <path
+      d="M286 368c0-43.078 34.922-78 78-78h296c43.078 0 78 34.922 78 78v184c0 43.078-34.922 78-78 78H482l-74 62v-62h-44c-43.078 0-78-34.922-78-78V368Z"
+      fill="#F5F4ED"
+    />
+    <path
+      d="m512 338 27.78 71.22L611 437l-71.22 27.78L512 536l-27.78-71.22L413 437l71.22-27.78L512 338Z"
+      fill="#C96442"
+    />
+    <circle cx="667" cy="548" r="18" fill="#141413"/>
+  </g>
+  <g transform="translate(770 770) scale(1.18) translate(-760 -760)">
+    <circle cx="760" cy="760" r="150" fill="#C96442" stroke="#F5F4ED" stroke-width="28"/>
+    <path
+      d="M760 674 833 703v51c0 48-29 88-73 110-44-22-73-62-73-110v-51l73-29Z"
+      fill="#F5F4ED"
+    />
+    <path d="m727 755 23 23 46-49" stroke="#C96442" stroke-linecap="round" stroke-linejoin="round" stroke-width="19"/>
+  </g>
+</svg>
