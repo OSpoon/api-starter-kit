@@ -53,7 +53,7 @@ jobs:
         run: ./gradlew --no-daemon assembleDebug
         working-directory: apps/authenticator-mobile/android
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: authenticator-android-debug
           path: apps/authenticator-mobile/android/app/build/outputs/apk/debug/*.apk
@@ -94,7 +94,7 @@ jobs:
           build
         working-directory: apps/authenticator-mobile
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: authenticator-ios-simulator
           path: ${{ runner.temp }}/authenticator-ios-deriveddata/Build/Products/Debug-iphonesimulator/App.app
