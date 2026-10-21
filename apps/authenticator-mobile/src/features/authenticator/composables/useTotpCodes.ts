@@ -9,6 +9,7 @@ export function useTotpCodes(accounts: { value: TotpAccount[] }, onError: () => 
   const now = ref(Date.now())
   const codeBuckets = new Map<string, number>()
   let refreshSequence = 0
+  let hasReportedError = false
 
   async function refreshCodes(force = false): Promise<void> {
     const sequence = ++refreshSequence
@@ -36,13 +37,17 @@ export function useTotpCodes(accounts: { value: TotpAccount[] }, onError: () => 
           }))
       )
       if (sequence !== refreshSequence) return
+      hasReportedError = false
       for (const update of updates) {
         nextCodes[update.id] = update.code
         codeBuckets.set(update.id, update.bucket)
       }
       codes.value = nextCodes
     } catch {
-      if (sequence === refreshSequence) onError()
+      if (sequence === refreshSequence && !hasReportedError) {
+        hasReportedError = true
+        onError()
+      }
     }
   }
 

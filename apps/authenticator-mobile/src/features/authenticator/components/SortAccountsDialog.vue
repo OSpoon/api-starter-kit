@@ -21,7 +21,10 @@ const { t } = useI18n()
 
 <template>
   <Dialog v-model:open="open">
-    <DialogContent :show-close-button="false" class="max-w-sm">
+    <DialogContent
+      :show-close-button="false"
+      class="w-[calc(100%-3rem)] max-w-[20rem]"
+    >
       <DialogHeader class="flex-row items-start justify-between gap-4 space-y-0 text-left">
         <div>
           <p

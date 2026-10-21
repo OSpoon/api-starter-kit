@@ -15,15 +15,12 @@ import { parseOtpAuthUri } from '../services/totp'
 import type { TotpAccount } from '../services/totp'
 import { loadAccounts, loadSortMode, saveAccounts, saveSortMode } from '../services/vault'
 
-export type AccountNotice = { key: string; tone: 'success' | 'error' | 'info' } | null
-
 export function useAuthenticator() {
   const { t, locale } = useI18n()
   const isNative = Capacitor.isNativePlatform()
   const accounts = ref<TotpAccount[]>([])
   const sortMode = ref<AccountSortMode>('manual')
   const search = ref('')
-  const notice = ref<AccountNotice>(null)
   const loading = ref(true)
   const vaultReady = ref(false)
   const busy = ref(false)
@@ -55,13 +52,14 @@ export function useAuthenticator() {
     )
   })
 
-  function setNotice(key: string, tone: 'success' | 'error' | 'info' = 'info'): void {
-    notice.value = { key, tone }
+  function notify(key: string, tone: 'success' | 'error' | 'info' = 'info'): void {
+    const message = t(key)
+    if (tone === 'success') toast.success(message)
+    else if (tone === 'error') toast.error(message)
+    else toast.info(message)
   }
 
-  const { codes, now, refreshCodes } = useTotpCodes(accounts, () =>
-    setNotice('codeFailed', 'error')
-  )
+  const { codes, now, refreshCodes } = useTotpCodes(accounts, () => notify('codeFailed', 'error'))
 
   async function persist(nextAccounts: TotpAccount[], successKey: string): Promise<boolean> {
     if (!vaultReady.value || busy.value) return false
@@ -70,10 +68,10 @@ export function useAuthenticator() {
       await saveAccounts(nextAccounts)
       accounts.value = nextAccounts
       await refreshCodes(true)
-      setNotice(successKey, 'success')
+      notify(successKey, 'success')
       return true
     } catch {
-      setNotice('storageError', 'error')
+      notify('storageError', 'error')
       return false
     } finally {
       busy.value = false
@@ -89,14 +87,13 @@ export function useAuthenticator() {
       vaultReady.value = true
       await refreshCodes(true)
     } catch {
-      setNotice('loadFailed', 'error')
+      notify('loadFailed', 'error')
     } finally {
       loading.value = false
     }
   }
 
   function openAddMenu(): void {
-    notice.value = null
     showAddMenu.value = true
   }
 
@@ -135,9 +132,9 @@ export function useAuthenticator() {
       await saveSortMode(mode)
       sortMode.value = mode
       showSortMenu.value = false
-      setNotice('sortSaved', 'success')
+      notify('sortSaved', 'success')
     } catch {
-      setNotice('storageError', 'error')
+      notify('storageError', 'error')
     } finally {
       busy.value = false
     }
@@ -151,9 +148,8 @@ export function useAuthenticator() {
 
   async function scanSetupCode(): Promise<void> {
     showAddMenu.value = false
-    notice.value = null
     if (!isNative) {
-      setNotice('scanNativeOnly', 'info')
+      notify('scanNativeOnly', 'info')
       return
     }
     busy.value = true
@@ -167,7 +163,7 @@ export function useAuthenticator() {
       scanResult = result.ScanResult
     } catch (error) {
       if (!(error instanceof Error && error.message.toLowerCase().includes('cancel'))) {
-        setNotice('scanFailed', 'error')
+        notify('scanFailed', 'error')
       }
       busy.value = false
       return
@@ -179,11 +175,6 @@ export function useAuthenticator() {
     }
 
     try {
-      if (scanResult.toLowerCase().startsWith('otpauth-migration:')) {
-        busy.value = false
-        transfer.showMigrationQr(scanResult)
-        return
-      }
       const parsed = parseOtpAuthUri(scanResult)
       const account: TotpAccount = {
         ...parsed,
@@ -193,7 +184,7 @@ export function useAuthenticator() {
       busy.value = false
       await persist([account, ...accounts.value], 'saved')
     } catch {
-      setNotice('scanInvalid', 'error')
+      notify('scanInvalid', 'error')
     } finally {
       busy.value = false
     }
@@ -201,7 +192,6 @@ export function useAuthenticator() {
 
   function requestDelete(account: TotpAccount): void {
     deletingId.value = account.id
-    notice.value = null
   }
 
   async function deleteAccount(): Promise<void> {
@@ -226,11 +216,10 @@ export function useAuthenticator() {
       const copied = document.execCommand('copy')
       field.remove()
       if (!copied) {
-        setNotice('copyFailed', 'error')
+        notify('copyFailed', 'error')
         return
       }
     }
-    notice.value = null
     toast.success(t('copied'))
   }
 
@@ -246,10 +235,8 @@ export function useAuthenticator() {
     copyCode,
     deleteAccount,
     filteredAccounts,
-    isNative,
     loading,
     moveAccount,
-    notice,
     now,
     openAddMenu,
     openEditForm,

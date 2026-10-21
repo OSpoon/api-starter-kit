@@ -1,10 +1,8 @@
 <script setup lang="ts">
-import { ChevronDown, Download, ImagePlus, ScanLine, X } from '@lucide/vue'
+import { ChevronDown, Download, X } from '@lucide/vue'
 import { useI18n } from 'vue-i18n'
 
-import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Dialog,
   DialogClose,
@@ -27,27 +25,21 @@ const props = defineProps<{
   controller: AccountTransferController
   accounts: TotpAccount[]
   busy: boolean
-  isNative: boolean
 }>()
 const controller = props.controller
 
 const {
   backupContents,
   cancelBackupRestore,
-  cancelImportPreview,
+  cancelRestorePreview,
   exportBackup,
-  importPreviewAccounts,
   onBackupFileSelected,
-  onMigrationImagesSelected,
   previewAccounts,
   previewDuplicates,
-  previewSkipped,
-  previewSource,
   restoreBackup,
+  restorePreviewAccounts,
   returnToTransferHome,
-  scanMigrationCodes,
   transferDialogOpen,
-  transferNotice,
   transferStep,
 } = props.controller
 const { t } = useI18n()
@@ -55,7 +47,10 @@ const { t } = useI18n()
 
 <template>
   <Dialog v-model:open="transferDialogOpen">
-    <DialogContent :show-close-button="false" class="max-h-[90dvh] max-w-xl overflow-y-auto">
+    <DialogContent
+      :show-close-button="false"
+      class="max-h-[90dvh] max-w-[calc(100%-2rem)] overflow-y-auto sm:max-w-xl"
+    >
       <DialogHeader class="flex-row items-start justify-between gap-4 space-y-0 text-left">
         <div>
           <p
@@ -66,7 +61,7 @@ const { t } = useI18n()
           <DialogTitle>{{
             t(
               transferStep === 'preview'
-                ? 'importPreviewTitle'
+                ? 'restorePreviewTitle'
                 : transferStep === 'restore'
                   ? 'restoreTitle'
                   : transferStep === 'export'
@@ -96,7 +91,7 @@ const { t } = useI18n()
       <DialogDescription>{{
         t(
           transferStep === 'preview'
-            ? 'importPreviewDescription'
+            ? 'restorePreviewDescription'
             : transferStep === 'restore'
               ? 'restoreDescription'
               : transferStep === 'export'
@@ -105,82 +100,27 @@ const { t } = useI18n()
         )
       }}</DialogDescription>
 
-      <Alert
-        v-if="transferNotice"
-        :variant="transferNotice.tone === 'error' ? 'destructive' : 'default'"
-        role="status"
-        aria-live="polite"
-        class="py-2.5"
-      >
-        <AlertDescription>{{
-          t(transferNotice.key, transferNotice.values ?? {})
-        }}</AlertDescription>
-      </Alert>
-
       <template v-if="transferStep === 'home'">
-        <Card>
-          <CardHeader class="px-4 pb-0">
-            <CardTitle class="flex items-center gap-2 text-base"
-              ><Download :size="17" />{{ t('backupSection') }}</CardTitle
-            >
-            <CardDescription>{{ t('backupSectionDescription') }}</CardDescription>
-          </CardHeader>
-          <CardContent class="grid gap-3 px-4 pt-4 sm:grid-cols-2">
-            <Button
-              variant="outline"
-              class="justify-start"
-              :disabled="!accounts.length || busy"
-              @click="controller.openBackupExport"
-            >
-              <Download :size="17" />{{ t('createBackup') }}
-            </Button>
-            <div class="space-y-1.5">
-              <Label for="authenticator-backup-file">{{ t('selectBackupFile') }}</Label>
-              <Input
-                id="authenticator-backup-file"
-                type="file"
-                accept=".json,application/json"
-                :disabled="busy"
-                @change="onBackupFileSelected"
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader class="px-4 pb-0">
-            <CardTitle class="flex items-center gap-2 text-base"
-              ><ImagePlus :size="17" />{{ t('migrationSection') }}</CardTitle
-            >
-            <CardDescription>{{ t('migrationSectionDescription') }}</CardDescription>
-          </CardHeader>
-          <CardContent class="space-y-2 px-4 pt-4">
-            <Label for="authenticator-migration-images">{{ t('selectMigrationImages') }}</Label>
+        <div class="grid gap-3 sm:grid-cols-2">
+          <Button
+            variant="outline"
+            class="justify-start"
+            :disabled="!accounts.length || busy"
+            @click="controller.openBackupExport"
+          >
+            <Download :size="17" />{{ t('createBackup') }}
+          </Button>
+          <div class="space-y-1.5">
+            <Label for="authenticator-backup-file">{{ t('selectBackupFile') }}</Label>
             <Input
-              id="authenticator-migration-images"
+              id="authenticator-backup-file"
               type="file"
-              accept="image/*"
-              multiple
+              accept=".json,application/json"
               :disabled="busy"
-              @change="onMigrationImagesSelected"
+              @change="onBackupFileSelected"
             />
-            <p class="m-0 text-xs leading-relaxed text-muted-foreground">
-              {{ t('migrationImageHint') }}
-            </p>
-            <div v-if="busy" class="flex items-center gap-2 text-sm text-muted-foreground">
-              <Spinner />{{ t('migrationReading') }}
-            </div>
-            <Button
-              v-if="isNative"
-              variant="outline"
-              class="w-full justify-start"
-              :disabled="busy"
-              @click="scanMigrationCodes"
-            >
-              <ScanLine :size="17" />{{ t('scanMigrationCodes') }}
-            </Button>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </template>
 
       <BackupExportForm
@@ -199,12 +139,9 @@ const { t } = useI18n()
       />
       <template v-else>
         <div class="grid gap-2 rounded-lg border p-3 text-sm">
-          <p class="m-0">{{ t('previewImportCount', { count: previewAccounts.length }) }}</p>
+          <p class="m-0">{{ t('previewRestoreCount', { count: previewAccounts.length }) }}</p>
           <p v-if="previewDuplicates" class="m-0 text-muted-foreground">
             {{ t('previewDuplicates', { count: previewDuplicates }) }}
-          </p>
-          <p v-if="previewSkipped" class="m-0 text-muted-foreground">
-            {{ t('previewSkipped', { count: previewSkipped }) }}
           </p>
           <Separator v-if="previewAccounts.length" />
           <ul v-if="previewAccounts.length" class="m-0 grid gap-1 pl-5 text-muted-foreground">
@@ -217,17 +154,15 @@ const { t } = useI18n()
           </ul>
         </div>
         <DialogFooter class="gap-2 sm:gap-2">
-          <Button variant="outline" type="button" :disabled="busy" @click="cancelImportPreview">{{
+          <Button variant="outline" type="button" :disabled="busy" @click="cancelRestorePreview">{{
             t('cancel')
           }}</Button>
           <Button
             type="button"
             :disabled="busy || !previewAccounts.length"
-            @click="importPreviewAccounts"
+            @click="restorePreviewAccounts"
           >
-            <Spinner v-if="busy" />{{
-              t(previewSource === 'backup' ? 'restoreAccounts' : 'importAccounts')
-            }}
+            <Spinner v-if="busy" />{{ t('restoreAccounts') }}
           </Button>
         </DialogFooter>
       </template>

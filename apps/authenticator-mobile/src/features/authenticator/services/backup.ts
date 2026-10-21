@@ -57,12 +57,7 @@ export async function createEncryptedBackup(
   accounts: TotpAccount[],
   passphrase: string
 ): Promise<string> {
-  if (
-    passphrase.length < 6 ||
-    passphrase.length > 256 ||
-    !accounts.length ||
-    !accounts.every(isTotpAccount)
-  ) {
+  if (!/^\d{6}$/.test(passphrase) || !accounts.length || !accounts.every(isTotpAccount)) {
     throw new Error('invalid account vault')
   }
 

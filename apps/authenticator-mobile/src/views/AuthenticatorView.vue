@@ -19,10 +19,8 @@ const {
   copyCode,
   deleteAccount,
   filteredAccounts,
-  isNative,
   loading,
   moveAccount,
-  notice,
   now,
   openAddMenu,
   openEditForm,
@@ -49,7 +47,6 @@ const {
     :filtered-accounts="filteredAccounts"
     :sort-mode="sortMode"
     :codes="codes"
-    :notice="notice"
     :loading="loading"
     :vault-ready="vaultReady"
     :busy="busy"
@@ -74,16 +71,10 @@ const {
     :sort-mode="sortMode"
     @select="changeSortMode"
   />
-  <AccountTransferDialog
-    :controller="transfer"
-    :accounts="accounts"
-    :busy="busy"
-    :is-native="isNative"
-  />
+  <AccountTransferDialog :controller="transfer" :accounts="accounts" :busy="busy" />
   <AccountEditorDialog
     v-model:open="showAccountForm"
     :editing-account="accountBeingEdited"
-    :notice="notice"
     :busy="busy"
     :vault-ready="vaultReady"
     @save="saveAccount"
@@ -92,7 +83,6 @@ const {
     v-model:open="showDeleteDialog"
     :account="accountToDelete"
     :busy="busy"
-    :notice="notice"
     @confirm="deleteAccount"
   />
   <Toaster position="bottom-center" />

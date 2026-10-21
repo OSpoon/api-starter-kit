@@ -1,20 +1,13 @@
-import {
-  CapacitorBarcodeScanner,
-  CapacitorBarcodeScannerTypeHint,
-} from '@capacitor/barcode-scanner'
 import { Directory, Encoding, Filesystem } from '@capacitor/filesystem'
 import { Share } from '@capacitor/share'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { toast } from 'vue-sonner'
 
 import { createEncryptedBackup, openEncryptedBackup } from '../services/backup'
-import { collectMigrationParts, parseTransferQr } from '../services/migration'
-import type { MigrationAccount, MigrationPart } from '../services/migration'
 import type { TotpAccount } from '../services/totp'
 
 type TransferStep = 'home' | 'export' | 'restore' | 'preview'
-type TransferNotice = { key: string; values?: Record<string, number>; tone: 'error' | 'info' }
-
 type TransferOptions = {
   accounts: { value: TotpAccount[] }
   busy: { value: boolean }
@@ -26,13 +19,9 @@ export function useAccountTransfer({ accounts, busy, isNative, persist }: Transf
   const { t, locale } = useI18n()
   const showTransferDialog = ref(false)
   const transferStep = ref<TransferStep>('home')
-  const transferNotice = ref<TransferNotice | null>(null)
   const backupContents = ref('')
-  const migrationParts = ref<MigrationPart[]>([])
   const previewAccounts = ref<TotpAccount[]>([])
   const previewDuplicates = ref(0)
-  const previewSkipped = ref(0)
-  const previewSource = ref<'backup' | 'migration'>('backup')
 
   const transferDialogOpen = computed({
     get: () => showTransferDialog.value,
@@ -42,38 +31,35 @@ export function useAccountTransfer({ accounts, busy, isNative, persist }: Transf
     },
   })
 
-  function setTransferNotice(
+  function notifyTransfer(
     key: string,
-    tone: 'error' | 'info' = 'info',
+    tone: 'error' | 'info' | 'success',
     values?: Record<string, number>
   ): void {
-    transferNotice.value = { key, tone, values }
+    const message = t(key, values ?? {})
+    if (tone === 'error') toast.error(message)
+    else if (tone === 'success') toast.success(message)
+    else toast.info(message)
   }
 
   function resetTransferState(): void {
     transferStep.value = 'home'
-    transferNotice.value = null
     backupContents.value = ''
-    migrationParts.value = []
     previewAccounts.value = []
     previewDuplicates.value = 0
-    previewSkipped.value = 0
   }
 
   function openTransfer(): void {
-    transferNotice.value = null
     transferStep.value = 'home'
     showTransferDialog.value = true
   }
 
   function openBackupExport(): void {
-    transferNotice.value = null
     transferStep.value = 'export'
   }
 
   function returnToTransferHome(): void {
     transferStep.value = 'home'
-    transferNotice.value = null
   }
 
   function cancelBackupRestore(): void {
@@ -81,12 +67,12 @@ export function useAccountTransfer({ accounts, busy, isNative, persist }: Transf
     backupContents.value = ''
   }
 
-  function cancelImportPreview(): void {
+  function cancelRestorePreview(): void {
     returnToTransferHome()
     previewAccounts.value = []
   }
 
-  function accountFingerprint(account: MigrationAccount): string {
+  function accountFingerprint(account: TotpAccount): string {
     return JSON.stringify([
       account.issuer.trim().toLocaleLowerCase(locale.value),
       account.name.trim().toLocaleLowerCase(locale.value),
@@ -97,11 +83,7 @@ export function useAccountTransfer({ accounts, busy, isNative, persist }: Transf
     ])
   }
 
-  function showImportPreview(
-    imported: MigrationAccount[],
-    source: 'backup' | 'migration',
-    skippedCount: number
-  ): void {
+  function showRestorePreview(imported: TotpAccount[]): void {
     const known = new Set(accounts.value.map(accountFingerprint))
     const additions: TotpAccount[] = []
     let duplicateCount = 0
@@ -116,9 +98,6 @@ export function useAccountTransfer({ accounts, busy, isNative, persist }: Transf
     }
     previewAccounts.value = additions
     previewDuplicates.value = duplicateCount
-    previewSkipped.value = skippedCount
-    previewSource.value = source
-    transferNotice.value = null
     transferStep.value = 'preview'
   }
 
@@ -159,13 +138,12 @@ export function useAccountTransfer({ accounts, busy, isNative, persist }: Transf
   async function exportBackup(password: string): Promise<void> {
     if (!accounts.value.length || busy.value) return
     busy.value = true
-    transferNotice.value = null
     try {
       const encrypted = await createEncryptedBackup(accounts.value, password)
       await deliverEncryptedBackup(encrypted)
-      setTransferNotice('backupCreated')
+      notifyTransfer('backupCreated', 'success')
     } catch {
-      setTransferNotice('backupExportFailed', 'error')
+      notifyTransfer('backupExportFailed', 'error')
     } finally {
       busy.value = false
     }
@@ -177,7 +155,7 @@ export function useAccountTransfer({ accounts, busy, isNative, persist }: Transf
     input.value = ''
     if (!file) return
     if (file.size > 5 * 1024 * 1024) {
-      setTransferNotice('backupFileInvalid', 'error')
+      notifyTransfer('backupFileInvalid', 'error')
       return
     }
 
@@ -185,10 +163,9 @@ export function useAccountTransfer({ accounts, busy, isNative, persist }: Transf
       .text()
       .then((contents) => {
         backupContents.value = contents
-        transferNotice.value = null
         transferStep.value = 'restore'
       })
-      .catch(() => setTransferNotice('backupFileInvalid', 'error'))
+      .catch(() => notifyTransfer('backupFileInvalid', 'error'))
   }
 
   async function restoreBackup(password: string): Promise<void> {
@@ -196,107 +173,17 @@ export function useAccountTransfer({ accounts, busy, isNative, persist }: Transf
     busy.value = true
     try {
       const restored = await openEncryptedBackup(backupContents.value, password)
-      showImportPreview(restored, 'backup', 0)
+      showRestorePreview(restored)
     } catch {
-      setTransferNotice('backupWrongPassword', 'error')
+      notifyTransfer('backupWrongPassword', 'error')
     } finally {
       busy.value = false
     }
   }
 
-  function showCollectedMigration(): void {
-    const collection = collectMigrationParts(migrationParts.value)
-    if (collection.incomplete) {
-      setTransferNotice('migrationQrIncomplete', 'info', collection.incomplete)
-      transferStep.value = 'home'
-      return
-    }
-    if (!collection.accounts.length) {
-      setTransferNotice('migrationNoSupportedAccounts', 'error')
-      return
-    }
-    showImportPreview(collection.accounts, 'migration', collection.skippedCount)
-    migrationParts.value = []
-  }
-
-  function showMigrationQr(value: string): void {
-    openTransfer()
-    migrationParts.value.push(parseTransferQr(value))
-    showCollectedMigration()
-  }
-
-  async function onMigrationImagesSelected(event: Event): Promise<void> {
-    const input = event.currentTarget as HTMLInputElement
-    const files = Array.from(input.files ?? []).slice(0, 30)
-    input.value = ''
-    if (!files.length) return
-
-    busy.value = true
-    transferNotice.value = null
-    try {
-      const { BrowserQRCodeReader } = await import('@zxing/browser')
-      const reader = new BrowserQRCodeReader()
-      let decoded = 0
-      for (const file of files) {
-        if (!file.type.startsWith('image/') || file.size > 8 * 1024 * 1024) continue
-        const url = URL.createObjectURL(file)
-        try {
-          const result = await reader.decodeFromImageUrl(url)
-          migrationParts.value.push(parseTransferQr(result.getText()))
-          decoded += 1
-        } catch {
-          // Ignore unsupported QR images while processing the rest of the selection.
-        } finally {
-          URL.revokeObjectURL(url)
-        }
-      }
-      if (!decoded) {
-        setTransferNotice('migrationImagesInvalid', 'error')
-        return
-      }
-      showCollectedMigration()
-    } catch {
-      setTransferNotice('migrationImagesFailed', 'error')
-    } finally {
-      busy.value = false
-    }
-  }
-
-  async function scanMigrationCodes(): Promise<void> {
-    if (!isNative || busy.value) return
-    busy.value = true
-    transferNotice.value = null
-    try {
-      while (true) {
-        const result = await CapacitorBarcodeScanner.scanBarcode({
-          hint: CapacitorBarcodeScannerTypeHint.QR_CODE,
-          scanInstructions: t('scanInstructions'),
-          cancelButtonAccessibilityLabel: t('scanCancel'),
-        })
-        if (!result.ScanResult) break
-        migrationParts.value.push(parseTransferQr(result.ScanResult))
-        const collection = collectMigrationParts(migrationParts.value)
-        if (!collection.incomplete) {
-          if (collection.accounts.length) {
-            showImportPreview(collection.accounts, 'migration', collection.skippedCount)
-            migrationParts.value = []
-          } else setTransferNotice('migrationNoSupportedAccounts', 'error')
-          break
-        }
-        setTransferNotice('migrationQrIncomplete', 'info', collection.incomplete)
-      }
-    } catch (error) {
-      if (!(error instanceof Error && error.message.toLowerCase().includes('cancel'))) {
-        setTransferNotice('migrationQrInvalid', 'error')
-      }
-    } finally {
-      busy.value = false
-    }
-  }
-
-  async function importPreviewAccounts(): Promise<void> {
+  async function restorePreviewAccounts(): Promise<void> {
     if (!previewAccounts.value.length || busy.value) return
-    if (await persist([...previewAccounts.value, ...accounts.value], 'importedAccounts')) {
+    if (await persist([...previewAccounts.value, ...accounts.value], 'accountsRestored')) {
       transferDialogOpen.value = false
     }
   }
@@ -304,25 +191,18 @@ export function useAccountTransfer({ accounts, busy, isNative, persist }: Transf
   return {
     backupContents,
     cancelBackupRestore,
-    cancelImportPreview,
+    cancelRestorePreview,
     exportBackup,
-    importPreviewAccounts,
     onBackupFileSelected,
-    onMigrationImagesSelected,
     openBackupExport,
     openTransfer,
     previewAccounts,
     previewDuplicates,
-    previewSkipped,
-    previewSource,
     restoreBackup,
+    restorePreviewAccounts,
     returnToTransferHome,
-    scanMigrationCodes,
-    setTransferNotice,
-    showMigrationQr,
     showTransferDialog,
     transferDialogOpen,
-    transferNotice,
     transferStep,
   }
 }

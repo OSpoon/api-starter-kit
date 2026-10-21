@@ -1,17 +1,8 @@
 <script setup lang="ts">
-import {
-  ArrowLeftRight,
-  Copy,
-  Ellipsis,
-  KeyRound,
-  ListOrdered,
-  Plus,
-  Search,
-  ShieldCheck,
-  X,
-} from '@lucide/vue'
+import { ArrowLeftRight, Copy, Ellipsis, KeyRound, ListOrdered, Plus, Search, X } from '@lucide/vue'
 import { useI18n } from 'vue-i18n'
 
+import authenticatorLogo from '../../../assets/authenticator-logo.svg'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
@@ -44,14 +35,11 @@ import { Spinner } from '@/components/ui/spinner'
 import type { AccountSortMode } from '../services/account-order'
 import type { TotpAccount } from '../services/totp'
 
-type Notice = { key: string; tone: 'success' | 'error' | 'info' } | null
-
 const props = defineProps<{
   accounts: TotpAccount[]
   filteredAccounts: TotpAccount[]
   sortMode: AccountSortMode
   codes: Record<string, string>
-  notice: Notice
   loading: boolean
   vaultReady: boolean
   busy: boolean
@@ -87,12 +75,14 @@ function formatCode(code: string): string {
 
 <template>
   <main
-    class="mx-auto flex h-dvh min-h-0 w-full max-w-[620px] flex-col gap-5 overflow-hidden px-6 py-[max(1.625rem,env(safe-area-inset-top))] pb-[max(2.25rem,env(safe-area-inset-bottom))]"
+    class="mx-auto flex h-dvh min-h-0 w-full max-w-[620px] flex-col gap-5 overflow-hidden px-6 pt-[max(3.5rem,calc(env(safe-area-inset-top)_+_1rem))] pb-[max(2.25rem,env(safe-area-inset-bottom))]"
   >
     <header class="flex shrink-0 items-center justify-between gap-4">
       <div class="flex min-w-0 items-center gap-3">
         <Avatar class="size-11 shrink-0 rounded-2xl border bg-card">
-          <AvatarFallback><ShieldCheck :size="21" :stroke-width="1.8" /></AvatarFallback>
+          <AvatarFallback
+            ><img :src="authenticatorLogo" alt="" class="size-full object-contain"
+          /></AvatarFallback>
         </Avatar>
         <div class="min-w-0">
           <p
@@ -124,16 +114,6 @@ function formatCode(code: string): string {
           @click="emit('openTransfer')"
         >
           <ArrowLeftRight :size="19" />
-        </Button>
-        <Button
-          variant="default"
-          size="icon-lg"
-          :aria-label="t('add')"
-          :title="t('add')"
-          :disabled="!vaultReady || busy"
-          @click="emit('openAdd')"
-        >
-          <Plus :size="21" :stroke-width="2" />
         </Button>
       </div>
     </header>
@@ -167,16 +147,6 @@ function formatCode(code: string): string {
         </InputGroupAddon>
       </InputGroup>
     </div>
-
-    <Alert
-      v-if="notice"
-      :variant="notice.tone === 'error' ? 'destructive' : 'default'"
-      role="status"
-      aria-live="polite"
-      class="shrink-0 py-2.5"
-    >
-      <AlertDescription>{{ t(notice.key) }}</AlertDescription>
-    </Alert>
 
     <section
       class="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain pb-20"

@@ -1,53 +1,38 @@
 <script setup lang="ts">
-import { ChevronDown, Eye, EyeOff } from '@lucide/vue'
+import { Eye, EyeOff } from '@lucide/vue'
 import { toTypedSchema } from '@vee-validate/zod'
 import { computed, ref, watch } from 'vue'
 import { useForm } from 'vee-validate'
 import { useI18n } from 'vue-i18n'
+import { toast } from 'vue-sonner'
 import { z } from 'zod'
 
-import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import FormDialogContent from '@/components/common/FormDialogContent.vue'
 import FormDialogFooter from '@/components/common/FormDialogFooter.vue'
 import { Dialog } from '@/components/ui/dialog'
 import { FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { Spinner } from '@/components/ui/spinner'
 import { firstFormError } from '@/lib/form-validation'
 import { isValidSecret, normalizeSecret } from '../services/totp'
 import type { TotpAccount } from '../services/totp'
 
-type Notice = { key: string; tone: 'success' | 'error' | 'info' } | null
 type AccountFormValues = {
   issuer: string
   name: string
   secret: string
-  algorithm: TotpAccount['algorithm']
-  digits: '6' | '8'
-  period: string
 }
 
 const props = defineProps<{
   editingAccount: TotpAccount | null
-  notice: Notice
   busy: boolean
   vaultReady: boolean
 }>()
 const emit = defineEmits<{ save: [account: TotpAccount] }>()
 const open = defineModel<boolean>('open', { required: true })
 const { t } = useI18n()
-const advancedOpen = ref(false)
 const revealSecret = ref(false)
-const submitError = ref('')
 
 const validationSchema = computed(() =>
   toTypedSchema(
@@ -56,15 +41,6 @@ const validationSchema = computed(() =>
         issuer: z.string().trim().min(1, t('issuerRequired')).max(80),
         name: z.string().trim().min(1, t('accountRequired')).max(120),
         secret: z.string().trim(),
-        algorithm: z.enum(['SHA1', 'SHA256', 'SHA512']),
-        digits: z.enum(['6', '8']),
-        period: z
-          .string()
-          .trim()
-          .refine((value) => {
-            const period = Number(value)
-            return Number.isInteger(period) && period >= 1 && period <= 86400
-          }, t('periodInvalid')),
       })
       .superRefine((values, context) => {
         if (!values.secret && !props.editingAccount) {
@@ -78,14 +54,12 @@ const validationSchema = computed(() =>
 
 const form = useForm<AccountFormValues>({
   validationSchema,
-  initialValues: { issuer: '', name: '', secret: '', algorithm: 'SHA1', digits: '6', period: '30' },
+  initialValues: { issuer: '', name: '', secret: '' },
 })
 
 watch([open, () => props.editingAccount], ([isOpen]) => {
   if (!isOpen) return
   const account = props.editingAccount
-  submitError.value = ''
-  advancedOpen.value = false
   revealSecret.value = false
   form.resetForm({
     values: account
@@ -93,16 +67,9 @@ watch([open, () => props.editingAccount], ([isOpen]) => {
           issuer: account.issuer || account.name,
           name: account.name,
           secret: '',
-          algorithm: account.algorithm,
-          digits: String(account.digits) as '6' | '8',
-          period: String(account.period),
         }
-      : { issuer: '', name: '', secret: '', algorithm: 'SHA1', digits: '6', period: '30' },
+      : { issuer: '', name: '', secret: '' },
   })
-})
-
-watch(form.errors, () => {
-  submitError.value = ''
 })
 
 const submitForm = form.handleSubmit(
@@ -113,13 +80,13 @@ const submitForm = form.handleSubmit(
       issuer: values.issuer.trim(),
       name: values.name.trim(),
       secret: normalizeSecret(values.secret || existing?.secret || ''),
-      algorithm: values.algorithm,
-      digits: Number(values.digits) as TotpAccount['digits'],
-      period: Number(values.period),
+      algorithm: existing?.algorithm ?? 'SHA1',
+      digits: existing?.digits ?? 6,
+      period: existing?.period ?? 30,
     })
   },
   ({ errors }) => {
-    submitError.value = firstFormError(errors, t('formInvalid'))
+    toast.error(firstFormError(errors, t('formInvalid')))
   }
 )
 </script>
@@ -129,7 +96,7 @@ const submitForm = form.handleSubmit(
     <FormDialogContent
       :title="t(editingAccount ? 'edit' : 'manualTitle')"
       :description="t('manualDescription')"
-      class="max-h-[90dvh] max-w-xl overflow-hidden"
+      class="max-h-[90dvh] max-w-[calc(100%-2rem)] overflow-hidden sm:max-w-xl"
     >
       <form
         class="flex min-h-0 flex-1 flex-col overflow-hidden"
@@ -200,88 +167,6 @@ const submitForm = form.handleSubmit(
                 <FormMessage />
               </FormItem>
             </FormField>
-            <Collapsible v-model:open="advancedOpen" class="rounded-lg border px-3">
-              <CollapsibleTrigger as-child>
-                <Button variant="ghost" class="w-full justify-between px-1 text-left">
-                  {{ t('advancedSettings') }}
-                  <ChevronDown :size="17" :class="advancedOpen ? 'rotate-180' : ''" />
-                </Button>
-              </CollapsibleTrigger>
-              <CollapsibleContent class="grid gap-4 pb-4 pt-2 sm:grid-cols-2">
-                <FormField v-slot="{ componentField }" name="algorithm" :validate-on-blur="false">
-                  <FormItem>
-                    <FormLabel>{{ t('algorithmLabel') }}</FormLabel>
-                    <Select v-bind="componentField">
-                      <FormControl
-                        ><SelectTrigger class="w-full"><SelectValue /></SelectTrigger
-                      ></FormControl>
-                      <SelectContent>
-                        <SelectItem value="SHA1">SHA1</SelectItem>
-                        <SelectItem value="SHA256">SHA256</SelectItem>
-                        <SelectItem value="SHA512">SHA512</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                </FormField>
-                <FormField v-slot="{ componentField }" name="digits" :validate-on-blur="false">
-                  <FormItem>
-                    <FormLabel>{{ t('digitsLabel') }}</FormLabel>
-                    <Select v-bind="componentField">
-                      <FormControl
-                        ><SelectTrigger class="w-full"><SelectValue /></SelectTrigger
-                      ></FormControl>
-                      <SelectContent>
-                        <SelectItem value="6">6</SelectItem>
-                        <SelectItem value="8">8</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                </FormField>
-                <FormField v-slot="{ componentField }" name="period" :validate-on-blur="false">
-                  <FormItem class="sm:col-span-2">
-                    <FormLabel>{{ t('periodLabel') }}</FormLabel>
-                    <div class="relative">
-                      <FormControl>
-                        <Input
-                          v-bind="componentField"
-                          type="number"
-                          min="1"
-                          max="86400"
-                          step="1"
-                          class="pr-16"
-                        />
-                      </FormControl>
-                      <span
-                        class="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-sm text-muted-foreground"
-                      >
-                        {{ t('secondsUnit') }}
-                      </span>
-                    </div>
-                    <FormMessage />
-                  </FormItem>
-                </FormField>
-              </CollapsibleContent>
-            </Collapsible>
-            <Alert
-              v-if="submitError"
-              variant="destructive"
-              role="status"
-              aria-live="polite"
-              class="py-2.5"
-            >
-              <AlertDescription>{{ submitError }}</AlertDescription>
-            </Alert>
-            <Alert
-              v-if="notice"
-              :variant="notice.tone === 'error' ? 'destructive' : 'default'"
-              role="status"
-              aria-live="polite"
-              class="py-2.5"
-            >
-              <AlertDescription>{{ t(notice.key) }}</AlertDescription>
-            </Alert>
           </div>
         </div>
         <FormDialogFooter class="shrink-0 justify-end">

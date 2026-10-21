@@ -1,28 +1,26 @@
 <script setup lang="ts">
 import { toTypedSchema } from '@vee-validate/zod'
-import { ref } from 'vue'
 import { useForm } from 'vee-validate'
 import { useI18n } from 'vue-i18n'
+import { toast } from 'vue-sonner'
 import { z } from 'zod'
 
-import { Alert, AlertDescription } from '@/components/ui/alert'
 import FormDialogFooter from '@/components/common/FormDialogFooter.vue'
+import SegmentedCodeInput from '@/components/common/SegmentedCodeInput.vue'
 import { Button } from '@/components/ui/button'
-import { FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
-import { Input } from '@/components/ui/input'
+import { FormControl, FormField, FormItem, FormLabel } from '@/components/ui/form'
 import { Spinner } from '@/components/ui/spinner'
 import { firstFormError } from '@/lib/form-validation'
 
 const props = defineProps<{ busy: boolean; canExport: boolean }>()
 const emit = defineEmits<{ submit: [password: string]; cancel: [] }>()
 const { t } = useI18n()
-const submitError = ref('')
 const form = useForm({
   validationSchema: toTypedSchema(
     z
       .object({
-        password: z.string().min(6, t('backupPasswordShort')).max(256),
-        confirmation: z.string().min(1, t('backupPasswordRequired')),
+        password: z.string().regex(/^\d{6}$/, t('backupPasswordDigits')),
+        confirmation: z.string().regex(/^\d{6}$/, t('backupPasswordDigits')),
       })
       .refine((values) => values.password === values.confirmation, {
         path: ['confirmation'],
@@ -34,7 +32,7 @@ const form = useForm({
 
 const submit = form.handleSubmit(
   ({ password }) => emit('submit', password),
-  ({ errors }) => (submitError.value = firstFormError(errors, t('formInvalid')))
+  ({ errors }) => toast.error(firstFormError(errors, t('formInvalid')))
 )
 </script>
 
@@ -43,37 +41,42 @@ const submit = form.handleSubmit(
     <FormField v-slot="{ componentField }" name="password" :validate-on-blur="false">
       <FormItem>
         <FormLabel>{{ t('backupPassword') }}</FormLabel>
-        <FormControl
-          ><Input
+        <FormControl>
+          <SegmentedCodeInput
             v-bind="componentField"
-            type="password"
-            autocomplete="new-password"
-            maxlength="256"
-        /></FormControl>
-        <FormMessage />
+            full-width
+            :maxlength="6"
+            slot-class="h-12 text-lg max-[380px]:h-10"
+            inputmode="numeric"
+            pattern="^[0-9]*$"
+            autocomplete="off"
+          />
+        </FormControl>
       </FormItem>
     </FormField>
     <FormField v-slot="{ componentField }" name="confirmation" :validate-on-blur="false">
       <FormItem>
         <FormLabel>{{ t('backupPasswordConfirm') }}</FormLabel>
-        <FormControl
-          ><Input
+        <FormControl>
+          <SegmentedCodeInput
             v-bind="componentField"
-            type="password"
-            autocomplete="new-password"
-            maxlength="256"
-        /></FormControl>
-        <FormMessage />
+            full-width
+            :maxlength="6"
+            slot-class="h-12 text-lg max-[380px]:h-10"
+            inputmode="numeric"
+            pattern="^[0-9]*$"
+            autocomplete="off"
+          />
+        </FormControl>
       </FormItem>
     </FormField>
-    <Alert v-if="submitError" variant="destructive" role="status" aria-live="polite" class="py-2.5">
-      <AlertDescription>{{ submitError }}</AlertDescription>
-    </Alert>
-    <FormDialogFooter class="shrink-0 justify-end">
+    <FormDialogFooter
+      class="shrink-0 justify-end px-0 pb-0 [&>div:last-child]:w-full [&>div:last-child]:flex-nowrap"
+    >
       <Button variant="outline" type="button" :disabled="busy" @click="emit('cancel')">{{
         t('cancel')
       }}</Button>
-      <Button type="submit" :disabled="busy || !canExport"
+      <Button class="flex-1" type="submit" :disabled="busy || !canExport"
         ><Spinner v-if="busy" />{{ busy ? t('exporting') : t('createBackup') }}</Button
       >
     </FormDialogFooter>
