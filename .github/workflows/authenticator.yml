@@ -1,4 +1,4 @@
-name: Authenticator Mobile
+name: Authenticator
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - apps/authenticator-mobile/**
       - pnpm-lock.yaml
       - pnpm-workspace.yaml
-      - .github/workflows/authenticator-mobile.yml
+      - .github/workflows/authenticator.yml
   pull_request:
     paths:
       - apps/authenticator-mobile/**
       - pnpm-lock.yaml
       - pnpm-workspace.yaml
-      - .github/workflows/authenticator-mobile.yml
+      - .github/workflows/authenticator.yml
   workflow_dispatch:
 
 permissions:

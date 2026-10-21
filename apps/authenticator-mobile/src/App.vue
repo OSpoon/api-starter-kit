@@ -266,6 +266,21 @@ function resetTransferState(): void {
   backupRestoreForm.resetForm({ values: { password: '' } })
 }
 
+function returnToTransferHome(): void {
+  transferStep.value = 'home'
+  transferNotice.value = null
+}
+
+function cancelBackupRestore(): void {
+  returnToTransferHome()
+  backupContents.value = ''
+}
+
+function cancelImportPreview(): void {
+  returnToTransferHome()
+  previewAccounts.value = []
+}
+
 function openTransfer(): void {
   notice.value = null
   transferNotice.value = null
@@ -1133,10 +1148,7 @@ onUnmounted(() => {
               size="icon-sm"
               :aria-label="t('back')"
               :title="t('back')"
-              @click="
-                transferStep = 'home'
-                transferNotice = null
-              "
+              @click="returnToTransferHome"
             >
               <ChevronDown :size="18" class="rotate-90" />
             </Button>
@@ -1273,10 +1285,7 @@ onUnmounted(() => {
               variant="outline"
               type="button"
               :disabled="busy"
-              @click="
-                transferStep = 'home'
-                transferNotice = null
-              "
+              @click="returnToTransferHome"
               >{{ t('cancel') }}</Button
             >
             <Button type="submit" :disabled="busy || !accounts.length"
@@ -1306,17 +1315,9 @@ onUnmounted(() => {
             </FormItem>
           </FormField>
           <DialogFooter class="gap-2 sm:gap-2">
-            <Button
-              variant="outline"
-              type="button"
-              :disabled="busy"
-              @click="
-                transferStep = 'home'
-                backupContents = ''
-                transferNotice = null
-              "
-              >{{ t('cancel') }}</Button
-            >
+            <Button variant="outline" type="button" :disabled="busy" @click="cancelBackupRestore">{{
+              t('cancel')
+            }}</Button>
             <Button type="submit" :disabled="busy || !backupContents"
               ><Spinner v-if="busy" />{{ busy ? t('restoring') : t('continue') }}</Button
             >
@@ -1343,17 +1344,9 @@ onUnmounted(() => {
             </ul>
           </div>
           <DialogFooter class="gap-2 sm:gap-2">
-            <Button
-              variant="outline"
-              type="button"
-              :disabled="busy"
-              @click="
-                transferStep = 'home'
-                previewAccounts = []
-                transferNotice = null
-              "
-              >{{ t('cancel') }}</Button
-            >
+            <Button variant="outline" type="button" :disabled="busy" @click="cancelImportPreview">{{
+              t('cancel')
+            }}</Button>
             <Button
               type="button"
               :disabled="busy || !previewAccounts.length"
