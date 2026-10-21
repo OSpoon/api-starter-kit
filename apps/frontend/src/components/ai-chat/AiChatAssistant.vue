@@ -64,6 +64,10 @@ const props = withDefaults(
     welcomeMessage?: string
     messages?: DisplayAiChatMessage[]
     conversations?: ChatConversation[]
+    hasMoreConversations?: boolean
+    loadingConversations?: boolean
+    hasOlderMessages?: boolean
+    loadingOlderMessages?: boolean
     currentConversationId?: string | number | null
     streamingMessageId?: string | number | null
     loading?: boolean
@@ -85,6 +89,10 @@ const props = withDefaults(
     welcomeMessage: undefined,
     messages: undefined,
     conversations: () => [],
+    hasMoreConversations: false,
+    loadingConversations: false,
+    hasOlderMessages: false,
+    loadingOlderMessages: false,
     currentConversationId: null,
     streamingMessageId: null,
     loading: false,
@@ -107,6 +115,8 @@ const emit = defineEmits<{
   clear: []
   selectConversation: [id: string | number]
   deleteConversation: [id: string | number]
+  loadMoreConversations: []
+  loadOlderMessages: []
   copyMessage: [message: DisplayAiChatMessage]
   copyMessagesAsMarkdown: [messages: DisplayAiChatMessage[]]
   retryMessage: [message: DisplayAiChatMessage]
@@ -160,6 +170,10 @@ function formatUsageCost(value: number) {
     minimumFractionDigits: 4,
     maximumFractionDigits: 4,
   }).format(value)
+}
+
+function loadOlderMessagesAtStart() {
+  if (props.hasOlderMessages && !props.loadingOlderMessages) emit('loadOlderMessages')
 }
 
 function openUsagePopover() {
@@ -690,6 +704,22 @@ watch(
                   <Trash2 class="size-3.5" />
                 </Button>
               </DropdownMenuItem>
+              <div v-if="hasMoreConversations" class="p-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  class="w-full"
+                  :disabled="loadingConversations"
+                  @click.stop="emit('loadMoreConversations')"
+                >
+                  {{
+                    loadingConversations
+                      ? t('ai_chat.loading_more_history')
+                      : t('ai_chat.load_more_history')
+                  }}
+                </Button>
+              </div>
             </DropdownMenuContent>
           </DropdownMenu>
           <Button
@@ -775,6 +805,21 @@ watch(
                 </Button>
               </div>
             </div>
+            <Button
+              v-if="hasMoreConversations"
+              type="button"
+              variant="ghost"
+              size="sm"
+              class="mt-2 w-full text-sidebar-foreground"
+              :disabled="loadingConversations"
+              @click="emit('loadMoreConversations')"
+            >
+              {{
+                loadingConversations
+                  ? t('ai_chat.loading_more_history')
+                  : t('ai_chat.load_more_history')
+              }}
+            </Button>
           </div>
           <div v-if="$slots.sidebarFooter" class="shrink-0 border-t p-2">
             <slot name="sidebarFooter" />
@@ -810,10 +855,23 @@ watch(
           </div>
 
           <div class="relative min-h-0 flex-1 p-4">
-            <MessageScrollerProvider auto-scroll default-scroll-position="end">
+            <MessageScrollerProvider
+              auto-scroll
+              default-scroll-position="end"
+              :scroll-edge-threshold="24"
+            >
               <MessageScroller>
-                <MessageScrollerViewport>
+                <MessageScrollerViewport @reach-start="loadOlderMessagesAtStart">
                   <MessageScrollerContent class="px-3">
+                    <div
+                      v-if="loadingOlderMessages"
+                      class="flex items-center justify-center gap-2 py-3 text-xs text-muted-foreground"
+                      role="status"
+                      aria-live="polite"
+                    >
+                      <LoaderCircle class="size-3.5 animate-spin" aria-hidden="true" />
+                      {{ t('ai_chat.loading_older_messages') }}
+                    </div>
                     <template
                       v-for="(message, index) in displayMessages"
                       :key="message.id ?? index"

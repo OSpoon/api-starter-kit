@@ -1,6 +1,7 @@
 import crypto from 'node:crypto'
 
 import type { HttpContext } from '@adonisjs/core/http'
+import db from '@adonisjs/lucid/services/db'
 import { ApiOperation, ApiResponse, ApiSecurity } from '@foadonis/openapi/decorators'
 import { generateSecret, generateURI, verify } from 'otplib'
 import QRCode from 'qrcode'
@@ -90,34 +91,37 @@ export default class TwoFactorAuthController {
       return response.unauthorized({ message: '会话已过期，请重新登录' })
     }
 
-    const user = await User.find(pending.userId)
-    const secret = decryptTwoFactorSecret(user?.twoFactorSecret)
-    if (!user || !user.twoFactorEnabled || !secret) {
-      return response.unauthorized({ message: '用户不存在或未启用 2FA' })
-    }
+    const user = await db.transaction(async (trx) => {
+      const candidate = await User.query({ client: trx })
+        .where('id', pending.userId)
+        .forUpdate()
+        .first()
+      const secret = decryptTwoFactorSecret(candidate?.twoFactorSecret)
+      if (!candidate || candidate.disabledAt || !candidate.twoFactorEnabled || !secret) return null
 
-    let totpValid = false
-    try {
-      const result = await verify({ token: payload.code, secret })
-      totpValid = result.valid
-    } catch {
-      // Token is not a valid TOTP format (e.g., a recovery code) — fall through
-      // to recovery code check below.
-    }
-    let isRecovery = false
-
-    if (!totpValid && user.twoFactorRecoveryCodes) {
-      const recoveryCodes = decryptRecoveryCodes(user.twoFactorRecoveryCodes)
-      if (recoveryCodes.includes(payload.code)) {
-        isRecovery = true
-        user.twoFactorRecoveryCodes = encryptRecoveryCodes(
-          recoveryCodes.filter((code) => code !== payload.code)
-        )
-        await user.save()
+      let valid = false
+      try {
+        const result = await verify({ token: payload.code, secret })
+        valid = result.valid
+      } catch {
+        // Recovery codes are not TOTP values.
       }
-    }
 
-    if (!totpValid && !isRecovery) {
+      if (!valid && candidate.twoFactorRecoveryCodes) {
+        const recoveryCodes = decryptRecoveryCodes(candidate.twoFactorRecoveryCodes)
+        if (recoveryCodes.includes(payload.code)) {
+          candidate.twoFactorRecoveryCodes = encryptRecoveryCodes(
+            recoveryCodes.filter((code) => code !== payload.code)
+          )
+          await candidate.save()
+          valid = true
+        }
+      }
+
+      return valid ? candidate : null
+    })
+
+    if (!user) {
       return response.unauthorized({ message: '验证码无效' })
     }
 

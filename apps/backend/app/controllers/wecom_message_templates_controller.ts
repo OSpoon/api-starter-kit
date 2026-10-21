@@ -4,12 +4,11 @@ import { ApiOperation, ApiQuery, ApiResponse, ApiSecurity } from '@foadonis/open
 import WecomMessageTemplate from '#models/wecom_message_template'
 import { recordAuditEvent } from '#services/audit_log'
 import {
-  auditWecomMessageSend,
   decryptWebhookUrl,
   encryptWebhookUrl,
   getWecomTestWebhookUrl,
   inferTemplateParameters,
-  sendWecomMessageTemplate,
+  sendAuditedWecomMessageTemplate,
   serializeWecomMessageTemplate,
   validateTemplateDefinition,
   validateTemplateStoragePayload,
@@ -170,7 +169,7 @@ export default class WecomMessageTemplatesController {
   @ApiResponse({ status: 422, description: '模板或参数校验失败' })
   @ApiResponse({ status: 429, description: '超过企业微信发送频率限制' })
   async testSend(ctx: HttpContext) {
-    const { params, request, response, serialize } = ctx
+    const { auth, params, request, response, serialize } = ctx
     const template = await WecomMessageTemplate.findOrFail(params.id)
     await request.validateUsing(wecomTemplateParamsValidator)
     const runtimeParams = request.input('params', {}) as Record<string, string>
@@ -179,7 +178,11 @@ export default class WecomMessageTemplatesController {
       mentionedMobileList: request.input('mentioned_mobile_list') as string[] | undefined,
     }
     try {
-      const result = await sendWecomMessageTemplate(template, runtimeParams, {
+      const result = await sendAuditedWecomMessageTemplate(ctx, {
+        actorUserId: auth.getUserOrFail().id,
+        source: 'test',
+        template,
+        params: runtimeParams,
         webhookUrl: getWecomTestWebhookUrl(),
         ...mentions,
       })
@@ -222,7 +225,15 @@ export default class WecomMessageTemplatesController {
     }
     let result: unknown
     try {
-      result = await sendWecomMessageTemplate(template, runtimeParams, mentions)
+      const integrationApiKey = ctx.integrationApiKey
+      result = await sendAuditedWecomMessageTemplate(ctx, {
+        actorUserId: integrationApiKey ? null : ctx.auth.getUserOrFail().id,
+        ...(integrationApiKey ? { apiKeyId: integrationApiKey.id } : {}),
+        source: integrationApiKey ? 'api_key' : 'session',
+        template,
+        params: runtimeParams,
+        ...mentions,
+      })
     } catch (error) {
       if (error instanceof Error && error.name === 'WecomTemplateRateLimitError') {
         const retryAfter = (error as { retryAfter?: number }).retryAfter ?? 60
@@ -244,15 +255,6 @@ export default class WecomMessageTemplatesController {
         message: '企业微信消息发送失败',
       })
     }
-    const integrationApiKey = ctx.integrationApiKey
-    await auditWecomMessageSend(ctx, {
-      actorUserId: integrationApiKey ? null : ctx.auth.getUserOrFail().id,
-      ...(integrationApiKey ? { apiKeyId: integrationApiKey.id } : {}),
-      source: integrationApiKey ? 'api_key' : 'session',
-      template,
-      params: runtimeParams,
-      ...mentions,
-    })
     return serialize({ sent: true, result })
   }
 }

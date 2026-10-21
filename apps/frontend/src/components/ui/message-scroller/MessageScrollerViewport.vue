@@ -2,7 +2,11 @@
 import type { HTMLAttributes } from 'vue'
 import { onBeforeUnmount, onMounted, useTemplateRef, watch } from 'vue'
 import { cn } from '@/lib/utils'
-import { SCROLL_KEYS, useMessageScrollerContext } from './useMessageScroller'
+import {
+  didReachMessageScrollerStart,
+  SCROLL_KEYS,
+  useMessageScrollerContext,
+} from './useMessageScroller'
 
 const props = withDefaults(
   defineProps<{
@@ -14,9 +18,14 @@ const props = withDefaults(
   }
 )
 
+const emit = defineEmits<{
+  reachStart: []
+}>()
+
 const {
   autoscrolling,
   handleResize,
+  scrollable,
   scrollableAttr,
   setPreserveScrollOnPrepend,
   setViewportElement,
@@ -27,6 +36,12 @@ const {
 const viewportEl = useTemplateRef<HTMLElement>('viewport')
 
 watch(() => props.preserveScrollOnPrepend, setPreserveScrollOnPrepend, { immediate: true })
+watch(
+  () => scrollable.value.start,
+  (canScrollToStart, wasAbleToScrollToStart) => {
+    if (didReachMessageScrollerStart(canScrollToStart, wasAbleToScrollToStart)) emit('reachStart')
+  }
+)
 
 function onKeyDown(event: KeyboardEvent) {
   if (SCROLL_KEYS.has(event.key)) userScrollIntent()

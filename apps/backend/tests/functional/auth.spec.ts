@@ -155,11 +155,14 @@ test.group('auth api', (group) => {
     assert.isString(loginData.token)
   })
 
-  test('locks account after repeated login failures', async ({ client }) => {
+  test('allows login after repeated failures without locking the account', async ({
+    client,
+    assert,
+  }) => {
     const email = `locked-${Date.now()}@example.com`
     const password = 'anchor museum velvet horizon 9281!'
 
-    await User.create({
+    const user = await User.create({
       fullName: null,
       email,
       password,
@@ -173,13 +176,17 @@ test.group('auth api', (group) => {
       failed.assertStatus(401)
     }
 
-    const locked = await client.post('/api/v1/auth/login').json({
+    const failedUser = await User.findByOrFail('email', email)
+    assert.equal(failedUser.failedLoginAttempts, 5)
+
+    const login = await client.post('/api/v1/auth/login').json({
       email,
       password,
     })
 
-    locked.assertStatus(401)
-    locked.assertBodyContains({ code: 'E_AUTH_INVALID_CREDENTIALS' })
+    login.assertStatus(200)
+    const loggedInUser = await User.findByOrFail('id', user.id)
+    assert.equal(loggedInUser.failedLoginAttempts, 0)
   })
 
   test('allows login with a password changed through the profile endpoint', async ({ client }) => {

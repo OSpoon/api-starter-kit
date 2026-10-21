@@ -11,9 +11,8 @@ import {
 import WecomMessageTemplate from '#models/wecom_message_template'
 import {
   applyWecomRuntimeMentions,
-  auditWecomMessageSend,
   renderWecomPayload,
-  sendWecomMessageTemplate,
+  sendAuditedWecomMessageTemplate,
   validateTemplateParameters,
   validateWecomTemplatePayload,
 } from '#services/wecom_message_template_service'
@@ -94,11 +93,7 @@ const sendWecomMessageAction: AiAgentActionImplementation = {
     } catch {
       throw new Error('消息参数已失效，请重新发起发送')
     }
-    await sendWecomMessageTemplate(template, input.params, {
-      mentionedList: input.mentionedList,
-      mentionedMobileList: input.mentionedMobileList,
-    })
-    await auditWecomMessageSend(ctx, {
+    await sendAuditedWecomMessageTemplate(ctx, {
       actorUserId: actor.id,
       source: 'ai_agent',
       template,

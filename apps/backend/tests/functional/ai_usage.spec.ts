@@ -108,6 +108,17 @@ test.group('AI usage', (group) => {
   test('returns a service-wide current month AI usage overview', async ({ client, assert }) => {
     const first = await createSuperAdmin()
     const second = await createSuperAdmin()
+    const baselineResponse = await client
+      .get('/api/v1/system/ai-overview')
+      .bearerToken(first.bearerToken)
+
+    baselineResponse.assertStatus(200)
+    const baseline = baselineResponse.body().data as {
+      totalTokens: number
+      modelCalls: number
+      estimatedCostUsd: number | null
+      unpricedModelCount: number
+    }
     const firstConversation = await AiChatConversation.create({
       userId: first.user.id,
       title: 'First overview conversation',
@@ -140,7 +151,7 @@ test.group('AI usage', (group) => {
       agentRunId: `overview-run-${second.user.id}`,
       callSequence: 0,
       providerId: 'api-starter-openai',
-      modelId: 'private/deployment',
+      modelId: `private/overview-${second.user.id}`,
       inputTokens: 20,
       outputTokens: 0,
       cacheReadTokens: 0,
@@ -164,11 +175,13 @@ test.group('AI usage', (group) => {
       unpricedModelCount: number
     }
     assert.equal(body.period, 'current_month')
-    assert.equal(body.totalTokens, 35)
-    assert.equal(body.modelCalls, 2)
-    assert.equal(body.estimatedCostUsd, 0.0001)
+    assert.equal(body.totalTokens, baseline.totalTokens + 35)
+    assert.equal(body.modelCalls, baseline.modelCalls + 2)
+    assert.isTrue(
+      Math.abs((body.estimatedCostUsd ?? 0) - (baseline.estimatedCostUsd ?? 0) - 0.0001) < 1e-9
+    )
     assert.equal(body.pricingSource, 'mixed')
-    assert.equal(body.unpricedModelCount, 1)
+    assert.equal(body.unpricedModelCount, baseline.unpricedModelCount + 1)
   })
 
   test('denies usage access without the usage permission', async ({ client }) => {

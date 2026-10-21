@@ -1,5 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http'
-import { ApiOperation, ApiResponse, ApiSecurity } from '@foadonis/openapi/decorators'
+import { ApiOperation, ApiQuery, ApiResponse, ApiSecurity } from '@foadonis/openapi/decorators'
 
 import { resolveAiChatRegeneration } from '#ai/chat/ai_chat_regeneration'
 import { runAiChatAssistantTurn } from '#ai/chat/ai_chat_turn_service'
@@ -20,6 +20,7 @@ import AiChatConversation from '#models/ai_chat_conversation'
 import AiChatMessage from '#models/ai_chat_message'
 import { getAudioMimeType, transcribeAudio } from '#services/ai_speech_service'
 import { getAiUsageSummary } from '#services/ai_usage_service'
+import { clampLimit } from '#support/pagination'
 import {
   serializeAiChatConversation,
   serializeAiChatConversationWithMessages,
@@ -30,6 +31,7 @@ import {
   queueAiChatMessageValidator,
   sendAiChatMessageValidator,
 } from '#validators/ai_chat'
+import { paginationSearchQueryValidator } from '#validators/pagination'
 
 function createTitle(content: string) {
   const title = content.replace(/\s+/g, ' ').trim()
@@ -70,14 +72,32 @@ export default class AiChatController {
     summary: '获取 AI 会话列表',
     description: '返回当前管理员的 AI 聊天历史会话。',
   })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    description: '页码，从 1 开始',
+    schema: { type: 'integer', minimum: 1 },
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: '每页数量，默认 20，最大 100',
+    schema: { type: 'integer', minimum: 1, maximum: 100 },
+  })
   @ApiResponse({ status: 200, description: 'AI 会话列表' })
-  async index({ auth, serialize }: HttpContext) {
+  async index({ auth, request, serialize }: HttpContext) {
     const user = auth.getUserOrFail()
-    const conversations = await AiChatConversation.query()
+    const payload = await paginationSearchQueryValidator.validate(request.qs())
+    const paginator = await AiChatConversation.query()
       .where('user_id', user.id)
       .orderBy('updated_at', 'desc')
+      .orderBy('id', 'desc')
+      .paginate(payload.page ?? 1, clampLimit(payload.limit, 20, 100))
 
-    return serialize(conversations.map(serializeAiChatConversation))
+    return serialize({
+      items: paginator.all().map(serializeAiChatConversation),
+      meta: paginator.getMeta(),
+    })
   }
 
   @ApiOperation({
@@ -109,19 +129,41 @@ export default class AiChatController {
 
   @ApiOperation({
     summary: '获取 AI 会话详情',
-    description: '返回指定会话及其消息列表。',
+    description: '返回指定会话及其消息分页，消息按时间顺序排列。',
   })
-  @ApiResponse({ status: 200, description: 'AI 会话详情' })
-  async show({ auth, params, serialize }: HttpContext) {
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    description: '消息页码，从 1 开始，第一页为最新消息',
+    schema: { type: 'integer', minimum: 1 },
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: '每页消息数，默认 50，最大 100',
+    schema: { type: 'integer', minimum: 1, maximum: 100 },
+  })
+  @ApiResponse({ status: 200, description: 'AI 会话详情和消息分页' })
+  async show({ auth, params, request, serialize }: HttpContext) {
     const user = auth.getUserOrFail()
+    const payload = await paginationSearchQueryValidator.validate(request.qs())
     const conversation = await AiChatConversation.query()
       .where('id', params.id)
       .where('user_id', user.id)
       .firstOrFail()
 
     const confirmations = await listConversationConfirmations(conversation.id, user.id)
-    await conversation.load('messages', (query) => query.orderBy('created_at', 'asc'))
-    return serialize({ ...serializeAiChatConversationWithMessages(conversation), confirmations })
+    const paginator = await AiChatMessage.query()
+      .where('conversation_id', conversation.id)
+      .orderBy('created_at', 'desc')
+      .orderBy('id', 'desc')
+      .paginate(payload.page ?? 1, clampLimit(payload.limit, 50, 100))
+    return serialize({
+      ...serializeAiChatConversation(conversation),
+      messages: paginator.all().reverse().map(serializeAiChatMessage),
+      messagesMeta: paginator.getMeta(),
+      confirmations,
+    })
   }
 
   @ApiOperation({

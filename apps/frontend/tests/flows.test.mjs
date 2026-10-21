@@ -18,6 +18,9 @@ const { formatAiChatMessagesAsMarkdown } = await jiti.import(`${root}/src/featur
 const { hasAiChatConversationContent } = await jiti.import(
   `${root}/src/features/ai/conversation-state.ts`
 )
+const { didReachMessageScrollerStart } = await jiti.import(
+  `${root}/src/components/ui/message-scroller/useMessageScroller.ts`
+)
 const { buildListQuery } = await jiti.import(`${root}/src/lib/list-query.ts`)
 const { hasUnsavedLlmConfiguration } = await jiti.import(
   `${root}/src/features/llm-config/form-state.ts`
@@ -108,6 +111,13 @@ test('empty AI conversations are reused when starting a new chat', () => {
   assert.equal(hasAiChatConversationContent([]), false)
   assert.equal(hasAiChatConversationContent([{ content: '  ' }]), false)
   assert.equal(hasAiChatConversationContent([{ content: 'Hello' }]), true)
+})
+
+test('message scroller detects reaching the top edge once per crossing', () => {
+  assert.equal(didReachMessageScrollerStart(true, false), false)
+  assert.equal(didReachMessageScrollerStart(false, true), true)
+  assert.equal(didReachMessageScrollerStart(false, false), false)
+  assert.equal(didReachMessageScrollerStart(true, true), false)
 })
 
 test('remote list query trims search and omits an empty search parameter', () => {

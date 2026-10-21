@@ -1,5 +1,6 @@
 import { ApiError, apiRequest, apiUrl } from '@/lib/api'
-import { readItem, readList } from '@/lib/api-types'
+import { readItem } from '@/lib/api-types'
+import { buildListQuery } from '@/lib/list-query'
 
 export type AiChatRole = 'user' | 'assistant'
 
@@ -28,8 +29,21 @@ export interface AiChatConversationSummary {
   updatedAt: string
 }
 
+export interface AiChatPaginationMeta {
+  currentPage: number
+  perPage: number
+  lastPage: number
+  total: number
+}
+
+export interface AiChatConversationPage {
+  items: AiChatConversationSummary[]
+  meta: AiChatPaginationMeta
+}
+
 export interface AiChatConversation extends AiChatConversationSummary {
   messages: AiChatMessage[]
+  messagesMeta?: AiChatPaginationMeta
   confirmations?: AiChatConfirmation[]
 }
 
@@ -191,12 +205,12 @@ function authOptions(token: string | null) {
   return { token }
 }
 
-export async function listAiChatConversations(token: string | null) {
-  const response = await apiRequest<AiChatConversationSummary[]>(
-    '/api/v1/ai-chat/conversations',
+export async function listAiChatConversations(token: string | null, page = 1) {
+  const response = await apiRequest<AiChatConversationPage>(
+    `/api/v1/ai-chat/conversations?${buildListQuery(page)}`,
     authOptions(token)
   )
-  return readList(response)
+  return readItem(response)
 }
 
 export async function getAiChatUsage(token: string | null) {
@@ -213,10 +227,11 @@ export async function createAiChatConversation(token: string | null) {
   return readItem(response)
 }
 
-export async function getAiChatConversation(token: string | null, id: number) {
-  const response = await apiRequest<AiChatConversation>(`/api/v1/ai-chat/conversations/${id}`, {
-    ...authOptions(token),
-  })
+export async function getAiChatConversation(token: string | null, id: number, page = 1) {
+  const response = await apiRequest<AiChatConversation>(
+    `/api/v1/ai-chat/conversations/${id}?${buildListQuery(page, '', {}, 50)}`,
+    authOptions(token)
+  )
   return readItem(response)
 }
 
@@ -264,7 +279,7 @@ type AiChatStreamEvent =
   | ({ type: 'run' } & AiChatRunMeta)
   | {
       type: 'done'
-      conversation: AiChatConversation
+      conversation: AiChatConversationSummary
       message: AiChatMessage
       confirmations: AiChatConfirmation[]
     }

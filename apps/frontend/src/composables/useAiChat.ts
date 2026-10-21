@@ -33,6 +33,10 @@ export function useAiChat() {
   const aiLoading = ref(false)
   const aiConversation = ref<AiChatConversation | null>(null)
   const aiConversations = ref<AiChatConversationSummary[]>([])
+  const aiConversationsPage = ref(1)
+  const aiConversationsLastPage = ref(1)
+  const aiConversationsLoading = ref(false)
+  const aiOlderMessagesLoading = ref(false)
   const aiStreamingMessages = ref<Array<AiChatMessage | LocalAiChatMessage>>([])
   const aiStreamingMessageId = ref<string | number | null>(null)
   const aiAbortController = ref<AbortController | null>(null)
@@ -71,6 +75,10 @@ export function useAiChat() {
       loading: aiLoading,
       conversation: aiConversation,
       conversations: aiConversations,
+      conversationPage: aiConversationsPage,
+      conversationLastPage: aiConversationsLastPage,
+      loadingConversations: aiConversationsLoading,
+      loadingOlderMessages: aiOlderMessagesLoading,
       streamingMessages: aiStreamingMessages,
       streamingMessageId: aiStreamingMessageId,
       abortController: aiAbortController,
@@ -87,6 +95,13 @@ export function useAiChat() {
       ? aiStreamingMessages.value
       : (aiConversation.value?.messages ?? [])
     return messages
+  })
+  const hasMoreAiConversations = computed(
+    () => aiConversationsPage.value < aiConversationsLastPage.value
+  )
+  const hasOlderAiMessages = computed(() => {
+    const meta = aiConversation.value?.messagesMeta
+    return Boolean(meta && meta.currentPage < meta.lastPage)
   })
 
   const aiPageContext = computed(() => {
@@ -261,6 +276,10 @@ export function useAiChat() {
       loading: aiLoading,
       conversation: aiConversation,
       conversations: aiConversations,
+      conversationPage: aiConversationsPage,
+      conversationLastPage: aiConversationsLastPage,
+      loadingConversations: aiConversationsLoading,
+      loadingOlderMessages: aiOlderMessagesLoading,
       streamingMessages: aiStreamingMessages,
       streamingMessageId: aiStreamingMessageId,
       abortController: aiAbortController,
@@ -292,6 +311,8 @@ export function useAiChat() {
     aiLoading,
     aiConversation,
     aiConversations,
+    aiConversationsLoading,
+    hasMoreAiConversations,
     aiStreamingMessages,
     aiStreamingMessageId,
     pendingAiConfirmation,
@@ -305,8 +326,12 @@ export function useAiChat() {
     aiUsageError,
     aiVoiceTranscribing,
     displayedAiChatMessages,
+    hasOlderAiMessages,
+    aiOlderMessagesLoading,
     aiPageContext,
     refreshAiConversations: conversationManager.refresh,
+    loadMoreAiConversations: conversationManager.loadMoreConversations,
+    loadOlderAiMessages: conversationManager.loadOlderMessages,
     refreshAiUsage,
     ensureAiConversation: conversationManager.ensure,
     handleAiNewChat: conversationManager.createNew,

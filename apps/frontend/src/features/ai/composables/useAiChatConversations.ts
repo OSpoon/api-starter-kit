@@ -4,6 +4,7 @@ import { toast } from 'vue-sonner'
 import {
   type AiChatConfirmation,
   type AiChatConversation,
+  type AiChatConversationPage,
   type AiChatConversationSummary,
   type AiChatMessage,
   type AiChatRunMeta,
@@ -12,13 +13,17 @@ import {
   getAiChatConversation,
   listAiChatConversations,
 } from '../api'
-import { hasAiChatConversationContent } from '../conversation-state'
+import { hasAiChatConversationContent, mergeAiChatMessages } from '../conversation-state'
 import type { LocalAiChatMessage } from '../types'
 
 export type AiChatConversationState = {
   loading: Ref<boolean>
   conversation: Ref<AiChatConversation | null>
   conversations: Ref<AiChatConversationSummary[]>
+  conversationPage: Ref<number>
+  conversationLastPage: Ref<number>
+  loadingConversations: Ref<boolean>
+  loadingOlderMessages: Ref<boolean>
   streamingMessages: Ref<Array<AiChatMessage | LocalAiChatMessage>>
   streamingMessageId: Ref<string | number | null>
   abortController: Ref<AbortController | null>
@@ -36,8 +41,73 @@ export function useAiChatConversations(
 ) {
   const getToken = () => (typeof token === 'function' ? token() : token.value)
 
+  function applyConversationPage(result: AiChatConversationPage, append: boolean) {
+    state.conversations.value = append
+      ? [
+          ...state.conversations.value,
+          ...result.items.filter(
+            (item) => !state.conversations.value.some((existing) => existing.id === item.id)
+          ),
+        ]
+      : result.items
+    state.conversationPage.value = result.meta.currentPage
+    state.conversationLastPage.value = result.meta.lastPage
+  }
+
   async function refresh() {
-    state.conversations.value = await listAiChatConversations(getToken())
+    state.loadingConversations.value = true
+    try {
+      applyConversationPage(await listAiChatConversations(getToken()), false)
+    } finally {
+      state.loadingConversations.value = false
+    }
+  }
+
+  async function loadMoreConversations() {
+    if (
+      state.loadingConversations.value ||
+      state.conversationPage.value >= state.conversationLastPage.value
+    ) {
+      return
+    }
+    state.loadingConversations.value = true
+    try {
+      const result = await listAiChatConversations(getToken(), state.conversationPage.value + 1)
+      applyConversationPage(result, true)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : translate('common.error'))
+    } finally {
+      state.loadingConversations.value = false
+    }
+  }
+
+  async function loadOlderMessages() {
+    const conversation = state.conversation.value
+    const meta = conversation?.messagesMeta
+    if (
+      !conversation ||
+      !meta ||
+      state.loadingOlderMessages.value ||
+      meta.currentPage >= meta.lastPage
+    )
+      return
+
+    state.loadingOlderMessages.value = true
+    try {
+      const result = await getAiChatConversation(getToken(), conversation.id, meta.currentPage + 1)
+      const current = state.conversation.value
+      if (!current || current.id !== conversation.id) return
+      state.conversation.value = {
+        ...current,
+        messages: mergeAiChatMessages(result.messages, current.messages),
+        messagesMeta: result.messagesMeta,
+        confirmations: result.confirmations ?? current.confirmations,
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : translate('common.error'))
+    } finally {
+      state.loadingOlderMessages.value = false
+    }
   }
 
   async function ensure() {
@@ -105,5 +175,5 @@ export function useAiChatConversations(
     }
   }
 
-  return { refresh, ensure, createNew, select, remove }
+  return { refresh, loadMoreConversations, loadOlderMessages, ensure, createNew, select, remove }
 }

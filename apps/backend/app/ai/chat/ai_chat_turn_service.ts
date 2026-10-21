@@ -22,7 +22,6 @@ import AiChatMessage, {
 import { recordAiUsageEvent } from '#services/ai_usage_service'
 import {
   serializeAiChatConversation,
-  serializeAiChatConversationWithMessages,
   serializeAiChatMessage,
 } from '#transformers/ai_chat_transformer'
 
@@ -367,7 +366,7 @@ export async function runAiChatAssistantTurn(input: {
     })
     await persistAssistantMessage()
     await emit('done', {
-      conversation: serializeAiChatConversationWithMessages(conversation),
+      conversation: serializeAiChatConversation(conversation),
       message: serializeAiChatMessage(assistantMessage),
       confirmations: attachedConfirmations,
     })
@@ -411,7 +410,7 @@ export async function runAiChatAssistantTurn(input: {
         }
       }
       await emit('done', {
-        conversation: serializeAiChatConversationWithMessages(conversation),
+        conversation: serializeAiChatConversation(conversation),
         message: serializeAiChatMessage(failedAssistantMessage),
         confirmations: attachedConfirmations,
       })

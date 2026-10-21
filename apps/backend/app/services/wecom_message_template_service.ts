@@ -1,5 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import encryption from '@adonisjs/core/services/encryption'
+import logger from '@adonisjs/core/services/logger'
 
 import type WecomMessageTemplate from '#models/wecom_message_template'
 import { type WecomMessageType } from '#models/wecom_message_template'
@@ -311,16 +312,23 @@ export async function auditWecomMessageSend(
   input: {
     actorUserId: number | null
     apiKeyId?: number
-    source: 'session' | 'api_key' | 'ai_agent'
+    source: 'session' | 'api_key' | 'ai_agent' | 'test'
+    status?: 'attempted' | 'sent' | 'failed'
     template: WecomMessageTemplate
     params: Record<string, unknown>
     mentionedList?: string[]
     mentionedMobileList?: string[]
   }
 ) {
+  const status = input.status ?? 'sent'
   await recordAuditEvent(ctx, {
     actorUserId: input.actorUserId,
-    action: 'wecom_message.sent',
+    action:
+      input.source === 'test'
+        ? `wecom_message.test_send_${status}`
+        : status === 'sent'
+          ? 'wecom_message.sent'
+          : `wecom_message.send_${status}`,
     targetType: 'wecom_message_template',
     targetId: input.template.id,
     metadata: {
@@ -332,8 +340,54 @@ export async function auditWecomMessageSend(
       actorType: input.apiKeyId === undefined ? 'user' : 'api_key',
       ...(input.apiKeyId === undefined ? {} : { apiKeyId: input.apiKeyId }),
       source: input.source,
+      outcome: status,
     },
   })
+}
+
+export async function sendAuditedWecomMessageTemplate(
+  ctx: HttpContext,
+  input: {
+    actorUserId: number | null
+    apiKeyId?: number
+    source: 'session' | 'api_key' | 'ai_agent' | 'test'
+    template: WecomMessageTemplate
+    params: Record<string, unknown>
+    mentionedList?: string[]
+    mentionedMobileList?: string[]
+    webhookUrl?: string
+  }
+) {
+  await auditWecomMessageSend(ctx, { ...input, status: 'attempted' })
+
+  let result: unknown
+  try {
+    result = await sendWecomMessageTemplate(input.template, input.params, {
+      webhookUrl: input.webhookUrl,
+      mentionedList: input.mentionedList,
+      mentionedMobileList: input.mentionedMobileList,
+    })
+  } catch (error) {
+    try {
+      await auditWecomMessageSend(ctx, { ...input, status: 'failed' })
+    } catch {
+      logger.warn(
+        { templateId: input.template.id, outcome: 'failed' },
+        'Failed to record WeCom message send outcome'
+      )
+    }
+    throw error
+  }
+
+  try {
+    await auditWecomMessageSend(ctx, { ...input, status: 'sent' })
+  } catch {
+    logger.warn(
+      { templateId: input.template.id, outcome: 'sent' },
+      'Failed to record WeCom message send outcome'
+    )
+  }
+  return result
 }
 
 export function encryptWebhookUrl(value: string) {

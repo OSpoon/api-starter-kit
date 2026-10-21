@@ -40,6 +40,8 @@ async function handleLogout() {
 
 const {
   aiConversations,
+  aiConversationsLoading,
+  hasMoreAiConversations,
   aiConversation,
   aiStreamingMessageId,
   aiLoading,
@@ -52,6 +54,8 @@ const {
   pendingAiConfirmation,
   aiConfirming,
   displayedAiChatMessages,
+  hasOlderAiMessages,
+  aiOlderMessagesLoading,
   handleAiNewChat,
   handleAiCopyMessage,
   handleAiCopyMessagesAsMarkdown,
@@ -64,6 +68,8 @@ const {
   handleAiVoiceSend,
   handleAiSelectConversation,
   handleAiStop,
+  loadMoreAiConversations,
+  loadOlderAiMessages,
   refreshAiUsage,
 } = useAiChat()
 </script>
@@ -76,6 +82,10 @@ const {
         mode="page"
         :messages="displayedAiChatMessages"
         :conversations="aiConversations"
+        :has-more-conversations="hasMoreAiConversations"
+        :loading-conversations="aiConversationsLoading"
+        :has-older-messages="hasOlderAiMessages"
+        :loading-older-messages="aiOlderMessagesLoading"
         :current-conversation-id="aiConversation?.id"
         :streaming-message-id="aiStreamingMessageId"
         :loading="aiLoading"
@@ -90,6 +100,8 @@ const {
         @copy-message="handleAiCopyMessage"
         @copy-messages-as-markdown="handleAiCopyMessagesAsMarkdown"
         @delete-conversation="handleAiDeleteConversation"
+        @load-more-conversations="loadMoreAiConversations"
+        @load-older-messages="loadOlderAiMessages"
         @retry-message="handleAiRetryMessage"
         @approve-confirmation="confirmAiConfirmation"
         @dismiss-confirmation="dismissAiConfirmation"

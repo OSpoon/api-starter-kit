@@ -721,6 +721,17 @@ export class RoleSchema extends BaseModel {
   declare updatedAt: DateTime | null
 }
 
+export class SharedThrottleBucketSchema extends BaseModel {
+  static $columns = ['bucketKey', 'requestCount', 'windowStartedAt'] as const
+  $columns = SharedThrottleBucketSchema.$columns
+  @column({ isPrimary: true })
+  declare bucketKey: string
+  @column()
+  declare requestCount: number
+  @column.dateTime()
+  declare windowStartedAt: DateTime
+}
+
 export class UserRoleSchema extends BaseModel {
   static $columns = ['createdAt', 'roleId', 'userId'] as const
   $columns = UserRoleSchema.$columns

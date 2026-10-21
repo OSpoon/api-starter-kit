@@ -6,6 +6,7 @@ import { generateInitialPassword } from '#security/user_credentials'
 import {
   AccessControlMutationError,
   createManagedUser,
+  deleteManagedUser,
   updateManagedUser,
 } from '#services/access_control_mutations'
 import { recordAuditEvent } from '#services/audit_log'
@@ -221,12 +222,11 @@ export default class UsersController {
         return response.conflict({ message: '至少需要保留一个超级管理员账户' })
       }
     }
-    await user.delete()
-    await recordAuditEvent(ctx, {
+    await deleteManagedUser({
+      ctx,
       actorUserId: currentUser.id,
-      action: 'user.deleted',
-      targetType: 'user',
-      targetId: user.id,
+      userId: user.id,
+      source: 'api',
     })
     return serialize({ id: user.id, deleted: true })
   }

@@ -219,6 +219,38 @@ export async function updateManagedUser(input: {
   })
 }
 
+export async function deleteManagedUser(input: {
+  ctx: HttpContext
+  actorUserId: number
+  userId: number
+  source: MutationSource
+}) {
+  return db.transaction(async (trx) => {
+    const user = await User.query({ client: trx })
+      .where('id', input.userId)
+      .forUpdate()
+      .firstOrFail()
+    if (isChannelGuestUser(user)) {
+      throw new AccessControlMutationError('protected_user', '系统内部用户不可管理')
+    }
+    user.useTransaction(trx)
+    await trx.from('user_roles').where('user_id', user.id).delete()
+    await user.delete()
+    await recordAuditEvent(
+      input.ctx,
+      {
+        actorUserId: input.actorUserId,
+        action: 'user.deleted',
+        targetType: 'user',
+        targetId: user.id,
+        metadata: { source: input.source },
+      },
+      trx
+    )
+    return user.id
+  })
+}
+
 export async function updateRoleWithPermissions(input: {
   ctx: HttpContext
   actorUserId: number

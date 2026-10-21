@@ -13,6 +13,7 @@ import {
   queueAiChatMessage,
   streamAiChatMessage,
 } from '../api'
+import { mergeAiChatMessages } from '../conversation-state'
 import type { LocalAiChatMessage } from '../types'
 import type { AiChatConversationState } from './useAiChatConversations'
 
@@ -189,7 +190,10 @@ export function useAiChatStream(
               newlyCreatedConfirmationIds.add(confirmation.id)
             )
             state.conversation.value = {
+              ...(state.conversation.value ?? {}),
               ...event.conversation,
+              messages: state.conversation.value?.messages ?? [],
+              messagesMeta: state.conversation.value?.messagesMeta,
               confirmations: [...state.confirmations.value, ...event.confirmations],
             }
             state.confirmations.value = state.conversation.value.confirmations ?? []
@@ -220,13 +224,26 @@ export function useAiChatStream(
         }
       )
       const persistedConversation = await getAiChatConversation(token(), conversation.id)
+      const previousConversation = state.conversation.value
       state.conversation.value = {
         ...persistedConversation,
-        messages: persistedConversation.messages.map((item) =>
+        messages: mergeAiChatMessages(
+          previousConversation?.messages ?? [],
+          persistedConversation.messages
+        ).map((item) =>
           item.id === completedAssistantMessageId && completedTimeline
             ? { ...item, timeline: completedTimeline }
             : item
         ),
+        messagesMeta: persistedConversation.messagesMeta
+          ? {
+              ...persistedConversation.messagesMeta,
+              currentPage: Math.max(
+                previousConversation?.messagesMeta?.currentPage ?? 1,
+                persistedConversation.messagesMeta.currentPage
+              ),
+            }
+          : previousConversation?.messagesMeta,
       }
       state.confirmations.value = persistedConversation.confirmations ?? []
       const latestCreatedConfirmation = state.confirmations.value
@@ -249,6 +266,7 @@ export function useAiChatStream(
               token(),
               state.conversation.value.id
             )
+            const previousConversation = state.conversation.value
             let currentUserMessageIndex = -1
             for (let index = persistedConversation.messages.length - 1; index >= 0; index -= 1) {
               const candidate = persistedConversation.messages[index]
@@ -265,7 +283,22 @@ export function useAiChatStream(
               persistedAssistantMessage?.role === 'assistant' &&
               persistedAssistantMessage.content.trim()
             ) {
-              state.conversation.value = persistedConversation
+              state.conversation.value = {
+                ...persistedConversation,
+                messages: mergeAiChatMessages(
+                  previousConversation.messages,
+                  persistedConversation.messages
+                ),
+                messagesMeta: persistedConversation.messagesMeta
+                  ? {
+                      ...persistedConversation.messagesMeta,
+                      currentPage: Math.max(
+                        previousConversation.messagesMeta?.currentPage ?? 1,
+                        persistedConversation.messagesMeta.currentPage
+                      ),
+                    }
+                  : previousConversation.messagesMeta,
+              }
               state.confirmations.value = persistedConversation.confirmations ?? []
               state.streamingMessageId.value = null
               state.streamingMessages.value = []

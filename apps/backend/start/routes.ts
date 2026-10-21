@@ -72,7 +72,7 @@ router
       })
       .prefix('auth')
       .as('auth')
-      .use(middleware.throttle({ max: 10, windowSeconds: 60, key: 'ip' }))
+      .use(middleware.throttle({ max: 10, windowSeconds: 60, key: 'ip', shared: true }))
 
     router
       .group(() => {

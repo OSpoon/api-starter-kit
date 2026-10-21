@@ -54,6 +54,13 @@ const AUTOSCROLLING_TIMEOUT = 180
 
 const SCROLL_KEYS = new Set(['ArrowDown', 'ArrowUp', 'End', 'Home', 'PageDown', 'PageUp', ' '])
 
+export function didReachMessageScrollerStart(
+  canScrollToStart: boolean,
+  wasAbleToScrollToStart: boolean
+) {
+  return wasAbleToScrollToStart && !canScrollToStart
+}
+
 const EMPTY_SCROLLABLE: MessageScrollerScrollable = { start: false, end: false }
 const EMPTY_VISIBLE_IDS: string[] = []
 const EMPTY_VISIBILITY: MessageScrollerVisibilityState = {

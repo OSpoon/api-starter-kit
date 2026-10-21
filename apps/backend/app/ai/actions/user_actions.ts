@@ -1,3 +1,4 @@
+import db from '@adonisjs/lucid/services/db'
 import { DateTime } from 'luxon'
 
 import type { AiAgentActionImplementation } from '#ai/core/ai_agent_action_contracts'
@@ -10,7 +11,7 @@ import {
 } from '#ai/core/ai_agent_action_helpers'
 import User from '#models/user'
 import { generateInitialPassword } from '#security/user_credentials'
-import { updateManagedUser } from '#services/access_control_mutations'
+import { deleteManagedUser, updateManagedUser } from '#services/access_control_mutations'
 import { recordAuditEvent } from '#services/audit_log'
 import { isChannelGuestUser } from '#services/channel_guest_principal'
 import { countSuperAdminUsers, isSuperAdmin } from '#services/super_admin_access'
@@ -92,7 +93,8 @@ function userEnabledAction(disabled: boolean) {
     },
     async execute({ confirmation, ctx }) {
       const actor = await ensurePermission(ctx, 'users:update')
-      const user = await User.find(integer(confirmation.payload, 'userId'))
+      const userId = integer(confirmation.payload, 'userId')
+      const user = await User.find(userId)
       if (!user) throw new Error('用户不存在')
       if (isChannelGuestUser(user)) throw new Error('系统内部用户不可管理')
       if (user.id === actor.id) throw new Error('不能修改当前登录账号的启用状态')
@@ -100,14 +102,29 @@ function userEnabledAction(disabled: boolean) {
         throw new Error('仅超级管理员可以维护超级管理员账户')
       if (Boolean(user.disabledAt) === disabled)
         throw new Error(disabled ? '用户已被禁用' : '用户未被禁用')
-      user.disabledAt = disabled ? DateTime.now() : null
-      await user.save()
-      await recordAuditEvent(ctx, {
-        actorUserId: actor.id,
-        action: disabled ? 'user.disabled' : 'user.enabled',
-        targetType: 'user',
-        targetId: user.id,
-        metadata: { source: 'ai_agent' },
+      await db.transaction(async (trx) => {
+        const target = await User.query({ client: trx })
+          .where('id', userId)
+          .forUpdate()
+          .firstOrFail()
+        if (Boolean(target.disabledAt) === disabled)
+          throw new Error(disabled ? '用户已被禁用' : '用户未被禁用')
+        target.disabledAt = disabled ? DateTime.now() : null
+        await target.save()
+        if (disabled) {
+          await trx.from('auth_access_tokens').where('tokenable_id', target.id).delete()
+        }
+        await recordAuditEvent(
+          ctx,
+          {
+            actorUserId: actor.id,
+            action: disabled ? 'user.disabled' : 'user.enabled',
+            targetType: 'user',
+            targetId: target.id,
+            metadata: { source: 'ai_agent' },
+          },
+          trx
+        )
       })
     },
   }
@@ -183,13 +200,11 @@ const deleteUserAction: AiAgentActionImplementation = {
       if (!(await isSuperAdmin(actor))) throw new Error('仅超级管理员可以删除超级管理员账户')
       if ((await countSuperAdminUsers()) <= 1) throw new Error('至少需要保留一个超级管理员账户')
     }
-    await user.delete()
-    await recordAuditEvent(ctx, {
+    await deleteManagedUser({
+      ctx,
       actorUserId: actor.id,
-      action: 'user.deleted',
-      targetType: 'user',
-      targetId: user.id,
-      metadata: { source: 'ai_agent' },
+      userId: user.id,
+      source: 'ai_agent',
     })
   },
 }

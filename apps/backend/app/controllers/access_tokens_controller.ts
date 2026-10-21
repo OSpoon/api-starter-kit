@@ -1,4 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http'
+import db from '@adonisjs/lucid/services/db'
 import { ApiOperation, ApiResponse, ApiSecurity } from '@foadonis/openapi/decorators'
 import { DateTime } from 'luxon'
 
@@ -9,8 +10,6 @@ import { loadUserAccess } from '#services/user_access'
 import UserTransformer from '#transformers/user_transformer'
 import { loginValidator } from '#validators/user'
 
-const MAX_FAILED_LOGIN_ATTEMPTS = 5
-const LOGIN_LOCK_MINUTES = 15
 const INVALID_CREDENTIALS = { code: 'E_INVALID_CREDENTIALS', status: 401 }
 
 export default class AccessTokensController {
@@ -20,7 +19,7 @@ export default class AccessTokensController {
       '使用管理员邮箱和密码登录。若已启用 2FA，会返回临时 token 并要求继续完成 2FA 验证。',
   })
   @ApiResponse({ status: 200, description: '登录结果、访问 token 或 2FA 临时 token' })
-  @ApiResponse({ status: 401, description: '账号或密码错误，或账号处于锁定期' })
+  @ApiResponse({ status: 401, description: '账号或密码错误' })
   async store({ request, serialize }: HttpContext) {
     const { email, password, turnstileToken } = await request.validateUsing(loginValidator)
 
@@ -34,27 +33,19 @@ export default class AccessTokensController {
       throw INVALID_CREDENTIALS
     }
 
-    if (userRecord?.lockedUntil && userRecord.lockedUntil > DateTime.now()) {
-      throw INVALID_CREDENTIALS
-    }
-
     const user = await User.verifyCredentials(email, password).catch(async () => {
       if (userRecord) {
-        const failedLoginAttempts = userRecord.failedLoginAttempts + 1
-        userRecord.failedLoginAttempts = failedLoginAttempts
-        if (failedLoginAttempts >= MAX_FAILED_LOGIN_ATTEMPTS) {
-          userRecord.lockedUntil = DateTime.now().plus({ minutes: LOGIN_LOCK_MINUTES })
-        }
-        await userRecord.save()
+        await db.from('users').where('id', userRecord.id).increment('failed_login_attempts', 1)
       }
 
       throw INVALID_CREDENTIALS
     })
 
     if (user.failedLoginAttempts > 0 || user.lockedUntil) {
-      user.failedLoginAttempts = 0
-      user.lockedUntil = null
-      await user.save()
+      await db.from('users').where('id', user.id).update({
+        failed_login_attempts: 0,
+        locked_until: null,
+      })
     }
 
     let requiresPasswordChange = false

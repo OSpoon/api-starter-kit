@@ -15,6 +15,9 @@ export default class AuthMiddleware {
     } = {}
   ) {
     await ctx.auth.authenticateUsing(options.guards)
+    if (ctx.auth.user?.disabledAt) {
+      return ctx.response.unauthorized({ message: '账号已停用' })
+    }
     return next()
   }
 }
