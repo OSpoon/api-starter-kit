@@ -1,0 +1,37 @@
+workflows:
+  authenticator-mobile:
+    name: Authenticator Mobile (Android + iOS Device)
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    environment:
+      node: 24.15.0
+      java: 21
+      xcode: latest
+      ios_signing:
+        distribution_type: development
+        bundle_identifier: com.osp.authenticator
+    scripts:
+      - name: Set up pnpm
+        script: npm install --global pnpm@11.9.0
+      - name: Install workspace dependencies
+        script: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Build web app
+        script: pnpm --filter @api-starter-kit/authenticator-mobile build
+      - name: Sync native projects
+        script: |
+          pnpm --dir apps/authenticator-mobile exec cap sync android
+          pnpm --dir apps/authenticator-mobile exec cap sync ios
+      - name: Build Android debug APK
+        script: |
+          cd "$CM_BUILD_DIR/apps/authenticator-mobile/android"
+          ./gradlew --no-daemon assembleDebug
+      - name: Set up iOS code signing
+        script: xcode-project use-profiles
+      - name: Build iOS device IPA
+        script: |
+          xcode-project build-ipa \
+            --project "$CM_BUILD_DIR/apps/authenticator-mobile/ios/App/App.xcodeproj" \
+            --scheme App
+    artifacts:
+      - apps/authenticator-mobile/android/app/build/outputs/apk/debug/*.apk
+      - build/ios/ipa/*.ipa

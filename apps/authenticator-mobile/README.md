@@ -17,4 +17,8 @@ pnpm --dir apps/authenticator-mobile exec cap open ios
 pnpm --dir apps/authenticator-mobile exec cap open android
 ```
 
-The native QR scanner requires the installed iOS or Android app. GitHub Actions builds an Android debug APK and an iOS Simulator app; the iOS simulator artifact is not a device-installable IPA.
+The native QR scanner requires the installed iOS or Android app.
+
+## Cloud builds
+
+The repository root `codemagic.yaml` defines a manually triggered Codemagic workflow named **Authenticator Mobile (Android + iOS Device)**. It builds an Android debug APK and a development-signed iOS IPA. iOS signing requires a matching Apple Development certificate and provisioning profile in Codemagic; the profile must include the iPhone's registered device identifier and remain valid for installation.
