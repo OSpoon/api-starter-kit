@@ -11,8 +11,6 @@ workflows:
         distribution_type: development
         bundle_identifier: com.osp.authenticator
     scripts:
-      - name: Set up pnpm
-        script: npm install --global --force pnpm@11.9.0
       - name: Install workspace dependencies
         script: pnpm install --frozen-lockfile --ignore-scripts
       - name: Build web app
