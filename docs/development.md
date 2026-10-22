@@ -141,6 +141,6 @@ Commits 更新根目录 `CHANGELOG.md`。最后创建 `chore: release v<version>
 
 ## 仓库维护
 
-GitHub Dependabot 每周检查 pnpm workspace 和 GitHub Actions 的版本，并按生产依赖、开发依赖和 Actions 分组创建升级 PR。升级 PR 需要经过仓库现有 CI 验证后再合并；Dependabot 不会直接修改默认分支。
+仓库未配置 Dependabot 版本更新，因此不会自动创建依赖升级 PR。GitHub 的 Dependabot 安全更新仍启用，用于处理已知漏洞。
 
 完整规则和验证矩阵见 [AGENTS.md](../AGENTS.md)。
