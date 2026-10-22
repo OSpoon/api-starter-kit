@@ -4,6 +4,7 @@ import { useAuthStore } from '@/stores/auth'
 import {
   hasConfiguredAssistantServer,
   isAssistantConnectionRuntime,
+  isDesktopRuntime,
   isExtensionRuntime,
 } from '@assistant/lib/runtime'
 import { createRouter, createWebHashHistory, createWebHistory } from 'vue-router'
@@ -36,6 +37,7 @@ const router = createRouter({
       props: () => ({
         showConnectionLink: isAssistantConnectionRuntime(),
         hideGithubLogin: isAssistantConnectionRuntime(),
+        compact: isDesktopRuntime(),
       }),
       meta: { guestOnly: true, title: 'auth.title', pageKind: 'auth' },
     },

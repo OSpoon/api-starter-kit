@@ -1,13 +1,15 @@
 <script setup lang="ts">
-import { Eye, EyeOff, Server } from '@lucide/vue'
+import { BookOpen, Eye, EyeOff, Server, ShieldCheck, UsersRound } from '@lucide/vue'
 import { toast } from 'vue-sonner'
 
+import assistantLogo from '@/assets/assistant-logo.svg'
 import CardPageShell from '@/components/common/CardPageShell.vue'
 import SegmentedCodeInput from '@/components/common/SegmentedCodeInput.vue'
 import TurnstileWidget from '@/components/common/TurnstileWidget.vue'
 import { Button } from '@/components/ui/button'
-import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
+import { Field, FieldGroup } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
+import { Separator } from '@/components/ui/separator'
 import { ApiError, apiUrl } from '@/lib/api'
 import { useAuthStore } from '@/stores/auth'
 
@@ -33,12 +35,20 @@ const props = withDefaults(
   defineProps<{
     showConnectionLink?: boolean
     hideGithubLogin?: boolean
+    compact?: boolean
   }>(),
   {
     showConnectionLink: false,
     hideGithubLogin: false,
+    compact: false,
   }
 )
+
+const loginCapabilities = [
+  { icon: ShieldCheck, label: 'auth.capability_account_security' },
+  { icon: UsersRound, label: 'auth.capability_access_audit' },
+  { icon: BookOpen, label: 'auth.capability_knowledge_ai' },
+] as const
 
 function githubLoginUrl() {
   return apiUrl('/api/v1/auth/github')
@@ -210,82 +220,104 @@ function backToLogin() {
 
 <template>
   <CardPageShell
+    :class="['starter-login', { 'starter-login--compact': props.compact }]"
     :title="t('auth.title')"
     :description="
       isTwoFactorStep
         ? t('auth.desc_2fa')
         : githubBindingPending
           ? t('auth.github_bind_desc')
-          : t('auth.desc_default')
+          : undefined
     "
-    max-width-class="max-w-sm"
+    :max-width-class="props.compact ? 'max-w-md' : 'max-w-5xl'"
+    card-class="starter-login__card"
+    muted
   >
-    <form
-      class="login-form mx-auto w-full min-w-0"
-      style="width: min(100%, 600px)"
-      @submit.prevent="handleSubmit"
-    >
-      <FieldGroup v-if="!isTwoFactorStep" class="w-full min-w-0">
-        <Field>
-          <FieldLabel for="email">{{ t('auth.email') }}</FieldLabel>
-          <Input
-            id="email"
-            v-model="email"
-            type="email"
-            placeholder="m@example.com"
-            autocomplete="email"
-            required
-            :disabled="auth.loading"
-          />
-        </Field>
-        <Field>
-          <FieldLabel for="password">{{ t('auth.password') }}</FieldLabel>
-          <div class="relative">
+    <template #aside>
+      <div class="starter-login__brand-content">
+        <div class="starter-login__brand-lockup">
+          <img class="starter-login__logo" :src="assistantLogo" alt="" aria-hidden="true" />
+          <div>
+            <p class="starter-login__brand-name">{{ t('auth.brand_name') }}</p>
+            <p class="starter-login__brand-tagline">{{ t('auth.brand_tagline') }}</p>
+          </div>
+        </div>
+        <div class="starter-login__hero">
+          <p class="starter-login__eyebrow">{{ t('auth.brand_eyebrow') }}</p>
+          <h2 class="starter-login__hero-title">{{ t('auth.brand_headline') }}</h2>
+          <p class="starter-login__hero-description">{{ t('auth.brand_description') }}</p>
+        </div>
+      </div>
+    </template>
+
+    <div class="starter-login__content">
+      <form class="starter-login__form" @submit.prevent="handleSubmit">
+        <FieldGroup v-if="!isTwoFactorStep" class="starter-login__fields">
+          <Field>
             <Input
-              id="password"
-              v-model="password"
-              :type="passwordVisible ? 'text' : 'password'"
-              class="pr-10"
-              autocomplete="current-password"
+              id="email"
+              v-model="email"
+              class="starter-login__input"
+              type="email"
+              :placeholder="t('auth.email')"
+              :aria-label="t('auth.email')"
+              autocomplete="email"
               required
               :disabled="auth.loading"
             />
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              class="absolute top-1/2 right-1 -translate-y-1/2 text-muted-foreground"
-              :aria-label="passwordVisible ? t('auth.hide_password') : t('auth.show_password')"
-              :title="passwordVisible ? t('auth.hide_password') : t('auth.show_password')"
-              :disabled="auth.loading"
-              @click="passwordVisible = !passwordVisible"
-            >
-              <EyeOff v-if="passwordVisible" class="size-4" />
-              <Eye v-else class="size-4" />
-            </Button>
-          </div>
-        </Field>
-        <Field v-if="turnstileSiteKey" class="w-full min-w-0">
-          <TurnstileWidget
-            ref="turnstileWidget"
-            :site-key="turnstileSiteKey"
-            @token="turnstileToken = $event"
-            @expired="turnstileToken = ''"
-            @error="turnstileToken = ''"
-          />
-        </Field>
-      </FieldGroup>
+          </Field>
+          <Field>
+            <div class="relative">
+              <Input
+                id="password"
+                v-model="password"
+                :type="passwordVisible ? 'text' : 'password'"
+                class="starter-login__input pr-11"
+                :placeholder="t('auth.password')"
+                :aria-label="t('auth.password')"
+                autocomplete="current-password"
+                required
+                :disabled="auth.loading"
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                class="absolute top-1/2 right-2 -translate-y-1/2 text-muted-foreground"
+                :aria-label="passwordVisible ? t('auth.hide_password') : t('auth.show_password')"
+                :title="passwordVisible ? t('auth.hide_password') : t('auth.show_password')"
+                :disabled="auth.loading"
+                @click="passwordVisible = !passwordVisible"
+              >
+                <EyeOff v-if="passwordVisible" class="size-4" />
+                <Eye v-else class="size-4" />
+              </Button>
+            </div>
+          </Field>
+          <Field v-if="turnstileSiteKey" class="w-full min-w-0">
+            <TurnstileWidget
+              ref="turnstileWidget"
+              :site-key="turnstileSiteKey"
+              @token="turnstileToken = $event"
+              @expired="turnstileToken = ''"
+              @error="turnstileToken = ''"
+            />
+          </Field>
+        </FieldGroup>
 
-      <FieldGroup v-else>
-        <Field class="flex flex-col items-center justify-center space-y-2 text-center *:w-auto">
-          <SegmentedCodeInput id="code" v-model="twoFactorCode" />
-        </Field>
-      </FieldGroup>
+        <FieldGroup v-else class="starter-login__fields">
+          <Field class="flex flex-col items-center justify-center space-y-2 text-center *:w-auto">
+            <SegmentedCodeInput
+              id="code"
+              v-model="twoFactorCode"
+              :aria-label="t('auth.2fa_code')"
+            />
+          </Field>
+        </FieldGroup>
 
-      <div class="mt-4">
         <Button
           type="submit"
-          class="w-full"
+          class="starter-login__submit w-full"
           :disabled="auth.loading || Boolean(turnstileSiteKey && !turnstileToken)"
         >
           {{
@@ -298,44 +330,63 @@ function backToLogin() {
                   : t('auth.login')
           }}
         </Button>
-      </div>
 
-      <template v-if="!props.hideGithubLogin && !isTwoFactorStep && !githubBindingPending">
-        <div class="my-4 flex items-center gap-3 text-xs text-muted-foreground">
-          <span class="h-px flex-1 bg-border" />
-          {{ t('auth.or_continue_with') }}
-          <span class="h-px flex-1 bg-border" />
+        <template v-if="!props.hideGithubLogin && !isTwoFactorStep && !githubBindingPending">
+          <div class="starter-login__oauth-divider">
+            <Separator />
+            <span>{{ t('auth.or_continue_with') }}</span>
+            <Separator />
+          </div>
+          <Button
+            as-child
+            type="button"
+            variant="outline"
+            class="starter-login__github-button w-full"
+            :disabled="auth.loading"
+          >
+            <a :href="githubLoginUrl()">
+              <svg
+                aria-hidden="true"
+                class="size-4 fill-current"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.2c-3.3.7-4-1.4-4-1.4-.5-1.4-1.3-1.8-1.3-1.8-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.6-.3-5.3-1.3-5.3-5.8 0-1.3.5-2.3 1.2-3.1-.1-.3-.5-1.5.1-3.1 0 0 1-.3 3.2 1.2a11 11 0 0 1 5.8 0c2.2-1.5 3.2-1.2 3.2-1.2.6 1.6.2 2.8.1 3.1.8.8 1.2 1.8 1.2 3.1 0 4.5-2.7 5.5-5.3 5.8.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .3Z"
+                />
+              </svg>
+              {{ t('auth.continue_with_github') }}
+            </a>
+          </Button>
+        </template>
+
+        <div v-if="isTwoFactorStep" class="starter-login__back-link">
+          <Button type="button" variant="link" size="sm" @click="backToLogin">
+            {{ t('auth.back_to_login') }}
+          </Button>
         </div>
-        <Button as-child type="button" variant="outline" class="w-full" :disabled="auth.loading">
-          <a :href="githubLoginUrl()">
-            <svg
-              aria-hidden="true"
-              class="size-4 fill-current"
-              viewBox="0 0 24 24"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.2c-3.3.7-4-1.4-4-1.4-.5-1.4-1.3-1.8-1.3-1.8-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.6-.3-5.3-1.3-5.3-5.8 0-1.3.5-2.3 1.2-3.1-.1-.3-.5-1.5.1-3.1 0 0 1-.3 3.2 1.2a11 11 0 0 1 5.8 0c2.2-1.5 3.2-1.2 3.2-1.2.6 1.6.2 2.8.1 3.1.8.8 1.2 1.8 1.2 3.1 0 4.5-2.7 5.5-5.3 5.8.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .3Z"
-              />
-            </svg>
-            {{ t('auth.continue_with_github') }}
-          </a>
-        </Button>
-      </template>
 
-      <div v-if="isTwoFactorStep" class="mt-4 text-center">
-        <Button type="button" variant="link" size="sm" @click="backToLogin">
-          {{ t('auth.back_to_login') }}
-        </Button>
-      </div>
-    </form>
-    <div v-if="props.showConnectionLink" class="mt-3 text-center">
-      <Button as-child type="button" variant="link" size="sm">
-        <RouterLink :to="{ name: 'connection' }">
-          <Server class="size-4" aria-hidden="true" />
-          {{ t('assistant_connection.change_connection') }}
-        </RouterLink>
-      </Button>
+        <div v-if="props.showConnectionLink" class="starter-login__connection-link">
+          <Button as-child type="button" variant="link" size="sm">
+            <RouterLink :to="{ name: 'connection' }">
+              <Server class="size-4" aria-hidden="true" />
+              {{ t('assistant_connection.change_connection') }}
+            </RouterLink>
+          </Button>
+        </div>
+      </form>
+      <footer class="starter-login__capabilities">
+        <Separator class="starter-login__capabilities-rule" />
+        <p class="starter-login__capabilities-title">{{ t('auth.capabilities_title') }}</p>
+        <ul class="starter-login__capability-list">
+          <li v-for="capability in loginCapabilities" :key="capability.label">
+            <span class="starter-login__capability-icon">
+              <component :is="capability.icon" class="size-4" aria-hidden="true" />
+            </span>
+            <span class="starter-login__capability-label">{{ t(capability.label) }}</span>
+          </li>
+        </ul>
+      </footer>
     </div>
   </CardPageShell>
 </template>

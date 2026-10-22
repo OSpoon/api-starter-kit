@@ -30,16 +30,37 @@ const pageClass = computed(() => [
 <template>
   <main :class="pageClass">
     <div :class="['w-full', maxWidthClass]">
-      <Card :class="cardClass">
-        <CardHeader>
-          <CardTitle>{{ title }}</CardTitle>
-          <CardDescription v-if="description" :class="descriptionClass">
-            {{ description }}
-          </CardDescription>
-        </CardHeader>
-        <CardContent :class="contentClass">
-          <slot />
-        </CardContent>
+      <Card
+        :class="[
+          $slots.aside
+            ? 'grid grid-cols-1 gap-0 overflow-hidden p-0 lg:grid-cols-[5fr_3fr]'
+            : undefined,
+          cardClass,
+        ]"
+      >
+        <aside
+          v-if="$slots.aside"
+          class="relative min-h-48 overflow-hidden bg-gradient-to-br from-primary/5 via-background to-secondary p-6 text-foreground sm:p-8 lg:min-h-[560px] lg:p-12"
+        >
+          <slot name="aside" />
+        </aside>
+        <div
+          :class="[
+            $slots.aside
+              ? 'flex w-full min-w-0 flex-col justify-center gap-4 px-6 py-8 sm:px-8 sm:py-10 lg:px-10'
+              : 'flex flex-col gap-6',
+          ]"
+        >
+          <CardHeader :class="$slots.aside ? 'px-0' : undefined">
+            <CardTitle>{{ title }}</CardTitle>
+            <CardDescription v-if="description" :class="descriptionClass">
+              {{ description }}
+            </CardDescription>
+          </CardHeader>
+          <CardContent :class="[$slots.aside ? 'px-0 pb-0' : undefined, contentClass]">
+            <slot />
+          </CardContent>
+        </div>
       </Card>
     </div>
   </main>
