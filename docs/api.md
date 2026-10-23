@@ -77,6 +77,8 @@ AI 概览的 `estimatedCostUsd` 在没有可用价格信息时为 `null`；`pric
 
 `failedServices` 可能包含 `chat`、`asr` 或 `embedding`；即使其中一项失败，其他服务仍会继续测试。
 
+Embedding 向量维度固定为 `1024`。`PUT /system/llm-config` 的 `embeddingDimensions` 只接受 `1024`，其他值会校验失败；替换 Embedding 模型时，模型输出也必须是 1024 维。
+
 ## 知识库接口
 
 知识库管理接口位于 `/api/v1/system/knowledge-documents`，统一要求 Bearer 认证和 `knowledge:manage` 权限。列表支持 `page`、`limit` 和 `search` 查询参数；单文件支持 `txt`、`md`、`markdown`、`rst`，大小上限为 5 MB；批量上传最多 20 个文件。知识库 endpoint 清单、处理流程和管理限制见[知识库实现说明](knowledge-base.md)，请求与响应契约以 OpenAPI 为准。

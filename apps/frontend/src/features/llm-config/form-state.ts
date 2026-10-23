@@ -12,7 +12,6 @@ export type LlmConfigurationDraft = {
   embeddingApiKey: string
   embeddingBaseUrl: string
   embeddingModel: string
-  embeddingDimensions: number
   requestTimeoutMs: number
 }
 
@@ -34,7 +33,6 @@ export function hasUnsavedLlmConfiguration(
     draft.asrModel !== saved.asr.model ||
     draft.embeddingBaseUrl !== (saved.embedding.baseUrl ?? '') ||
     draft.embeddingModel !== (saved.embedding.model ?? '') ||
-    draft.embeddingDimensions !== saved.embedding.dimensions ||
     draft.requestTimeoutMs !== saved.requestTimeoutMs
   )
 }

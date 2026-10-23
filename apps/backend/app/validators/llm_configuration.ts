@@ -44,7 +44,7 @@ export const updateLlmConfigurationValidator = vine.compile(
         .optional()
         .nullable(),
       embeddingModel: vine.string().trim().maxLength(160).optional().nullable(),
-      embeddingDimensions: vine.number().positive().max(8192),
+      embeddingDimensions: vine.number().min(1024).max(1024),
       requestTimeoutMs: vine.number().min(5000).max(300000),
     })
     .use(validChatModelLimits())

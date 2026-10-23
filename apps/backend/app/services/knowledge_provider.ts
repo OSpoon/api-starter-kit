@@ -25,7 +25,6 @@ export type KnowledgeProviderAccess = {
 export interface KnowledgeProvider {
   prepareDocument(content: string): Promise<string[]>
   indexDocument(input: { documentId: number; chunks: string[]; catalogText: string }): Promise<void>
-  deleteDocument(input: { documentId: number }): Promise<void>
   searchCatalog(input: {
     query: string
     access: KnowledgeProviderAccess

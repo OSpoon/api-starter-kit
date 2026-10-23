@@ -127,7 +127,6 @@ export async function indexKnowledgeDocument(document: KnowledgeDocument) {
 }
 
 export async function deleteKnowledgeDocument(document: KnowledgeDocument) {
-  await getKnowledgeProvider().deleteDocument({ documentId: document.id })
   await document.delete()
 }
 

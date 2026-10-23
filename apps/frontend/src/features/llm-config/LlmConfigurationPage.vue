@@ -41,7 +41,6 @@ const initialValues = {
   embeddingApiKey: '',
   embeddingBaseUrl: '',
   embeddingModel: '',
-  embeddingDimensions: 1024,
   requestTimeoutMs: 180000,
 }
 const formSchema = computed(() =>
@@ -84,11 +83,6 @@ const formSchema = computed(() =>
           .trim()
           .refine((value) => !value || URL.canParse(value), t('llm_config.validation_url')),
         embeddingModel: z.string().trim().max(160, t('llm_config.validation_model_max')),
-        embeddingDimensions: z.coerce
-          .number()
-          .int(t('llm_config.validation_integer'))
-          .min(1, t('llm_config.validation_embedding_dimensions'))
-          .max(8192, t('llm_config.validation_embedding_dimensions')),
         requestTimeoutMs: z.coerce
           .number()
           .int(t('llm_config.validation_integer'))
@@ -132,7 +126,6 @@ function applySavedConfiguration(config: LlmConfiguration) {
       embeddingApiKey: '',
       embeddingBaseUrl: config.embedding.baseUrl ?? '',
       embeddingModel: config.embedding.model ?? '',
-      embeddingDimensions: config.embedding.dimensions,
       requestTimeoutMs: config.requestTimeoutMs,
     },
   })
@@ -156,6 +149,7 @@ async function submit(values: typeof form.values) {
     const completeValues = { ...initialValues, ...values }
     const config = await updateLlmConfiguration(auth.token, {
       ...completeValues,
+      embeddingDimensions: 1024,
       chatApiKey: completeValues.chatApiKey || undefined,
       asrApiKey: completeValues.asrApiKey || undefined,
       embeddingApiKey: completeValues.embeddingApiKey || undefined,
@@ -353,17 +347,10 @@ onMounted(load)
               <FormMessage />
             </FormItem>
           </FormField>
-          <FormField
-            v-slot="{ componentField }"
-            name="embeddingDimensions"
-            :validate-on-blur="false"
-          >
-            <FormItem>
-              <FormLabel>{{ t('llm_config.dimensions') }}</FormLabel>
-              <FormControl><Input v-bind="componentField" type="number" /></FormControl>
-              <FormMessage />
-            </FormItem>
-          </FormField>
+          <div class="space-y-2">
+            <div class="text-sm leading-none font-medium">{{ t('llm_config.dimensions') }}</div>
+            <div class="text-sm text-muted-foreground">1024</div>
+          </div>
         </CardContent>
       </Card>
       <Card

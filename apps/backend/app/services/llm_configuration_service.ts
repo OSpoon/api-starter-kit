@@ -96,7 +96,6 @@ export async function readRuntimeLlmConfiguration() {
       apiKey: decryptSecret(config.embeddingApiKey) ?? decryptSecret(config.chatApiKey) ?? 'no-key',
       baseURL: config.embeddingBaseUrl ?? config.chatBaseUrl,
       model: config.embeddingModel,
-      dimensions: config.embeddingDimensions,
     },
     requestTimeoutMs: config.requestTimeoutMs,
   }
@@ -173,7 +172,7 @@ export async function updateLlmConfiguration(input: LlmConfigInput) {
   config.asrModel = input.asrModel.trim()
   config.embeddingBaseUrl = input.embeddingBaseUrl?.trim() || null
   config.embeddingModel = input.embeddingModel?.trim() || null
-  config.embeddingDimensions = input.embeddingDimensions
+  config.embeddingDimensions = 1024
   config.requestTimeoutMs = input.requestTimeoutMs
   if (input.chatApiKey?.trim()) config.chatApiKey = encryptSecret(input.chatApiKey)
   if (input.asrApiKey?.trim()) config.asrApiKey = encryptSecret(input.asrApiKey)
@@ -219,7 +218,7 @@ export function serializeLlmConfiguration(config: LlmConfiguration) {
     embedding: {
       baseUrl: config.embeddingBaseUrl,
       model: config.embeddingModel,
-      dimensions: config.embeddingDimensions,
+      dimensions: 1024,
       apiKeyConfigured: Boolean(config.embeddingApiKey || config.chatApiKey),
     },
     requestTimeoutMs: config.requestTimeoutMs,

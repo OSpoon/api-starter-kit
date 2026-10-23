@@ -77,11 +77,7 @@ function toLangfuseAttributes(span: StoredSpan, conversationId: number) {
             : 'span',
   }
 
-  if (
-    span.name === 'api-starter.ai.model_call' ||
-    span.name === 'pi.ai.request' ||
-    span.name === 'pi.ai.poll'
-  ) {
+  if (span.name === 'api-starter.ai.model_call') {
     const model = span.attributes.model
     if (typeof model === 'string') attributes['langfuse.observation.model.name'] = model
 
@@ -148,7 +144,7 @@ export async function exportAiAgentTraceToLangfuse(trace: StoredTrace, conversat
   const recordedSpans = new Map<string, api.Span>()
   const recordedSpanContexts = new Map<string, api.SpanContext>()
 
-  for (const storedSpan of trace.spans) {
+  for (const storedSpan of getExportableTraceSpans(trace)) {
     const parentSpan = storedSpan.parentId ? recordedSpans.get(storedSpan.parentId) : undefined
     const parentContext = parentSpan
       ? api.trace.setSpan(api.context.active(), parentSpan)
@@ -185,4 +181,8 @@ export async function exportAiAgentTraceToLangfuse(trace: StoredTrace, conversat
       span.spanContext()
     )
   }
+}
+
+export function getExportableTraceSpans(trace: Pick<StoredTrace, 'spans'>) {
+  return trace.spans.filter((span) => span.name !== 'pi.ai.request' && span.name !== 'pi.ai.poll')
 }

@@ -1,19 +1,17 @@
 import testUtils from '@adonisjs/core/services/test_utils'
+import limiter from '@adonisjs/limiter/services/main'
 import { test } from '@japa/runner'
 
-import { resetThrottleBuckets, setThrottleEnabled } from '#middleware/throttle_middleware'
 import Role from '#models/role'
 import User from '#models/user'
 import { generateInitialPassword } from '#security/user_credentials'
 
 test.group('throttle middleware', (group) => {
   group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
-  group.each.setup(() => {
-    setThrottleEnabled(true)
-    resetThrottleBuckets()
-    return () => {
-      setThrottleEnabled(false)
-      resetThrottleBuckets()
+  group.each.setup(async () => {
+    await limiter.clear(['memory'])
+    return async () => {
+      await limiter.clear(['memory'])
     }
   })
 

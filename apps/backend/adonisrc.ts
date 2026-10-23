@@ -58,6 +58,7 @@ export default defineConfig({
     () => import('#providers/ai_agent_telemetry_provider'),
     () => import('@foadonis/openapi/openapi_provider'),
     () => import('@adonisjs/bouncer/bouncer_provider'),
+    () => import('@adonisjs/limiter/limiter_provider'),
   ],
 
   /*

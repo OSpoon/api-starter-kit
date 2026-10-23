@@ -33,7 +33,7 @@ export interface UpdateLlmConfigurationInput {
   embeddingApiKey?: string
   embeddingBaseUrl: string
   embeddingModel: string
-  embeddingDimensions: number
+  embeddingDimensions: 1024
   requestTimeoutMs: number
 }
 

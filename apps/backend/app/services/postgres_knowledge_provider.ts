@@ -43,7 +43,6 @@ async function embeddingConfig() {
     model,
     apiKey: runtime.embedding.apiKey,
     baseURL: runtime.embedding.baseURL?.replace(/\/+$/, ''),
-    dimensions: runtime.embedding.dimensions,
   }
 }
 
@@ -59,9 +58,6 @@ async function createEmbeddings() {
 
 function vectorLiteral(vector: number[]) {
   const dimensions = EMBEDDING_DIMENSIONS
-  if (dimensions !== EMBEDDING_DIMENSIONS) {
-    throw new Error(`当前数据库仅支持 ${EMBEDDING_DIMENSIONS} 维 embedding`)
-  }
   if (vector.length !== dimensions || vector.some((value) => !Number.isFinite(value))) {
     throw new Error(`Embedding 维度必须为 ${dimensions}`)
   }
@@ -155,10 +151,6 @@ export default class PostgresKnowledgeProvider implements KnowledgeProvider {
         )
       }
     })
-  }
-
-  async deleteDocument(input: { documentId: number }) {
-    await db.from('knowledge_chunks').where('document_id', input.documentId).delete()
   }
 
   async searchCatalog(input: {

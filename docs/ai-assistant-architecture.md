@@ -69,6 +69,7 @@ AI 请求的审计与运行状态由现有审计日志和运行状态记录；�
 - `pi-telemetry` 仅在 `NODE_ENV=development` 时启用，开发环境默认采集，不需要额外的启用开关。非开发环境使用 no-op telemetry context。
 - 配置 `LANGFUSE_BASE_URL`、`LANGFUSE_PUBLIC_KEY` 和 `LANGFUSE_SECRET_KEY` 后，后端会通过 OpenTelemetry OTLP exporter 将已完成的 trace 发送到 Langfuse。缺少任一配置时仍会在开发进程内采集，但不会向外部平台发送。
 - Trace 包含 Agent 运行、模型调用和工具调用层级；记录模型请求输入与输出、工具参数与结果，以及模型名称、token 用量、缓存用量、成本、耗时和错误状态。会话 ID 对应 AI 会话 ID。请在 Langfuse 中通过 `AI agent run` trace 查看完整调用树。
+- 导出时跳过 Pi 框架的 `pi.ai.request` 和 `pi.ai.poll` span，保留应用层 `api-starter.ai.model_call` 模型调用记录，避免同一次模型调用在 Langfuse 中重复显示。
 - 开发遥测内容来自真实模型上下文和工具执行数据；配置 Langfuse 导出前，应将开发环境连接到适合接收这些数据的项目。三个变量的格式和示例见后端 [`.env.example`](../apps/backend/.env.example)。
 
 ## SSE 与前端

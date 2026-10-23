@@ -154,7 +154,6 @@ test('LLM connection test draft comparison detects unsaved fields and secrets', 
     embeddingApiKey: '',
     embeddingBaseUrl: 'https://embed.example',
     embeddingModel: 'embedding-model',
-    embeddingDimensions: 1024,
     requestTimeoutMs: 180000,
   }
 
