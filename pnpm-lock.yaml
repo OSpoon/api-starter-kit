@@ -391,12 +391,18 @@ importers:
       '@earendil-works/pi-ai':
         specifier: ^1.4.0
         version: 1.4.0(@aws-sdk/credential-provider-node@3.972.88)(@smithy/signature-v4@5.7.4)(ws@8.21.3)(zod@3.25.76)
+      '@earendil-works/pi-telemetry':
+        specifier: 1.4.0
+        version: 1.4.0
       '@foadonis/openapi':
         specifier: ^1.0.1
         version: 1.0.1(@adonisjs/core@7.3.4(@adonisjs/assembler@8.4.0(babel-plugin-macros@3.1.0)(typescript@6.0.3))(@vinejs/vine@4.4.0)(pino-pretty@13.2.0)(supports-color@5.5.0)(youch@4.1.1))(@adonisjs/lucid@22.4.2(@adonisjs/assembler@8.4.0(babel-plugin-macros@3.1.0)(typescript@6.0.3))(@adonisjs/core@7.3.4(@adonisjs/assembler@8.4.0(babel-plugin-macros@3.1.0)(typescript@6.0.3))(@vinejs/vine@4.4.0)(pino-pretty@13.2.0)(supports-color@5.5.0)(youch@4.1.1))(@vinejs/vine@4.4.0)(luxon@3.7.2)(pg@8.22.0)(supports-color@5.5.0))(@vinejs/vine@4.4.0)(luxon@3.7.2)(reflect-metadata@0.2.2)
       '@larksuiteoapi/node-sdk':
         specifier: ^1.73.0
         version: 1.73.0(supports-color@5.5.0)
+      '@opentelemetry/exporter-trace-otlp-http':
+        specifier: 0.221.0
+        version: 0.221.0(@opentelemetry/api@1.9.1)
       '@opentelemetry/sdk-node':
         specifier: ^0.221.0
         version: 0.221.0(@opentelemetry/api@1.9.1)(supports-color@5.5.0)

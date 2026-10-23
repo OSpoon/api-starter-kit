@@ -1,5 +1,10 @@
 import type { AgentEvent } from '@earendil-works/pi-agent-core'
 import type { AssistantMessage, Usage } from '@earendil-works/pi-ai'
+import {
+  InMemoryTelemetryContext,
+  NOOP_TELEMETRY_CONTEXT,
+  type TelemetrySpan,
+} from '@earendil-works/pi-telemetry'
 
 import type { AiAgentToolRequestContext } from '#ai/core/ai_agent_tool_context'
 import type { AiAgentMessage } from '#ai/core/ai_agent_types'
@@ -13,6 +18,7 @@ import {
   type PiAgentMessage,
   type PiModelUsage,
 } from '#ai/runtime/ai_agent_pi_runtime'
+import { isAiTelemetryEnabled } from '#ai/runtime/ai_agent_telemetry_exporter'
 
 export type PiAgentControl = {
   steer(content: string): void
@@ -94,6 +100,9 @@ export async function createAiAgentPiStream(
   }
 ) {
   const events = new AsyncQueue<AgentEvent>()
+  const telemetryStore = isAiTelemetryEnabled() ? new InMemoryTelemetryContext() : undefined
+  const telemetry = telemetryStore ?? NOOP_TELEMETRY_CONTEXT
+  let activeSpan: TelemetrySpan | undefined
 
   const lastMessage = input.messages.at(-1)
   const initialMessages =
@@ -108,6 +117,7 @@ export async function createAiAgentPiStream(
     initialRuntimeContext: input.liveSessionContext,
     onCompaction: input.onCompaction,
     onCompactionUsage: input.onCompactionUsage,
+    getTelemetrySpan: () => activeSpan,
     refreshRuntimeContext: async () => input.getLiveSessionContext?.(),
   })
 
@@ -131,8 +141,37 @@ export async function createAiAgentPiStream(
   // `continue()` is for retrying an existing Pi run. A persisted user
   // message is not automatically submitted to the model, so start a fresh
   // prompt with the latest user content after restoring the prior history.
-  const run = lastMessage?.role === 'user' ? agent.prompt(lastMessage.content) : Promise.resolve()
-  void run.catch(() => {
+  const completion = telemetry.startSpan(
+    {
+      name: 'api-starter.ai.agent_run',
+      attributes: {
+        'app.ai.agent_run_id': input.agentRunId,
+        ...(lastMessage?.role === 'user'
+          ? {
+              'langfuse.observation.input': JSON.stringify({
+                role: 'user',
+                content: lastMessage.content,
+              }),
+            }
+          : {}),
+      },
+    },
+    async (span) => {
+      activeSpan = span
+      try {
+        if (lastMessage?.role === 'user') {
+          await agent.prompt(lastMessage.content)
+          const response = agent.state.messages.findLast((message) => message.role === 'assistant')
+          if (response) {
+            span.setAttributes({ 'langfuse.observation.output': JSON.stringify(response.content) })
+          }
+        }
+      } finally {
+        activeSpan = undefined
+      }
+    }
+  )
+  void completion.catch(() => {
     events.end()
   })
 
@@ -140,5 +179,8 @@ export async function createAiAgentPiStream(
     events,
     control,
     model: agent.state.model,
+    telemetry,
+    telemetryStore,
+    completion,
   }
 }

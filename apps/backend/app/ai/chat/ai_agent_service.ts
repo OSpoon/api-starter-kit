@@ -11,6 +11,10 @@ import { getPendingAiQueryContext } from '#ai/registry/ai_agent_query_registry'
 import type { PiModelUsage } from '#ai/runtime/ai_agent_pi_runtime'
 import { createAiAgentPiStream } from '#ai/runtime/ai_agent_pi_stream'
 import { registerAiAgentRun } from '#ai/runtime/ai_agent_run_registry'
+import {
+  exportAiAgentTraceToLangfuse,
+  hasLangfuseTelemetryDestination,
+} from '#ai/runtime/ai_agent_telemetry_exporter'
 import AiChatConversation from '#models/ai_chat_conversation'
 import { recordAiUsageEvent } from '#services/ai_usage_service'
 
@@ -117,6 +121,22 @@ export async function createAiAgentStream(
     agentRunId,
     control: stream.control,
   })
+  const telemetryStore = stream.telemetryStore
+  if (hasLangfuseTelemetryDestination() && telemetryStore) {
+    const logTelemetryTrace = async () => {
+      try {
+        const { traces } = await telemetryStore.findTraces({ limit: 1 })
+        const trace = traces[0]
+        if (!trace) return
+
+        logger.debug({ agentRunId, spanCount: trace.spans.length }, 'AI agent telemetry trace')
+        await exportAiAgentTraceToLangfuse(trace, input.conversationId)
+      } catch (error) {
+        logger.warn({ err: error, agentRunId }, 'AI agent telemetry trace could not be exported')
+      }
+    }
+    void stream.completion.then(logTelemetryTrace, logTelemetryTrace)
+  }
   return {
     stream,
     agentRunId,

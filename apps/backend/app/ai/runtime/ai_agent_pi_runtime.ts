@@ -8,6 +8,7 @@ import {
 import {
   type Api,
   type ApiKeyAuth,
+  type AssistantMessageEventStream,
   type AuthContext,
   type AuthResult,
   createModels,
@@ -20,6 +21,7 @@ import {
 import { openAICompletionsApi } from '@earendil-works/pi-ai/api/openai-completions.lazy'
 import { estimateContextTokens, estimateMessageTokens } from '@earendil-works/pi-ai/utils/estimate'
 import { getCurrentSystemMessage } from '@earendil-works/pi-ai/utils/transcript'
+import type { TelemetrySpan } from '@earendil-works/pi-telemetry'
 
 import { aiAgentSummaryPrompt } from '#ai/policy/ai_agent_prompt_policy'
 import { readRuntimeLlmConfiguration } from '#services/llm_configuration_service'
@@ -111,6 +113,7 @@ async function compactPiContext(input: {
   signal?: AbortSignal
   onCompaction?: (summary: string) => Promise<void>
   onUsage?: (usage: PiModelUsage) => void | Promise<void>
+  getTelemetrySpan?: () => TelemetrySpan | undefined
 }) {
   const allMessages = convertPiMessages(input.messages)
   const systemMessage = getCurrentSystemMessage(allMessages)
@@ -131,20 +134,51 @@ async function compactPiContext(input: {
   const olderMessages = conversationalMessages.slice(0, firstRetainedIndex)
   if (olderMessages.length === 0) return undefined
 
-  const response = await input.models.completeSimple(
-    input.model,
-    {
-      systemPrompt: aiAgentSummaryPrompt,
-      messages: [
+  const telemetry = input.getTelemetrySpan?.()
+  const summaryContext = {
+    systemPrompt: aiAgentSummaryPrompt,
+    messages: [
+      {
+        role: 'user' as const,
+        content: formatMessagesForSummary(olderMessages),
+        timestamp: Date.now(),
+      },
+    ],
+  }
+  const response = telemetry
+    ? await telemetry.startSpan(
         {
-          role: 'user',
-          content: formatMessagesForSummary(olderMessages),
-          timestamp: Date.now(),
+          name: 'api-starter.ai.model_call',
+          attributes: {
+            'langfuse.observation.type': 'generation',
+            'langfuse.observation.model.name': input.model.id,
+            'langfuse.observation.input': JSON.stringify(summaryContext.messages),
+          },
         },
-      ],
-    },
-    { signal: input.signal }
-  )
+        async (span) => {
+          const result = await input.models.completeSimple(input.model, summaryContext, {
+            signal: input.signal,
+            telemetry: span,
+          })
+          span.setAttributes({
+            'langfuse.observation.output': JSON.stringify(result.content),
+            'usage.input': result.usage.input,
+            'usage.output': result.usage.output,
+            'usage.cache_read': result.usage.cacheRead,
+            'usage.cache_write': result.usage.cacheWrite,
+            'cost.total': result.usage.cost.total,
+            'app.ai.stop_reason': result.stopReason,
+          })
+          if (result.stopReason === 'error') {
+            span.setStatus({
+              status: 'error',
+              error: { name: 'ProviderError', message: result.errorMessage ?? 'AI provider error' },
+            })
+          }
+          return result
+        }
+      )
+    : await input.models.completeSimple(input.model, summaryContext, { signal: input.signal })
   await input.onUsage?.({
     providerId: input.model.provider,
     modelId: input.model.id,
@@ -179,6 +213,37 @@ function isTerminalToolResult(result: unknown) {
   if (!details || typeof details !== 'object') return false
   const kind = (details as { kind?: unknown }).kind
   return kind === 'confirmation' || kind === 'action_error' || kind === 'query_error'
+}
+
+function addToolTelemetry(
+  tool: AgentTool,
+  getTelemetrySpan: () => TelemetrySpan | undefined
+): AgentTool {
+  const instrumentedTool: AgentTool = {
+    ...tool,
+    execute: async (toolCallId, params, signal, onUpdate) => {
+      const telemetry = getTelemetrySpan()
+      if (!telemetry) return tool.execute(toolCallId, params, signal, onUpdate)
+
+      return telemetry.startSpan(
+        {
+          name: 'api-starter.ai.tool',
+          attributes: {
+            'app.ai.tool.name': tool.name,
+            'app.ai.tool.call_id': toolCallId,
+          },
+        },
+        async (span) => {
+          span.setAttributes({ 'langfuse.observation.input': JSON.stringify(params) })
+          const result = await tool.execute(toolCallId, params, signal, onUpdate)
+          span.setAttributes({ 'langfuse.observation.output': JSON.stringify(result) })
+          if (result.isError) span.setStatus({ status: 'error' })
+          return result
+        }
+      )
+    },
+  }
+  return instrumentedTool
 }
 
 export function shouldStopPiAfterTurn(
@@ -273,6 +338,7 @@ export async function createPiAgent(input: {
   refreshRuntimeContext?: () => Promise<string | undefined>
   onCompaction?: (summary: string) => Promise<void>
   onCompactionUsage?: (usage: PiModelUsage) => void | Promise<void>
+  getTelemetrySpan?: () => TelemetrySpan | undefined
 }) {
   const models = await createPiModels()
   const runtimeConfig = await getRuntimeConfig()
@@ -281,11 +347,13 @@ export async function createPiAgent(input: {
   if (!model) throw new Error(`Pi model is not configured: ${modelName}`)
 
   let hasQueuedMessages = () => false
+  const getTelemetrySpan = input.getTelemetrySpan ?? (() => undefined)
+  const tools = input.tools.map((tool) => addToolTelemetry(tool, getTelemetrySpan))
   const agent = new Agent({
     initialState: {
       systemPrompt: input.systemPrompt,
       model,
-      tools: input.tools,
+      tools,
       messages: [
         {
           role: 'system',
@@ -297,7 +365,51 @@ export async function createPiAgent(input: {
       ],
       thinkingLevel: 'off',
     },
-    streamFn: models.streamSimple.bind(models),
+    streamFn: (requestModel, context, options) => {
+      const telemetry = input.getTelemetrySpan?.()
+      if (!telemetry) return models.streamSimple(requestModel, context, options)
+
+      return new Promise<AssistantMessageEventStream>((resolve, reject) => {
+        void telemetry
+          .startSpan(
+            {
+              name: 'api-starter.ai.model_call',
+              attributes: {
+                'langfuse.observation.type': 'generation',
+                'langfuse.observation.model.name': requestModel.id,
+                'langfuse.observation.input': JSON.stringify(context.messages),
+              },
+            },
+            async (span) => {
+              const stream = models.streamSimple(requestModel, context, {
+                ...options,
+                telemetry: span,
+              })
+              resolve(stream)
+              const response = await stream.result()
+              span.setAttributes({
+                'langfuse.observation.output': JSON.stringify(response.content),
+                'usage.input': response.usage.input,
+                'usage.output': response.usage.output,
+                'usage.cache_read': response.usage.cacheRead,
+                'usage.cache_write': response.usage.cacheWrite,
+                'cost.total': response.usage.cost.total,
+                'app.ai.stop_reason': response.stopReason,
+              })
+              if (response.stopReason === 'error') {
+                span.setStatus({
+                  status: 'error',
+                  error: {
+                    name: 'ProviderError',
+                    message: response.errorMessage ?? 'AI provider error',
+                  },
+                })
+              }
+            }
+          )
+          .catch(reject)
+      })
+    },
     toolExecution: 'sequential',
     steeringMode: 'one-at-a-time',
     followUpMode: 'one-at-a-time',
@@ -315,6 +427,7 @@ export async function createPiAgent(input: {
             signal,
             onCompaction: input.onCompaction,
             onUsage: input.onCompactionUsage,
+            getTelemetrySpan: input.getTelemetrySpan,
           })
           if (compactedMessages) return compactedMessages
         } catch {
