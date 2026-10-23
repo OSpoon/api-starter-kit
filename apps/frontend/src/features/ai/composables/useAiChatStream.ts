@@ -50,6 +50,12 @@ export function useAiChatStream(
     state.loading.value = true
     state.runMeta.value = null
     const currentMessages = state.conversation.value?.messages ?? []
+    if (regenerateAssistantMessageId && state.conversation.value) {
+      state.conversation.value = {
+        ...state.conversation.value,
+        messages: currentMessages.filter((item) => item.id !== regenerateAssistantMessageId),
+      }
+    }
     const userMessage = regenerateAssistantMessageId
       ? null
       : { id: `local-user-${Date.now()}`, role: 'user' as const, content: message }
@@ -94,6 +100,12 @@ export function useAiChatStream(
               event.conversation,
               ...state.conversations.value.filter((item) => item.id !== event.conversation.id),
             ]
+            if (state.conversation.value?.id === event.conversation.id) {
+              state.conversation.value = {
+                ...state.conversation.value,
+                messages: mergeAiChatMessages(state.conversation.value.messages, [event.message]),
+              }
+            }
             state.streamingMessages.value = state.streamingMessages.value.map((item) =>
               userMessage && item.id === userMessage.id ? event.message : item
             )
@@ -210,10 +222,34 @@ export function useAiChatStream(
           }
 
           if (event.type === 'error') {
-            assistantMessage.content = event.assistantMessage?.content ?? event.message
-            assistantMessage.citations = event.assistantMessage?.citations ?? []
-            assistantMessage.status = 'error'
-            updateAssistantMessage()
+            const streamedMessageId = assistantMessage.id
+            if (event.assistantMessage) {
+              const streamedMessage = assistantMessage
+              assistantMessage = {
+                ...event.assistantMessage,
+                id: String(event.assistantMessage.id),
+                status: 'error',
+                activity: streamedMessage.activity,
+                plan: streamedMessage.plan,
+                timeline: streamedMessage.timeline,
+              }
+              state.streamingMessages.value = state.streamingMessages.value.map((item) =>
+                item.id === streamedMessageId ? assistantMessage : item
+              )
+              if (state.conversation.value?.id === event.assistantMessage.conversationId) {
+                state.conversation.value = {
+                  ...state.conversation.value,
+                  messages: mergeAiChatMessages(state.conversation.value.messages, [
+                    event.assistantMessage,
+                  ]),
+                }
+              }
+            } else {
+              assistantMessage.content = event.message
+              assistantMessage.citations = []
+              assistantMessage.status = 'error'
+              updateAssistantMessage()
+            }
             throw new Error(event.message)
           }
         },
