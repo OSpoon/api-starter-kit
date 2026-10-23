@@ -38,6 +38,7 @@
     "codemirror": "^6.0.2",
     "dt-sql-parser": "^4.5.0",
     "embla-carousel-vue": "^8.6.0",
+    "html-to-image": "^1.11.13",
     "jszip": "^3.10.1",
     "markstream-vue": "^1.0.5",
     "monaco-editor": "^0.56.0",

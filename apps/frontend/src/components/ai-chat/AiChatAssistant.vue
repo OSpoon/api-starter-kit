@@ -3,7 +3,9 @@ import {
   ArrowUpIcon,
   ChevronDown,
   CircleCheck,
+  Copy,
   History,
+  ImageDown,
   ListChecks,
   LoaderCircle,
   MessageCircle,
@@ -22,7 +24,9 @@ import AiChatApprovalCard from '@/components/ai-chat/AiChatApprovalCard.vue'
 import AiChatCredentialCard from '@/components/ai-chat/AiChatCredentialCard.vue'
 import AiChatLogo from '@/components/ai-chat/AiChatLogo.vue'
 import AiChatMessageItem from '@/components/ai-chat/AiChatMessageItem.vue'
+import AiMessageContent from '@/components/ai-chat/AiMessageContent.vue'
 import { Button } from '@/components/ui/button'
+import { ButtonGroup } from '@/components/ui/button-group'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
   DropdownMenu,
@@ -48,6 +52,7 @@ import type {
 } from '@/features/ai/api'
 import { useAiChatMessageSelection } from '@/features/ai/composables/useAiChatMessageSelection'
 import { useAiChatResize } from '@/features/ai/composables/useAiChatResize'
+import { useAiChatShareImage } from '@/features/ai/composables/useAiChatShareImage'
 import type { DisplayAiChatMessage } from '@/features/ai/types'
 
 interface ChatConversation {
@@ -137,6 +142,9 @@ const compositionEndedAt = ref(0)
 const isRecording = ref(false)
 const isPreparingRecording = ref(false)
 const usagePopoverOpen = ref(false)
+const shareImageRef = ref<HTMLElement | null>(null)
+const shareImageMessages = ref<DisplayAiChatMessage[]>([])
+const { isGenerating: isGeneratingImage, generate: generateShareImage } = useAiChatShareImage()
 let mediaRecorder: MediaRecorder | null = null
 let recordingChunks: Blob[] = []
 let discardRecording = false
@@ -370,6 +378,17 @@ function getConversationBoundaryLabel(message: DisplayAiChatMessage) {
 function copySelectedMessagesAsMarkdown() {
   emit('copyMessagesAsMarkdown', selectedMessages.value)
   cancelMessageSelection()
+}
+
+async function generateSelectedMessagesImage() {
+  if (selectedMessages.value.length === 0 || isGeneratingImage.value) return
+
+  shareImageMessages.value = [...selectedMessages.value]
+  try {
+    if (await generateShareImage(() => shareImageRef.value)) cancelMessageSelection()
+  } finally {
+    shareImageMessages.value = []
+  }
 }
 
 function openAssistant() {
@@ -832,6 +851,7 @@ watch(
             class="flex items-center gap-2 border-b bg-muted/30 px-4 py-2"
           >
             <Checkbox
+              :disabled="isGeneratingImage"
               :model-value="
                 selectedMessages.length === selectableMessageCount && selectableMessageCount > 0
               "
@@ -841,17 +861,50 @@ watch(
             <span class="min-w-0 flex-1 text-xs text-muted-foreground">
               {{ t('ai_chat.selected_messages', { count: selectedMessages.length }) }}
             </span>
-            <Button type="button" variant="ghost" size="sm" @click="cancelMessageSelection">
-              {{ t('common.cancel') }}
-            </Button>
             <Button
               type="button"
-              size="sm"
-              :disabled="selectedMessages.length === 0"
-              @click="copySelectedMessagesAsMarkdown"
+              variant="outline"
+              size="icon-sm"
+              :disabled="isGeneratingImage"
+              :title="t('common.cancel')"
+              :aria-label="t('common.cancel')"
+              @click="cancelMessageSelection"
             >
-              {{ t('ai_chat.copy_as_markdown') }}
+              <X class="size-4" aria-hidden="true" />
             </Button>
+            <ButtonGroup>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon-sm"
+                :disabled="selectedMessages.length === 0 || isGeneratingImage"
+                :title="t('ai_chat.copy_as_markdown')"
+                :aria-label="t('ai_chat.copy_as_markdown')"
+                @click="copySelectedMessagesAsMarkdown"
+              >
+                <Copy class="size-4" aria-hidden="true" />
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon-sm"
+                :disabled="selectedMessages.length === 0 || isGeneratingImage"
+                :title="
+                  isGeneratingImage ? t('ai_chat.generating_image') : t('ai_chat.generate_image')
+                "
+                :aria-label="
+                  isGeneratingImage ? t('ai_chat.generating_image') : t('ai_chat.generate_image')
+                "
+                @click="generateSelectedMessagesImage"
+              >
+                <LoaderCircle
+                  v-if="isGeneratingImage"
+                  class="size-4 animate-spin"
+                  aria-hidden="true"
+                />
+                <ImageDown v-else class="size-4" aria-hidden="true" />
+              </Button>
+            </ButtonGroup>
           </div>
 
           <div class="relative min-h-0 flex-1 p-4">
@@ -862,7 +915,7 @@ watch(
             >
               <MessageScroller>
                 <MessageScrollerViewport @reach-start="loadOlderMessagesAtStart">
-                  <MessageScrollerContent class="px-3">
+                  <MessageScrollerContent :class="isSelectingMessages ? 'gap-y-9 px-3' : 'px-3'">
                     <div
                       v-if="loadingOlderMessages"
                       class="flex items-center justify-center gap-2 py-3 text-xs text-muted-foreground"
@@ -887,7 +940,7 @@ watch(
                           :streaming-message-id="streamingMessageId"
                           :loading="loading"
                           :show-message-actions="showMessageActions && !isSelectingMessages"
-                          :selectable="isSelectingMessages"
+                          :selectable="isSelectingMessages && !isGeneratingImage"
                           :selected="selectedMessageKeys.has(getMessageKey(message, index))"
                           @copy="emit('copyMessage', $event)"
                           @retry="emit('retryMessage', $event)"
@@ -1094,6 +1147,43 @@ watch(
           <div class="size-1 rounded-full bg-primary-foreground" />
         </div>
       </Button>
+    </div>
+
+    <div
+      v-if="shareImageMessages.length"
+      ref="shareImageRef"
+      class="ai-chat-share-image-poster pointer-events-none fixed top-0 left-0 z-[-1] w-[720px] bg-white px-10 py-9 text-slate-900 opacity-0"
+      aria-hidden="true"
+    >
+      <header class="mb-7 border-b border-slate-200 pb-5">
+        <h1 class="text-xl font-semibold">{{ t('ai_chat.shared_conversation') }}</h1>
+        <p class="mt-1 text-sm text-slate-500">
+          {{ t('ai_chat.selected_messages', { count: shareImageMessages.length }) }}
+        </p>
+      </header>
+      <div class="space-y-5">
+        <article
+          v-for="(message, index) in shareImageMessages"
+          :key="message.id ?? index"
+          class="flex flex-col gap-1.5"
+          :class="message.role === 'user' ? 'items-end' : 'items-start'"
+        >
+          <span class="text-xs font-medium text-slate-500">
+            {{ message.role === 'user' ? t('ai_chat.user') : t('ai_chat.assistant') }}
+          </span>
+          <div
+            class="max-w-full rounded-xl px-4 py-3 text-sm leading-6"
+            :class="
+              message.role === 'user'
+                ? 'bg-slate-900 text-white'
+                : 'border border-slate-200 bg-slate-50 text-slate-900'
+            "
+          >
+            <AiMessageContent v-if="message.role === 'assistant'" :content="message.content" />
+            <p v-else class="break-words whitespace-pre-wrap">{{ message.content }}</p>
+          </div>
+        </article>
+      </div>
     </div>
   </div>
 </template>

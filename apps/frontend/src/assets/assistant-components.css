@@ -840,3 +840,8 @@
     padding: 2rem;
   }
 }
+
+.ai-chat-share-image-poster [class*='fade-enter-'] {
+  opacity: 1 !important;
+  transition: none !important;
+}
