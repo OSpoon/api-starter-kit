@@ -3,17 +3,10 @@ import {
   type AgentLoopTurnUpdate,
   type AgentMessage,
   type AgentTool,
-  compact,
-  DEFAULT_COMPACTION_SETTINGS,
-  type Entry,
-  estimateContextTokens,
-  estimateTokens,
-  prepareCompaction,
-  type PrepareNextTurnContext,
-  shouldCompact,
-  type ShouldStopAfterTurnContext,
+  type AgentTurnContext,
 } from '@earendil-works/pi-agent-core'
 import {
+  type Api,
   type ApiKeyAuth,
   type AuthContext,
   type AuthResult,
@@ -22,9 +15,13 @@ import {
   type Message,
   type Model,
   type Provider,
+  type Usage,
 } from '@earendil-works/pi-ai'
 import { openAICompletionsApi } from '@earendil-works/pi-ai/api/openai-completions.lazy'
+import { estimateContextTokens, estimateMessageTokens } from '@earendil-works/pi-ai/utils/estimate'
+import { getCurrentSystemMessage } from '@earendil-works/pi-ai/utils/transcript'
 
+import { aiAgentSummaryPrompt } from '#ai/policy/ai_agent_prompt_policy'
 import { readRuntimeLlmConfiguration } from '#services/llm_configuration_service'
 import { resolveModelsDevPricing } from '#services/models_dev_pricing_service'
 
@@ -36,39 +33,144 @@ import { resolveModelsDevPricing } from '#services/models_dev_pricing_service'
  */
 export type PiAgentMessage = AgentMessage
 
+export type PiModelUsage = {
+  providerId: string
+  modelId: string
+  baseUrl: string
+  usage: Usage
+  status: 'completed' | 'failed'
+}
+
+function estimatePiMessages(messages: AgentMessage[]) {
+  return estimateContextTokens(getPiContextMessages(messages)).tokens
+}
+
+function getPiContextMessages(messages: AgentMessage[]): Message[] {
+  const convertedMessages = convertPiMessages(messages)
+  const systemMessage = getCurrentSystemMessage(convertedMessages)
+  return [
+    ...(systemMessage ? [systemMessage] : []),
+    ...convertedMessages.filter((message) => message.role !== 'system'),
+  ]
+}
+
 function convertPiMessages(messages: AgentMessage[]): Message[] {
   return messages.filter(
     (message): message is Message =>
-      message.role === 'user' || message.role === 'assistant' || message.role === 'toolResult'
+      message.role === 'system' ||
+      message.role === 'user' ||
+      message.role === 'assistant' ||
+      message.role === 'toolResult'
   )
 }
 
 export function trimPiContextToTokenBudget(messages: AgentMessage[], tokenBudget: number) {
-  if (estimateContextTokens(messages).tokens <= tokenBudget) return messages
+  if (estimatePiMessages(messages) <= tokenBudget) return messages
 
-  const retained: AgentMessage[] = []
-  let tokens = 0
-  for (let index = messages.length - 1; index >= 0; index -= 1) {
-    const message = messages[index]
-    const messageTokens = estimateTokens(message)
-    if (retained.length > 0 && tokens + messageTokens > tokenBudget) break
-    retained.push(message)
+  const systemMessage = getCurrentSystemMessage(convertPiMessages(messages))
+  const recentMessages = messages.filter((message) => message.role !== 'system')
+  let tokens = systemMessage ? estimateMessageTokens(systemMessage) : 0
+  let firstRetainedIndex = recentMessages.length
+  while (firstRetainedIndex > 0) {
+    const index = firstRetainedIndex - 1
+    const message = recentMessages[index]
+    const piMessage = convertPiMessages([message])[0]
+    const messageTokens = piMessage ? estimateMessageTokens(piMessage) : 0
+    if (firstRetainedIndex < recentMessages.length && tokens + messageTokens > tokenBudget) break
+    firstRetainedIndex = index
     tokens += messageTokens
   }
-  const recentMessages = retained.reverse()
-  const firstUserMessage = recentMessages.findIndex((message) => message.role === 'user')
-  return firstUserMessage > 0 ? recentMessages.slice(firstUserMessage) : recentMessages
+  const latestUserIndex = recentMessages.findLastIndex((message) => message.role === 'user')
+  if (latestUserIndex >= 0) firstRetainedIndex = Math.min(firstRetainedIndex, latestUserIndex)
+  return [...(systemMessage ? [systemMessage] : []), ...recentMessages.slice(firstRetainedIndex)]
 }
 
-function toCompactionEntries(messages: AgentMessage[]): Entry[] {
-  return messages.map((message, index) => ({
-    type: 'message',
-    id: `ai-chat-message-${index}`,
-    seq: index,
-    parentId: index === 0 ? null : `ai-chat-message-${index - 1}`,
-    timestamp: message.timestamp,
-    message,
-  }))
+function getSummaryMessageText(message: Message) {
+  if (typeof message.content === 'string') return message.content
+  return message.content
+    .map((part) => {
+      if (part.type === 'text') return part.text
+      if (part.type === 'toolCall') return `Tool call: ${part.name}`
+      return '[image attachment]'
+    })
+    .filter(Boolean)
+    .join('\n')
+}
+
+function formatMessagesForSummary(messages: AgentMessage[]) {
+  return convertPiMessages(messages)
+    .map((message) => `${message.role}: ${getSummaryMessageText(message)}`)
+    .join('\n\n')
+}
+
+async function compactPiContext(input: {
+  messages: AgentMessage[]
+  models: ReturnType<typeof createModels>
+  model: Model<Api>
+  tokenBudget: number
+  signal?: AbortSignal
+  onCompaction?: (summary: string) => Promise<void>
+  onUsage?: (usage: PiModelUsage) => void | Promise<void>
+}) {
+  const allMessages = convertPiMessages(input.messages)
+  const systemMessage = getCurrentSystemMessage(allMessages)
+  const conversationalMessages = input.messages.filter((message) => message.role !== 'system')
+  const systemTokens = systemMessage ? estimateMessageTokens(systemMessage) : 0
+  const keepRecentTokens = Math.max(input.tokenBudget - systemTokens - 6000, 1)
+  let firstRetainedIndex = conversationalMessages.length
+  let retainedTokens = 0
+  while (firstRetainedIndex > 0 && retainedTokens < keepRecentTokens) {
+    const message = conversationalMessages[firstRetainedIndex - 1]
+    const piMessage = convertPiMessages([message])[0]
+    retainedTokens += piMessage ? estimateMessageTokens(piMessage) : 0
+    firstRetainedIndex -= 1
+  }
+  const latestUserIndex = conversationalMessages.findLastIndex((message) => message.role === 'user')
+  if (latestUserIndex >= 0) firstRetainedIndex = Math.min(firstRetainedIndex, latestUserIndex)
+
+  const olderMessages = conversationalMessages.slice(0, firstRetainedIndex)
+  if (olderMessages.length === 0) return undefined
+
+  const response = await input.models.completeSimple(
+    input.model,
+    {
+      systemPrompt: aiAgentSummaryPrompt,
+      messages: [
+        {
+          role: 'user',
+          content: formatMessagesForSummary(olderMessages),
+          timestamp: Date.now(),
+        },
+      ],
+    },
+    { signal: input.signal }
+  )
+  await input.onUsage?.({
+    providerId: input.model.provider,
+    modelId: input.model.id,
+    baseUrl: input.model.baseUrl,
+    usage: response.usage,
+    status:
+      response.stopReason === 'error' || response.stopReason === 'aborted' ? 'failed' : 'completed',
+  })
+  const summary = response.content
+    .filter((part) => part.type === 'text')
+    .map((part) => part.text)
+    .join('\n')
+    .trim()
+  if (response.stopReason !== 'stop' || !summary) return undefined
+
+  await input.onCompaction?.(summary)
+  const summaryMessage: AgentMessage = {
+    role: 'user',
+    content: `<conversation-summary>\n${summary}\n</conversation-summary>`,
+    timestamp: Date.now(),
+  }
+  return [
+    ...(systemMessage ? [systemMessage] : []),
+    summaryMessage,
+    ...conversationalMessages.slice(firstRetainedIndex),
+  ]
 }
 
 function isTerminalToolResult(result: unknown) {
@@ -80,7 +182,7 @@ function isTerminalToolResult(result: unknown) {
 }
 
 export function shouldStopPiAfterTurn(
-  input: Pick<ShouldStopAfterTurnContext, 'message' | 'toolResults'>,
+  input: Pick<AgentTurnContext, 'message' | 'toolResults'>,
   hasQueuedMessages = false
 ) {
   if (input.message.stopReason === 'error' || input.message.stopReason === 'aborted') return true
@@ -167,8 +269,10 @@ export async function createPiAgent(input: {
   messages?: PiAgentMessage[]
   sessionId?: string
   signal?: AbortSignal
-  refreshContext?: (context: PrepareNextTurnContext) => Promise<string | undefined>
+  initialRuntimeContext?: string
+  refreshRuntimeContext?: () => Promise<string | undefined>
   onCompaction?: (summary: string) => Promise<void>
+  onCompactionUsage?: (usage: PiModelUsage) => void | Promise<void>
 }) {
   const models = await createPiModels()
   const runtimeConfig = await getRuntimeConfig()
@@ -182,7 +286,15 @@ export async function createPiAgent(input: {
       systemPrompt: input.systemPrompt,
       model,
       tools: input.tools,
-      messages: input.messages ?? [],
+      messages: [
+        {
+          role: 'system',
+          content: input.systemPrompt,
+          sections: { runtime_context: input.initialRuntimeContext ?? '' },
+          timestamp: Date.now(),
+        },
+        ...(input.messages ?? []),
+      ],
       thinkingLevel: 'off',
     },
     streamFn: models.streamSimple.bind(models),
@@ -190,46 +302,47 @@ export async function createPiAgent(input: {
     steeringMode: 'one-at-a-time',
     followUpMode: 'one-at-a-time',
     sessionId: input.sessionId,
-    convertToLlm: convertPiMessages,
+    convertToLlm: getPiContextMessages,
     transformContext: async (messages, signal) => {
       const tokenBudget = Math.max(model.contextWindow - model.maxTokens, 1)
-      const settings = {
-        ...DEFAULT_COMPACTION_SETTINGS,
-        enabled: true,
-        reserveTokens: model.maxTokens,
-        keepRecentTokens: Math.max(tokenBudget - 6000, 1),
-      }
-      if (shouldCompact(estimateContextTokens(messages).tokens, tokenBudget, settings)) {
-        const preparation = prepareCompaction(toCompactionEntries(messages), settings)
-        if (preparation.ok && preparation.value) {
-          const result = await compact(
-            preparation.value,
+      if (estimatePiMessages(messages) > tokenBudget) {
+        try {
+          const compactedMessages = await compactPiContext({
+            messages,
             models,
             model,
-            '保留用户目标、已确认事实、工具结果和未完成事项。',
-            signal
-          )
-          if (result.ok) {
-            await input.onCompaction?.(result.value.summary)
-            const summaryMessage: AgentMessage = {
-              role: 'user',
-              content: `<conversation-summary>\n${result.value.summary}\n</conversation-summary>`,
-              timestamp: Date.now(),
-            }
-            return [summaryMessage, ...result.value.retainedTail]
-          }
+            tokenBudget,
+            signal,
+            onCompaction: input.onCompaction,
+            onUsage: input.onCompactionUsage,
+          })
+          if (compactedMessages) return compactedMessages
+        } catch {
+          // Context trimming below keeps a failed summary request from aborting the chat turn.
         }
       }
       return trimPiContextToTokenBudget(messages, tokenBudget)
     },
-    shouldStopAfterTurn: (context) => shouldStopPiAfterTurn(context, hasQueuedMessages()),
+    finishTurn: (context) =>
+      shouldStopPiAfterTurn(context, hasQueuedMessages()) ? { action: 'end' } : undefined,
     prepareNextTurnWithContext: async (
-      context,
+      _context,
       signal
     ): Promise<AgentLoopTurnUpdate | undefined> => {
-      if (signal?.aborted || !input.refreshContext) return undefined
-      const systemPrompt = await input.refreshContext(context)
-      return systemPrompt ? { context: { ...context.context, systemPrompt } } : undefined
+      if (signal?.aborted || !input.refreshRuntimeContext) return undefined
+      const runtimeContext = await input.refreshRuntimeContext()
+      return runtimeContext === undefined
+        ? undefined
+        : {
+            messages: [
+              {
+                role: 'system',
+                content: '',
+                sections: { runtime_context: runtimeContext },
+                timestamp: Date.now(),
+              },
+            ],
+          }
     },
     beforeToolCall: async ({ args }) => {
       if (!args || typeof args !== 'object' || Array.isArray(args)) {

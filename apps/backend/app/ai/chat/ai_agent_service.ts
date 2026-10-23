@@ -1,14 +1,18 @@
 import crypto from 'node:crypto'
 
+import logger from '@adonisjs/core/services/logger'
+
 import { listConversationConfirmations } from '#ai/core/ai_agent_confirmation'
 import { serializeAiAgentRuntimeContext } from '#ai/core/ai_agent_runtime_context'
 import type { AiAgentToolRequestContext } from '#ai/core/ai_agent_tool_context'
 import type { AiAgentMessage } from '#ai/core/ai_agent_types'
 import type { AiAgentPageContext } from '#ai/policy/ai_agent_prompt_policy'
 import { getPendingAiQueryContext } from '#ai/registry/ai_agent_query_registry'
+import type { PiModelUsage } from '#ai/runtime/ai_agent_pi_runtime'
 import { createAiAgentPiStream } from '#ai/runtime/ai_agent_pi_stream'
 import { registerAiAgentRun } from '#ai/runtime/ai_agent_run_registry'
 import AiChatConversation from '#models/ai_chat_conversation'
+import { recordAiUsageEvent } from '#services/ai_usage_service'
 
 export {
   getAiAgentModelName,
@@ -53,9 +57,12 @@ export async function createAiAgentStream(
   input: AiAgentToolRequestContext & {
     messages: AiAgentMessage[]
     context?: AiAgentPageContext
+    onCompactionUsage?: (usage: PiModelUsage) => void
   }
 ) {
   const agentRunId = crypto.randomUUID()
+  let callSequence = 0
+  const nextModelCallSequence = () => callSequence++
   const liveSessionContext = await buildLiveSessionContext(input.conversationId, input.userId)
   const persistCompaction = async (summary: string) => {
     await AiChatConversation.query()
@@ -69,6 +76,40 @@ export async function createAiAgentStream(
     liveSessionContext,
     getLiveSessionContext: () => buildLiveSessionContext(input.conversationId, input.userId),
     onCompaction: persistCompaction,
+    onCompactionUsage: async (usage) => {
+      try {
+        await recordAiUsageEvent({
+          userId: input.userId,
+          conversationId: input.conversationId,
+          agentRunId,
+          callSequence: nextModelCallSequence(),
+          providerId: usage.providerId,
+          modelId: usage.modelId,
+          baseUrl: usage.baseUrl,
+          usage: {
+            input: usage.usage.input,
+            output: usage.usage.output,
+            cacheRead: usage.usage.cacheRead,
+            cacheWrite: usage.usage.cacheWrite,
+            totalTokens: usage.usage.totalTokens,
+          },
+          status: usage.status,
+        })
+      } catch (error) {
+        logger.warn(
+          { err: error, conversationId: input.conversationId, agentRunId },
+          'AI compaction usage event could not be recorded'
+        )
+      }
+      try {
+        input.onCompactionUsage?.(usage)
+      } catch (error) {
+        logger.warn(
+          { err: error, conversationId: input.conversationId, agentRunId },
+          'AI compaction usage could not be added to the turn summary'
+        )
+      }
+    },
   })
   registerAiAgentRun({
     conversationId: input.conversationId,
@@ -76,5 +117,10 @@ export async function createAiAgentStream(
     agentRunId,
     control: stream.control,
   })
-  return { stream, agentRunId, model: stream.model }
+  return {
+    stream,
+    agentRunId,
+    model: stream.model,
+    nextModelCallSequence,
+  }
 }

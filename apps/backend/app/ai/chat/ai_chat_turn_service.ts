@@ -163,6 +163,14 @@ export async function runAiChatAssistantTurn(input: {
             })),
           { role: userMessage.role, content: userMessage.content, id: userMessage.id },
         ]
+    const usage = {
+      inputTokens: 0,
+      outputTokens: 0,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+      totalTokens: 0,
+      modelCalls: 0,
+    }
     aiFailureStage = 'agent_stream'
     const run = await createAiAgentStream({
       conversationId: conversation.id,
@@ -179,18 +187,17 @@ export async function runAiChatAssistantTurn(input: {
           citations: [...knowledgeCitations.values()],
         })
       },
+      onCompactionUsage: ({ usage: compactionUsage }) => {
+        usage.modelCalls += 1
+        usage.inputTokens += compactionUsage.input
+        usage.outputTokens += compactionUsage.output
+        usage.cacheReadTokens += compactionUsage.cacheRead
+        usage.cacheWriteTokens += compactionUsage.cacheWrite
+        usage.totalTokens += compactionUsage.totalTokens
+      },
     })
     agentRunId = run.agentRunId
     const streamStartedAt = Date.now()
-    const usage = {
-      inputTokens: 0,
-      outputTokens: 0,
-      cacheReadTokens: 0,
-      cacheWriteTokens: 0,
-      totalTokens: 0,
-      modelCalls: 0,
-    }
-    let modelCallSequence = 0
     aiFailureStage = 'message_stream'
     for await (const event of streamAiAgentTurnEvents(run, input.signal)) {
       if (input.signal.aborted) {
@@ -297,7 +304,7 @@ export async function runAiChatAssistantTurn(input: {
             userId,
             conversationId: conversation.id,
             agentRunId: run.agentRunId,
-            callSequence: modelCallSequence,
+            callSequence: run.nextModelCallSequence(),
             providerId: event.value.providerId,
             modelId: event.value.modelId,
             baseUrl: event.value.baseUrl,
@@ -316,7 +323,6 @@ export async function runAiChatAssistantTurn(input: {
             'AI usage event could not be recorded'
           )
         }
-        modelCallSequence += 1
         if (event.value.error) throw event.value.error
         await persistAssistantMessage()
       }

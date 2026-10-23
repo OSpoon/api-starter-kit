@@ -8,7 +8,11 @@ import {
   createAiAgentSystemPrompt,
 } from '#ai/policy/ai_agent_prompt_policy'
 import { createAiAgentTools } from '#ai/registry/ai_agent_tool_registry'
-import { createPiAgent, type PiAgentMessage } from '#ai/runtime/ai_agent_pi_runtime'
+import {
+  createPiAgent,
+  type PiAgentMessage,
+  type PiModelUsage,
+} from '#ai/runtime/ai_agent_pi_runtime'
 
 export type PiAgentControl = {
   steer(content: string): void
@@ -86,6 +90,7 @@ export async function createAiAgentPiStream(
     getLiveSessionContext?: () => Promise<string>
     agentRunId: string
     onCompaction?: (summary: string) => Promise<void>
+    onCompactionUsage?: (usage: PiModelUsage) => void | Promise<void>
   }
 ) {
   const events = new AsyncQueue<AgentEvent>()
@@ -95,22 +100,15 @@ export async function createAiAgentPiStream(
     lastMessage?.role === 'user' ? input.messages.slice(0, -1) : input.messages
 
   const { agent } = await createPiAgent({
-    systemPrompt: createAiAgentSystemPrompt(
-      input.context,
-      input.liveSessionContext,
-      input.capabilityMode
-    ),
+    systemPrompt: createAiAgentSystemPrompt(input.context, '', input.capabilityMode),
     tools: createAiAgentTools({ ...input, agentRunId: input.agentRunId }),
     messages: toPiMessages(initialMessages),
     sessionId: `ai-chat:${input.conversationId}`,
     signal: input.signal,
+    initialRuntimeContext: input.liveSessionContext,
     onCompaction: input.onCompaction,
-    refreshContext: async () => {
-      const liveSessionContext = await input.getLiveSessionContext?.()
-      return liveSessionContext === undefined
-        ? undefined
-        : createAiAgentSystemPrompt(input.context, liveSessionContext, input.capabilityMode)
-    },
+    onCompactionUsage: input.onCompactionUsage,
+    refreshRuntimeContext: async () => input.getLiveSessionContext?.(),
   })
 
   const control: PiAgentControl = {
