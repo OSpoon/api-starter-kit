@@ -510,9 +510,11 @@
   --starter-login-muted: var(--muted-foreground);
   --starter-login-border: var(--border);
   background-color: var(--muted);
+  padding: 1rem;
 }
 
 .starter-login__card {
+  min-width: 15.625rem;
   overflow: hidden;
   padding: 0;
   border-color: var(--starter-login-border);
@@ -789,6 +791,18 @@
   }
 }
 
+@media (min-width: 640px) {
+  .starter-login {
+    padding: 1.5rem;
+  }
+}
+
+@media (min-width: 768px) {
+  .starter-login {
+    padding: 2.5rem;
+  }
+}
+
 .starter-login--compact .starter-login__card {
   grid-template-columns: minmax(0, 1fr);
 }
@@ -838,6 +852,34 @@
 @media (min-width: 640px) and (max-width: 1023px) {
   .starter-login__card > aside {
     padding: 2rem;
+  }
+}
+
+@media (max-width: 639px) {
+  .starter-login__card > aside,
+  .starter-login__card > div {
+    padding: 1rem;
+  }
+
+  .starter-login__hero-title {
+    font-size: 1.25rem;
+  }
+}
+
+@media (max-width: 281px) {
+  .starter-login {
+    padding: 0;
+  }
+}
+
+@media (max-width: 249px) {
+  .starter-login {
+    justify-content: flex-start;
+    overflow-x: auto;
+  }
+
+  .starter-login > div {
+    min-width: 15.625rem;
   }
 }
 

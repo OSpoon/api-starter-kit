@@ -229,7 +229,7 @@ function backToLogin() {
           ? t('auth.github_bind_desc')
           : undefined
     "
-    :max-width-class="props.compact ? 'max-w-md' : 'max-w-5xl'"
+    :max-width-class="props.compact ? 'max-w-md' : 'max-w-sm lg:max-w-5xl'"
     card-class="starter-login__card"
     muted
   >
