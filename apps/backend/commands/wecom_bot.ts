@@ -12,7 +12,6 @@ export default class WecomBot extends BaseCommand {
     const completed = await runAiChannelWorker({
       name: 'WeCom',
       createRuntime: createWecomAiRuntime,
-      logger: this.logger,
     })
     if (!completed) this.exitCode = 1
   }

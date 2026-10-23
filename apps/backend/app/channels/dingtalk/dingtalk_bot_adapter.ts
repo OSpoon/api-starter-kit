@@ -41,11 +41,6 @@ function parseJson(value: string): Record<string, unknown> {
   }
 }
 
-function compact(value: string) {
-  const content = value.replace(/\s+/g, ' ').trim()
-  return content.length > 240 ? `${content.slice(0, 240)}…` : content
-}
-
 function normalizeSessionWebhookExpiry(value: unknown) {
   const timestamp = Number(value)
   if (!Number.isFinite(timestamp) || timestamp <= 0) return Date.now() + 60 * 60 * 1000
@@ -89,11 +84,13 @@ function formatDingTalkError(status: number, result: Record<string, unknown>) {
 export class DingTalkBotAdapter implements ChannelAdapter {
   readonly channel = 'dingtalk' as const
   readonly tenantId = 'dingtalk'
+  private readonly log = logger.child({ channel: this.channel })
   private readonly client: DWClient
   private readonly conversations = new Map<string, CachedConversation>()
   private started = false
 
   constructor(private readonly options: DingTalkBotAdapterOptions) {
+    // shortcut: DingTalk SDK writes connection logs to console; revisit when it exposes logger injection.
     this.client = new DWClient({
       clientId: options.clientId,
       clientSecret: options.clientSecret,
@@ -107,13 +104,17 @@ export class DingTalkBotAdapter implements ChannelAdapter {
     this.started = true
     this.client
       .registerCallbackListener(TOPIC_ROBOT, (event) => {
-        void this.handleRobotEvent(event).catch((error) => this.logError(error))
+        void this.handleRobotEvent(event).catch((error) =>
+          this.logError(error, { eventType: TOPIC_ROBOT, messageId: event.headers.messageId })
+        )
       })
       .registerCallbackListener(TOPIC_CARD, (event) => {
-        void this.handleCardEvent(event).catch((error) => this.logError(error))
+        void this.handleCardEvent(event).catch((error) =>
+          this.logError(error, { eventType: TOPIC_CARD, messageId: event.headers.messageId })
+        )
       })
     await this.client.connect()
-    logger.info('DingTalk AI bot WebSocket worker started')
+    this.log.info('DingTalk AI bot WebSocket worker started')
   }
 
   async stop() {
@@ -137,7 +138,11 @@ export class DingTalkBotAdapter implements ChannelAdapter {
       try {
         await this.deliverConfirmationCard(cached.message, target.externalTenantId, message)
       } catch (error) {
-        this.logError(error)
+        this.logError(error, {
+          operation: 'send_confirmation_card',
+          conversationKey: target.conversationKey,
+          confirmationId: message.confirmationId,
+        })
         await this.postSessionWebhook(cached.message.sessionWebhook, {
           msgtype: 'text',
           text: { content: '受控操作确认卡发送失败，本次操作未执行，请稍后重试或联系管理员。' },
@@ -158,13 +163,13 @@ export class DingTalkBotAdapter implements ChannelAdapter {
     const messageType = readStringValue(rawMessage.msgtype) ?? 'text'
     const isVoice = messageType === 'voice' || messageType === 'audio'
     if (!isVoice && (message.msgtype !== 'text' || !message.text?.content)) {
-      logger.info({ messageId: message.msgId }, 'DingTalk non-text message ignored')
+      this.log.info({ messageId: message.msgId }, 'DingTalk non-text message ignored')
       return
     }
     const externalUserId = message.senderStaffId || message.senderId
     const conversationKey = message.conversationId || externalUserId
     if (!externalUserId || !conversationKey || !message.sessionWebhook) {
-      logger.warn({ messageId: message.msgId }, 'DingTalk message lacks routing identity')
+      this.log.warn({ messageId: message.msgId }, 'DingTalk message lacks routing identity')
       return
     }
     this.conversations.set(conversationKey, {
@@ -176,17 +181,27 @@ export class DingTalkBotAdapter implements ChannelAdapter {
     let content = message.text?.content?.trim() ?? ''
     if (isVoice) {
       content = readAudioRecognition(message) ?? ''
-      logger.info(
-        { messageId: message.msgId, hasRecognition: Boolean(content) },
+      this.log.info(
+        {
+          messageId: message.msgId,
+          conversationKey,
+          hasRecognition: Boolean(content),
+        },
         'DingTalk voice recognition resolved'
       )
       if (!content) {
-        logger.warn({ messageId: message.msgId }, 'DingTalk voice has no recognition text')
+        this.log.warn(
+          { messageId: message.msgId, conversationKey },
+          'DingTalk voice has no recognition text'
+        )
         return
       }
     }
     if (!content) {
-      logger.warn({ messageId: message.msgId }, 'DingTalk message has no usable content')
+      this.log.warn(
+        { messageId: message.msgId, conversationKey },
+        'DingTalk message has no usable content'
+      )
       return
     }
     const normalized: NormalizedInboundMessage = {
@@ -202,13 +217,12 @@ export class DingTalkBotAdapter implements ChannelAdapter {
       receivedAt: new Date(message.createAt || Date.now()),
       raw: message,
     }
-    logger.info(
+    this.log.info(
       {
         messageId: normalized.messageId,
         conversationKey,
         externalUserId,
         contentLength: normalized.content.length,
-        contentPreview: compact(normalized.content),
       },
       'DingTalk message normalized; handing off to AI bridge'
     )
@@ -221,7 +235,14 @@ export class DingTalkBotAdapter implements ChannelAdapter {
         { channel: this.channel, externalTenantId: normalized.externalTenantId, conversationKey },
         reply
       )
-      logger.info({ messageId: normalized.messageId, kind: reply.kind }, 'DingTalk AI reply sent')
+      this.log.info(
+        {
+          messageId: normalized.messageId,
+          conversationKey,
+          kind: reply.kind,
+        },
+        'DingTalk AI reply sent'
+      )
     }
   }
 
@@ -231,9 +252,16 @@ export class DingTalkBotAdapter implements ChannelAdapter {
     try {
       outTrackId = await this.createStreamingCard(message, initialContent)
     } catch (error) {
-      this.logError(error)
-      logger.warn(
-        { conversationKey: normalized.conversationKey },
+      this.logError(error, {
+        operation: 'create_streaming_card',
+        messageId: normalized.messageId,
+        conversationKey: normalized.conversationKey,
+      })
+      this.log.warn(
+        {
+          messageId: normalized.messageId,
+          conversationKey: normalized.conversationKey,
+        },
         'DingTalk streaming card creation failed; falling back to text reply'
       )
       return this.options.onMessage(normalized)
@@ -248,21 +276,42 @@ export class DingTalkBotAdapter implements ChannelAdapter {
     const updateError = await stream.finish()
     let streamingCardFailed = Boolean(updateError)
     if (streamingCardFailed) {
-      this.logError(updateError)
-      logger.warn(
-        { conversationKey: normalized.conversationKey },
+      this.logError(updateError, {
+        operation: 'update_streaming_card',
+        messageId: normalized.messageId,
+        conversationKey: normalized.conversationKey,
+      })
+      this.log.warn(
+        {
+          messageId: normalized.messageId,
+          conversationKey: normalized.conversationKey,
+        },
         'DingTalk streaming card update failed; final reply will use text'
       )
     } else {
       const finalContent = reply?.kind === 'text' ? reply.content : stream.latest
       try {
         await this.updateStreamingCard(outTrackId, finalContent)
-        logger.info({ outTrackId }, 'DingTalk streaming card completed')
+        this.log.info(
+          {
+            messageId: normalized.messageId,
+            conversationKey: normalized.conversationKey,
+            outTrackId,
+          },
+          'DingTalk streaming card completed'
+        )
       } catch (error) {
         streamingCardFailed = true
-        this.logError(error)
-        logger.warn(
-          { conversationKey: normalized.conversationKey },
+        this.logError(error, {
+          operation: 'finalize_streaming_card',
+          messageId: normalized.messageId,
+          conversationKey: normalized.conversationKey,
+        })
+        this.log.warn(
+          {
+            messageId: normalized.messageId,
+            conversationKey: normalized.conversationKey,
+          },
           'DingTalk final streaming card update failed; falling back to text reply'
         )
       }
@@ -292,7 +341,7 @@ export class DingTalkBotAdapter implements ChannelAdapter {
       this.tenantId
     if (!actionKey || !taskId || !conversationKey || !externalUserId) {
       this.client.socketCallBackResponse(event.headers.messageId, EventAck.SUCCESS)
-      logger.warn(
+      this.log.warn(
         { messageId: event.headers.messageId },
         'DingTalk card callback lacks action context'
       )
@@ -334,8 +383,11 @@ export class DingTalkBotAdapter implements ChannelAdapter {
         msgtype: 'text',
         text: { content: '受控操作确认卡未配置，请管理员在 IM 配置中填写钉钉互动卡片模板 ID。' },
       })
-      logger.warn(
-        { confirmationId: confirmation.confirmationId },
+      this.log.warn(
+        {
+          conversationKey: message.conversationId,
+          confirmationId: confirmation.confirmationId,
+        },
         'DingTalk confirmation card template is missing'
       )
       return
@@ -371,9 +423,10 @@ export class DingTalkBotAdapter implements ChannelAdapter {
       payload.imRobotOpenSpaceModel = { supportForward: true }
       payload.imRobotOpenDeliverModel = { spaceType: 'IM_ROBOT' }
     }
-    logger.info(
+    this.log.info(
       {
         confirmationId: confirmation.confirmationId,
+        conversationKey: message.conversationId,
         cardTemplateId,
         conversationType: message.conversationType,
         openSpaceId: payload.openSpaceId,
@@ -390,8 +443,14 @@ export class DingTalkBotAdapter implements ChannelAdapter {
     if (!response.ok || result.success === false) {
       throw new Error(formatDingTalkError(response.status, result))
     }
-    logger.info(
-      { confirmationId: confirmation.confirmationId, outTrackId, response: result },
+    this.log.info(
+      {
+        confirmationId: confirmation.confirmationId,
+        conversationKey: message.conversationId,
+        outTrackId,
+        httpStatus: response.status,
+        providerSuccess: result.success ?? null,
+      },
       'DingTalk confirmation card sent'
     )
   }
@@ -428,7 +487,7 @@ export class DingTalkBotAdapter implements ChannelAdapter {
     if (!response.ok || result.success === false) {
       throw new Error(formatDingTalkError(response.status, result))
     }
-    logger.info({ outTrackId }, 'DingTalk streaming card created')
+    this.log.info({ outTrackId }, 'DingTalk streaming card created')
     return outTrackId
   }
 
@@ -448,7 +507,7 @@ export class DingTalkBotAdapter implements ChannelAdapter {
       const result = await readDingTalkResponse(response)
       throw new Error(formatDingTalkError(response.status, result))
     }
-    logger.debug({ outTrackId, status: response.status }, 'DingTalk streaming card updated')
+    this.log.debug({ outTrackId, httpStatus: response.status }, 'DingTalk streaming card updated')
   }
 
   private async postSessionWebhook(url: string, payload: Record<string, unknown>) {
@@ -468,7 +527,7 @@ export class DingTalkBotAdapter implements ChannelAdapter {
     return typeof value === 'string' && value.trim() ? value.trim() : null
   }
 
-  private logError(error: unknown) {
-    logger.error({ err: error }, 'DingTalk bot callback failed')
+  private logError(error: unknown, context: Record<string, unknown>) {
+    this.log.error({ err: error, ...context }, 'DingTalk bot operation failed')
   }
 }

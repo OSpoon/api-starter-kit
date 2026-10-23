@@ -37,13 +37,13 @@ class FakeRuntime implements ReloadableBotRuntime {
 
 function createLogger() {
   return {
-    errors: [] as string[],
-    infos: [] as string[],
-    error(message: string) {
-      this.errors.push(message)
+    errors: [] as Array<{ fields: Record<string, unknown>; message: string }>,
+    infos: [] as Array<{ fields: Record<string, unknown>; message: string }>,
+    error(fields: Record<string, unknown>, message: string) {
+      this.errors.push({ fields, message })
     },
-    info(message: string) {
-      this.infos.push(message)
+    info(fields: Record<string, unknown>, message: string) {
+      this.infos.push({ fields, message })
     },
   }
 }

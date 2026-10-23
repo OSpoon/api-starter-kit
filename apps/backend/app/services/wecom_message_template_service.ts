@@ -370,9 +370,9 @@ export async function sendAuditedWecomMessageTemplate(
   } catch (error) {
     try {
       await auditWecomMessageSend(ctx, { ...input, status: 'failed' })
-    } catch {
+    } catch (auditError) {
       logger.warn(
-        { templateId: input.template.id, outcome: 'failed' },
+        { err: auditError, templateId: input.template.id, outcome: 'failed' },
         'Failed to record WeCom message send outcome'
       )
     }
@@ -381,9 +381,9 @@ export async function sendAuditedWecomMessageTemplate(
 
   try {
     await auditWecomMessageSend(ctx, { ...input, status: 'sent' })
-  } catch {
+  } catch (auditError) {
     logger.warn(
-      { templateId: input.template.id, outcome: 'sent' },
+      { err: auditError, templateId: input.template.id, outcome: 'sent' },
       'Failed to record WeCom message send outcome'
     )
   }

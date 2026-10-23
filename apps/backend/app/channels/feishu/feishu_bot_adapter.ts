@@ -26,6 +26,7 @@ export interface FeishuBotAdapterOptions {
 type FeishuMessageEvent = Parameters<
   NonNullable<Parameters<Lark.EventDispatcher['register']>[0]['im.message.receive_v1']>
 >[0]
+type FeishuSdkLogger = NonNullable<ConstructorParameters<typeof Lark.EventDispatcher>[0]['logger']>
 
 interface FeishuCardActionEvent {
   action?: { value?: unknown }
@@ -61,16 +62,14 @@ function readAudioTranscript(content: Record<string, unknown>) {
   return null
 }
 
-function summarizeContent(content: string) {
-  const normalized = content.replace(/\s+/g, ' ').trim()
-  return normalized.length > 240 ? `${normalized.slice(0, 240)}…` : normalized
-}
-
 export class FeishuBotAdapter implements ChannelAdapter {
   readonly channel = 'feishu' as const
   readonly tenantId: string
+  private readonly log = logger.child({ channel: this.channel })
+  private readonly sdkLog = this.log.child({ component: 'feishu_sdk' })
   private readonly client: Lark.Client
   private readonly wsClient: Lark.WSClient
+  private readonly sdkLogger: FeishuSdkLogger
   private started = false
   private resolveStartup: (() => void) | null = null
   private rejectStartup: ((error: Error) => void) | null = null
@@ -78,6 +77,13 @@ export class FeishuBotAdapter implements ChannelAdapter {
 
   constructor(private readonly options: FeishuBotAdapterOptions) {
     this.tenantId = options.tenantId ?? 'feishu'
+    this.sdkLogger = {
+      trace: () => undefined,
+      debug: () => undefined,
+      info: (...args: unknown[]) => this.sdkLog.info(String(args[0] ?? '')),
+      warn: (...args: unknown[]) => this.sdkLog.warn(String(args[0] ?? '')),
+      error: (...args: unknown[]) => this.sdkLog.error(String(args[0] ?? '')),
+    }
     const baseConfig = {
       appId: options.appId,
       appSecret: options.secret,
@@ -87,13 +93,14 @@ export class FeishuBotAdapter implements ChannelAdapter {
     this.wsClient = new Lark.WSClient({
       ...baseConfig,
       loggerLevel: Lark.LoggerLevel.info,
+      logger: this.sdkLogger,
       autoReconnect: true,
       onReady: () => {
-        console.info('[feishu-bot] WebSocket authenticated')
+        this.log.info('Feishu WebSocket authenticated')
         this.resolveStartup?.()
       },
       onError: (error) => this.rejectStartup?.(error),
-      onReconnecting: () => console.warn('[feishu-bot] WebSocket reconnecting'),
+      onReconnecting: () => this.log.warn('Feishu WebSocket reconnecting'),
     })
   }
 
@@ -102,25 +109,41 @@ export class FeishuBotAdapter implements ChannelAdapter {
     this.started = true
     const eventDispatcher = new Lark.EventDispatcher({
       loggerLevel: Lark.LoggerLevel.info,
+      logger: this.sdkLogger,
     }).register({
       'im.message.receive_v1': async (event: FeishuMessageEvent) => {
-        logger.info(
+        this.log.info(
           {
             messageId: event.message.message_id,
-            chatId: event.message.chat_id,
+            conversationKey: event.message.chat_id,
             messageType: event.message.message_type,
             senderType: event.sender.sender_type,
           },
           'Feishu message event received'
         )
         if (!this.markMessageHandled(event.message.message_id)) {
-          logger.debug({ messageId: event.message.message_id }, 'Feishu message event deduplicated')
+          this.log.debug(
+            { messageId: event.message.message_id },
+            'Feishu message event deduplicated'
+          )
           return
         }
-        void this.handleMessage(event).catch((error) => this.logError(error))
+        void this.handleMessage(event).catch((error) =>
+          this.logError(error, {
+            eventType: 'im.message.receive_v1',
+            messageId: event.message.message_id,
+            conversationKey: event.message.chat_id,
+          })
+        )
       },
       'card.action.trigger': async (event: FeishuCardActionEvent) => {
-        void this.handleCardAction(event).catch((error) => this.logError(error))
+        void this.handleCardAction(event).catch((error) =>
+          this.logError(error, {
+            eventType: 'card.action.trigger',
+            conversationKey: event.context?.open_chat_id ?? event.open_chat_id ?? null,
+            externalUserId: event.operator?.open_id ?? null,
+          })
+        )
       },
     })
     await new Promise<void>((resolve, reject) => {
@@ -182,7 +205,13 @@ export class FeishuBotAdapter implements ChannelAdapter {
   private async handleMessage(event: FeishuMessageEvent) {
     const senderId = event.sender.sender_id?.open_id
     if (!senderId) {
-      logger.warn({ messageId: event.message.message_id }, 'Feishu message has no sender open_id')
+      this.log.warn(
+        {
+          messageId: event.message.message_id,
+          conversationKey: event.message.chat_id,
+        },
+        'Feishu message has no sender open_id'
+      )
       return
     }
 
@@ -192,8 +221,12 @@ export class FeishuBotAdapter implements ChannelAdapter {
       try {
         content = await this.transcribeAudioMessage(event.message.message_id, event.message.content)
       } catch (error) {
-        logger.error(
-          { messageId: event.message.message_id, err: error },
+        this.log.error(
+          {
+            err: error,
+            messageId: event.message.message_id,
+            conversationKey: event.message.chat_id,
+          },
           'Feishu audio transcription failed'
         )
         await this.send(
@@ -220,13 +253,12 @@ export class FeishuBotAdapter implements ChannelAdapter {
       receivedAt: new Date(Number(event.message.create_time) || Date.now()),
       raw: event,
     }
-    logger.info(
+    this.log.info(
       {
         messageId: message.messageId,
         conversationKey: message.conversationKey,
         externalUserId: message.externalUserId,
         contentLength: message.content.length,
-        contentPreview: summarizeContent(message.content),
       },
       'Feishu message normalized; handing off to AI bridge'
     )
@@ -240,7 +272,14 @@ export class FeishuBotAdapter implements ChannelAdapter {
         },
         reply
       )
-      logger.info({ messageId: message.messageId, kind: reply.kind }, 'Feishu AI reply sent')
+      this.log.info(
+        {
+          messageId: message.messageId,
+          conversationKey: message.conversationKey,
+          kind: reply.kind,
+        },
+        'Feishu AI reply sent'
+      )
     }
   }
 
@@ -370,10 +409,7 @@ export class FeishuBotAdapter implements ChannelAdapter {
     return true
   }
 
-  private logError(error: unknown) {
-    logger.error(
-      { err: error instanceof Error ? error : undefined },
-      'Feishu bot event handler failed'
-    )
+  private logError(error: unknown, context: Record<string, unknown>) {
+    this.log.error({ err: error, ...context }, 'Feishu bot event handler failed')
   }
 }

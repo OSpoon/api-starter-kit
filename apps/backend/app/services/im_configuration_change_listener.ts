@@ -82,10 +82,14 @@ export class PostgresImConfigurationChangeListener implements ImConfigurationCha
 
       if (error) {
         this.logger.error(
-          `IM configuration listener disconnected: ${error instanceof Error ? error.message : String(error)}`
+          { err: error, operation: 'connection_lost' },
+          'IM configuration listener disconnected'
         )
       } else {
-        this.logger.error('IM configuration listener disconnected')
+        this.logger.error(
+          { operation: 'connection_ended' },
+          'IM configuration listener disconnected'
+        )
       }
       this.scheduleReconnect()
     }
@@ -94,7 +98,8 @@ export class PostgresImConfigurationChangeListener implements ImConfigurationCha
       if (message.channel !== IM_CONFIGURATION_CHANGED_CHANNEL || this.stopped) return
       void Promise.resolve(this.options.onChange()).catch((error) => {
         this.logger.error(
-          `IM configuration reload request failed: ${error instanceof Error ? error.message : String(error)}`
+          { err: error, operation: 'reload_after_notification' },
+          'IM configuration reload request failed'
         )
       })
     })
@@ -111,7 +116,7 @@ export class PostgresImConfigurationChangeListener implements ImConfigurationCha
         return
       }
 
-      this.logger.info('IM configuration listener connected')
+      this.logger.info({}, 'IM configuration listener connected')
       // Reconcile after every successful connection so notifications missed
       // while disconnected cannot leave this worker on stale credentials.
       await this.options.onChange()

@@ -1,11 +1,14 @@
+import logger from '@adonisjs/core/services/logger'
+
 import {
   type ImConfigurationChangeListener,
   PostgresImConfigurationChangeListener,
 } from '#services/im_configuration_change_listener'
 
 interface RuntimeLogger {
-  error(message: string): void
-  info(message: string): void
+  child?(fields: Record<string, unknown>): RuntimeLogger
+  error(fields: Record<string, unknown>, message: string): void
+  info(fields: Record<string, unknown>, message: string): void
 }
 
 export interface ReloadableBotRuntime {
@@ -17,7 +20,7 @@ export interface ReloadableBotRuntime {
 interface ReloadableAiChannelRuntimeOptions {
   name: string
   createRuntime: () => Promise<ReloadableBotRuntime | null>
-  logger: RuntimeLogger
+  logger?: RuntimeLogger
   createListener?: (onChange: () => Promise<void>) => ImConfigurationChangeListener
   reconcileIntervalMs?: number
 }
@@ -46,9 +49,10 @@ export class ReloadableAiChannelRuntime implements ReloadableBotRuntime {
   }
 
   constructor(options: ReloadableAiChannelRuntimeOptions) {
-    this.name = options.name
+    this.name = options.name.toLowerCase()
     this.createRuntime = options.createRuntime
-    this.logger = options.logger
+    const baseLogger = options.logger ?? logger
+    this.logger = baseLogger.child?.({ channel: this.name }) ?? baseLogger
     this.createListener =
       options.createListener ??
       ((onChange) => new PostgresImConfigurationChangeListener({ onChange }))
@@ -107,7 +111,8 @@ export class ReloadableAiChannelRuntime implements ReloadableBotRuntime {
       nextRuntime = await this.createRuntime()
     } catch (error) {
       this.logger.error(
-        `${this.name} bot configuration reload failed: ${error instanceof Error ? error.message : String(error)}`
+        { err: error, operation: 'create_runtime' },
+        'AI channel configuration reload failed'
       )
       return
     }
@@ -115,9 +120,9 @@ export class ReloadableAiChannelRuntime implements ReloadableBotRuntime {
     if (!nextRuntime) {
       if (this.activeRuntime) {
         await this.stopActiveRuntime()
-        this.logger.info(`${this.name} bot stopped because its configuration is incomplete`)
+        this.logger.info({}, 'AI channel stopped because its configuration is incomplete')
       } else {
-        this.logger.info(`${this.name} bot is waiting for complete IM configuration`)
+        this.logger.info({}, 'AI channel is waiting for complete IM configuration')
       }
       return
     }
@@ -132,7 +137,12 @@ export class ReloadableAiChannelRuntime implements ReloadableBotRuntime {
     } catch (error) {
       await nextRuntime.stop().catch(() => undefined)
       this.logger.error(
-        `${this.name} bot new connection failed; keeping the current connection: ${error instanceof Error ? error.message : String(error)}`
+        {
+          err: error,
+          operation: 'start_replacement_runtime',
+          keepingCurrentRuntime: Boolean(this.activeRuntime),
+        },
+        'AI channel replacement connection failed'
       )
       return
     }
@@ -146,10 +156,11 @@ export class ReloadableAiChannelRuntime implements ReloadableBotRuntime {
     this.activeRuntime = nextRuntime
     await previousRuntime?.stop().catch((error) => {
       this.logger.error(
-        `${this.name} bot old connection shutdown failed: ${error instanceof Error ? error.message : String(error)}`
+        { err: error, operation: 'stop_previous_runtime' },
+        'Previous AI channel connection shutdown failed'
       )
     })
-    this.logger.info(`${this.name} bot connection reloaded successfully`)
+    this.logger.info({}, 'AI channel connection reloaded successfully')
   }
 
   private async stopActiveRuntime() {
@@ -158,7 +169,8 @@ export class ReloadableAiChannelRuntime implements ReloadableBotRuntime {
     if (!runtime) return
     await runtime.stop().catch((error) => {
       this.logger.error(
-        `${this.name} bot shutdown failed: ${error instanceof Error ? error.message : String(error)}`
+        { err: error, operation: 'stop_active_runtime' },
+        'AI channel shutdown failed'
       )
     })
   }

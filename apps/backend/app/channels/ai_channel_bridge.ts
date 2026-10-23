@@ -104,13 +104,22 @@ export class AiChannelBridge implements ReloadableBotRuntime {
     message: NormalizedInboundMessage,
     emit?: (content: string) => Promise<void>
   ): Promise<OutboundMessage> {
+    const log = logger.child({ channel: message.channel })
     const isVisitor = message.conversationType === 'group'
     let user: User
     let conversationKey = message.conversationKey
     if (isVisitor) {
       try {
         user = await getChannelGuestUser()
-      } catch {
+      } catch (error) {
+        log.error(
+          {
+            err: error,
+            messageId: message.messageId,
+            conversationKey: message.conversationKey,
+          },
+          'Channel visitor principal lookup failed'
+        )
         return textReply('群聊访客模式尚未初始化，请联系管理员。')
       }
       conversationKey = createVisitorConversationKey({
@@ -152,10 +161,10 @@ export class AiChannelBridge implements ReloadableBotRuntime {
         externalConversationKey: conversationKey,
         userId: user.id,
       })
-      logger.info(
+      log.info(
         {
-          channel: message.channel,
-          externalConversationKey: message.conversationKey,
+          messageId: message.messageId,
+          conversationKey: message.conversationKey,
           userId: user.id,
         },
         'Channel conversation reset by /new command'
@@ -197,12 +206,14 @@ export class AiChannelBridge implements ReloadableBotRuntime {
           }
           if (event === 'done' && data && typeof data === 'object') {
             const confirmations = (data as Record<string, unknown>).confirmations
-            logger.info(
+            log.info(
               {
+                messageId: message.messageId,
+                conversationKey: message.conversationKey,
                 conversationId: conversation.id,
                 confirmationCount: Array.isArray(confirmations) ? confirmations.length : 0,
               },
-              `${message.channel} AI turn completed`
+              'Channel AI turn completed'
             )
             if (Array.isArray(confirmations) && confirmations[0]) {
               confirmation = confirmations[0] as Record<string, unknown>
@@ -211,25 +222,29 @@ export class AiChannelBridge implements ReloadableBotRuntime {
           if (event === 'agent_confirmation' && data && typeof data === 'object') {
             managedActionResult = 'pending'
             confirmation = data as Record<string, unknown>
-            logger.info(
+            log.info(
               {
+                messageId: message.messageId,
+                conversationKey: message.conversationKey,
                 conversationId: conversation.id,
                 confirmation: summarizeConfirmation(confirmation),
               },
-              `${message.channel} agent confirmation event received`
+              'Channel agent confirmation event received'
             )
           }
           if (event === 'tool_completed' && data && typeof data === 'object') {
             const output = (data as Record<string, unknown>).output
             if (output && typeof output === 'object') {
               const artifact = output as Record<string, unknown>
-              logger.info(
+              log.info(
                 {
+                  messageId: message.messageId,
+                  conversationKey: message.conversationKey,
                   conversationId: conversation.id,
                   artifactKind: artifact.kind ?? null,
                   hasConfirmation: Boolean(artifact.confirmation),
                 },
-                `${message.channel} AI tool completed`
+                'Channel AI tool completed'
               )
               if (artifact.kind === 'confirmation' && artifact.confirmation) {
                 managedActionResult = 'pending'
@@ -241,7 +256,15 @@ export class AiChannelBridge implements ReloadableBotRuntime {
           }
         },
       })
-    } catch {
+    } catch (error) {
+      log.error(
+        {
+          err: error,
+          messageId: message.messageId,
+          conversationId: conversation.id,
+        },
+        'Channel AI turn failed'
+      )
       return textReply('本次 AI 请求未完成，请稍后重试。')
     }
 
@@ -256,26 +279,37 @@ export class AiChannelBridge implements ReloadableBotRuntime {
       )
       if (pendingConfirmations[0]) confirmation = pendingConfirmations[0]
     }
-    logger.info(
+    log.info(
       {
+        messageId: message.messageId,
+        conversationKey: message.conversationKey,
         conversationId: conversation.id,
         managedActionResult,
         confirmation: summarizeConfirmation(confirmation),
       },
-      `${message.channel} confirmation resolution completed`
+      'Channel confirmation resolution completed'
     )
     if (confirmation) {
       const reply = confirmationReply(confirmation)
       if (reply) return reply
-      logger.warn(
-        { conversationId: conversation.id, confirmation: summarizeConfirmation(confirmation) },
-        `${message.channel} confirmation was found but could not be converted to a card`
+      log.warn(
+        {
+          messageId: message.messageId,
+          conversationKey: message.conversationKey,
+          conversationId: conversation.id,
+          confirmation: summarizeConfirmation(confirmation),
+        },
+        'Channel confirmation was found but could not be converted to a card'
       )
     }
     if (managedActionResult === 'pending') {
-      logger.warn(
-        { conversationId: conversation.id },
-        `${message.channel} managed action completed without a serializable confirmation`
+      log.warn(
+        {
+          messageId: message.messageId,
+          conversationKey: message.conversationKey,
+          conversationId: conversation.id,
+        },
+        'Channel managed action completed without a serializable confirmation'
       )
       return textReply('操作提案已生成，但确认卡未发送成功，请重新发起操作。')
     }

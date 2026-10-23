@@ -3,23 +3,13 @@ import {
   type ReloadableBotRuntime,
 } from '#channels/reloadable_ai_channel_runtime'
 
-interface WorkerLogger {
-  error(message: string): void
-  info(message: string): void
-}
-
 interface RunAiChannelWorkerOptions {
   name: string
   createRuntime: () => Promise<ReloadableBotRuntime | null>
-  logger: WorkerLogger
 }
 
-export async function runAiChannelWorker({
-  name,
-  createRuntime,
-  logger,
-}: RunAiChannelWorkerOptions) {
-  const runtime = new ReloadableAiChannelRuntime({ name, createRuntime, logger })
+export async function runAiChannelWorker({ name, createRuntime }: RunAiChannelWorkerOptions) {
+  const runtime = new ReloadableAiChannelRuntime({ name, createRuntime })
   let shuttingDown = false
   let shutdownResolver: (() => void) | null = null
 
