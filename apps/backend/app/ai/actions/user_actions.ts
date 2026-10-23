@@ -1,6 +1,3 @@
-import db from '@adonisjs/lucid/services/db'
-import { DateTime } from 'luxon'
-
 import type { AiAgentActionImplementation } from '#ai/core/ai_agent_action_contracts'
 import {
   defineAiAgentAction,
@@ -11,10 +8,14 @@ import {
 } from '#ai/core/ai_agent_action_helpers'
 import User from '#models/user'
 import { generateInitialPassword } from '#security/user_credentials'
-import { deleteManagedUser, updateManagedUser } from '#services/access_control_mutations'
+import {
+  deleteManagedUser,
+  setManagedUserDisabled,
+  updateManagedUser,
+} from '#services/access_control_mutations'
 import { recordAuditEvent } from '#services/audit_log'
-import { isChannelGuestUser } from '#services/channel_guest_principal'
-import { countSuperAdminUsers, isSuperAdmin } from '#services/super_admin_access'
+import { isInternalUser } from '#services/channel_guest_principal'
+import { isSuperAdmin } from '#services/super_admin_access'
 
 async function resolveUserId(input: Record<string, unknown>) {
   const value = input.userId
@@ -45,7 +46,7 @@ const resetUserPasswordAction: AiAgentActionImplementation = {
   async prepare(input) {
     const user = await User.find(await resolveUserId(input))
     if (!user) throw new Error('用户不存在')
-    if (isChannelGuestUser(user)) throw new Error('系统内部用户不可管理')
+    if (isInternalUser(user)) throw new Error('系统内部用户不可管理')
     return {
       targetType: 'user',
       targetId: String(user.id),
@@ -57,7 +58,7 @@ const resetUserPasswordAction: AiAgentActionImplementation = {
     const actor = await ensurePermission(ctx, 'users:update')
     const user = await User.find(integer(confirmation.payload, 'userId'))
     if (!user) throw new Error('用户不存在')
-    if (isChannelGuestUser(user)) throw new Error('系统内部用户不可管理')
+    if (isInternalUser(user)) throw new Error('系统内部用户不可管理')
     if (user.id === actor.id) throw new Error('请通过个人资料页面修改当前账号的密码')
     if ((await isSuperAdmin(user)) && !(await isSuperAdmin(actor)))
       throw new Error('仅超级管理员可以重置超级管理员的密码')
@@ -81,7 +82,7 @@ function userEnabledAction(disabled: boolean) {
     async prepare(input) {
       const user = await User.find(await resolveUserId(input))
       if (!user) throw new Error('用户不存在')
-      if (isChannelGuestUser(user)) throw new Error('系统内部用户不可管理')
+      if (isInternalUser(user)) throw new Error('系统内部用户不可管理')
       if (Boolean(user.disabledAt) === disabled)
         throw new Error(disabled ? '用户已被禁用' : '用户未被禁用')
       return {
@@ -94,37 +95,12 @@ function userEnabledAction(disabled: boolean) {
     async execute({ confirmation, ctx }) {
       const actor = await ensurePermission(ctx, 'users:update')
       const userId = integer(confirmation.payload, 'userId')
-      const user = await User.find(userId)
-      if (!user) throw new Error('用户不存在')
-      if (isChannelGuestUser(user)) throw new Error('系统内部用户不可管理')
-      if (user.id === actor.id) throw new Error('不能修改当前登录账号的启用状态')
-      if ((await isSuperAdmin(user)) && !(await isSuperAdmin(actor)))
-        throw new Error('仅超级管理员可以维护超级管理员账户')
-      if (Boolean(user.disabledAt) === disabled)
-        throw new Error(disabled ? '用户已被禁用' : '用户未被禁用')
-      await db.transaction(async (trx) => {
-        const target = await User.query({ client: trx })
-          .where('id', userId)
-          .forUpdate()
-          .firstOrFail()
-        if (Boolean(target.disabledAt) === disabled)
-          throw new Error(disabled ? '用户已被禁用' : '用户未被禁用')
-        target.disabledAt = disabled ? DateTime.now() : null
-        await target.save()
-        if (disabled) {
-          await trx.from('auth_access_tokens').where('tokenable_id', target.id).delete()
-        }
-        await recordAuditEvent(
-          ctx,
-          {
-            actorUserId: actor.id,
-            action: disabled ? 'user.disabled' : 'user.enabled',
-            targetType: 'user',
-            targetId: target.id,
-            metadata: { source: 'ai_agent' },
-          },
-          trx
-        )
+      await setManagedUserDisabled({
+        ctx,
+        actorUserId: actor.id,
+        userId,
+        disabled,
+        source: 'ai_agent',
       })
     },
   }
@@ -141,7 +117,7 @@ const updateUserAction: AiAgentActionImplementation = {
     const user = await User.find(await resolveUserId(input))
     const nextRoleIds = roleIds(input)
     if (!user) throw new Error('用户不存在')
-    if (isChannelGuestUser(user)) throw new Error('系统内部用户不可管理')
+    if (isInternalUser(user)) throw new Error('系统内部用户不可管理')
     return {
       targetType: 'user',
       targetId: String(user.id),
@@ -160,7 +136,7 @@ const updateUserAction: AiAgentActionImplementation = {
     const user = await User.find(integer(payload, 'userId'))
     const nextRoleIds = roleIds(payload)
     if (!user) throw new Error('用户不存在')
-    if (isChannelGuestUser(user)) throw new Error('系统内部用户不可管理')
+    if (isInternalUser(user)) throw new Error('系统内部用户不可管理')
     const fullName = string(payload, 'fullName', 120)
     const email = string(payload, 'email', 254)
     const sameEmail = await User.findBy('email', email)
@@ -182,7 +158,7 @@ const deleteUserAction: AiAgentActionImplementation = {
   async prepare(input) {
     const user = await User.find(await resolveUserId(input))
     if (!user) throw new Error('用户不存在')
-    if (isChannelGuestUser(user)) throw new Error('系统内部用户不可管理')
+    if (isInternalUser(user)) throw new Error('系统内部用户不可管理')
     return {
       targetType: 'user',
       targetId: String(user.id),
@@ -194,12 +170,8 @@ const deleteUserAction: AiAgentActionImplementation = {
     const actor = await ensurePermission(ctx, 'users:delete')
     const user = await User.find(integer(confirmation.payload, 'userId'))
     if (!user) throw new Error('用户不存在')
-    if (isChannelGuestUser(user)) throw new Error('系统内部用户不可管理')
+    if (isInternalUser(user)) throw new Error('系统内部用户不可管理')
     if (user.id === actor.id) throw new Error('不能删除当前登录账号')
-    if (await isSuperAdmin(user)) {
-      if (!(await isSuperAdmin(actor))) throw new Error('仅超级管理员可以删除超级管理员账户')
-      if ((await countSuperAdminUsers()) <= 1) throw new Error('至少需要保留一个超级管理员账户')
-    }
     await deleteManagedUser({
       ctx,
       actorUserId: actor.id,

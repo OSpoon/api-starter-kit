@@ -291,6 +291,91 @@ test.group('rbac', (group) => {
     )
   })
 
+  test('limits delegated role and user grants to the actor effective permissions', async ({
+    client,
+    assert,
+  }) => {
+    const managerCodes = ['roles:create', 'roles:update', 'users:create', 'users:update']
+    const managerPermissions = await Permission.query().whereIn('code', managerCodes)
+    const managerRole = await Role.create({ code: `delegated-${Date.now()}`, name: 'Delegated' })
+    await managerRole.related('permissions').sync(managerPermissions.map(({ id }) => id))
+    const manager = await User.create({
+      fullName: 'Delegated manager',
+      email: `delegated-manager-${Date.now()}@example.com`,
+      password: generateInitialPassword(),
+    })
+    await manager.related('roles').sync([managerRole.id])
+    const token = await User.accessTokens.create(manager)
+    const bearerToken = token.value!.release()
+
+    const apiKeyCreate = await Permission.findByOrFail('code', 'api-keys:create')
+    const privilegedRole = await Role.create({
+      code: `privileged-${Date.now()}`,
+      name: 'Privileged',
+    })
+    await privilegedRole.related('permissions').sync([apiKeyCreate.id])
+
+    const forbiddenCreate = await client
+      .post('/api/v1/system/roles')
+      .bearerToken(bearerToken)
+      .json({
+        code: `forbidden-grant-${Date.now()}`,
+        name: 'Forbidden grant',
+        permissionIds: [apiKeyCreate.id],
+      })
+    forbiddenCreate.assertStatus(403)
+
+    const forbiddenUpdate = await client
+      .put(`/api/v1/system/roles/${managerRole.id}`)
+      .bearerToken(bearerToken)
+      .json({
+        name: managerRole.name,
+        permissionIds: [...managerPermissions.map(({ id }) => id), apiKeyCreate.id],
+      })
+    forbiddenUpdate.assertStatus(403)
+
+    const forbiddenUser = await client
+      .post('/api/v1/system/users')
+      .bearerToken(bearerToken)
+      .json({
+        fullName: 'Privileged user',
+        email: `privileged-user-${Date.now()}@example.com`,
+        roleIds: [privilegedRole.id],
+      })
+    forbiddenUser.assertStatus(403)
+
+    const selfEscalation = await client
+      .put(`/api/v1/system/users/${manager.id}`)
+      .bearerToken(bearerToken)
+      .json({
+        fullName: manager.fullName,
+        email: manager.email,
+        roleIds: [managerRole.id, privilegedRole.id],
+      })
+    selfEscalation.assertStatus(403)
+
+    const permittedRole = await client
+      .post('/api/v1/system/roles')
+      .bearerToken(bearerToken)
+      .json({
+        code: `permitted-${Date.now()}`,
+        name: 'Permitted role',
+        permissionIds: [managerPermissions.find(({ code }) => code === 'users:create')!.id],
+      })
+    permittedRole.assertStatus(200)
+    const createdRoleId = (permittedRole.body().data as { id: number }).id
+    const permittedUser = await client
+      .post('/api/v1/system/users')
+      .bearerToken(bearerToken)
+      .json({
+        fullName: 'Permitted user',
+        email: `permitted-user-${Date.now()}@example.com`,
+        roleIds: [createdRoleId],
+      })
+    permittedUser.assertStatus(200)
+    assert.equal((permittedUser.body().data as { user: { roles: unknown[] } }).user.roles.length, 1)
+  })
+
   test('applies self role and super-admin grant protections inside the user mutation path', async ({
     client,
     assert,

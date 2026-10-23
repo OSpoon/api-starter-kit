@@ -3,7 +3,10 @@ import { z } from 'zod'
 import { maskEmail, maskName } from '#ai/registry/ai_agent_query_helpers'
 import type { AiQueryTemplate } from '#ai/registry/ai_agent_query_types'
 import User from '#models/user'
-import { CHANNEL_GUEST_USER_EMAIL } from '#services/channel_guest_principal'
+import {
+  AI_INTEGRATION_USER_EMAIL,
+  CHANNEL_GUEST_USER_EMAIL,
+} from '#services/channel_guest_principal'
 
 export const managedUserProfileQuery: AiQueryTemplate = {
   code: 'managed_user_profile',
@@ -20,7 +23,7 @@ export const managedUserProfileQuery: AiQueryTemplate = {
   async execute(params) {
     const user = await User.query()
       .where('id', params.userId as number)
-      .whereNot('email', CHANNEL_GUEST_USER_EMAIL)
+      .whereNotIn('email', [CHANNEL_GUEST_USER_EMAIL, AI_INTEGRATION_USER_EMAIL])
       .preload('roles')
       .first()
     if (!user) return { rows: [], message: 'No managed user matched that ID.' }

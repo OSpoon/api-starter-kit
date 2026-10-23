@@ -610,6 +610,7 @@
     "keys_card_desc": "为外部系统生成长期有效或限时访问令牌。",
     "name": "名称",
     "key": "密钥",
+    "global_access_hint": "此密钥可使用完整 AI 助手及其已注册能力。",
     "key_status": "状态",
     "created_at": "创建时间",
     "last_used": "最近使用",

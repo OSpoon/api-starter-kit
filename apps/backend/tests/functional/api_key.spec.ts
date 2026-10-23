@@ -26,13 +26,18 @@ test.group('api keys', (group) => {
   test('creates an api key and returns the secret once', async ({ client, assert }) => {
     const { user, bearerToken } = await createAdmin()
 
-    const response = await client
-      .post('/api/v1/api-keys')
-      .bearerToken(bearerToken)
-      .json({ name: 'Test key', expiresIn: '30d' })
+    const response = await client.post('/api/v1/api-keys').bearerToken(bearerToken).json({
+      name: 'Test key',
+      expiresIn: '30d',
+    })
 
     response.assertStatus(200)
-    const body = response.body().data as { id: number; name: string; key: string; prefix: string }
+    const body = response.body().data as {
+      id: number
+      name: string
+      key: string
+      prefix: string
+    }
     assert.equal(body.name, 'Test key')
     assert.isString(body.key)
     assert.isString(body.prefix)
@@ -47,7 +52,11 @@ test.group('api keys', (group) => {
       .where('actorUserId', user.id)
       .where('targetId', String(body.id))
       .firstOrFail()
-    assert.deepEqual(audit.metadata, { name: body.name, prefix: body.prefix, source: 'api' })
+    assert.deepEqual(audit.metadata, {
+      name: body.name,
+      prefix: body.prefix,
+      source: 'api',
+    })
   })
 
   test('lists api keys without exposing the secret', async ({ client, assert }) => {
@@ -59,10 +68,13 @@ test.group('api keys', (group) => {
     const response = await client.get('/api/v1/api-keys').bearerToken(bearerToken)
 
     response.assertStatus(200)
-    const body = response.body().data as { items: Array<{ name: string; prefix: string }> }
+    const body = response.body().data as {
+      items: Array<{ name: string; prefix: string }>
+    }
     assert.isAtLeast(body.items.length, 2)
     for (const item of body.items) {
       assert.isString(item.prefix)
+      assert.isUndefined((item as Record<string, unknown>).permissions)
       assert.isUndefined((item as Record<string, unknown>).key)
     }
 
@@ -147,6 +159,21 @@ test.group('api keys', (group) => {
       prefix: stored!.prefix,
       source: 'api',
     })
+  })
+
+  test('accepts a valid global API Key on the WeCom integration route', async ({ client }) => {
+    const rawKey = `id_${Date.now()}_global`
+    await ApiKey.create({
+      name: 'Unscoped integration key',
+      prefix: rawKey.slice(0, 12),
+      keyHash: hashApiKey(rawKey),
+    })
+
+    const response = await client
+      .post('/api/v1/wecom-messages/999999999/send')
+      .bearerToken(rawKey)
+      .json({})
+    response.assertStatus(404)
   })
 
   test('revokes an api key on first delete then physically removes on second', async ({

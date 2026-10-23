@@ -90,6 +90,7 @@ const onSubmit = form.handleSubmit((values) => {
           <FormControl>
             <Input v-bind="componentField" :placeholder="t('api_keys.key_name_placeholder')" />
           </FormControl>
+          <FormDescription>{{ t('api_keys.global_access_hint') }}</FormDescription>
           <FormMessage />
         </FormItem>
       </FormField>

@@ -3,6 +3,7 @@ import db from '@adonisjs/lucid/services/db'
 import { test } from '@japa/runner'
 
 import KnowledgeDocument from '#models/knowledge_document'
+import Permission from '#models/permission'
 import Role from '#models/role'
 import User from '#models/user'
 import { generateInitialPassword } from '#security/user_credentials'
@@ -82,5 +83,42 @@ test.group('knowledge documents', (group) => {
       [matchedDocument.id]
     )
     assert.equal(body.meta.total, 1)
+  })
+
+  test('allows knowledge readers to list documents but denies management writes', async ({
+    client,
+  }) => {
+    const readPermission = await Permission.findByOrFail('code', 'knowledge:read')
+    const role = await Role.create({ code: `knowledge-reader-${Date.now()}`, name: 'Reader' })
+    await role.related('permissions').sync([readPermission.id])
+    const reader = await User.create({
+      fullName: 'Knowledge reader',
+      email: `knowledge-reader-${Date.now()}@example.com`,
+      password: generateInitialPassword(),
+    })
+    await reader.related('roles').sync([role.id])
+    const readerToken = await User.accessTokens.create(reader)
+
+    const listResponse = await client
+      .get('/api/v1/system/knowledge-documents')
+      .bearerToken(readerToken.value!.release())
+    listResponse.assertStatus(200)
+
+    const writeResponse = await client
+      .post('/api/v1/system/knowledge-documents')
+      .bearerToken(readerToken.value!.release())
+      .json({})
+    writeResponse.assertStatus(403)
+
+    const denied = await User.create({
+      fullName: 'No knowledge access',
+      email: `knowledge-denied-${Date.now()}@example.com`,
+      password: generateInitialPassword(),
+    })
+    const deniedToken = await User.accessTokens.create(denied)
+    const deniedResponse = await client
+      .get('/api/v1/system/knowledge-documents')
+      .bearerToken(deniedToken.value!.release())
+    deniedResponse.assertStatus(403)
   })
 })

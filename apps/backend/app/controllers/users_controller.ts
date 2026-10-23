@@ -10,8 +10,12 @@ import {
   updateManagedUser,
 } from '#services/access_control_mutations'
 import { recordAuditEvent } from '#services/audit_log'
-import { CHANNEL_GUEST_USER_EMAIL, isChannelGuestUser } from '#services/channel_guest_principal'
-import { countSuperAdminUsers, isSuperAdmin } from '#services/super_admin_access'
+import {
+  AI_INTEGRATION_USER_EMAIL,
+  CHANNEL_GUEST_USER_EMAIL,
+  isInternalUser,
+} from '#services/channel_guest_principal'
+import { isSuperAdmin } from '#services/super_admin_access'
 import { loadUserAccess } from '#services/user_access'
 import { clampLimit } from '#support/pagination'
 import UserTransformer from '#transformers/user_transformer'
@@ -49,7 +53,7 @@ export default class UsersController {
     const query = User.query()
       .orderBy('id')
       .preload('roles', (roles) => roles.preload('permissions'))
-      .whereNot('email', CHANNEL_GUEST_USER_EMAIL)
+      .whereNotIn('email', [CHANNEL_GUEST_USER_EMAIL, AI_INTEGRATION_USER_EMAIL])
     if (search) {
       query.where((builder) => {
         builder.whereILike('full_name', `%${search}%`).orWhereILike('email', `%${search}%`)
@@ -123,6 +127,12 @@ export default class UsersController {
       if (error instanceof AccessControlMutationError && error.code === 'super_admin_role_grant') {
         return response.forbidden({ message: error.message })
       }
+      if (
+        error instanceof AccessControlMutationError &&
+        (error.code === 'grant_exceeds_actor_permissions' || error.code === 'inactive_actor')
+      ) {
+        return response.forbidden({ message: error.message })
+      }
       throw error
     }
     return serialize({
@@ -135,7 +145,7 @@ export default class UsersController {
   async update(ctx: HttpContext) {
     const { auth, params, request, response, serialize } = ctx
     const user = await User.findOrFail(params.id)
-    if (isChannelGuestUser(user)) {
+    if (isInternalUser(user)) {
       return response.forbidden({ message: '系统内部用户不可管理' })
     }
     const payload = await request.validateUsing(updateManagedUserValidator)
@@ -172,6 +182,12 @@ export default class UsersController {
       }
       if (
         error instanceof AccessControlMutationError &&
+        (error.code === 'grant_exceeds_actor_permissions' || error.code === 'inactive_actor')
+      ) {
+        return response.forbidden({ message: error.message })
+      }
+      if (
+        error instanceof AccessControlMutationError &&
         (error.code === 'super_admin_roles_immutable' || error.code === 'self_role_removal')
       ) {
         return response.badRequest({ message: error.message })
@@ -184,7 +200,7 @@ export default class UsersController {
   async resetPassword(ctx: HttpContext) {
     const { auth, params, response, serialize } = ctx
     const user = await User.findOrFail(params.id)
-    if (isChannelGuestUser(user)) {
+    if (isInternalUser(user)) {
       return response.forbidden({ message: '系统内部用户不可管理' })
     }
     const currentUser = auth.getUserOrFail()
@@ -209,25 +225,33 @@ export default class UsersController {
   async destroy(ctx: HttpContext) {
     const { auth, params, response, serialize } = ctx
     const user = await User.findOrFail(params.id)
-    if (isChannelGuestUser(user)) {
+    if (isInternalUser(user)) {
       return response.forbidden({ message: '系统内部用户不可管理' })
     }
     const currentUser = auth.getUserOrFail()
     if (user.id === currentUser.id) return response.badRequest({ message: '不能删除当前登录账号' })
-    if (await isSuperAdmin(user)) {
-      if (!(await isSuperAdmin(currentUser))) {
-        return response.forbidden({ message: '仅超级管理员可以删除超级管理员账户' })
+    try {
+      await deleteManagedUser({
+        ctx,
+        actorUserId: currentUser.id,
+        userId: user.id,
+        source: 'api',
+      })
+    } catch (error) {
+      if (
+        error instanceof AccessControlMutationError &&
+        (error.code === 'super_admin_target_forbidden' || error.code === 'inactive_actor')
+      ) {
+        return response.forbidden({ message: error.message })
       }
-      if ((await countSuperAdminUsers()) <= 1) {
-        return response.conflict({ message: '至少需要保留一个超级管理员账户' })
+      if (
+        error instanceof AccessControlMutationError &&
+        error.code === 'last_enabled_super_admin'
+      ) {
+        return response.conflict({ message: error.message })
       }
+      throw error
     }
-    await deleteManagedUser({
-      ctx,
-      actorUserId: currentUser.id,
-      userId: user.id,
-      source: 'api',
-    })
     return serialize({ id: user.id, deleted: true })
   }
 }

@@ -159,7 +159,7 @@ const workbenchRootRoute = {
       meta: {
         title: 'sidebar.knowledge_documents',
         pageKind: 'list',
-        permission: 'knowledge:manage',
+        permission: 'knowledge:read',
         nav: { group: 'sidebar.agent_management', groupOrder: 29, icon: BookOpen, order: 30 },
       },
     },

@@ -27,6 +27,12 @@ export default defineConfig({
           scheme: 'bearer',
           description: '管理员登录后返回的 Bearer Token。',
         },
+        integrationApiKey: {
+          type: 'apiKey',
+          in: 'header',
+          name: 'X-API-Key',
+          description: 'API Key 管理页生成的全局助手集成密钥。',
+        },
       },
     },
   },

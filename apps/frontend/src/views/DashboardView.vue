@@ -50,7 +50,7 @@ const metricDefinitions: Array<{
   {
     key: 'knowledgeDocuments',
     label: 'dashboard.metrics.knowledge_documents',
-    permission: 'knowledge:manage',
+    permission: 'knowledge:read',
   },
   {
     key: 'auditEvents',

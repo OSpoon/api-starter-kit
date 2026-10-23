@@ -56,17 +56,17 @@ LLM 元数据提取是“预览建议”，不会直接写入数据库、授予�
 
 ## 4. 管理 API
 
-所有知识文档管理接口均位于 `/api/v1/system`，需要 Bearer 认证、`knowledge:manage` 权限，并由后端完成角色校验、文件校验、持久化和审计。
+所有知识文档接口均位于 `/api/v1/system` 并需要 Bearer 认证。分页列表需要 `knowledge:read`；元数据预览、创建、更新、重建索引和删除需要 `knowledge:manage`。后端负责角色范围校验、文件校验、持久化和审计。
 
-| 方法     | 路径                                    | 用途                         | 请求体/限制                                                                               |
-| -------- | --------------------------------------- | ---------------------------- | ----------------------------------------------------------------------------------------- |
-| `GET`    | `/knowledge-documents`                  | 分页获取文档及角色           | `page`、`limit`、可选 `search`；服务端限制分页上限，搜索语义见[API 指南](api.md#列表搜索) |
-| `POST`   | `/knowledge-documents/metadata-preview` | 生成待确认的 LLM 元数据建议  | multipart `file`；单文件 ≤ 5 MB                                                           |
-| `POST`   | `/knowledge-documents`                  | 创建并索引单个文档           | multipart `file`、`summary`、JSON 字符串 `topics`、`roleIds`                              |
-| `POST`   | `/knowledge-documents/batch`            | 批量创建并索引文档           | multipart `files`，最多 20 个；每个文件 ≤ 5 MB；`roleIds` 统一应用                        |
-| `PUT`    | `/knowledge-documents/:id`              | 更新文档和元数据             | 可选新 `file`；`summary`、`topics`、`roleIds` 必须按当前表单提交                          |
-| `POST`   | `/knowledge-documents/:id/reindex`      | 使用当前正文和元数据重建向量 | 无请求体                                                                                  |
-| `DELETE` | `/knowledge-documents/:id`              | 删除文档、正文分块和向量     | 需要前端确认                                                                              |
+| 方法     | 路径                                    | 用途                         | 请求体/限制                                                                                                 |
+| -------- | --------------------------------------- | ---------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `GET`    | `/knowledge-documents`                  | 分页获取文档及角色           | `knowledge:read`；`page`、`limit`、可选 `search`；服务端限制分页上限，搜索语义见[API 指南](api.md#列表搜索) |
+| `POST`   | `/knowledge-documents/metadata-preview` | 生成待确认的 LLM 元数据建议  | multipart `file`；单文件 ≤ 5 MB                                                                             |
+| `POST`   | `/knowledge-documents`                  | 创建并索引单个文档           | multipart `file`、`summary`、JSON 字符串 `topics`、`roleIds`                                                |
+| `POST`   | `/knowledge-documents/batch`            | 批量创建并索引文档           | multipart `files`，最多 20 个；每个文件 ≤ 5 MB；`roleIds` 统一应用                                          |
+| `PUT`    | `/knowledge-documents/:id`              | 更新文档和元数据             | 可选新 `file`；`summary`、`topics`、`roleIds` 必须按当前表单提交                                            |
+| `POST`   | `/knowledge-documents/:id/reindex`      | 使用当前正文和元数据重建向量 | 无请求体                                                                                                    |
+| `DELETE` | `/knowledge-documents/:id`              | 删除文档、正文分块和向量     | 需要前端确认                                                                                                |
 
 管理列表支持勾选当前页文档并点击「批量重建索引」。确认所选数量后，客户端顺序调用现有单篇重建接口，使用文档当前正文和元数据重建正文及目录向量；每篇仍独立执行后端 `knowledge:manage` 鉴权和 `knowledge_document.reindexed` 审计。处理期间显示进度并禁用重复重建、行修改和选择操作，完成后清空选择并刷新列表。请保持页面打开；这不是后台队列任务。
 
@@ -100,7 +100,7 @@ AI 回答产品、项目、配置、部署、功能或流程问题时，必须�
 
 | 场景                             | 所需权限             | 服务端行为                               |
 | -------------------------------- | -------------------- | ---------------------------------------- |
-| 管理台查看文档列表               | `knowledge:manage`   | 允许管理列表和角色范围展示               |
+| 管理台查看文档列表               | `knowledge:read`     | 允许查看列表和角色范围                   |
 | 上传、预览、更新、重建索引、删除 | `knowledge:manage`   | 校验输入和角色，执行对应管理操作并写审计 |
 | 管理台 AI 知识问答               | `knowledge:read`     | 目录和正文检索都按当前角色过滤           |
 | 已绑定渠道私聊问答               | `knowledge:read`     | 复用系统用户角色和同一两阶段检索规则     |

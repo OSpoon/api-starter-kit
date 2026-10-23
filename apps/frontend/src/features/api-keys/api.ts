@@ -13,6 +13,7 @@ export interface ApiKeySummary {
   createdAt: string
   deleted?: boolean
 }
+
 export interface ApiKeyPage {
   items: ApiKeySummary[]
   meta: { currentPage: number; lastPage: number }

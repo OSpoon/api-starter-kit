@@ -79,6 +79,12 @@ export default class RolesController {
       if (error instanceof AccessControlMutationError && error.code === 'duplicate_role_code') {
         return response.conflict({ message: error.message })
       }
+      if (
+        error instanceof AccessControlMutationError &&
+        (error.code === 'grant_exceeds_actor_permissions' || error.code === 'inactive_actor')
+      ) {
+        return response.forbidden({ message: error.message })
+      }
       throw error
     }
     await role.load('permissions')
@@ -109,6 +115,12 @@ export default class RolesController {
         return response.conflict({ message: error.message })
       }
       if (error instanceof AccessControlMutationError && error.code === 'protected_role') {
+        return response.forbidden({ message: error.message })
+      }
+      if (
+        error instanceof AccessControlMutationError &&
+        (error.code === 'grant_exceeds_actor_permissions' || error.code === 'inactive_actor')
+      ) {
         return response.forbidden({ message: error.message })
       }
       throw error

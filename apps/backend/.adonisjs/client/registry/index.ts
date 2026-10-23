@@ -6,12 +6,6 @@ import type { ApiDefinition } from './tree.d.ts'
 const placeholder: any = {}
 
 const routes = {
-  'wecom.messages.send': {
-    methods: ["POST"],
-    pattern: '/api/v1/wecom-messages/:id/send',
-    tokens: [{"old":"/api/v1/wecom-messages/:id/send","type":0,"val":"api","end":""},{"old":"/api/v1/wecom-messages/:id/send","type":0,"val":"v1","end":""},{"old":"/api/v1/wecom-messages/:id/send","type":0,"val":"wecom-messages","end":""},{"old":"/api/v1/wecom-messages/:id/send","type":1,"val":"id","end":""},{"old":"/api/v1/wecom-messages/:id/send","type":0,"val":"send","end":""}],
-    types: placeholder as Registry['wecom.messages.send']['types'],
-  },
   'openapi.html': {
     methods: ["GET","HEAD"],
     pattern: '/api-docs',
@@ -449,6 +443,72 @@ const routes = {
     pattern: '/api/v1/ai-chat/conversations/:id',
     tokens: [{"old":"/api/v1/ai-chat/conversations/:id","type":0,"val":"api","end":""},{"old":"/api/v1/ai-chat/conversations/:id","type":0,"val":"v1","end":""},{"old":"/api/v1/ai-chat/conversations/:id","type":0,"val":"ai-chat","end":""},{"old":"/api/v1/ai-chat/conversations/:id","type":0,"val":"conversations","end":""},{"old":"/api/v1/ai-chat/conversations/:id","type":1,"val":"id","end":""}],
     types: placeholder as Registry['ai_chat.destroy']['types'],
+  },
+  'integrations.ai_chat.ai_chat.index': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/v1/integrations/ai-chat/conversations',
+    tokens: [{"old":"/api/v1/integrations/ai-chat/conversations","type":0,"val":"api","end":""},{"old":"/api/v1/integrations/ai-chat/conversations","type":0,"val":"v1","end":""},{"old":"/api/v1/integrations/ai-chat/conversations","type":0,"val":"integrations","end":""},{"old":"/api/v1/integrations/ai-chat/conversations","type":0,"val":"ai-chat","end":""},{"old":"/api/v1/integrations/ai-chat/conversations","type":0,"val":"conversations","end":""}],
+    types: placeholder as Registry['integrations.ai_chat.ai_chat.index']['types'],
+  },
+  'integrations.ai_chat.ai_chat.usage': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/v1/integrations/ai-chat/usage',
+    tokens: [{"old":"/api/v1/integrations/ai-chat/usage","type":0,"val":"api","end":""},{"old":"/api/v1/integrations/ai-chat/usage","type":0,"val":"v1","end":""},{"old":"/api/v1/integrations/ai-chat/usage","type":0,"val":"integrations","end":""},{"old":"/api/v1/integrations/ai-chat/usage","type":0,"val":"ai-chat","end":""},{"old":"/api/v1/integrations/ai-chat/usage","type":0,"val":"usage","end":""}],
+    types: placeholder as Registry['integrations.ai_chat.ai_chat.usage']['types'],
+  },
+  'integrations.ai_chat.ai_chat.store': {
+    methods: ["POST"],
+    pattern: '/api/v1/integrations/ai-chat/conversations',
+    tokens: [{"old":"/api/v1/integrations/ai-chat/conversations","type":0,"val":"api","end":""},{"old":"/api/v1/integrations/ai-chat/conversations","type":0,"val":"v1","end":""},{"old":"/api/v1/integrations/ai-chat/conversations","type":0,"val":"integrations","end":""},{"old":"/api/v1/integrations/ai-chat/conversations","type":0,"val":"ai-chat","end":""},{"old":"/api/v1/integrations/ai-chat/conversations","type":0,"val":"conversations","end":""}],
+    types: placeholder as Registry['integrations.ai_chat.ai_chat.store']['types'],
+  },
+  'integrations.ai_chat.ai_chat.show': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/v1/integrations/ai-chat/conversations/:id',
+    tokens: [{"old":"/api/v1/integrations/ai-chat/conversations/:id","type":0,"val":"api","end":""},{"old":"/api/v1/integrations/ai-chat/conversations/:id","type":0,"val":"v1","end":""},{"old":"/api/v1/integrations/ai-chat/conversations/:id","type":0,"val":"integrations","end":""},{"old":"/api/v1/integrations/ai-chat/conversations/:id","type":0,"val":"ai-chat","end":""},{"old":"/api/v1/integrations/ai-chat/conversations/:id","type":0,"val":"conversations","end":""},{"old":"/api/v1/integrations/ai-chat/conversations/:id","type":1,"val":"id","end":""}],
+    types: placeholder as Registry['integrations.ai_chat.ai_chat.show']['types'],
+  },
+  'integrations.ai_chat.ai_chat.transcribe': {
+    methods: ["POST"],
+    pattern: '/api/v1/integrations/ai-chat/transcribe',
+    tokens: [{"old":"/api/v1/integrations/ai-chat/transcribe","type":0,"val":"api","end":""},{"old":"/api/v1/integrations/ai-chat/transcribe","type":0,"val":"v1","end":""},{"old":"/api/v1/integrations/ai-chat/transcribe","type":0,"val":"integrations","end":""},{"old":"/api/v1/integrations/ai-chat/transcribe","type":0,"val":"ai-chat","end":""},{"old":"/api/v1/integrations/ai-chat/transcribe","type":0,"val":"transcribe","end":""}],
+    types: placeholder as Registry['integrations.ai_chat.ai_chat.transcribe']['types'],
+  },
+  'integrations.ai_chat.ai_chat.send_message': {
+    methods: ["POST"],
+    pattern: '/api/v1/integrations/ai-chat/conversations/:id/messages',
+    tokens: [{"old":"/api/v1/integrations/ai-chat/conversations/:id/messages","type":0,"val":"api","end":""},{"old":"/api/v1/integrations/ai-chat/conversations/:id/messages","type":0,"val":"v1","end":""},{"old":"/api/v1/integrations/ai-chat/conversations/:id/messages","type":0,"val":"integrations","end":""},{"old":"/api/v1/integrations/ai-chat/conversations/:id/messages","type":0,"val":"ai-chat","end":""},{"old":"/api/v1/integrations/ai-chat/conversations/:id/messages","type":0,"val":"conversations","end":""},{"old":"/api/v1/integrations/ai-chat/conversations/:id/messages","type":1,"val":"id","end":""},{"old":"/api/v1/integrations/ai-chat/conversations/:id/messages","type":0,"val":"messages","end":""}],
+    types: placeholder as Registry['integrations.ai_chat.ai_chat.send_message']['types'],
+  },
+  'integrations.ai_chat.ai_chat.steer': {
+    methods: ["POST"],
+    pattern: '/api/v1/integrations/ai-chat/conversations/:id/steer',
+    tokens: [{"old":"/api/v1/integrations/ai-chat/conversations/:id/steer","type":0,"val":"api","end":""},{"old":"/api/v1/integrations/ai-chat/conversations/:id/steer","type":0,"val":"v1","end":""},{"old":"/api/v1/integrations/ai-chat/conversations/:id/steer","type":0,"val":"integrations","end":""},{"old":"/api/v1/integrations/ai-chat/conversations/:id/steer","type":0,"val":"ai-chat","end":""},{"old":"/api/v1/integrations/ai-chat/conversations/:id/steer","type":0,"val":"conversations","end":""},{"old":"/api/v1/integrations/ai-chat/conversations/:id/steer","type":1,"val":"id","end":""},{"old":"/api/v1/integrations/ai-chat/conversations/:id/steer","type":0,"val":"steer","end":""}],
+    types: placeholder as Registry['integrations.ai_chat.ai_chat.steer']['types'],
+  },
+  'integrations.ai_chat.ai_chat.follow_up': {
+    methods: ["POST"],
+    pattern: '/api/v1/integrations/ai-chat/conversations/:id/follow-up',
+    tokens: [{"old":"/api/v1/integrations/ai-chat/conversations/:id/follow-up","type":0,"val":"api","end":""},{"old":"/api/v1/integrations/ai-chat/conversations/:id/follow-up","type":0,"val":"v1","end":""},{"old":"/api/v1/integrations/ai-chat/conversations/:id/follow-up","type":0,"val":"integrations","end":""},{"old":"/api/v1/integrations/ai-chat/conversations/:id/follow-up","type":0,"val":"ai-chat","end":""},{"old":"/api/v1/integrations/ai-chat/conversations/:id/follow-up","type":0,"val":"conversations","end":""},{"old":"/api/v1/integrations/ai-chat/conversations/:id/follow-up","type":1,"val":"id","end":""},{"old":"/api/v1/integrations/ai-chat/conversations/:id/follow-up","type":0,"val":"follow-up","end":""}],
+    types: placeholder as Registry['integrations.ai_chat.ai_chat.follow_up']['types'],
+  },
+  'integrations.ai_chat.ai_chat.confirm_ai_agent_action': {
+    methods: ["POST"],
+    pattern: '/api/v1/integrations/ai-chat/conversations/:id/confirmations/:confirmationId/confirm',
+    tokens: [{"old":"/api/v1/integrations/ai-chat/conversations/:id/confirmations/:confirmationId/confirm","type":0,"val":"api","end":""},{"old":"/api/v1/integrations/ai-chat/conversations/:id/confirmations/:confirmationId/confirm","type":0,"val":"v1","end":""},{"old":"/api/v1/integrations/ai-chat/conversations/:id/confirmations/:confirmationId/confirm","type":0,"val":"integrations","end":""},{"old":"/api/v1/integrations/ai-chat/conversations/:id/confirmations/:confirmationId/confirm","type":0,"val":"ai-chat","end":""},{"old":"/api/v1/integrations/ai-chat/conversations/:id/confirmations/:confirmationId/confirm","type":0,"val":"conversations","end":""},{"old":"/api/v1/integrations/ai-chat/conversations/:id/confirmations/:confirmationId/confirm","type":1,"val":"id","end":""},{"old":"/api/v1/integrations/ai-chat/conversations/:id/confirmations/:confirmationId/confirm","type":0,"val":"confirmations","end":""},{"old":"/api/v1/integrations/ai-chat/conversations/:id/confirmations/:confirmationId/confirm","type":1,"val":"confirmationId","end":""},{"old":"/api/v1/integrations/ai-chat/conversations/:id/confirmations/:confirmationId/confirm","type":0,"val":"confirm","end":""}],
+    types: placeholder as Registry['integrations.ai_chat.ai_chat.confirm_ai_agent_action']['types'],
+  },
+  'integrations.ai_chat.ai_chat.destroy': {
+    methods: ["DELETE"],
+    pattern: '/api/v1/integrations/ai-chat/conversations/:id',
+    tokens: [{"old":"/api/v1/integrations/ai-chat/conversations/:id","type":0,"val":"api","end":""},{"old":"/api/v1/integrations/ai-chat/conversations/:id","type":0,"val":"v1","end":""},{"old":"/api/v1/integrations/ai-chat/conversations/:id","type":0,"val":"integrations","end":""},{"old":"/api/v1/integrations/ai-chat/conversations/:id","type":0,"val":"ai-chat","end":""},{"old":"/api/v1/integrations/ai-chat/conversations/:id","type":0,"val":"conversations","end":""},{"old":"/api/v1/integrations/ai-chat/conversations/:id","type":1,"val":"id","end":""}],
+    types: placeholder as Registry['integrations.ai_chat.ai_chat.destroy']['types'],
+  },
+  'wecom.messages.send': {
+    methods: ["POST"],
+    pattern: '/api/v1/wecom-messages/:id/send',
+    tokens: [{"old":"/api/v1/wecom-messages/:id/send","type":0,"val":"api","end":""},{"old":"/api/v1/wecom-messages/:id/send","type":0,"val":"v1","end":""},{"old":"/api/v1/wecom-messages/:id/send","type":0,"val":"wecom-messages","end":""},{"old":"/api/v1/wecom-messages/:id/send","type":1,"val":"id","end":""},{"old":"/api/v1/wecom-messages/:id/send","type":0,"val":"send","end":""}],
+    types: placeholder as Registry['wecom.messages.send']['types'],
   },
 } as const satisfies Record<string, AdonisEndpoint>
 

@@ -9,15 +9,14 @@ import {
   updateApiKey,
 } from '#services/api_key_service'
 import { clampLimit } from '#support/pagination'
-import { apiKeyValidator } from '#validators/api_key'
+import { apiKeyValidator, updateApiKeyValidator } from '#validators/api_key'
 import { paginationSearchQueryValidator } from '#validators/pagination'
 
 @ApiSecurity('bearerAuth')
 export default class ApiKeysController {
   @ApiOperation({
     summary: '获取 API Key 列表',
-    description:
-      '返回外部系统接入密钥分页列表。支持按名称或公开前缀搜索；仅返回 prefix 和元数据，不暴露原始密钥。',
+    description: '返回全局助手集成密钥分页列表。支持按名称或公开前缀搜索；不暴露原始密钥。',
   })
   @ApiQuery({
     name: 'page',
@@ -57,17 +56,17 @@ export default class ApiKeysController {
 
   @ApiOperation({
     summary: '创建 API Key',
-    description: '创建外部系统接入密钥。原始密钥只在创建响应中完整返回一次。',
+    description: '创建可访问完整 AI 助手能力的全局集成密钥；原始密钥只在创建响应中完整返回一次。',
   })
   @ApiResponse({ status: 200, description: '已创建的 API Key 和原始密钥' })
   async store(ctx: HttpContext) {
     const { auth, request, serialize } = ctx
     const payload = await request.validateUsing(apiKeyValidator)
-    const { apiKey, secret } = await createApiKey(ctx, auth.getUserOrFail().id, payload, 'api')
+    const created = await createApiKey(ctx, auth.getUserOrFail().id, payload, 'api')
 
     return serialize({
-      ...serializeApiKey(apiKey),
-      key: secret,
+      ...serializeApiKey(created.apiKey),
+      key: created.secret,
     })
   }
 
@@ -78,7 +77,7 @@ export default class ApiKeysController {
   @ApiResponse({ status: 200, description: '已更新的 API Key' })
   async update(ctx: HttpContext) {
     const { auth, params, request, serialize } = ctx
-    const payload = await request.validateUsing(apiKeyValidator)
+    const payload = await request.validateUsing(updateApiKeyValidator)
     const apiKey = await updateApiKey(ctx, {
       actorUserId: auth.getUserOrFail().id,
       apiKeyId: params.id,

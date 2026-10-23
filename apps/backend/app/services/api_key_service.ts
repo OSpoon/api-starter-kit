@@ -28,7 +28,11 @@ export async function auditApiKeyMutation(
       action: `api_key.${input.action}`,
       targetType: 'api_key',
       targetId: input.apiKey.id,
-      metadata: { name: input.apiKey.name, prefix: input.apiKey.prefix, source: input.source },
+      metadata: {
+        name: input.apiKey.name,
+        prefix: input.apiKey.prefix,
+        source: input.source,
+      },
     },
     transaction
   )
@@ -94,7 +98,11 @@ export async function authenticateApiKey(raw: string | null | undefined) {
 export async function createApiKey(
   ctx: HttpContext,
   actorUserId: number,
-  payload: { name: string; expiresAt?: string | null; expiresIn?: string | null },
+  payload: {
+    name: string
+    expiresAt?: string | null
+    expiresIn?: string | null
+  },
   source: ApiKeyAuditSource
 ) {
   const secret = `id_${crypto.randomBytes(32).toString('base64url')}`

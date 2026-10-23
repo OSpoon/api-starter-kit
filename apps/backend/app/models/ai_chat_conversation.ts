@@ -14,6 +14,9 @@ export default class AiChatConversation extends BaseModel {
   declare userId: number
 
   @column()
+  declare apiKeyId: number | null
+
+  @column()
   declare title: string
 
   @column()

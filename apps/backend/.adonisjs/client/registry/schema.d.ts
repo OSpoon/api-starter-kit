@@ -7,18 +7,6 @@ import type { InferInput, SimpleError } from '@vinejs/vine/types'
 export type ParamValue = string | number | bigint | boolean
 
 export interface Registry {
-  'wecom.messages.send': {
-    methods: ["POST"]
-    pattern: '/api/v1/wecom-messages/:id/send'
-    types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/wecom_message_template').wecomTemplateParamsValidator)>>
-      paramsTuple: [ParamValue]
-      params: { id: ParamValue }
-      query: ExtractQuery<InferInput<(typeof import('#validators/wecom_message_template').wecomTemplateParamsValidator)>>
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/wecom_message_templates_controller').default['send']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/wecom_message_templates_controller').default['send']>>> | { status: 422; response: { errors: SimpleError[] } }
-    }
-  }
   'openapi.html': {
     methods: ["GET","HEAD"]
     pattern: '/api-docs'
@@ -323,10 +311,10 @@ export interface Registry {
     methods: ["PUT"]
     pattern: '/api/v1/api-keys/:id'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/api_key').apiKeyValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/api_key').updateApiKeyValidator)>>
       paramsTuple: [ParamValue]
       params: { id: ParamValue }
-      query: ExtractQuery<InferInput<(typeof import('#validators/api_key').apiKeyValidator)>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/api_key').updateApiKeyValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/api_keys_controller').default['update']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/api_keys_controller').default['update']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
@@ -893,6 +881,138 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['destroy']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['destroy']>>>
+    }
+  }
+  'integrations.ai_chat.ai_chat.index': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/integrations/ai-chat/conversations'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/pagination').paginationSearchQueryValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['index']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['index']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'integrations.ai_chat.ai_chat.usage': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/integrations/ai-chat/usage'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['usage']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['usage']>>>
+    }
+  }
+  'integrations.ai_chat.ai_chat.store': {
+    methods: ["POST"]
+    pattern: '/api/v1/integrations/ai-chat/conversations'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/ai_chat').createConversationValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/ai_chat').createConversationValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['store']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'integrations.ai_chat.ai_chat.show': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/integrations/ai-chat/conversations/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/pagination').paginationSearchQueryValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['show']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['show']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'integrations.ai_chat.ai_chat.transcribe': {
+    methods: ["POST"]
+    pattern: '/api/v1/integrations/ai-chat/transcribe'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['transcribe']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['transcribe']>>>
+    }
+  }
+  'integrations.ai_chat.ai_chat.send_message': {
+    methods: ["POST"]
+    pattern: '/api/v1/integrations/ai-chat/conversations/:id/messages'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/ai_chat').sendAiChatMessageValidator)>>
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/ai_chat').sendAiChatMessageValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['sendMessage']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['sendMessage']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'integrations.ai_chat.ai_chat.steer': {
+    methods: ["POST"]
+    pattern: '/api/v1/integrations/ai-chat/conversations/:id/steer'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['steer']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['steer']>>>
+    }
+  }
+  'integrations.ai_chat.ai_chat.follow_up': {
+    methods: ["POST"]
+    pattern: '/api/v1/integrations/ai-chat/conversations/:id/follow-up'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['followUp']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['followUp']>>>
+    }
+  }
+  'integrations.ai_chat.ai_chat.confirm_ai_agent_action': {
+    methods: ["POST"]
+    pattern: '/api/v1/integrations/ai-chat/conversations/:id/confirmations/:confirmationId/confirm'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue, ParamValue]
+      params: { id: ParamValue; confirmationId: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['confirmAiAgentAction']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['confirmAiAgentAction']>>>
+    }
+  }
+  'integrations.ai_chat.ai_chat.destroy': {
+    methods: ["DELETE"]
+    pattern: '/api/v1/integrations/ai-chat/conversations/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['destroy']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['destroy']>>>
+    }
+  }
+  'wecom.messages.send': {
+    methods: ["POST"]
+    pattern: '/api/v1/wecom-messages/:id/send'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/wecom_message_template').wecomTemplateParamsValidator)>>
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/wecom_message_template').wecomTemplateParamsValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/wecom_message_templates_controller').default['send']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/wecom_message_templates_controller').default['send']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
 }

@@ -129,14 +129,22 @@ export async function getAiUsageOverview(): Promise<AiUsageOverview> {
   }
 }
 
-export async function getAiUsageSummary(userId: number) {
+export async function getAiUsageSummary(userId: number, apiKeyId?: number) {
   const periodStart = DateTime.now().startOf('month')
   const periodEnd = DateTime.now()
-  const scope = (query: ReturnType<typeof db.from>) =>
-    query
+  const scope = (query: ReturnType<typeof db.from>) => {
+    const scoped = query
       .where('user_id', userId)
       .where('created_at', '>=', periodStart.toJSDate())
       .where('created_at', '<=', periodEnd.toJSDate())
+    if (apiKeyId) {
+      scoped.whereIn(
+        'conversation_id',
+        db.from('ai_chat_conversations').where('api_key_id', apiKeyId).select('id')
+      )
+    }
+    return scoped
+  }
 
   const totalsResult = (await scope(db.from('ai_usage_events'))
     .select(

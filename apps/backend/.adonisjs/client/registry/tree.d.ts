@@ -2,11 +2,6 @@
 import type { routes } from './index.ts'
 
 export interface ApiDefinition {
-  wecom: {
-    messages: {
-      send: typeof routes['wecom.messages.send']
-    }
-  }
   openapi: {
     html: typeof routes['openapi.html']
     json: typeof routes['openapi.json']
@@ -129,5 +124,26 @@ export interface ApiDefinition {
     followUp: typeof routes['ai_chat.follow_up']
     confirmAiAgentAction: typeof routes['ai_chat.confirm_ai_agent_action']
     destroy: typeof routes['ai_chat.destroy']
+  }
+  integrations: {
+    aiChat: {
+      aiChat: {
+        index: typeof routes['integrations.ai_chat.ai_chat.index']
+        usage: typeof routes['integrations.ai_chat.ai_chat.usage']
+        store: typeof routes['integrations.ai_chat.ai_chat.store']
+        show: typeof routes['integrations.ai_chat.ai_chat.show']
+        transcribe: typeof routes['integrations.ai_chat.ai_chat.transcribe']
+        sendMessage: typeof routes['integrations.ai_chat.ai_chat.send_message']
+        steer: typeof routes['integrations.ai_chat.ai_chat.steer']
+        followUp: typeof routes['integrations.ai_chat.ai_chat.follow_up']
+        confirmAiAgentAction: typeof routes['integrations.ai_chat.ai_chat.confirm_ai_agent_action']
+        destroy: typeof routes['integrations.ai_chat.ai_chat.destroy']
+      }
+    }
+  }
+  wecom: {
+    messages: {
+      send: typeof routes['wecom.messages.send']
+    }
   }
 }

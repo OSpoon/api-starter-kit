@@ -38,7 +38,19 @@ function createTitle(content: string) {
   return title.length > 60 ? `${title.slice(0, 57)}...` : title || 'New chat'
 }
 
+function currentUser(ctx: HttpContext) {
+  return ctx.integrationUser ?? ctx.auth.getUserOrFail()
+}
+
+function conversationsFor(ctx: HttpContext, userId: number) {
+  const query = AiChatConversation.query().where('user_id', userId)
+  return ctx.integrationApiKey
+    ? query.where('api_key_id', ctx.integrationApiKey.id)
+    : query.whereNull('api_key_id')
+}
+
 @ApiSecurity('bearerAuth')
+@ApiSecurity('integrationApiKey')
 export default class AiChatController {
   @ApiOperation({ summary: '转写 AI 助手语音消息' })
   @ApiResponse({ status: 200, description: '语音转写结果' })
@@ -85,11 +97,11 @@ export default class AiChatController {
     schema: { type: 'integer', minimum: 1, maximum: 100 },
   })
   @ApiResponse({ status: 200, description: 'AI 会话列表' })
-  async index({ auth, request, serialize }: HttpContext) {
-    const user = auth.getUserOrFail()
+  async index(ctx: HttpContext) {
+    const { request, serialize } = ctx
+    const user = currentUser(ctx)
     const payload = await paginationSearchQueryValidator.validate(request.qs())
-    const paginator = await AiChatConversation.query()
-      .where('user_id', user.id)
+    const paginator = await conversationsFor(ctx, user.id)
       .orderBy('updated_at', 'desc')
       .orderBy('id', 'desc')
       .paginate(payload.page ?? 1, clampLimit(payload.limit, 20, 100))
@@ -105,9 +117,9 @@ export default class AiChatController {
     description: '仅返回当前登录用户本月 Pi 对话模型的 token 用量和估算消费。',
   })
   @ApiResponse({ status: 200, description: '当前用户的 AI 用量汇总' })
-  async usage({ auth, serialize }: HttpContext) {
-    const user = auth.getUserOrFail()
-    return serialize(await getAiUsageSummary(user.id))
+  async usage(ctx: HttpContext) {
+    const user = currentUser(ctx)
+    return ctx.serialize(await getAiUsageSummary(user.id, ctx.integrationApiKey?.id))
   }
 
   @ApiOperation({
@@ -115,11 +127,13 @@ export default class AiChatController {
     description: '创建一个新的纯聊天会话。',
   })
   @ApiResponse({ status: 200, description: '已创建的 AI 会话' })
-  async store({ auth, request, serialize }: HttpContext) {
-    const user = auth.getUserOrFail()
+  async store(ctx: HttpContext) {
+    const { request, serialize } = ctx
+    const user = currentUser(ctx)
     const payload = await request.validateUsing(createConversationValidator)
     const conversation = await AiChatConversation.create({
       userId: user.id,
+      apiKeyId: ctx.integrationApiKey?.id ?? null,
       title: payload.title ?? 'New chat',
     })
 
@@ -144,13 +158,11 @@ export default class AiChatController {
     schema: { type: 'integer', minimum: 1, maximum: 100 },
   })
   @ApiResponse({ status: 200, description: 'AI 会话详情和消息分页' })
-  async show({ auth, params, request, serialize }: HttpContext) {
-    const user = auth.getUserOrFail()
+  async show(ctx: HttpContext) {
+    const { params, request, serialize } = ctx
+    const user = currentUser(ctx)
     const payload = await paginationSearchQueryValidator.validate(request.qs())
-    const conversation = await AiChatConversation.query()
-      .where('id', params.id)
-      .where('user_id', user.id)
-      .firstOrFail()
+    const conversation = await conversationsFor(ctx, user.id).where('id', params.id).firstOrFail()
 
     const confirmations = await listConversationConfirmations(conversation.id, user.id)
     const paginator = await AiChatMessage.query()
@@ -173,13 +185,10 @@ export default class AiChatController {
   @ApiResponse({ status: 200, description: '流式 AI 会话响应' })
   @ApiResponse({ status: 409, description: '当前会话已有 AI 请求正在运行' })
   async sendMessage(ctx: HttpContext) {
-    const { auth, params, request, response } = ctx
-    const user = auth.getUserOrFail()
+    const { params, request, response } = ctx
+    const user = currentUser(ctx)
     const payload = await request.validateUsing(sendAiChatMessageValidator)
-    const conversation = await AiChatConversation.query()
-      .where('id', params.id)
-      .where('user_id', user.id)
-      .firstOrFail()
+    const conversation = await conversationsFor(ctx, user.id).where('id', params.id).firstOrFail()
 
     if (!claimAiAgentConversation(conversation.id, user.id)) {
       return response.conflict({ message: '当前会话已有 AI 请求正在运行，请稍后再试' })
@@ -276,13 +285,10 @@ export default class AiChatController {
   }
 
   private async queueAgentMessage(ctx: HttpContext, mode: 'steer' | 'followUp') {
-    const { auth, params, request, response, serialize } = ctx
-    const user = auth.getUserOrFail()
+    const { params, request, response, serialize } = ctx
+    const user = currentUser(ctx)
     const payload = await request.validateUsing(queueAiChatMessageValidator)
-    const conversation = await AiChatConversation.query()
-      .where('id', params.id)
-      .where('user_id', user.id)
-      .firstOrFail()
+    const conversation = await conversationsFor(ctx, user.id).where('id', params.id).firstOrFail()
 
     const run = getAiAgentRun(conversation.id, user.id)
     if (!run) {
@@ -309,12 +315,9 @@ export default class AiChatController {
   })
   @ApiResponse({ status: 200, description: '已执行受控操作' })
   async confirmAiAgentAction(ctx: HttpContext) {
-    const { auth, params, response, serialize } = ctx
-    const user = auth.getUserOrFail()
-    const conversation = await AiChatConversation.query()
-      .where('id', params.id)
-      .where('user_id', user.id)
-      .firstOrFail()
+    const { params, response, serialize } = ctx
+    const user = currentUser(ctx)
+    const conversation = await conversationsFor(ctx, user.id).where('id', params.id).firstOrFail()
 
     try {
       const confirmation = await executeAiAgentAction(ctx, {
@@ -361,12 +364,10 @@ export default class AiChatController {
     description: '删除指定 AI 会话及其历史消息。',
   })
   @ApiResponse({ status: 200, description: '删除结果' })
-  async destroy({ auth, params, serialize }: HttpContext) {
-    const user = auth.getUserOrFail()
-    const conversation = await AiChatConversation.query()
-      .where('id', params.id)
-      .where('user_id', user.id)
-      .firstOrFail()
+  async destroy(ctx: HttpContext) {
+    const { params, serialize } = ctx
+    const user = currentUser(ctx)
+    const conversation = await conversationsFor(ctx, user.id).where('id', params.id).firstOrFail()
 
     await resetAiConversationState({ conversationId: conversation.id, userId: user.id })
     await conversation.delete()

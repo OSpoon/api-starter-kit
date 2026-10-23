@@ -610,6 +610,7 @@
     "keys_card_desc": "Generate long-lived or expiring access tokens for external systems.",
     "name": "Name",
     "key": "Key",
+    "global_access_hint": "This key can use the full AI assistant and its registered capabilities.",
     "key_status": "Status",
     "created_at": "Created",
     "last_used": "Last used",

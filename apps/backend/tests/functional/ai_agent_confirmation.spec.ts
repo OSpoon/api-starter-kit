@@ -58,6 +58,29 @@ async function createConfirmation(user: User) {
   return { apiKey, confirmation, conversation }
 }
 
+async function createDisableUserConfirmation(actor: User, target: User) {
+  const conversation = await AiChatConversation.create({ userId: actor.id, title: 'Disable admin' })
+  const message = await AiChatMessage.create({
+    conversationId: conversation.id,
+    role: 'assistant',
+    content: 'A confirmation is required.',
+  })
+  const confirmation = await AiAgentConfirmation.create({
+    conversationId: conversation.id,
+    assistantMessageId: message.id,
+    requestedByUserId: actor.id,
+    agentRunId: crypto.randomUUID(),
+    action: 'disable_user',
+    targetType: 'user',
+    targetId: String(target.id),
+    targetSummary: { fullName: target.fullName, email: target.email },
+    payload: { userId: target.id },
+    status: 'pending',
+    expiresAt: DateTime.now().plus({ minutes: 5 }),
+  })
+  return { confirmation, conversation }
+}
+
 test.group('AI agent confirmations', (group) => {
   group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
 
@@ -456,6 +479,42 @@ test.group('AI agent confirmations', (group) => {
       .where('action', 'api_key.revoked')
       .where('target_id', apiKey.id)
     assert.equal(auditEvents.length, 1)
+  })
+
+  test('serializes concurrent admin disable operations and keeps an enabled super-admin', async ({
+    client,
+    assert,
+  }) => {
+    const superAdminRole = await Role.findByOrFail('code', 'super-admin')
+    const firstAdmin = await User.create({
+      fullName: 'First active admin',
+      email: `first-active-admin-${Date.now()}@example.com`,
+      password: generateInitialPassword(),
+    })
+    const secondAdmin = await User.create({
+      fullName: 'Second active admin',
+      email: `second-active-admin-${Date.now()}@example.com`,
+      password: generateInitialPassword(),
+    })
+    await firstAdmin.related('roles').sync([superAdminRole.id])
+    await secondAdmin.related('roles').sync([superAdminRole.id])
+    const firstToken = await User.accessTokens.create(firstAdmin)
+    const secondToken = await User.accessTokens.create(secondAdmin)
+    const firstProposal = await createDisableUserConfirmation(firstAdmin, secondAdmin)
+    const secondProposal = await createDisableUserConfirmation(secondAdmin, firstAdmin)
+    const endpoint = (proposal: Awaited<ReturnType<typeof createDisableUserConfirmation>>) =>
+      `/api/v1/ai-chat/conversations/${proposal.conversation.id}/confirmations/${proposal.confirmation.id}/confirm`
+
+    const responses = await Promise.all([
+      client.post(endpoint(firstProposal)).bearerToken(firstToken.value!.release()),
+      client.post(endpoint(secondProposal)).bearerToken(secondToken.value!.release()),
+    ])
+
+    assert.isTrue(responses.some((response) => response.status() === 200))
+    const enabledAdmins = await User.query()
+      .whereNull('disabled_at')
+      .whereHas('roles', (roles) => roles.where('roles.id', superAdminRole.id))
+    assert.isAtLeast(enabledAdmins.length, 1)
   })
 
   test('returns a business result when proposing revocation for an unknown API Key', async ({

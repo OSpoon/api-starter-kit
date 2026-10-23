@@ -1,3 +1,5 @@
+import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
+
 import Role from '#models/role'
 import User from '#models/user'
 
@@ -9,23 +11,19 @@ export async function isSuperAdmin(user: User) {
   )
 }
 
-export async function isSuperAdminUser(userId: number) {
-  const user = await User.findOrFail(userId)
-  return isSuperAdmin(user)
+export async function lockSuperAdminRole(client: TransactionClientContract) {
+  return Role.query({ client }).where('code', superAdminCode).forUpdate().firstOrFail()
 }
 
-export async function countSuperAdminUsers() {
-  const superAdmin = await Role.findByOrFail('code', superAdminCode)
-  const result = await User.query()
-    .whereHas('roles', (roles) => roles.where('roles.id', superAdmin.id))
+export async function countEnabledSuperAdminUsers(
+  client: TransactionClientContract,
+  roleId: number
+) {
+  const result = await User.query({ client })
+    .whereNull('disabled_at')
+    .whereHas('roles', (roles) => roles.where('roles.id', roleId))
     .count('* as total')
     .first()
 
   return Number(result?.$extras.total ?? 0)
-}
-
-export async function includesSuperAdminRole(roleIds: number[]) {
-  return Boolean(
-    await Role.query().whereIn('id', roleIds).where('code', superAdminCode).select('id').first()
-  )
 }

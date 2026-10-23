@@ -14,9 +14,9 @@ export default class InitializeBouncerMiddleware {
      * Create bouncer instance for the ongoing HTTP request.
      * We will pull the user from the HTTP context.
      */
-    ctx.bouncer = new Bouncer(() => ctx.auth.user || null, { access }).setContainerResolver(
-      ctx.containerResolver
-    )
+    ctx.bouncer = new Bouncer(() => ctx.integrationUser || ctx.auth.user || null, {
+      access,
+    }).setContainerResolver(ctx.containerResolver)
 
     return next()
   }

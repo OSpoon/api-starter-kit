@@ -26,7 +26,9 @@ export async function recordAuditEvent(
       targetType: event.targetType,
       targetId:
         event.targetId === undefined || event.targetId === null ? null : String(event.targetId),
-      metadata: event.metadata ?? null,
+      metadata: ctx.integrationApiKey
+        ? { ...(event.metadata ?? {}), integrationApiKeyId: ctx.integrationApiKey.id }
+        : (event.metadata ?? null),
       ipAddress: ctx.request.ip(),
       userAgent: ctx.request.header('user-agent')?.slice(0, 512) ?? null,
       requestId: requestId.slice(0, 120),

@@ -57,7 +57,7 @@ export async function getDashboardOverview(
     bouncer.allows('access', 'users:read'),
     bouncer.allows('access', 'roles:read'),
     bouncer.allows('access', 'api-keys:read'),
-    bouncer.allows('access', 'knowledge:manage'),
+    bouncer.allows('access', 'knowledge:read'),
     bouncer.allows('access', 'audit-logs:read'),
     bouncer.allows('access', 'system-status:read'),
   ])

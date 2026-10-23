@@ -1,12 +1,14 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import db from '@adonisjs/lucid/services/db'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
+import { DateTime } from 'luxon'
 
 import Permission from '#models/permission'
 import Role from '#models/role'
 import User from '#models/user'
 import { recordAuditEvent } from '#services/audit_log'
-import { isChannelGuestUser } from '#services/channel_guest_principal'
+import { isInternalUser } from '#services/channel_guest_principal'
+import { countEnabledSuperAdminUsers, lockSuperAdminRole } from '#services/super_admin_access'
 
 export type MutationSource = 'api' | 'ai_agent'
 
@@ -21,7 +23,10 @@ export class AccessControlMutationError extends Error {
       | 'super_admin_target_forbidden'
       | 'super_admin_roles_immutable'
       | 'super_admin_role_grant'
-      | 'self_role_removal',
+      | 'self_role_removal'
+      | 'grant_exceeds_actor_permissions'
+      | 'inactive_actor'
+      | 'last_enabled_super_admin',
     message: string
   ) {
     super(message)
@@ -35,7 +40,11 @@ function uniqueIds(ids: number[]) {
 async function resolveRoleIds(ids: number[], client: TransactionClientContract) {
   const normalizedIds = uniqueIds(ids)
   const roles = normalizedIds.length
-    ? await Role.query({ client }).whereIn('id', normalizedIds).select('id', 'code').forUpdate()
+    ? await Role.query({ client })
+        .whereIn('id', normalizedIds)
+        .select('id', 'code')
+        .preload('permissions')
+        .forUpdate()
     : []
   if (roles.length !== normalizedIds.length) {
     throw new AccessControlMutationError('invalid_role_ids', '包含不存在的角色')
@@ -44,7 +53,39 @@ async function resolveRoleIds(ids: number[], client: TransactionClientContract) 
 }
 
 async function resolveCurrentRoles(user: User) {
-  return user.related('roles').query().select('roles.id', 'roles.code').forUpdate()
+  return user
+    .related('roles')
+    .query()
+    .select('roles.id', 'roles.code')
+    .preload('permissions')
+    .forUpdate()
+}
+
+function permissionCodes(roles: Role[]) {
+  return new Set(roles.flatMap((role) => role.permissions.map((permission) => permission.code)))
+}
+
+function ensureGrantablePermissions(actorRoles: Role[], requestedCodes: string[]) {
+  if (actorRoles.some((role) => role.code === 'super-admin')) return
+  const actorPermissionCodes = permissionCodes(actorRoles)
+  if (requestedCodes.some((code) => !actorPermissionCodes.has(code))) {
+    throw new AccessControlMutationError(
+      'grant_exceeds_actor_permissions',
+      '只能授予自己拥有的权限'
+    )
+  }
+}
+
+async function resolveActorRoles(actorUserId: number, client: TransactionClientContract) {
+  const actor = await User.query({ client })
+    .where('id', actorUserId)
+    .forUpdate()
+    .preload('roles', (roles) => roles.preload('permissions'))
+    .firstOrFail()
+  if (actor.disabledAt) {
+    throw new AccessControlMutationError('inactive_actor', '已停用的用户不能执行此操作')
+  }
+  return actor.roles
 }
 
 async function validateUserRoleChange(input: {
@@ -61,11 +102,20 @@ async function validateUserRoleChange(input: {
       : await User.query({ client: input.client })
           .where('id', input.actorUserId)
           .forUpdate()
+          .preload('roles', (roles) => roles.preload('permissions'))
           .firstOrFail()
+  if (actor.disabledAt) {
+    throw new AccessControlMutationError('inactive_actor', '已停用的用户不能执行此操作')
+  }
   const actorRoles = actor.id === input.target.id ? targetRoles : await resolveCurrentRoles(actor)
   const targetRoleIds = targetRoles.map((role) => role.id)
   const targetIsSuperAdmin = targetRoles.some((role) => role.code === 'super-admin')
   const actorIsSuperAdmin = actorRoles.some((role) => role.code === 'super-admin')
+
+  ensureGrantablePermissions(
+    actorRoles,
+    input.nextRoles.flatMap((role) => role.permissions.map((permission) => permission.code))
+  )
 
   if (targetIsSuperAdmin) {
     if (!actorIsSuperAdmin) {
@@ -95,15 +145,15 @@ async function validateUserRoleChange(input: {
   }
 }
 
-async function resolvePermissionIds(ids: number[], client: TransactionClientContract) {
+async function resolvePermissions(ids: number[], client: TransactionClientContract) {
   const normalizedIds = uniqueIds(ids)
   const permissions = normalizedIds.length
-    ? await Permission.query({ client }).whereIn('id', normalizedIds).select('id')
+    ? await Permission.query({ client }).whereIn('id', normalizedIds).select('id', 'code')
     : []
   if (permissions.length !== normalizedIds.length) {
     throw new AccessControlMutationError('invalid_permission_ids', '包含不存在的权限')
   }
-  return normalizedIds
+  return { ids: normalizedIds, codes: permissions.map((permission) => permission.code) }
 }
 
 export async function createRoleWithPermissions(input: {
@@ -120,12 +170,14 @@ export async function createRoleWithPermissions(input: {
     if (existingRole) {
       throw new AccessControlMutationError('duplicate_role_code', '角色代码已存在')
     }
-    const permissionIds = await resolvePermissionIds(input.permissionIds, trx)
+    const permissions = await resolvePermissions(input.permissionIds, trx)
+    const actorRoles = await resolveActorRoles(input.actorUserId, trx)
+    ensureGrantablePermissions(actorRoles, permissions.codes)
     const role = await Role.create(
       { code: input.code, name: input.name, description: input.description },
       { client: trx }
     )
-    await role.related('permissions').sync(permissionIds, false, trx)
+    await role.related('permissions').sync(permissions.ids, false, trx)
     await recordAuditEvent(
       input.ctx,
       {
@@ -133,7 +185,7 @@ export async function createRoleWithPermissions(input: {
         action: 'role.created',
         targetType: 'role',
         targetId: role.id,
-        metadata: { permissionIds, source: input.source },
+        metadata: { permissionIds: permissions.ids, source: input.source },
       },
       trx
     )
@@ -152,9 +204,14 @@ export async function createManagedUser(input: {
 }) {
   return db.transaction(async (trx) => {
     const resolvedRoles = await resolveRoleIds(input.roleIds, trx)
+    const actorRoles = await resolveActorRoles(input.actorUserId, trx)
     if (resolvedRoles.roles.some((role) => role.code === 'super-admin')) {
       throw new AccessControlMutationError('super_admin_role_grant', '超级管理员角色不可授予')
     }
+    ensureGrantablePermissions(
+      actorRoles,
+      resolvedRoles.roles.flatMap((role) => role.permissions.map((permission) => permission.code))
+    )
     const user = await User.create(
       { fullName: input.fullName, email: input.email, password: input.password },
       { client: trx }
@@ -189,7 +246,7 @@ export async function updateManagedUser(input: {
       .where('id', input.userId)
       .forUpdate()
       .firstOrFail()
-    if (isChannelGuestUser(user)) {
+    if (isInternalUser(user)) {
       throw new AccessControlMutationError('protected_user', '系统内部用户不可管理')
     }
     const resolvedRoles = await resolveRoleIds(input.roleIds, trx)
@@ -226,12 +283,43 @@ export async function deleteManagedUser(input: {
   source: MutationSource
 }) {
   return db.transaction(async (trx) => {
+    const superAdminRole = await lockSuperAdminRole(trx)
     const user = await User.query({ client: trx })
       .where('id', input.userId)
       .forUpdate()
       .firstOrFail()
-    if (isChannelGuestUser(user)) {
+    if (isInternalUser(user)) {
       throw new AccessControlMutationError('protected_user', '系统内部用户不可管理')
+    }
+    if (user.id === input.actorUserId) {
+      throw new AccessControlMutationError('protected_user', '不能删除当前登录账号')
+    }
+    const actor = await User.query({ client: trx })
+      .where('id', input.actorUserId)
+      .forUpdate()
+      .firstOrFail()
+    if (actor.disabledAt) {
+      throw new AccessControlMutationError('inactive_actor', '已停用的用户不能执行此操作')
+    }
+    const targetRoles = await resolveCurrentRoles(user)
+    const targetIsSuperAdmin = targetRoles.some((role) => role.id === superAdminRole.id)
+    const actorRoles = await resolveCurrentRoles(actor)
+    const actorIsSuperAdmin = actorRoles.some((role) => role.id === superAdminRole.id)
+    if (targetIsSuperAdmin && !actorIsSuperAdmin) {
+      throw new AccessControlMutationError(
+        'super_admin_target_forbidden',
+        '仅超级管理员可以删除超级管理员账户'
+      )
+    }
+    if (
+      targetIsSuperAdmin &&
+      !user.disabledAt &&
+      (await countEnabledSuperAdminUsers(trx, superAdminRole.id)) <= 1
+    ) {
+      throw new AccessControlMutationError(
+        'last_enabled_super_admin',
+        '至少需要保留一个启用的超级管理员账户'
+      )
     }
     user.useTransaction(trx)
     await trx.from('user_roles').where('user_id', user.id).delete()
@@ -261,20 +349,27 @@ export async function updateRoleWithPermissions(input: {
   source: MutationSource
 }) {
   return db.transaction(async (trx) => {
-    const role = await Role.query({ client: trx }).where('id', input.roleId).firstOrFail()
+    const role = await Role.query({ client: trx })
+      .where('id', input.roleId)
+      .forUpdate()
+      .firstOrFail()
     if (role.isSystem) {
       throw new AccessControlMutationError('protected_role', '系统内置角色不可编辑')
     }
-    const permissionIds =
+    const permissions =
       input.permissionIds === undefined
         ? undefined
-        : await resolvePermissionIds(input.permissionIds, trx)
+        : await resolvePermissions(input.permissionIds, trx)
+    if (permissions) {
+      const actorRoles = await resolveActorRoles(input.actorUserId, trx)
+      ensureGrantablePermissions(actorRoles, permissions.codes)
+    }
 
     role.name = input.name
     role.description = input.description
     await role.save()
-    if (permissionIds !== undefined) {
-      await role.related('permissions').sync(permissionIds, false, trx)
+    if (permissions !== undefined) {
+      await role.related('permissions').sync(permissions.ids, false, trx)
     }
     await recordAuditEvent(
       input.ctx,
@@ -283,10 +378,83 @@ export async function updateRoleWithPermissions(input: {
         action: 'role.updated',
         targetType: 'role',
         targetId: role.id,
-        metadata: { permissionIds: permissionIds ?? [], source: input.source },
+        metadata: { permissionIds: permissions?.ids ?? [], source: input.source },
       },
       trx
     )
     return role
+  })
+}
+
+export async function setManagedUserDisabled(input: {
+  ctx: HttpContext
+  actorUserId: number
+  userId: number
+  disabled: boolean
+  source: MutationSource
+}) {
+  return db.transaction(async (trx) => {
+    const superAdminRole = await lockSuperAdminRole(trx)
+    const target = await User.query({ client: trx })
+      .where('id', input.userId)
+      .forUpdate()
+      .firstOrFail()
+    if (isInternalUser(target)) {
+      throw new AccessControlMutationError('protected_user', '系统内部用户不可管理')
+    }
+    if (target.id === input.actorUserId) {
+      throw new AccessControlMutationError('protected_user', '不能修改当前登录账号的启用状态')
+    }
+    if (Boolean(target.disabledAt) === input.disabled) {
+      throw new AccessControlMutationError(
+        'protected_user',
+        input.disabled ? '用户已被禁用' : '用户未被禁用'
+      )
+    }
+
+    const actor = await User.query({ client: trx })
+      .where('id', input.actorUserId)
+      .forUpdate()
+      .firstOrFail()
+    if (actor.disabledAt) {
+      throw new AccessControlMutationError('inactive_actor', '已停用的用户不能执行此操作')
+    }
+    const targetRoles = await resolveCurrentRoles(target)
+    const actorRoles = await resolveCurrentRoles(actor)
+    const targetIsSuperAdmin = targetRoles.some((role) => role.id === superAdminRole.id)
+    const actorIsSuperAdmin = actorRoles.some((role) => role.id === superAdminRole.id)
+    if (targetIsSuperAdmin && !actorIsSuperAdmin) {
+      throw new AccessControlMutationError(
+        'super_admin_target_forbidden',
+        '仅超级管理员可以维护超级管理员账户'
+      )
+    }
+    if (
+      input.disabled &&
+      targetIsSuperAdmin &&
+      (await countEnabledSuperAdminUsers(trx, superAdminRole.id)) <= 1
+    ) {
+      throw new AccessControlMutationError(
+        'last_enabled_super_admin',
+        '至少需要保留一个启用的超级管理员账户'
+      )
+    }
+
+    target.disabledAt = input.disabled ? DateTime.now() : null
+    await target.save()
+    if (input.disabled) {
+      await trx.from('auth_access_tokens').where('tokenable_id', target.id).delete()
+    }
+    await recordAuditEvent(
+      input.ctx,
+      {
+        actorUserId: actor.id,
+        action: input.disabled ? 'user.disabled' : 'user.enabled',
+        targetType: 'user',
+        targetId: target.id,
+        metadata: { source: input.source },
+      },
+      trx
+    )
   })
 }

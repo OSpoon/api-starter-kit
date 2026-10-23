@@ -18,7 +18,7 @@ API client、类型、认证状态和错误处理是否仍然符合契约；三�
 
 ## 鉴权与响应
 
-除明确挂载 API Key middleware 的路由外，业务接口使用管理员 Bearer Token。账户、登录、2FA、API Key 管理和 AI 会话接口不接受 API Key。
+普通业务接口使用管理员 Bearer Token。AI 助手同时提供 Bearer 会话接口和 API Key 集成接口；集成密钥通过 `X-API-Key` 传入。
 
 普通成功响应使用：
 
@@ -38,9 +38,12 @@ API client、类型、认证状态和错误处理是否仍然符合契约；三�
 | API Key    | `/api-keys/*`                      |
 | 系统管理   | `/system/*`                        |
 | AI 会话    | `/ai-chat/*`                       |
+| AI 集成    | `/integrations/ai-chat/*`          |
 | 工作台     | `/dashboard/*`                     |
 
 具体请求参数和响应字段以 OpenAPI 为准。系统管理与 API Key 操作需要对应的命名权限，详见[安全与治理](security.md)。
+
+API Key 是全局助手能力凭证。持有有效密钥的集成可以调用 `/integrations/ai-chat/*`，使用完整注册助手能力，也可以访问企业微信消息发送集成路由。助手会话和用量按 API Key 隔离；敏感变更仍通过助手提案和确认流程执行。创建请求不接受权限范围字段，原始密钥只在创建时返回一次。
 
 ### 系统数据概览
 
@@ -51,7 +54,7 @@ API client、类型、认证状态和错误处理是否仍然符合契约；三�
 | `activeUsers`        | 启用用户数                  | `users:read`         |
 | `roles`              | 角色数                      | `roles:read`         |
 | `activeApiKeys`      | 未吊销且未过期的 API Key 数 | `api-keys:read`      |
-| `knowledgeDocuments` | 知识文档数                  | `knowledge:manage`   |
+| `knowledgeDocuments` | 知识文档数                  | `knowledge:read`     |
 | `auditEvents`        | 近 7 天审计事件数           | `audit-logs:read`    |
 | `aiModelCalls`       | 本月模型调用次数            | `system-status:read` |
 | `aiTokensUsed`       | 本月 token 用量             | `system-status:read` |
@@ -81,7 +84,7 @@ Embedding 向量维度固定为 `1024`。`PUT /system/llm-config` 的 `embedding
 
 ## 知识库接口
 
-知识库管理接口位于 `/api/v1/system/knowledge-documents`，统一要求 Bearer 认证和 `knowledge:manage` 权限。列表支持 `page`、`limit` 和 `search` 查询参数；单文件支持 `txt`、`md`、`markdown`、`rst`，大小上限为 5 MB；批量上传最多 20 个文件。知识库 endpoint 清单、处理流程和管理限制见[知识库实现说明](knowledge-base.md)，请求与响应契约以 OpenAPI 为准。
+知识库接口位于 `/api/v1/system/knowledge-documents`，统一要求 Bearer 认证；分页列表使用 `knowledge:read`，元数据预览和所有写操作使用 `knowledge:manage`。列表支持 `page`、`limit` 和 `search` 查询参数；单文件支持 `txt`、`md`、`markdown`、`rst`，大小上限为 5 MB；批量上传最多 20 个文件。知识库 endpoint 清单、处理流程和管理限制见[知识库实现说明](knowledge-base.md)，请求与响应契约以 OpenAPI 为准。
 
 ## 列表搜索
 

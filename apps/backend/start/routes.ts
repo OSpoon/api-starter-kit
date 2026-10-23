@@ -1,6 +1,7 @@
 import router from '@adonisjs/core/services/router'
 import db from '@adonisjs/lucid/services/db'
 import openapi from '@foadonis/openapi/services/main'
+import YAML from 'yaml'
 
 import { controllers } from '#generated/controllers'
 import { middleware } from '#start/kernel'
@@ -21,12 +22,6 @@ const WecomMessageTemplatesController = () =>
 const SystemStatusController = () => import('#controllers/system_status_controller')
 const LlmConfigurationsController = () => import('#controllers/llm_configurations_controller')
 const ImConfigurationsController = () => import('#controllers/im_configurations_controller')
-
-router
-  .post('/api/v1/wecom-messages/:id/send', [WecomMessageTemplatesController, 'send'])
-  .as('wecom.messages.send')
-  .use(middleware.apiKey())
-  .use(middleware.throttle({ max: 20, windowSeconds: 60, key: 'ip' }))
 
 router.get('/api/v1/health', () => {
   return { status: 'ok' }
@@ -55,7 +50,74 @@ router.get('/api/v1/health/ready', async ({ response }) => {
 // OpenAPI docs (Scalar UI) are served directly by the backend on its own port.
 // Enable via OPENAPI_DOCS_ENABLED=true; the route is not registered when disabled.
 if (process.env.OPENAPI_DOCS_ENABLED === 'true') {
-  openapi.registerRoutes('/api-docs')
+  async function buildApiKeyDocument() {
+    const document = await openapi.buildDocument()
+    const paths = structuredClone(document.paths) as typeof document.paths
+    for (const path of Object.keys(paths)) {
+      if (
+        !path.startsWith('/api/v1/integrations/ai-chat/') &&
+        path !== '/api/v1/wecom-messages/{id}/send'
+      ) {
+        delete paths[path]
+      }
+    }
+
+    const tags = new Set<string>()
+    for (const pathItem of Object.values(paths)) {
+      if (!pathItem) continue
+      for (const method of [
+        'get',
+        'put',
+        'post',
+        'delete',
+        'patch',
+        'options',
+        'head',
+        'trace',
+      ] as const) {
+        const operation = pathItem[method]
+        if (!operation) continue
+        operation.security = [{ integrationApiKey: [] }]
+        for (const tag of operation.tags ?? []) tags.add(tag)
+      }
+    }
+
+    return {
+      ...document,
+      info: {
+        ...document.info,
+        title: 'AI Assistant Integration API',
+        description: '第三方通过 X-API-Key 调用 AI 助手集成能力。',
+      },
+      paths,
+      tags: document.tags?.filter((tag) => tags.has(tag.name)),
+    }
+  }
+
+  router
+    .get('/api-docs', ({ response }) => {
+      return response
+        .status(200)
+        .header('Content-Type', 'text/html')
+        .send(openapi.generateUi('/api-docs.json'))
+    })
+    .as('openapi.html')
+  router
+    .get('/api-docs.json', async ({ response }) => {
+      return response
+        .status(200)
+        .header('Content-Type', 'application/json')
+        .send(JSON.stringify(await buildApiKeyDocument()))
+    })
+    .as('openapi.json')
+  router
+    .get('/api-docs.yaml', async ({ response }) => {
+      return response
+        .status(200)
+        .header('Content-Type', 'application/yaml')
+        .send(YAML.stringify(await buildApiKeyDocument()))
+    })
+    .as('openapi.yaml')
 }
 
 router
@@ -172,6 +234,13 @@ router
     router
       .group(() => {
         router.get('knowledge-documents', [KnowledgeDocumentsController, 'index'])
+      })
+      .prefix('system')
+      .use(middleware.auth())
+      .use(middleware.permission(['knowledge:read']))
+
+    router
+      .group(() => {
         router.post('knowledge-documents/metadata-preview', [
           KnowledgeDocumentsController,
           'metadataPreview',
@@ -263,5 +332,35 @@ router
       .prefix('ai-chat')
       .use(middleware.auth())
       .use(middleware.throttle({ max: 20, windowSeconds: 60, key: 'user' }))
+
+    router
+      .group(() => {
+        router.get('conversations', [AiChatController, 'index'])
+        router
+          .get('usage', [AiChatController, 'usage'])
+          .use(middleware.permission(['ai-usage:read']))
+        router.post('conversations', [AiChatController, 'store'])
+        router.get('conversations/:id', [AiChatController, 'show'])
+        router.post('transcribe', [AiChatController, 'transcribe'])
+        router.post('conversations/:id/messages', [AiChatController, 'sendMessage'])
+        router.post('conversations/:id/steer', [AiChatController, 'steer'])
+        router.post('conversations/:id/follow-up', [AiChatController, 'followUp'])
+        router.post('conversations/:id/confirmations/:confirmationId/confirm', [
+          AiChatController,
+          'confirmAiAgentAction',
+        ])
+        router.delete('conversations/:id', [AiChatController, 'destroy'])
+      })
+      .prefix('integrations/ai-chat')
+      .as('integrations.ai_chat')
+      .use(middleware.apiKey())
+      .use(middleware.throttle({ max: 20, windowSeconds: 60, key: 'ip' }))
   })
   .prefix('/api/v1')
+
+// The OpenAPI generator stores metadata by controller method, so keep the API Key variant last.
+router
+  .post('/api/v1/wecom-messages/:id/send', [WecomMessageTemplatesController, 'send'])
+  .as('wecom.messages.send')
+  .use(middleware.apiKey())
+  .use(middleware.throttle({ max: 20, windowSeconds: 60, key: 'ip' }))

@@ -1,7 +1,10 @@
 import { maskEmail, maskName, queryResultLimit } from '#ai/registry/ai_agent_query_helpers'
 import type { AiQueryTemplate } from '#ai/registry/ai_agent_query_types'
 import User from '#models/user'
-import { CHANNEL_GUEST_USER_EMAIL } from '#services/channel_guest_principal'
+import {
+  AI_INTEGRATION_USER_EMAIL,
+  CHANNEL_GUEST_USER_EMAIL,
+} from '#services/channel_guest_principal'
 
 export const managedUsersQuery: AiQueryTemplate = {
   code: 'managed_users',
@@ -11,7 +14,7 @@ export const managedUsersQuery: AiQueryTemplate = {
   parameters: {},
   async execute() {
     const users = await User.query()
-      .whereNot('email', CHANNEL_GUEST_USER_EMAIL)
+      .whereNotIn('email', [CHANNEL_GUEST_USER_EMAIL, AI_INTEGRATION_USER_EMAIL])
       .preload('roles')
       .orderBy('id')
       .limit(queryResultLimit)

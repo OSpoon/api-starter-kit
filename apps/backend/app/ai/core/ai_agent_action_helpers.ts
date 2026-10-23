@@ -20,7 +20,7 @@ export function defineAiAgentAction(
 }
 
 export async function ensurePermission(ctx: HttpContext, permission: string) {
-  const user = ctx.auth.getUserOrFail()
+  const user = ctx.integrationUser ?? ctx.auth.getUserOrFail()
   try {
     await ensureAiAgentPermission(user.id, permission)
   } catch {
