@@ -9,7 +9,11 @@ import {
 } from '#services/access_control_mutations'
 import { recordAuditEvent } from '#services/audit_log'
 import { clampLimit } from '#support/pagination'
-import { createRoleValidator, updateRoleValidator } from '#validators/rbac'
+import {
+  createRoleValidator,
+  listAccessControlValidator,
+  updateRoleValidator,
+} from '#validators/rbac'
 
 function serializeRole(role: Role) {
   return {
@@ -31,9 +35,11 @@ export default class RolesController {
     return serialize(roles.map((role) => ({ id: role.id, code: role.code, name: role.name })))
   }
 
+  @ApiResponse({ status: 422, description: '查询参数无效' })
   async index({ request, serialize }: HttpContext) {
-    const page = Math.max(Number(request.input('page', 1)) || 1, 1)
-    const search = String(request.input('search', '')).trim()
+    const filters = await request.validateUsing(listAccessControlValidator, { data: request.qs() })
+    const page = Number(filters.page ?? 1)
+    const search = filters.search ?? ''
     const query = Role.query()
       .preload('permissions')
       .withCount('users')
@@ -47,7 +53,7 @@ export default class RolesController {
           .orWhereILike('description', `%${search}%`)
       })
     }
-    const paginator = await query.paginate(page, clampLimit(request.input('limit'), 20, 100))
+    const paginator = await query.paginate(page, clampLimit(filters.limit, 20, 100))
     return serialize({ items: paginator.all().map(serializeRole), meta: paginator.getMeta() })
   }
 

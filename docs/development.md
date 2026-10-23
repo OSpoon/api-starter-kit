@@ -29,10 +29,9 @@ pnpm test
 pnpm lint
 ```
 
-根目录 `pnpm dev` 会启动完整的本地开发栈，包括 backend、管理端 frontend、三个 Bot、唯一的
-`assistant-web` 开发服务（端口 `17070`）、Tauri 桌面客户端和 Chrome 扩展。Extension.js 会启动独立的
-Chrome 开发配置文件并加载扩展；
-桌面端只连接 `17070`，不会自行启动第二个 Web 服务。`17070` 被占用时 Vite 会直接报错，不会自动切换到 `17071`。
+根目录 `pnpm dev` 只启动 backend 和管理端 frontend。独立助手、渠道 Bot、Tauri 桌面客户端和 Chrome 扩展
+需要调试时再通过各自的应用命令启动。`assistant-web` 使用端口 `17070`；桌面端只连接该服务，不会自行启动
+第二个 Web 服务。`17070` 被占用时 Vite 会直接报错，不会自动切换到 `17071`。
 
 各应用的职责边界如下：
 
@@ -41,6 +40,17 @@ Chrome 开发配置文件并加载扩展；
 - `apps/assistant-web`：独立 AI 助手 Web 客户端，复用管理端的 AI 组件、API、认证和 locale。
 - `apps/assistant-desktop`：Tauri 原生壳，只负责窗口、原生权限、Rust 命令和安装包。
 - `apps/assistant-extension`：Extension.js 管理 Chrome MV3 清单、侧边栏和构建；复用 `assistant-web` 的 AI 会话、认证和 API 客户端。首次连接时由用户输入 API origin，扩展仅在连接操作中申请该地址的可选主机权限，不注入脚本或读取当前网页内容。
+
+需要调试可选客户端或 Bot 时，使用各自的开发命令：
+
+```bash
+pnpm --dir apps/assistant-web dev
+pnpm --dir apps/assistant-desktop dev # 先启动 assistant-web
+pnpm --dir apps/assistant-extension dev
+pnpm --dir apps/backend bot:wecom
+pnpm --dir apps/backend bot:feishu
+pnpm --dir apps/backend bot:dingtalk
+```
 
 扩展通过 `extension.config.js` 将共享的 `vue-router` 导入统一到
 `assistant-web` 的运行时入口。pnpm 会为不同 peer dependency 上下文安装独立的物理包，

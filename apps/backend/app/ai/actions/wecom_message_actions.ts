@@ -41,7 +41,7 @@ function stringList(input: Record<string, unknown>, name: string) {
 const sendWecomMessageAction: AiAgentActionImplementation = {
   permission: 'wecom-templates:send',
   async prepare(input) {
-    const templateId = integer(input, 'templateId', ['id'])
+    const templateId = integer(input, 'templateId')
     const template = await WecomMessageTemplate.find(templateId)
     if (!template) throw new Error('消息模板不存在')
     if (!template.enabled) throw new Error('消息模板已停用')

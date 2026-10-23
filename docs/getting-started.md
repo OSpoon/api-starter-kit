@@ -36,22 +36,17 @@ pnpm dev
 ```
 
 开发命令 `pnpm docker:up` 会启动 PostgreSQL，并映射 PostgreSQL `5432`，以便宿主机运行的后端连接。根目录
-`pnpm dev` 会通过 Turbo 同时启动 backend、管理端 frontend、三个 Bot、独立助手 Web、Tauri 桌面端和 Chrome 扩展；
-它们共用一套后端服务。独立助手 Web 使用 `17070`，管理端使用 `18080`，桌面端连接已经运行的
-`17070`，不会再启动第二个 Vite 服务。
+`pnpm dev` 只启动 backend 和管理端 frontend。管理端使用 `18080`，后端 API 使用 `13333`。
 
-| 服务         | 默认地址                                         |
-| ------------ | ------------------------------------------------ |
-| 管理端 Web   | `http://localhost:18080`                         |
-| 独立助手 Web | `http://localhost:17070`                         |
-| 后端 API     | `http://localhost:13333`                         |
-| OpenAPI UI   | `http://localhost:13333/api-docs`                |
-| 桌面端       | 原生窗口，无独立 HTTP 端口                       |
-| Chrome 扩展  | Extension.js 启动的 Chrome 配置文件和 side panel |
+| 服务       | 默认地址                          |
+| ---------- | --------------------------------- |
+| 管理端 Web | `http://localhost:18080`          |
+| 后端 API   | `http://localhost:13333`          |
+| OpenAPI UI | `http://localhost:13333/api-docs` |
 
-如果只调试某个客户端或 Bot，可按[工程开发指南](development.md)中的应用命令单独启动；独立助手 Web 使用 `pnpm --dir apps/assistant-web dev`，如果只启动桌面端，
-必须先让 `17070` 上的助手 Web 可访问，再执行 `pnpm --dir apps/assistant-desktop dev`。推荐日常开发使用根目录
-`pnpm dev`，避免遗漏桌面端依赖的 Web 服务。
+独立助手 Web、桌面端、Chrome 扩展和渠道 Bot 不会随默认命令启动。需要调试时，按[工程开发指南](development.md)
+中的应用命令启动；桌面端依赖助手 Web，启动桌面端前先运行 `pnpm --dir apps/assistant-web dev`，再运行
+`pnpm --dir apps/assistant-desktop dev`。
 
 独立助手 Web 的开发代理默认将 `/api/v1` 转发到 `http://localhost:13333`，也可以通过
 `VITE_DEV_API_PROXY_TARGET` 覆盖。生产构建使用 `VITE_API_URL` 指向 API 服务；桌面端生产构建必须配置

@@ -6,6 +6,7 @@ import ChannelIdentity from '#models/channel_identity'
 import GithubIdentity from '#models/github_identity'
 import User from '#models/user'
 import { isStrongPassword, passwordContext } from '#security/password_strength'
+import { verifyUserCredentials } from '#security/user_credentials'
 import { recordAuditEvent } from '#services/audit_log'
 import { loadUserAccess } from '#services/user_access'
 import UserTransformer from '#transformers/user_transformer'
@@ -34,9 +35,7 @@ export default class ProfileController {
     const user = auth.getUserOrFail()
     const payload = await request.validateUsing(changePasswordValidator)
 
-    const verifiedUser = await User.verifyCredentials(user.email, payload.currentPassword).catch(
-      () => null
-    )
+    const verifiedUser = await verifyUserCredentials(user.email, payload.currentPassword)
     if (!verifiedUser) {
       return response.badRequest({ message: '当前密码不正确' })
     }
@@ -79,9 +78,7 @@ export default class ProfileController {
     const { auth, request, response, serialize } = ctx
     const user = auth.getUserOrFail()
     const payload = await request.validateUsing(twoFactorValidator)
-    const verifiedUser = await User.verifyCredentials(user.email, payload.password).catch(
-      () => null
-    )
+    const verifiedUser = await verifyUserCredentials(user.email, payload.password)
 
     if (!verifiedUser) {
       return response.badRequest({ message: '密码不正确' })
@@ -111,9 +108,7 @@ export default class ProfileController {
     const { auth, request, response, serialize } = ctx
     const user = auth.getUserOrFail()
     const payload = await request.validateUsing(twoFactorValidator)
-    const verifiedUser = await User.verifyCredentials(user.email, payload.password).catch(
-      () => null
-    )
+    const verifiedUser = await verifyUserCredentials(user.email, payload.password)
 
     if (!verifiedUser) {
       return response.badRequest({ message: '密码不正确' })

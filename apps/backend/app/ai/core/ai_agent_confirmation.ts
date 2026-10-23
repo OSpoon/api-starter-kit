@@ -35,14 +35,14 @@ export type AiAgentConfirmationSummary = {
   action: string
   impact: AiAgentActionImpact
   targetType: string
-  targetId: string
+  targetId: string | null
   targetSummary: Record<string, unknown>
   changeSummary: Array<{ field: string; value: string }>
   expiresAt: string | null
   presentation: {
     title: string
     summary: string
-    targetLabel: string
+    targetLabel: string | null
     changes: Array<{ label: string; value: string }>
     impactLabel: string
     approveLabel: string
@@ -68,14 +68,14 @@ function serializeConfirmation(confirmation: AiAgentConfirmation): AiAgentConfir
     action: confirmation.action,
     impact: action?.impact ?? 'destructive',
     targetType: confirmation.targetType ?? 'unknown',
-    targetId: confirmation.targetId ?? String(confirmation.id),
+    targetId: confirmation.targetId,
     targetSummary,
     changeSummary,
     expiresAt: confirmation.expiresAt.toISO(),
     presentation: {
       title: getActionTitle(confirmation.action),
       summary: '请确认以下受控系统管理操作。',
-      targetLabel: getTargetLabel(confirmation.targetId ?? String(confirmation.id), targetSummary),
+      targetLabel: getTargetLabel(confirmation.targetId, targetSummary),
       changes: changeSummary.map(({ field, value }) => ({
         label: getChangeLabel(field),
         value: getChangeValue(value),
@@ -97,15 +97,13 @@ async function appendConfirmationRuntimeDetail(
   if (!confirmation.assistantMessageId) return
   const message = await AiChatMessage.find(confirmation.assistantMessageId)
   if (!message || message.role !== 'assistant') return
+  const targetLabel = getTargetLabel(confirmation.targetId, confirmation.targetSummary ?? {})
   message.runtimeDetails = [
     ...message.runtimeDetails,
     {
       kind: 'confirmation',
       action: confirmation.action,
-      targetLabel: getTargetLabel(
-        confirmation.targetId ?? String(confirmation.id),
-        confirmation.targetSummary ?? {}
-      ),
+      ...(targetLabel ? { targetLabel } : {}),
       status,
       completedAt: DateTime.now().toISO() ?? new Date().toISOString(),
     },
@@ -134,7 +132,7 @@ const actionTitles: Record<string, string> = {
 function getActionTitle(action: string) {
   return actionTitles[action] ?? '确认系统管理操作'
 }
-function getTargetLabel(targetId: string, summary: Record<string, unknown>) {
+function getTargetLabel(targetId: string | null, summary: Record<string, unknown>) {
   const name = summary.name ?? summary.fullName ?? summary.code
   return typeof name === 'string' ? name : targetId
 }

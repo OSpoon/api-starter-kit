@@ -53,14 +53,14 @@ export interface AiChatConfirmation {
   action: string
   impact: 'standard' | 'destructive'
   targetType: string
-  targetId: string
+  targetId: string | null
   targetSummary: Record<string, unknown>
   changeSummary: Array<{ field: string; value: string }>
   expiresAt: string | null
   presentation: {
     title: string
     summary: string
-    targetLabel: string
+    targetLabel: string | null
     changes: Array<{ label: string; value: string }>
     impactLabel: string
     approveLabel: string

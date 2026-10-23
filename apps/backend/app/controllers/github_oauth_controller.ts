@@ -6,6 +6,7 @@ import { ApiOperation, ApiResponse } from '@foadonis/openapi/decorators'
 import { isTurnstileEnabled, verifyTurnstileToken } from '#integrations/turnstile'
 import User from '#models/user'
 import { createTwoFactorTempToken } from '#security/two_factor_token'
+import { verifyUserCredentials } from '#security/user_credentials'
 import {
   consumeGithubLinkState,
   consumeGithubLoginChallenge,
@@ -131,9 +132,7 @@ export default class GithubOauthController {
     const { identity } = await readGithubLoginChallenge(challengeCode)
     const user = await User.findBy('email', payload.email)
     if (!user || user.disabledAt) throw githubOAuthErrors.accountNotLinked
-    const verifiedUser = await User.verifyCredentials(user.email, payload.password).catch(
-      () => null
-    )
+    const verifiedUser = await verifyUserCredentials(user.email, payload.password)
     if (!verifiedUser) throw { code: 'E_INVALID_CREDENTIALS', status: 401 }
     await consumeGithubLoginChallenge(challengeCode)
     session.forget(SESSION_LOGIN_CHALLENGE_KEY)

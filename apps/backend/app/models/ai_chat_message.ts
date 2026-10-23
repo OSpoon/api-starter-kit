@@ -35,28 +35,58 @@ export type AiChatRuntimeDetail =
       completedAt: string
     }
 
-function consumeCitations(value: unknown): AiChatCitation[] {
-  if (Array.isArray(value)) return value as AiChatCitation[]
-  if (typeof value !== 'string') return []
-
-  try {
-    const citations = JSON.parse(value)
-    return Array.isArray(citations) ? (citations as AiChatCitation[]) : []
-  } catch {
-    return []
-  }
+function isJsonRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
 }
 
-function consumeRuntimeDetails(value: unknown): AiChatRuntimeDetail[] {
-  if (Array.isArray(value)) return value as AiChatRuntimeDetail[]
-  if (typeof value !== 'string') return []
+function isCitation(value: unknown): value is AiChatCitation {
+  return (
+    isJsonRecord(value) &&
+    typeof value.documentId === 'number' &&
+    typeof value.chunkId === 'number' &&
+    typeof value.title === 'string' &&
+    typeof value.excerpt === 'string'
+  )
+}
 
-  try {
-    const details = JSON.parse(value)
-    return Array.isArray(details) ? (details as AiChatRuntimeDetail[]) : []
-  } catch {
-    return []
+function isRuntimeDetail(value: unknown): value is AiChatRuntimeDetail {
+  if (!isJsonRecord(value)) return false
+  if (value.kind === 'tool') {
+    return (
+      typeof value.name === 'string' &&
+      ['running', 'done', 'error'].includes(value.state as string) &&
+      (value.callId === undefined || typeof value.callId === 'string') &&
+      (value.durationMs === undefined || typeof value.durationMs === 'number') &&
+      (value.phase === undefined || typeof value.phase === 'string') &&
+      (value.errorCode === undefined || typeof value.errorCode === 'string') &&
+      (value.detail === undefined || isJsonRecord(value.detail))
+    )
   }
+  if (value.kind === 'plan') {
+    return Array.isArray(value.steps) && value.steps.every(isJsonRecord)
+  }
+  if (value.kind === 'run') {
+    return typeof value.durationMs === 'number' && isJsonRecord(value.usage)
+  }
+  return (
+    value.kind === 'confirmation' &&
+    typeof value.action === 'string' &&
+    (value.targetLabel === undefined || typeof value.targetLabel === 'string') &&
+    ['confirmed', 'failed', 'expired'].includes(value.status as string) &&
+    typeof value.completedAt === 'string'
+  )
+}
+
+function consumeJsonArray<T>(
+  value: unknown,
+  columnName: string,
+  isItemValid: (item: unknown) => item is T
+): T[] {
+  const parsed = typeof value === 'string' ? JSON.parse(value) : value
+  if (!Array.isArray(parsed) || !parsed.every(isItemValid)) {
+    throw new TypeError(`Invalid JSON array in ai_chat_messages.${columnName}`)
+  }
+  return parsed
 }
 
 export default class AiChatMessage extends BaseModel {
@@ -76,13 +106,13 @@ export default class AiChatMessage extends BaseModel {
 
   @column({
     prepare: (citations: AiChatCitation[] | null | undefined) => JSON.stringify(citations ?? []),
-    consume: consumeCitations,
+    consume: (value: unknown) => consumeJsonArray(value, 'citations', isCitation),
   })
   declare citations: AiChatCitation[]
 
   @column({
     prepare: (details: AiChatRuntimeDetail[] | null | undefined) => JSON.stringify(details ?? []),
-    consume: consumeRuntimeDetails,
+    consume: (value: unknown) => consumeJsonArray(value, 'runtime_details', isRuntimeDetail),
   })
   declare runtimeDetails: AiChatRuntimeDetail[]
 

@@ -3,16 +3,16 @@ import { readItem } from '@/lib/api-types'
 
 export interface SystemStatus {
   cpu: {
-    averagePercent: number
-    perCorePercent: number[]
+    averagePercent: number | null
+    perCorePercent: Array<number | null>
     logicalCores: number
-    physicalCores: number
+    physicalCores: number | null
     loadAverage: number[]
   }
   memory: { usedPercent: number; usedGb: number; totalGb: number; availableGb: number }
   disks: Array<{ mount: string; usedPercent: number; usedBytes: number; totalBytes: number }>
   runtime: {
-    activeHandles: number
+    activeHandles: number | null
     pid: number
     uptimeSeconds: number
     rssMb: number

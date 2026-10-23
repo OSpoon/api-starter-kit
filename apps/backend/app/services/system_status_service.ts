@@ -17,31 +17,42 @@ function cpuSample() {
   })
 }
 
-function cpuUsage(current: CpuSample[], previous: CpuSample[] | null) {
-  if (!previous || previous.length !== current.length) return current.map(() => 0)
+export function cpuUsage(current: CpuSample[], previous: CpuSample[] | null) {
+  if (!previous || previous.length !== current.length) return null
   return current.map((sample, index) => {
     const prior = previous[index]
     const total = sample.total - prior.total
-    return total > 0 ? Math.round((1 - (sample.idle - prior.idle) / total) * 100) : 0
+    return total > 0 ? Math.round((1 - (sample.idle - prior.idle) / total) * 100) : null
   })
+}
+
+export function parseMounts(output: string) {
+  return output
+    .trim()
+    .split('\n')
+    .slice(1)
+    .map((line) => line.trim().split(/\s+/))
+    .filter((parts) => parts.length >= 6 && /^\d+%$/.test(parts[4]!))
+    .map((parts) => ({
+      mount: parts.slice(5).join(' '),
+      usedPercent: Number(parts[4]!.slice(0, -1)),
+      usedBytes: Number(parts[2]) * 1024,
+      totalBytes: Number(parts[1]) * 1024,
+    }))
+    .filter(
+      (mount) =>
+        Number.isFinite(mount.usedPercent) &&
+        mount.usedPercent >= 0 &&
+        mount.usedPercent <= 100 &&
+        Number.isFinite(mount.usedBytes) &&
+        mount.totalBytes > 0
+    )
 }
 
 async function readMounts() {
   try {
     const { stdout } = await execFileAsync('df', ['-kP'], { timeout: 2_000 })
-    return stdout
-      .trim()
-      .split('\n')
-      .slice(1)
-      .map((line) => line.trim().split(/\s+/))
-      .filter((parts) => parts.length >= 6)
-      .map((parts) => ({
-        mount: parts.slice(5).join(' '),
-        usedPercent: Number.parseInt(parts[4], 10) || 0,
-        usedBytes: Number(parts[2]) * 1024,
-        totalBytes: Number(parts[1]) * 1024,
-      }))
-      .filter((mount) => mount.totalBytes > 0)
+    return parseMounts(stdout)
   } catch {
     return []
   }
@@ -55,6 +66,7 @@ export async function readSystemStatus() {
   const current = cpuSample()
   const perCore = cpuUsage(current, previousCpuSample)
   previousCpuSample = current
+  const measuredCores = perCore?.filter((value): value is number => value !== null) ?? []
 
   const mounts = await readMounts()
   const totalMemory = os.totalmem()
@@ -65,10 +77,12 @@ export async function readSystemStatus() {
 
   return {
     cpu: {
-      averagePercent: Math.round(perCore.reduce((sum, value) => sum + value, 0) / perCore.length),
-      perCorePercent: perCore,
+      averagePercent: measuredCores.length
+        ? Math.round(measuredCores.reduce((sum, value) => sum + value, 0) / measuredCores.length)
+        : null,
+      perCorePercent: perCore ?? [],
       logicalCores: os.cpus().length,
-      physicalCores: os.cpus().length,
+      physicalCores: null,
       loadAverage: os.loadavg().map((value) => Math.round(value * 100) / 100),
     },
     memory: {
@@ -82,7 +96,7 @@ export async function readSystemStatus() {
       activeHandles:
         typeof processWithHandles._getActiveHandles === 'function'
           ? processWithHandles._getActiveHandles().length
-          : 0,
+          : null,
       pid: process.pid,
       uptimeSeconds: Math.round(process.uptime()),
       rssMb: Math.round(processMemory.rss / 1024 ** 2),

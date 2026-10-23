@@ -28,7 +28,6 @@ const error = ref(false)
 const aiOverview = ref<AiUsageOverview | null>(null)
 const aiOverviewLoading = ref(true)
 const aiOverviewError = ref(false)
-const now = ref(new Date())
 
 const refreshing = computed(() => loading.value || aiOverviewLoading.value)
 
@@ -36,23 +35,28 @@ const disk = computed(() => status.value?.disks[0])
 const cards = computed(() => [
   {
     label: t('system_status.cpu_average'),
-    value: `${status.value?.cpu.averagePercent ?? 0}%`,
+    value: status.value?.cpu.averagePercent != null ? `${status.value.cpu.averagePercent}%` : '—',
+    progress: status.value?.cpu.averagePercent ?? null,
     icon: Cpu,
   },
   {
     label: t('system_status.memory'),
-    value: `${status.value?.memory.usedPercent ?? 0}%`,
+    value: status.value ? `${status.value.memory.usedPercent}%` : '—',
+    progress: status.value?.memory.usedPercent ?? null,
     detail: status.value ? `${status.value.memory.usedGb} / ${status.value.memory.totalGb} GB` : '',
     icon: MemoryStick,
   },
   {
     label: t('system_status.disk_highest'),
-    value: `${disk.value?.usedPercent ?? 0}%`,
+    value: disk.value ? `${disk.value.usedPercent}%` : '—',
+    progress: disk.value?.usedPercent ?? null,
     icon: HardDrive,
   },
   {
     label: t('system_status.active_handles'),
-    value: `${status.value?.runtime.activeHandles ?? 0}`,
+    value:
+      status.value?.runtime.activeHandles != null ? `${status.value.runtime.activeHandles}` : '—',
+    progress: null,
     icon: Activity,
   },
 ])
@@ -88,7 +92,6 @@ async function refreshStatus() {
   error.value = false
   try {
     status.value = await getSystemStatus(auth.token)
-    now.value = new Date()
   } catch {
     error.value = true
   } finally {
@@ -150,12 +153,13 @@ useIntervalFn(() => void refreshAiOverview(), 60_000, { immediateCallback: true 
               >· {{ card.detail }}</span
             >
           </div>
-          <div class="mt-4 h-1.5 overflow-hidden rounded-full bg-muted">
+          <div
+            v-if="card.progress != null"
+            class="mt-4 h-1.5 overflow-hidden rounded-full bg-muted"
+          >
             <div
               class="h-full rounded-full bg-primary transition-all"
-              :style="{
-                width: `${card.label === t('system_status.active_handles') ? 35 : Number.parseInt(card.value) || 0}%`,
-              }"
+              :style="{ width: `${card.progress}%` }"
             />
           </div>
         </CardContent>
@@ -167,22 +171,30 @@ useIntervalFn(() => void refreshAiOverview(), 60_000, { immediateCallback: true 
         <CardHeader class="flex flex-row items-center justify-between"
           ><CardTitle>{{ t('system_status.cpu_cores') }}</CardTitle
           ><span class="text-sm text-muted-foreground"
-            >{{ status?.cpu.logicalCores ?? 0 }} {{ t('system_status.logical_cores') }}</span
+            >{{ status ? status.cpu.logicalCores : '—' }}
+            {{ t('system_status.logical_cores') }}</span
           ></CardHeader
         >
         <CardContent
           class="grid min-h-0 flex-1 auto-rows-min gap-x-8 gap-y-4 overflow-y-auto pr-2 sm:grid-cols-2"
         >
-          <div
-            v-for="(usage, index) in status?.cpu.perCorePercent ?? Array(4).fill(0)"
-            :key="index"
-            class="grid grid-cols-[4.5rem_1fr_2.5rem] items-center gap-2 text-sm"
-          >
-            <span class="text-muted-foreground">{{
-              t('system_status.core', { number: index })
-            }}</span
-            ><Progress :model-value="usage" /><span class="text-right">{{ usage }}%</span>
-          </div>
+          <template v-if="status">
+            <p v-if="status.cpu.perCorePercent.length === 0" class="text-sm text-muted-foreground">
+              —
+            </p>
+            <div
+              v-for="(usage, index) in status.cpu.perCorePercent"
+              :key="index"
+              class="grid grid-cols-[4.5rem_1fr_2.5rem] items-center gap-2 text-sm"
+            >
+              <span class="text-muted-foreground">{{
+                t('system_status.core', { number: index })
+              }}</span
+              ><Progress v-if="usage != null" :model-value="usage" /><span v-else>—</span
+              ><span class="text-right">{{ usage == null ? '—' : `${usage}%` }}</span>
+            </div>
+          </template>
+          <Skeleton v-else-if="loading" class="h-24 w-full" />
         </CardContent>
       </Card>
 
@@ -190,7 +202,7 @@ useIntervalFn(() => void refreshAiOverview(), 60_000, { immediateCallback: true 
         <CardHeader class="flex flex-row items-center justify-between"
           ><CardTitle>{{ t('system_status.disks') }}</CardTitle
           ><span class="text-sm text-muted-foreground"
-            >{{ status?.disks.length ?? 0 }} {{ t('system_status.mounts') }}</span
+            >{{ status ? status.disks.length : '—' }} {{ t('system_status.mounts') }}</span
           ></CardHeader
         >
         <CardContent class="min-h-0 flex-1 space-y-5 overflow-y-auto pr-2">
@@ -204,7 +216,7 @@ useIntervalFn(() => void refreshAiOverview(), 60_000, { immediateCallback: true 
             </div>
             <Progress :model-value="item.usedPercent" />
           </div>
-          <p v-if="!loading && !status?.disks.length" class="text-sm text-muted-foreground">
+          <p v-if="status && !status.disks.length" class="text-sm text-muted-foreground">
             {{ t('system_status.no_disks') }}
           </p>
         </CardContent>
@@ -272,9 +284,7 @@ useIntervalFn(() => void refreshAiOverview(), 60_000, { immediateCallback: true 
             <p>
               {{
                 t('system_status.last_updated', {
-                  time: status?.updatedAt
-                    ? new Date(status.updatedAt).toLocaleTimeString()
-                    : now.toLocaleTimeString(),
+                  time: status?.updatedAt ? new Date(status.updatedAt).toLocaleTimeString() : '—',
                 })
               }}
             </p>

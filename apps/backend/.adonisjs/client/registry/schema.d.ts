@@ -662,9 +662,9 @@ export interface Registry {
       body: {}
       paramsTuple: []
       params: {}
-      query: {}
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/rbac').listAccessControlValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/roles_controller').default['index']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/roles_controller').default['index']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/roles_controller').default['index']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
   'roles.store': {
@@ -722,9 +722,9 @@ export interface Registry {
       body: {}
       paramsTuple: []
       params: {}
-      query: {}
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/rbac').listAccessControlValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/permissions_controller').default['index']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/permissions_controller').default['index']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/permissions_controller').default['index']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
   'permissions.store': {

@@ -1,6 +1,10 @@
 import { test } from '@japa/runner'
 
-import { calculateModelsDevCost, findModelsDevPricing } from '#services/models_dev_pricing_service'
+import {
+  calculateModelsDevCost,
+  findModelsDevPricing,
+  resolveModelsDevPricing,
+} from '#services/models_dev_pricing_service'
 
 test.group('models.dev pricing', () => {
   test('matches an exact provider model and calculates per-million-token cost', ({ assert }) => {
@@ -93,5 +97,36 @@ test.group('models.dev pricing', () => {
     const pricing = findModelsDevPricing({ openai: { models: {} } }, 'private/deployment')
 
     assert.isNull(pricing)
+  })
+
+  test('retries a catalog request after a fetch failure', async ({ assert }) => {
+    const originalFetch = globalThis.fetch
+    let calls = 0
+    globalThis.fetch = async () => {
+      calls += 1
+      if (calls === 1) throw new Error('models.dev unavailable')
+      return new Response(
+        JSON.stringify({
+          openai: {
+            models: {
+              'openai/retry-model': {
+                id: 'openai/retry-model',
+                cost: { input: 1, output: 2 },
+              },
+            },
+          },
+        }),
+        { status: 200, headers: { 'content-type': 'application/json' } }
+      )
+    }
+
+    try {
+      assert.isNull(await resolveModelsDevPricing('openai/retry-model'))
+      const retryPricing = await resolveModelsDevPricing('openai/retry-model')
+      assert.equal(retryPricing?.cost.input, 1)
+      assert.equal(calls, 2)
+    } finally {
+      globalThis.fetch = originalFetch
+    }
   })
 })

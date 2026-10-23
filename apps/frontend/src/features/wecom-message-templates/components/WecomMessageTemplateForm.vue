@@ -71,7 +71,7 @@ function createSchema(translate: Composer['t'], editing: boolean) {
     description: emptyString(
       z.string().trim().max(500, translate('wecom_templates.validation.description_max'))
     ),
-    msgtype: z.enum(['text', 'markdown', 'markdown_v2']).catch('text'),
+    msgtype: z.enum(['text', 'markdown', 'markdown_v2']),
     webhookUrl: emptyString(
       z
         .string()

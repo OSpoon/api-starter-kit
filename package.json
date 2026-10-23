@@ -14,7 +14,7 @@
   },
   "scripts": {
     "docker:up": "node scripts/docker-up.mjs",
-    "dev": "turbo dev bot:wecom bot:feishu bot:dingtalk",
+    "dev": "turbo dev --filter=@api-starter-kit/backend --filter=@api-starter-kit/frontend",
     "build": "turbo build",
     "release": "bumpp",
     "version": "changelogen --output CHANGELOG.md",

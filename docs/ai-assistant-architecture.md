@@ -96,9 +96,9 @@ AI 请求的审计与运行状态由现有审计日志和运行状态记录；�
 
 ## 独立桌面客户端
 
-`apps/assistant-desktop` 是 Tauri 桌面壳，不复制 Web UI 或 AI 编排。开发时根目录 Turbo
-分别启动 `apps/assistant-web` 的 `17070` 服务和 Tauri 窗口，Tauri 只连接已有的
-`17070`，不会自行启动第二个 Vite 服务；单独运行桌面端前必须先启动 assistant-web。
+`apps/assistant-desktop` 是 Tauri 桌面壳，不复制 Web UI 或 AI 编排。根目录 `pnpm dev` 不会启动桌面端；
+需要调试时，先启动 `apps/assistant-web` 的 `17070` 服务，再启动 Tauri 窗口。Tauri 只连接已有的 `17070`，
+不会自行启动第二个 Vite 服务。
 构建时先构建 Web 客户端，再将
 `apps/assistant-web/dist` 作为 Tauri 的前端资源目录。桌面端只负责窗口、Rust 命令、
 原生权限和安装包，当前直接复用 Web 客户端现有登录流程，不额外引入桌面端登录态兼容层。
@@ -116,8 +116,8 @@ AI 请求的审计与运行状态由现有审计日志和运行状态记录；�
 `apps/frontend/src/assets/assistant-components.css`；构建配置将 `vue-router` 收敛到同一运行时，并对普通
 JS/TS 模块启用 AutoImport。修改这些共享模块时遵守根目录 [AGENTS.md](../AGENTS.md) 中的扩展运行时和样式约束。
 
-日常开发、各应用命令和提交前检查统一见[工程开发指南](development.md)。根目录 `pnpm dev` 会启动完整栈，
-包括 backend、管理端、三个 Bot、assistant-web、Tauri 桌面端和 Chrome 扩展；单独启动桌面端时，需先让
+日常开发、各应用命令和提交前检查统一见[工程开发指南](development.md)。根目录 `pnpm dev` 默认只启动
+backend 和管理端；assistant-web、Bot、Tauri 桌面端和 Chrome 扩展按需单独启动。单独启动桌面端时，需先让
 `17070` 上的 assistant-web 可访问。
 
 ## AI 专项验证

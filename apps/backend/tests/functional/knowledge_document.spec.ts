@@ -1,4 +1,5 @@
 import testUtils from '@adonisjs/core/services/test_utils'
+import db from '@adonisjs/lucid/services/db'
 import { test } from '@japa/runner'
 
 import KnowledgeDocument from '#models/knowledge_document'
@@ -21,6 +22,21 @@ test.group('knowledge documents', (group) => {
     const reloaded = await KnowledgeDocument.findOrFail(document.id)
 
     assert.deepEqual(reloaded.topics, topics)
+  })
+
+  test('rejects persisted topics with a non-string entry', async ({ assert }) => {
+    const document = await KnowledgeDocument.create({
+      title: 'Invalid topics',
+      content: 'Test invalid JSON shape.',
+      contentHash: 'b'.repeat(64),
+      topics: [],
+    })
+    await db
+      .from('knowledge_documents')
+      .where('id', document.id)
+      .update({ topics: JSON.stringify(['valid', 12]) })
+
+    await assert.rejects(() => KnowledgeDocument.findOrFail(document.id), /topics/)
   })
 
   test('searches knowledge documents on the server before pagination', async ({

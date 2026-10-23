@@ -45,6 +45,25 @@ test.group('AI agent registered queries', (group) => {
     assert.notInclude(toolNames, 'list_permissions')
   })
 
+  test('rejects a pending query whose persisted parameters are not an object', async ({
+    assert,
+  }) => {
+    const { user, conversation } = await createAdminConversation()
+    await runRegisteredAiQuery({
+      conversationId: conversation.id,
+      userId: user.id,
+      templateCode: 'managed_user_profile',
+      params: {},
+    })
+    const pending = await AiAgentPendingQuery.query()
+      .where('conversation_id', conversation.id)
+      .firstOrFail()
+    pending.params = [] as unknown as Record<string, unknown>
+    await pending.save()
+
+    await assert.rejects(() => AiAgentPendingQuery.findOrFail(pending.id), /params/)
+  })
+
   test('persists only the missing required parameters until a later reply completes the query', async ({
     assert,
   }) => {

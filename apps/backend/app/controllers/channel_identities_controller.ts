@@ -2,7 +2,7 @@ import type { HttpContext } from '@adonisjs/core/http'
 import { ApiOperation, ApiResponse, ApiSecurity } from '@foadonis/openapi/decorators'
 
 import ChannelIdentity from '#models/channel_identity'
-import User from '#models/user'
+import { verifyUserCredentials } from '#security/user_credentials'
 import { recordAuditEvent } from '#services/audit_log'
 import {
   ChannelBindingError,
@@ -87,9 +87,7 @@ export default class ChannelIdentitiesController {
     const { auth, request, response, serialize } = ctx
     const user = auth.getUserOrFail()
     const payload = await request.validateUsing(twoFactorValidator)
-    const verifiedUser = await User.verifyCredentials(user.email, payload.password).catch(
-      () => null
-    )
+    const verifiedUser = await verifyUserCredentials(user.email, payload.password)
 
     if (!verifiedUser) {
       return response.badRequest({ message: '密码不正确' })

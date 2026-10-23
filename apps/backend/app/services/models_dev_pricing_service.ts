@@ -135,9 +135,15 @@ async function loadCatalog() {
     return catalogPromise
   }
 
+  const request = fetchModelsDevCatalog().catch(() => null)
   catalogLoadedAt = now
-  catalogPromise = fetchModelsDevCatalog().catch(() => null)
-  return catalogPromise
+  catalogPromise = request
+  const catalog = await request
+  if (!catalog && catalogPromise === request) {
+    catalogPromise = null
+    catalogLoadedAt = 0
+  }
+  return catalog
 }
 
 export async function resolveModelsDevPricing(modelId: string, baseUrl?: string) {

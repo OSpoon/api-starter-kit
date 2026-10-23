@@ -8,17 +8,11 @@ export type AiAgentPendingQueryStatus =
   | 'expired'
 
 function consumeJsonRecord(value: unknown): Record<string, unknown> {
-  if (value && typeof value === 'object' && !Array.isArray(value))
-    return value as Record<string, unknown>
-  if (typeof value !== 'string') return {}
-  try {
-    const parsed = JSON.parse(value)
-    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
-      ? (parsed as Record<string, unknown>)
-      : {}
-  } catch {
-    return {}
+  const parsed = typeof value === 'string' ? JSON.parse(value) : value
+  if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+    return parsed as Record<string, unknown>
   }
+  throw new TypeError('Invalid JSON object in ai_agent_pending_queries.params')
 }
 
 export default class AiAgentPendingQuery extends BaseModel {

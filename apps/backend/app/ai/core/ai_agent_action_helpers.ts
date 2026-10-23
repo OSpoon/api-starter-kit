@@ -29,10 +29,8 @@ export async function ensurePermission(ctx: HttpContext, permission: string) {
   return user
 }
 
-export function integer(input: Record<string, unknown>, name: string, aliases: string[] = []) {
-  const value = [input[name], ...aliases.map((alias) => input[alias])].find(
-    (candidate) => candidate !== undefined && candidate !== null
-  )
+export function integer(input: Record<string, unknown>, name: string) {
+  const value = input[name]
   const parsed =
     typeof value === 'number'
       ? value

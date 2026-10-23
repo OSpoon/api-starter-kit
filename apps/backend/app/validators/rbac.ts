@@ -21,6 +21,15 @@ const queryLimit = vine
   .regex(/^[1-9]\d*$/)
   .optional()
 
+export const listAccessControlValidator = vine.compile(
+  vine.object({
+    page: queryPage,
+    limit: queryLimit,
+    search: vine.string().trim().maxLength(200).optional(),
+    groupName: vine.string().trim().maxLength(120).optional(),
+  })
+)
+
 export const listManagedUsersValidator = vine.compile(
   vine.object({
     page: queryPage,

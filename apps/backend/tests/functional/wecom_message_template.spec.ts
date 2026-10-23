@@ -1,4 +1,5 @@
 import testUtils from '@adonisjs/core/services/test_utils'
+import db from '@adonisjs/lucid/services/db'
 import { test } from '@japa/runner'
 
 import Role from '#models/role'
@@ -54,5 +55,46 @@ test.group('WeCom message templates', (group) => {
       [matchedTemplate.id]
     )
     assert.equal(body.meta.total, 1)
+  })
+
+  test('rejects persisted payloads with the wrong JSON shape', async ({ assert }) => {
+    const template = await WecomMessageTemplate.create({
+      name: 'Invalid payload test',
+      description: null,
+      msgtype: 'text',
+      webhookUrl: encryptWebhookUrl('https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=secret'),
+      payload: { msgtype: 'text', text: { content: 'Hello' } },
+      parameters: [],
+      enabled: true,
+    })
+    await db
+      .from('wecom_message_templates')
+      .where('id', template.id)
+      .update({ payload: JSON.stringify([]) })
+
+    await assert.rejects(() => WecomMessageTemplate.findOrFail(template.id), /JSON shape/)
+
+    await db
+      .from('wecom_message_templates')
+      .where('id', template.id)
+      .update({
+        payload: JSON.stringify({ msgtype: 'text', text: { content: 'Hello' } }),
+        parameters: JSON.stringify([null]),
+      })
+
+    await assert.rejects(() => WecomMessageTemplate.findOrFail(template.id), /JSON shape/)
+    await assert.rejects(
+      () =>
+        WecomMessageTemplate.create({
+          name: 'Invalid JSON input',
+          description: null,
+          msgtype: 'text',
+          webhookUrl: 'encrypted',
+          payload: 'not JSON' as unknown as Record<string, unknown>,
+          parameters: [],
+          enabled: true,
+        }),
+      /JSON/
+    )
   })
 })

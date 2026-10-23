@@ -1,4 +1,5 @@
 import testUtils from '@adonisjs/core/services/test_utils'
+import db from '@adonisjs/lucid/services/db'
 import { test } from '@japa/runner'
 import { generateSync } from 'otplib'
 
@@ -94,6 +95,11 @@ test.group('two-factor auth', (group) => {
     login.assertStatus(200)
     const loginData = login.body().data as { requiresTwoFactor: boolean; tempToken: string }
     assert.isTrue(loginData.requiresTwoFactor)
+
+    await db
+      .from('users')
+      .where('id', user.id)
+      .update({ two_factor_recovery_codes: 'invalid-encrypted-data' })
 
     const verify = await client.post('/api/v1/auth/2fa/verify').json({
       tempToken: loginData.tempToken,

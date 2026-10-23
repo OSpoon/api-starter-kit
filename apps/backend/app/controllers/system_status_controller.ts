@@ -10,7 +10,11 @@ export default class SystemStatusController {
     summary: '获取服务器状态',
     description: '返回当前应用进程所在服务器的 CPU、内存、磁盘和运行时信息。',
   })
-  @ApiResponse({ status: 200, description: '服务器状态快照' })
+  @ApiResponse({
+    status: 200,
+    description:
+      '服务器状态快照；CPU 首次采样时使用率为空，运行时无法读取的物理核数或活动句柄计数也为空。',
+  })
   async show({ serialize }: HttpContext) {
     return serialize(await readSystemStatus())
   }

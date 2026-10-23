@@ -6,19 +6,11 @@ import KnowledgeChunk from '#models/knowledge_chunk'
 import Role from '#models/role'
 
 function consumeTopics(value: unknown): string[] {
-  if (Array.isArray(value)) {
-    return value.filter((topic): topic is string => typeof topic === 'string')
+  const topics = typeof value === 'string' ? JSON.parse(value) : value
+  if (!Array.isArray(topics) || !topics.every((topic) => typeof topic === 'string')) {
+    throw new TypeError('Invalid JSON array in knowledge_documents.topics')
   }
-  if (typeof value !== 'string') return []
-
-  try {
-    const topics = JSON.parse(value)
-    return Array.isArray(topics)
-      ? topics.filter((topic): topic is string => typeof topic === 'string')
-      : []
-  } catch {
-    return []
-  }
+  return topics
 }
 
 export default class KnowledgeDocument extends BaseModel {

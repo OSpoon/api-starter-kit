@@ -1,9 +1,14 @@
 import type { HttpContext } from '@adonisjs/core/http'
+import { ApiResponse } from '@foadonis/openapi/decorators'
 
 import Permission from '#models/permission'
 import { recordAuditEvent } from '#services/audit_log'
 import { clampLimit } from '#support/pagination'
-import { createPermissionValidator, updatePermissionValidator } from '#validators/rbac'
+import {
+  createPermissionValidator,
+  listAccessControlValidator,
+  updatePermissionValidator,
+} from '#validators/rbac'
 
 function serializePermission(permission: Permission) {
   return {
@@ -35,10 +40,12 @@ export default class PermissionsController {
     )
   }
 
+  @ApiResponse({ status: 422, description: '查询参数无效' })
   async index({ request, serialize }: HttpContext) {
-    const page = Math.max(Number(request.input('page', 1)) || 1, 1)
-    const search = String(request.input('search', '')).trim()
-    const groupName = String(request.input('groupName', '')).trim()
+    const filters = await request.validateUsing(listAccessControlValidator, { data: request.qs() })
+    const page = Number(filters.page ?? 1)
+    const search = filters.search ?? ''
+    const groupName = filters.groupName ?? ''
     const query = Permission.query()
       .withCount('roles')
       .preload('roles', (roles) => roles.select(['id', 'code', 'name']))
@@ -54,7 +61,7 @@ export default class PermissionsController {
       })
     }
     if (groupName) query.where('group_name', groupName)
-    const paginator = await query.paginate(page, clampLimit(request.input('limit'), 20, 100))
+    const paginator = await query.paginate(page, clampLimit(filters.limit, 20, 100))
     return serialize({ items: paginator.all().map(serializePermission), meta: paginator.getMeta() })
   }
 

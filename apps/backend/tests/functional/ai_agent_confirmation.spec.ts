@@ -517,7 +517,7 @@ test.group('AI agent confirmations', (group) => {
     assert.equal(content.confirmation.targetId, String(apiKey.id))
   })
 
-  test('returns a safe change summary without exposing the proposal payload', async ({
+  test('returns a safe summary without exposing payload or fabricating a target ID', async ({
     client,
     assert,
   }) => {
@@ -530,6 +530,9 @@ test.group('AI agent confirmations', (group) => {
     await user.related('roles').sync([superAdminRole.id])
     const token = await User.accessTokens.create(user)
     const { confirmation, conversation } = await createConfirmation(user)
+    confirmation.targetId = null
+    confirmation.targetSummary = null
+    await confirmation.save()
 
     const response = await client
       .get(`/api/v1/ai-chat/conversations/${conversation.id}`)
@@ -541,6 +544,8 @@ test.group('AI agent confirmations', (group) => {
     assert.deepEqual(confirmationSummary.changeSummary, [{ field: 'result', value: 'revoked' }])
     assert.notProperty(confirmationSummary, 'payload')
     assert.equal(confirmationSummary.id, confirmation.id)
+    assert.isNull(confirmationSummary.targetId)
+    assert.isNull(confirmationSummary.presentation.targetLabel)
   })
 
   test('proposes deleting an already-revoked API Key', async ({ assert }) => {

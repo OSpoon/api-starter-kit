@@ -194,7 +194,9 @@ export function useAiChat() {
     const item: AiChatTimelineItem = {
       kind: 'confirmation',
       action: confirmation.action,
-      targetLabel: confirmation.presentation.targetLabel,
+      ...(confirmation.presentation.targetLabel
+        ? { targetLabel: confirmation.presentation.targetLabel }
+        : {}),
       status,
       completedAt: new Date().toISOString(),
     }

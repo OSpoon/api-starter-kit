@@ -6,6 +6,7 @@ import { DateTime } from 'luxon'
 import { isTurnstileEnabled, verifyTurnstileToken } from '#integrations/turnstile'
 import User from '#models/user'
 import { createTwoFactorTempToken } from '#security/two_factor_token'
+import { verifyUserCredentials } from '#security/user_credentials'
 import { loadUserAccess } from '#services/user_access'
 import UserTransformer from '#transformers/user_transformer'
 import { loginValidator } from '#validators/user'
@@ -33,13 +34,14 @@ export default class AccessTokensController {
       throw INVALID_CREDENTIALS
     }
 
-    const user = await User.verifyCredentials(email, password).catch(async () => {
+    const user = await verifyUserCredentials(email, password)
+    if (!user) {
       if (userRecord) {
         await db.from('users').where('id', userRecord.id).increment('failed_login_attempts', 1)
       }
 
       throw INVALID_CREDENTIALS
-    })
+    }
 
     if (user.failedLoginAttempts > 0 || user.lockedUntil) {
       await db.from('users').where('id', user.id).update({

@@ -96,8 +96,10 @@ export default class TwoFactorAuthController {
         .where('id', pending.userId)
         .forUpdate()
         .first()
-      const secret = decryptTwoFactorSecret(candidate?.twoFactorSecret)
-      if (!candidate || candidate.disabledAt || !candidate.twoFactorEnabled || !secret) return null
+      if (!candidate || candidate.disabledAt || !candidate.twoFactorEnabled) return null
+      if (!candidate.twoFactorSecret) throw new Error('Enabled 2FA secret is missing')
+      const secret = decryptTwoFactorSecret(candidate.twoFactorSecret)
+      if (!secret) throw new Error('Enabled 2FA secret is missing')
 
       let valid = false
       try {
@@ -107,7 +109,10 @@ export default class TwoFactorAuthController {
         // Recovery codes are not TOTP values.
       }
 
-      if (!valid && candidate.twoFactorRecoveryCodes) {
+      if (!valid) {
+        if (!candidate.twoFactorRecoveryCodes) {
+          throw new Error('Enabled 2FA recovery codes are missing')
+        }
         const recoveryCodes = decryptRecoveryCodes(candidate.twoFactorRecoveryCodes)
         if (recoveryCodes.includes(payload.code)) {
           candidate.twoFactorRecoveryCodes = encryptRecoveryCodes(

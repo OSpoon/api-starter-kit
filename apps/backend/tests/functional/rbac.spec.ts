@@ -586,5 +586,14 @@ test.group('rbac', (group) => {
     const permissionItem = permissionItems.find((item) => item.id === permission.id)
     assert.exists(permissionItem)
     assert.deepEqual(permissionItem?.roles, [{ id: role.id, code: role.code, name: role.name }])
+
+    const invalidRoleQuery = await client
+      .get('/api/v1/system/roles?page=0')
+      .bearerToken(bearerToken)
+    invalidRoleQuery.assertStatus(422)
+    const invalidPermissionQuery = await client
+      .get('/api/v1/system/permissions?limit=abc')
+      .bearerToken(bearerToken)
+    invalidPermissionQuery.assertStatus(422)
   })
 })

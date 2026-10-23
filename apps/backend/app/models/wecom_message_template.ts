@@ -3,24 +3,45 @@ import { DateTime } from 'luxon'
 
 export type WecomMessageType = 'text' | 'markdown' | 'markdown_v2'
 
-function prepareJson(value: unknown, fallback: unknown) {
-  if (typeof value === 'string') {
-    try {
-      return JSON.stringify(JSON.parse(value))
-    } catch {
-      return value
-    }
-  }
-  return JSON.stringify(value ?? fallback)
+type WecomTemplateParameter = {
+  name: string
+  type: 'string' | 'number' | 'boolean'
+  required: boolean
+  description?: string | null
+  maxBytes?: number | null
 }
 
-function consumeJson<T>(value: unknown, fallback: T): T {
-  if (typeof value !== 'string') return (value ?? fallback) as T
-  try {
-    return JSON.parse(value) as T
-  } catch {
-    return fallback
-  }
+function isJsonRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+}
+
+function isWecomTemplateParameter(value: unknown): value is WecomTemplateParameter {
+  return (
+    isJsonRecord(value) &&
+    typeof value.name === 'string' &&
+    ['string', 'number', 'boolean'].includes(value.type as string) &&
+    typeof value.required === 'boolean' &&
+    (value.description === undefined ||
+      value.description === null ||
+      typeof value.description === 'string') &&
+    (value.maxBytes === undefined || value.maxBytes === null || typeof value.maxBytes === 'number')
+  )
+}
+
+function isWecomTemplateParameterArray(value: unknown): value is WecomTemplateParameter[] {
+  return Array.isArray(value) && value.every(isWecomTemplateParameter)
+}
+
+function prepareJson(value: unknown, fallback: unknown, isValid: (value: unknown) => boolean) {
+  const parsed = typeof value === 'string' ? JSON.parse(value) : (value ?? fallback)
+  if (!isValid(parsed)) throw new TypeError('Invalid JSON shape for WeCom message template')
+  return JSON.stringify(parsed)
+}
+
+function consumeJson<T>(value: unknown, isValid: (value: unknown) => value is T): T {
+  const parsed = typeof value === 'string' ? JSON.parse(value) : value
+  if (!isValid(parsed)) throw new TypeError('Invalid JSON shape in WeCom message template')
+  return parsed
 }
 
 export default class WecomMessageTemplate extends BaseModel {
@@ -40,22 +61,17 @@ export default class WecomMessageTemplate extends BaseModel {
   declare webhookUrl: string
 
   @column({
-    prepare: (value: Record<string, unknown>) => prepareJson(value, {}),
-    consume: (value: unknown) => consumeJson<Record<string, unknown>>(value, {}),
+    prepare: (value: Record<string, unknown>) => prepareJson(value, {}, isJsonRecord),
+    consume: (value: unknown) => consumeJson(value, isJsonRecord),
   })
   declare payload: Record<string, unknown>
 
   @column({
-    prepare: (value: WecomMessageTemplate['parameters']) => prepareJson(value, []),
-    consume: (value: unknown) => consumeJson<WecomMessageTemplate['parameters']>(value, []),
+    prepare: (value: WecomMessageTemplate['parameters']) =>
+      prepareJson(value, [], isWecomTemplateParameterArray),
+    consume: (value: unknown) => consumeJson(value, isWecomTemplateParameterArray),
   })
-  declare parameters: Array<{
-    name: string
-    type: 'string' | 'number' | 'boolean'
-    required: boolean
-    description?: string | null
-    maxBytes?: number | null
-  }>
+  declare parameters: WecomTemplateParameter[]
 
   @column()
   declare enabled: boolean

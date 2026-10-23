@@ -1,4 +1,5 @@
 import testUtils from '@adonisjs/core/services/test_utils'
+import db from '@adonisjs/lucid/services/db'
 import { test } from '@japa/runner'
 
 import AiChatConversation from '#models/ai_chat_conversation'
@@ -69,5 +70,33 @@ test.group('AI chat messages', (group) => {
     const persistedMessage = await AiChatMessage.findOrFail(message.id)
 
     assert.deepEqual(persistedMessage.runtimeDetails, runtimeDetails)
+  })
+
+  test('rejects persisted citations with the wrong JSON shape', async ({ assert }) => {
+    const user = await User.create({
+      fullName: 'Invalid Citation User',
+      email: `invalid-citations-${Date.now()}@example.com`,
+      password: generateInitialPassword(),
+    })
+    const conversation = await AiChatConversation.create({ userId: user.id, title: 'Invalid JSON' })
+    const message = await AiChatMessage.create({
+      conversationId: conversation.id,
+      role: 'assistant',
+      content: 'Malformed persisted data',
+      citations: [],
+    })
+    await db
+      .from('ai_chat_messages')
+      .where('id', message.id)
+      .update({ citations: JSON.stringify({ invalid: true }) })
+
+    await assert.rejects(() => AiChatMessage.findOrFail(message.id), /citations/)
+
+    await db
+      .from('ai_chat_messages')
+      .where('id', message.id)
+      .update({ citations: JSON.stringify([]), runtime_details: JSON.stringify([null]) })
+
+    await assert.rejects(() => AiChatMessage.findOrFail(message.id), /runtime_details/)
   })
 })

@@ -148,19 +148,15 @@ pnpm --dir apps/backend exec node ace migration:status
 
 ### 本地开发
 
-同时启动前端、后端、企业微信 Bot、飞书 Bot 和钉钉 Bot：
+根目录 `pnpm dev` 默认只启动前端和后端。需要调试渠道 Bot 时，在单独终端中运行对应命令：
 
 ```bash
-pnpm dev
+pnpm --dir apps/backend bot:wecom
+pnpm --dir apps/backend bot:feishu
+pnpm --dir apps/backend bot:dingtalk
 ```
 
-单独启动某个 Bot：
-
-```bash
-turbo bot:wecom
-turbo bot:feishu
-turbo bot:dingtalk
-```
+每个 Bot 使用独立进程；只启动正在调试的 Bot。
 
 对应的 backend 脚本和 Nodemon 配置为：
 
