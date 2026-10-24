@@ -3,13 +3,17 @@ import type { TSchema } from '@earendil-works/pi-ai'
 import { type z, ZodError } from 'zod'
 
 import { type AiAgentActionName, getAiAgentAction } from '#ai/core/ai_agent_action_registry'
-import { ensureAiAgentPermission } from '#ai/core/ai_agent_authorization'
+import {
+  AiAgentPermissionDeniedError,
+  ensureAiAgentPermission,
+} from '#ai/core/ai_agent_authorization'
 import {
   AiAgentConfirmationError,
   createAiAgentActionToolResult,
   proposeAiAgentAction,
 } from '#ai/core/ai_agent_confirmation'
 import type { AiAgentToolContext } from '#ai/core/ai_agent_tool_context'
+import { isAiAgentTerminalToolResult } from '#ai/core/ai_agent_tool_errors'
 
 export function createAiAgentTool<TZodSchema extends z.ZodTypeAny, TResult>(
   execute: (input: z.infer<TZodSchema>) => Promise<TResult>,
@@ -38,24 +42,18 @@ export function createAiAgentTool<TZodSchema extends z.ZodTypeAny, TResult>(
         details = {
           kind: 'action_error',
           code:
-            error instanceof ZodError
-              ? 'invalid_input'
-              : /权限|permission/i.test(message)
-                ? 'permission_denied'
-                : 'invalid_input',
+            error instanceof AiAgentPermissionDeniedError
+              ? 'permission_denied'
+              : error instanceof ZodError
+                ? 'invalid_input'
+                : 'failed',
           message,
         } as TResult
       }
       return {
         content: [{ type: 'text' as const, text: JSON.stringify(details) }],
         details,
-        terminate:
-          details !== null &&
-          typeof details === 'object' &&
-          'kind' in details &&
-          ['confirmation', 'action_error', 'query_error'].includes(
-            String((details as { kind?: unknown }).kind)
-          ),
+        terminate: isAiAgentTerminalToolResult(options.name, details),
       }
     },
   }
@@ -88,7 +86,7 @@ export function createAiAgentToolSupport(input: AiAgentToolContext) {
       return createAiAgentActionToolResult({ kind: 'confirmation', confirmation })
     } catch (error) {
       const message = error instanceof Error ? error.message : '无法准备受控操作'
-      const isPermissionDenied = message === '当前账号没有执行此操作的权限'
+      const isPermissionDenied = error instanceof AiAgentPermissionDeniedError
       if (error instanceof AiAgentConfirmationError || isPermissionDenied) {
         return createAiAgentActionToolResult({
           kind: 'action_error',

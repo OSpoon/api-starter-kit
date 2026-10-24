@@ -1,5 +1,6 @@
 import { z } from 'zod'
 
+import { AiAgentPermissionDeniedError } from '#ai/core/ai_agent_authorization'
 import type { AiAgentToolContext } from '#ai/core/ai_agent_tool_context'
 import {
   aiQueryTemplateCodes,
@@ -27,10 +28,11 @@ export function createRunRegisteredQueryTool(
         support.throwIfAborted()
         return result
       } catch (error) {
+        const message = error instanceof Error ? error.message : '查询未完成'
         return {
           kind: 'query_error',
-          code: 'failed',
-          message: error instanceof Error ? error.message : '查询未完成',
+          code: error instanceof AiAgentPermissionDeniedError ? 'permission_denied' : 'failed',
+          message,
         }
       }
     },

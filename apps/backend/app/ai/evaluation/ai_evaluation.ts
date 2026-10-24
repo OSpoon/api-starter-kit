@@ -1,6 +1,8 @@
 export type AiEvaluationTurn = {
   question: string
   expectedTools: string[]
+  expectedToolSequence?: string[]
+  expectedAnswerIncludes?: string[]
   toolOutputs?: Record<string, unknown>
 }
 
@@ -16,6 +18,7 @@ export const aiAssistantEvaluationCases: readonly AiEvaluationCase[] = [
       {
         question: '找一下 API Starter Kit 所用的技术栈。',
         expectedTools: ['search_knowledge_catalog', 'search_knowledge'],
+        expectedToolSequence: ['search_knowledge_catalog', 'search_knowledge'],
       },
     ],
   },
@@ -25,6 +28,7 @@ export const aiAssistantEvaluationCases: readonly AiEvaluationCase[] = [
       {
         question: '如何启动 API Starter Kit 项目？',
         expectedTools: ['search_knowledge_catalog', 'search_knowledge'],
+        expectedToolSequence: ['search_knowledge_catalog', 'search_knowledge'],
       },
     ],
   },
@@ -106,6 +110,7 @@ export const aiAssistantEvaluationCases: readonly AiEvaluationCase[] = [
       {
         question: '如何在系统中维护知识库？',
         expectedTools: ['search_knowledge_catalog', 'search_knowledge'],
+        expectedToolSequence: ['search_knowledge_catalog', 'search_knowledge'],
       },
       {
         question: '列出当前权限目录。',
@@ -124,6 +129,44 @@ export const aiAssistantEvaluationCases: readonly AiEvaluationCase[] = [
             kind: 'action_error',
             code: 'permission_denied',
             message: '当前账号没有执行此操作的权限',
+          },
+        },
+      },
+    ],
+  },
+  {
+    name: 'read tool fallback after query failure',
+    turns: [
+      {
+        question:
+          '请先查询当前 super-admin 角色的权限。如果系统数据查询失败，再查项目文档解释 RBAC 权限如何分配，并明确当前角色权限无法确认。',
+        expectedTools: ['run_registered_query', 'search_knowledge_catalog', 'search_knowledge'],
+        expectedToolSequence: [
+          'run_registered_query',
+          'search_knowledge_catalog',
+          'search_knowledge',
+        ],
+        expectedAnswerIncludes: ['RBAC', '无法确认'],
+        toolOutputs: {
+          run_registered_query: {
+            kind: 'query_error',
+            code: 'failed',
+            message: '系统角色数据读取暂时失败',
+          },
+          search_knowledge_catalog: {
+            sources: [
+              { documentId: 1, title: 'RBAC 权限设计', summary: '角色组合权限后分配给用户' },
+            ],
+          },
+          search_knowledge: {
+            sources: [
+              {
+                documentId: 1,
+                title: 'RBAC 权限设计',
+                chunkId: 1,
+                excerpt: '系统使用 RBAC，角色通过权限组合分配给用户。',
+              },
+            ],
           },
         },
       },
@@ -152,15 +195,27 @@ export const aiAssistantEvaluationCases: readonly AiEvaluationCase[] = [
 export function evaluateAiAssistantTurn(input: {
   evaluation: AiEvaluationTurn
   calledTools: string[]
+  assistantText?: string
 }) {
   const expectedTools = [...input.evaluation.expectedTools].sort()
   const calledTools = [...input.calledTools].sort()
   const toolsPassed =
     expectedTools.length === calledTools.length &&
     expectedTools.every((toolName, index) => toolName === calledTools[index])
+  const sequencePassed =
+    !input.evaluation.expectedToolSequence ||
+    (input.evaluation.expectedToolSequence.length === input.calledTools.length &&
+      input.evaluation.expectedToolSequence.every(
+        (toolName, index) => toolName === input.calledTools[index]
+      ))
+  const answerPassed = (input.evaluation.expectedAnswerIncludes ?? []).every((text) =>
+    (input.assistantText ?? '').includes(text)
+  )
 
   return {
-    passed: toolsPassed,
+    passed: toolsPassed && sequencePassed && answerPassed,
     toolsPassed,
+    sequencePassed,
+    answerPassed,
   }
 }

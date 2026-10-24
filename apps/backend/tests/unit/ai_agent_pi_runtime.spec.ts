@@ -29,4 +29,37 @@ test.group('Pi agent runtime', () => {
     )
     assert.isFalse(shouldStopPiAfterTurn({ message, toolResults: [] }))
   })
+
+  test('keeps the agent running after a recoverable read error', ({ assert }) => {
+    const shouldStop = shouldStopPiAfterTurn(
+      {
+        message: { stopReason: 'stop' } as never,
+        toolResults: [
+          {
+            toolName: 'run_registered_query',
+            details: { kind: 'query_error', code: 'failed' },
+          } as never,
+        ],
+      },
+      false
+    )
+
+    assert.isFalse(shouldStop)
+  })
+
+  test('stops on permission denial or after the read error budget is exhausted', ({ assert }) => {
+    const message = { stopReason: 'stop' } as never
+    assert.isTrue(
+      shouldStopPiAfterTurn({
+        message,
+        toolResults: [
+          {
+            toolName: 'run_registered_query',
+            details: { kind: 'query_error', code: 'permission_denied' },
+          } as never,
+        ],
+      })
+    )
+    assert.isTrue(shouldStopPiAfterTurn({ message, toolResults: [] }, false, true))
+  })
 })

@@ -13,6 +13,11 @@ import {
   attachAgentRunConfirmations,
   failUnattachedAgentRunConfirmations,
 } from '#ai/core/ai_agent_confirmation'
+import {
+  isAiAgentReadTool,
+  isRecoverableAiAgentReadToolError,
+  maxConsecutiveAiAgentReadToolFailures,
+} from '#ai/core/ai_agent_tool_errors'
 import { releaseAiAgentRun } from '#ai/runtime/ai_agent_run_registry'
 import type AiChatConversation from '#models/ai_chat_conversation'
 import AiChatMessage, {
@@ -37,12 +42,18 @@ function getSafeAiErrorMessage(error: unknown) {
   return '本次 AI 请求未完成，请稍后重试。'
 }
 
-function getTerminalToolAssistantContent(output: unknown) {
+function getTerminalToolAssistantContent(
+  output: unknown,
+  toolName: string,
+  reportReadFailure: boolean
+) {
   if (!output || typeof output !== 'object' || !('kind' in output)) return null
+  if (isRecoverableAiAgentReadToolError(toolName, output) && !reportReadFailure) return null
   const payload = output as { kind?: unknown; message?: unknown }
   if (payload.kind === 'confirmation') return '已准备好管理操作提案，请在确认卡片中确认后执行。'
   if (payload.kind === 'action_error' || payload.kind === 'query_error') {
-    return typeof payload.message === 'string' ? `操作未完成：${payload.message}` : '操作未完成。'
+    const label = isAiAgentReadTool(toolName) ? '读取未完成' : '操作未完成'
+    return typeof payload.message === 'string' ? `${label}：${payload.message}` : `${label}。`
   }
   return null
 }
@@ -104,6 +115,7 @@ export async function runAiChatAssistantTurn(input: {
   let lastPersistedContentLength = 0
   const knowledgeCitations = new Map<string, AiChatCitation>()
   const runtimeDetails: AiChatRuntimeDetail[] = []
+  let consecutiveReadToolFailures = 0
   const attachedConfirmations: Array<
     Awaited<ReturnType<typeof attachAgentRunConfirmations>>[number] & { messageId: number }
   > = []
@@ -233,7 +245,15 @@ export async function runAiChatAssistantTurn(input: {
           else runtimeDetails.push(planDetail)
         }
         if (event.value.event === 'tool_completed') {
-          const terminalContent = getTerminalToolAssistantContent(event.value.data.output)
+          const { name, output } = event.value.data
+          const readFailure = isRecoverableAiAgentReadToolError(name, output)
+          if (readFailure) consecutiveReadToolFailures += 1
+          else if (isAiAgentReadTool(name)) consecutiveReadToolFailures = 0
+          const terminalContent = getTerminalToolAssistantContent(
+            output,
+            name,
+            consecutiveReadToolFailures >= maxConsecutiveAiAgentReadToolFailures
+          )
           if (terminalContent) {
             const visibleContent = assistantContent.trim()
               ? `\n\n${terminalContent}`

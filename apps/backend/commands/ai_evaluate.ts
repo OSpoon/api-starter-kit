@@ -3,6 +3,7 @@ import type { AgentTool } from '@earendil-works/pi-agent-core'
 import { Type } from '@earendil-works/pi-ai'
 
 import { createAiAgentSystemPrompt } from '#ai/chat/ai_agent_service'
+import { isAiAgentTerminalToolResult } from '#ai/core/ai_agent_tool_errors'
 import { aiAssistantEvaluationCases, evaluateAiAssistantTurn } from '#ai/evaluation/ai_evaluation'
 import { aiQueryTemplateInstructions } from '#ai/registry/ai_agent_query_registry'
 import { createPiAgent } from '#ai/runtime/ai_agent_pi_runtime'
@@ -11,7 +12,7 @@ function evaluationTool(
   name: string,
   description: string,
   output: () => unknown,
-  onCall: () => void
+  calledTools: string[]
 ): AgentTool {
   return {
     name,
@@ -19,11 +20,38 @@ function evaluationTool(
     description,
     parameters: Type.Any(),
     async execute() {
-      onCall()
+      calledTools.push(name)
       const details = output()
-      return { content: [{ type: 'text', text: JSON.stringify(details) }], details }
+      return {
+        content: [{ type: 'text', text: JSON.stringify(details) }],
+        details,
+        terminate: isAiAgentTerminalToolResult(name, details),
+      }
     },
   }
+}
+
+function getLatestAssistantText(messages: unknown[]) {
+  const message = [...messages].reverse().find((item) => {
+    return Boolean(item && typeof item === 'object' && 'role' in item && item.role === 'assistant')
+  }) as { content?: unknown } | undefined
+  if (!message) return ''
+  if (typeof message.content === 'string') return message.content
+  if (!Array.isArray(message.content)) return ''
+
+  return message.content
+    .filter((part): part is { type: string; text: string } => {
+      return Boolean(
+        part &&
+        typeof part === 'object' &&
+        'type' in part &&
+        'text' in part &&
+        part.type === 'text' &&
+        typeof part.text === 'string'
+      )
+    })
+    .map((part) => part.text)
+    .join('')
 }
 
 /** Uses mock tools only; each scenario has isolated history and never mutates business data. */
@@ -34,66 +62,63 @@ export default class AiEvaluate extends BaseCommand {
 
   async run() {
     const failures: string[] = []
-    const calledTools: string[] = []
-    let toolOutputs: Record<string, unknown> = {}
-    const remember = (name: string, fallback: unknown) => () => {
-      calledTools.push(name)
-      return toolOutputs[name] ?? fallback
-    }
-    const { agent } = await createPiAgent({
-      systemPrompt: createAiAgentSystemPrompt(
-        undefined,
-        ' <live-session-state>{"pendingConfirmations":[]}</live-session-state>'
-      ),
-      tools: [
-        evaluationTool(
-          'diagnose_my_access',
-          'Diagnose current user access.',
-          () => ({ allowed: true }),
-          () => calledTools.push('diagnose_my_access')
-        ),
-        evaluationTool(
-          'search_knowledge_catalog',
-          'Search the knowledge-source catalog before document retrieval.',
-          remember('search_knowledge_catalog', {
-            sources: [{ documentId: 1, title: 'Evaluation document' }],
-          }),
-          () => {}
-        ),
-        evaluationTool(
-          'search_knowledge',
-          'Search product documentation.',
-          remember('search_knowledge', { sources: [] }),
-          () => {}
-        ),
-        evaluationTool(
-          'run_registered_query',
-          `Run a registered query. Templates: ${aiQueryTemplateInstructions}.`,
-          remember('run_registered_query', { kind: 'query_result', rows: [] }),
-          () => {}
-        ),
-        evaluationTool(
-          'propose_system_management_change',
-          'Prepare a management proposal.',
-          remember('propose_system_management_change', { kind: 'confirmation' }),
-          () => {}
-        ),
-        evaluationTool(
-          'propose_api_key_revocation',
-          'Prepare an API key revocation proposal.',
-          remember('propose_api_key_revocation', { kind: 'confirmation' }),
-          () => {}
-        ),
-        evaluationTool(
-          'propose_api_key_deletion',
-          'Prepare an API key deletion proposal.',
-          remember('propose_api_key_deletion', { kind: 'confirmation' }),
-          () => {}
-        ),
-      ],
-    })
-
     for (const evaluation of aiAssistantEvaluationCases) {
+      const calledTools: string[] = []
+      let toolOutputs: Record<string, unknown> = {}
+      const output = (name: string, fallback: unknown) => () => toolOutputs[name] ?? fallback
+      const { agent } = await createPiAgent({
+        systemPrompt: createAiAgentSystemPrompt(
+          undefined,
+          ' <live-session-state>{"pendingConfirmations":[]}</live-session-state>'
+        ),
+        tools: [
+          evaluationTool(
+            'diagnose_my_access',
+            'Diagnose only the current authenticated user’s access to a permission.',
+            output('diagnose_my_access', { allowed: true }),
+            calledTools
+          ),
+          evaluationTool(
+            'search_knowledge_catalog',
+            'Search permission-filtered knowledge sources. Use returned document IDs in search_knowledge.',
+            output('search_knowledge_catalog', {
+              sources: [{ documentId: 1, title: 'Evaluation document' }],
+            }),
+            calledTools
+          ),
+          evaluationTool(
+            'search_knowledge',
+            'Search selected permission-checked project documentation excerpts.',
+            output('search_knowledge', { sources: [] }),
+            calledTools
+          ),
+          evaluationTool(
+            'run_registered_query',
+            `Run one registered query for current system data. Templates: ${aiQueryTemplateInstructions}.`,
+            output('run_registered_query', { kind: 'query_result', rows: [] }),
+            calledTools
+          ),
+          evaluationTool(
+            'propose_system_management_change',
+            'Prepare a management proposal. Never execute it without structured confirmation.',
+            output('propose_system_management_change', { kind: 'confirmation' }),
+            calledTools
+          ),
+          evaluationTool(
+            'propose_api_key_revocation',
+            'Prepare an API key revocation proposal.',
+            output('propose_api_key_revocation', { kind: 'confirmation' }),
+            calledTools
+          ),
+          evaluationTool(
+            'propose_api_key_deletion',
+            'Prepare an API key deletion proposal.',
+            output('propose_api_key_deletion', { kind: 'confirmation' }),
+            calledTools
+          ),
+        ],
+      })
+
       for (const [turnIndex, turn] of evaluation.turns.entries()) {
         const label = `${evaluation.name} / turn ${turnIndex + 1}`
         this.logger.info(`RUN ${label}`)
@@ -102,10 +127,18 @@ export default class AiEvaluate extends BaseCommand {
         try {
           await agent.prompt(turn.question)
           const turnTools = calledTools.slice(calledBeforeTurn)
-          const result = evaluateAiAssistantTurn({ evaluation: turn, calledTools: turnTools })
+          const result = evaluateAiAssistantTurn({
+            evaluation: turn,
+            calledTools: turnTools,
+            assistantText: getLatestAssistantText(agent.state.messages),
+          })
+          const expectedCalls =
+            turn.expectedToolSequence?.join(' -> ') ||
+            turn.expectedTools.join(', ') ||
+            'no tool call'
           if (!result.passed)
             failures.push(
-              `${label}: expected ${turn.expectedTools.join(', ') || 'no tool call'}, got ${turnTools.join(', ') || 'no tool call'}`
+              `${label}: expected ${expectedCalls}, got ${turnTools.join(' -> ') || 'no tool call'}${result.answerPassed ? '' : '; expected answer content was missing'}`
             )
           else this.logger.success(`PASS ${label}: ${turn.expectedTools.join(', ') || 'no tool'}`)
         } catch (error) {

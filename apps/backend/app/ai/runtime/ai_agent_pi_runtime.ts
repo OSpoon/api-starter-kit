@@ -23,6 +23,12 @@ import { estimateContextTokens, estimateMessageTokens } from '@earendil-works/pi
 import { getCurrentSystemMessage } from '@earendil-works/pi-ai/utils/transcript'
 import type { TelemetrySpan } from '@earendil-works/pi-telemetry'
 
+import {
+  isAiAgentReadTool,
+  isAiAgentTerminalToolResult,
+  isRecoverableAiAgentReadToolError,
+  maxConsecutiveAiAgentReadToolFailures,
+} from '#ai/core/ai_agent_tool_errors'
 import { aiAgentSummaryPrompt } from '#ai/policy/ai_agent_prompt_policy'
 import { readRuntimeLlmConfiguration } from '#services/llm_configuration_service'
 import { resolveModelsDevPricing } from '#services/models_dev_pricing_service'
@@ -210,9 +216,8 @@ async function compactPiContext(input: {
 function isTerminalToolResult(result: unknown) {
   if (!result || typeof result !== 'object') return false
   const details = 'details' in result ? (result as { details?: unknown }).details : result
-  if (!details || typeof details !== 'object') return false
-  const kind = (details as { kind?: unknown }).kind
-  return kind === 'confirmation' || kind === 'action_error' || kind === 'query_error'
+  const toolName = 'toolName' in result ? String((result as { toolName?: unknown }).toolName) : ''
+  return isAiAgentTerminalToolResult(toolName, details)
 }
 
 function addToolTelemetry(
@@ -248,10 +253,12 @@ function addToolTelemetry(
 
 export function shouldStopPiAfterTurn(
   input: Pick<AgentTurnContext, 'message' | 'toolResults'>,
-  hasQueuedMessages = false
+  hasQueuedMessages = false,
+  readToolFailureLimitReached = false
 ) {
   if (input.message.stopReason === 'error' || input.message.stopReason === 'aborted') return true
   if (hasQueuedMessages) return false
+  if (readToolFailureLimitReached) return true
   return (
     input.toolResults.length > 0 &&
     input.toolResults.every((result) => isTerminalToolResult(result))
@@ -347,6 +354,7 @@ export async function createPiAgent(input: {
   if (!model) throw new Error(`Pi model is not configured: ${modelName}`)
 
   let hasQueuedMessages = () => false
+  let consecutiveReadToolFailures = 0
   const getTelemetrySpan = input.getTelemetrySpan ?? (() => undefined)
   const tools = input.tools.map((tool) => addToolTelemetry(tool, getTelemetrySpan))
   const agent = new Agent({
@@ -437,7 +445,13 @@ export async function createPiAgent(input: {
       return trimPiContextToTokenBudget(messages, tokenBudget)
     },
     finishTurn: (context) =>
-      shouldStopPiAfterTurn(context, hasQueuedMessages()) ? { action: 'end' } : undefined,
+      shouldStopPiAfterTurn(
+        context,
+        hasQueuedMessages(),
+        consecutiveReadToolFailures >= maxConsecutiveAiAgentReadToolFailures
+      )
+        ? { action: 'end' }
+        : undefined,
     prepareNextTurnWithContext: async (
       _context,
       signal
@@ -463,10 +477,20 @@ export async function createPiAgent(input: {
       }
       return undefined
     },
-    afterToolCall: async ({ result, isError }) => ({
-      isError,
-      terminate: isError || result.terminate === true,
-    }),
+    afterToolCall: async ({ result, isError, toolCall }) => {
+      const isReadFailure = isRecoverableAiAgentReadToolError(toolCall.name, result.details)
+      if (isReadFailure) consecutiveReadToolFailures += 1
+      else if (isAiAgentReadTool(toolCall.name)) consecutiveReadToolFailures = 0
+
+      return {
+        isError,
+        terminate:
+          isError ||
+          result.terminate === true ||
+          isAiAgentTerminalToolResult(toolCall.name, result.details) ||
+          consecutiveReadToolFailures >= maxConsecutiveAiAgentReadToolFailures,
+      }
+    },
   })
   hasQueuedMessages = () => agent.hasQueuedMessages()
 
