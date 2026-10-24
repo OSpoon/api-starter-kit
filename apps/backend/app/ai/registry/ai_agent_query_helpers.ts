@@ -1,16 +1,21 @@
-import { z } from 'zod'
+export const queryBatchSize = 100
 
-export const queryPageSize = 20
-
-export const queryPageParameter = {
-  description:
-    'Optional 1-based page number; omit for page 1. Retrieve each following page through the final page when all records are requested.',
-  schema: z.coerce.number().int().min(1).default(1),
+type QueryPage<T> = {
+  all(): T[]
+  getMeta(): { lastPage: number }
 }
 
-export function queryPageMessage(meta: { currentPage: number; lastPage: number; total: number }) {
-  if (meta.lastPage <= 1) return undefined
-  return `Page ${meta.currentPage} of ${meta.lastPage} (${meta.total} results). ${meta.currentPage < meta.lastPage ? `Request page=${meta.currentPage + 1} to continue.` : 'This is the final page.'}`
+export async function fetchAllQueryPages<T>(
+  fetchPage: (page: number, pageSize: number) => Promise<QueryPage<T>>
+) {
+  const rows: T[] = []
+  let page = 1
+  while (true) {
+    const result = await fetchPage(page, queryBatchSize)
+    rows.push(...result.all())
+    if (page >= result.getMeta().lastPage) return rows
+    page += 1
+  }
 }
 
 export function maskEmail(email: string) {
