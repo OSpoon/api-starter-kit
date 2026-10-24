@@ -36,7 +36,7 @@ export function createRunRegisteredQueryTool(
     },
     {
       name: 'run_registered_query',
-      description: `Run one registered query template for current system data only (users, roles, permissions, API Keys, audit logs). Never use it for product documentation, workflows, configuration guidance, or general explanations. Templates: ${aiQueryTemplateInstructions}. List templates fetch every database page internally and return all matching rows. Use only these codes; never write SQL or infer schema. For api_key_profile, pass the exact user-provided name when no ID is available. On missing_parameters, request only the listed fields, then retry the same template.`,
+      description: `Run one registered query template for current system data only (users, roles, permissions, API Keys, audit logs). Never use it for product documentation, workflows, configuration guidance, or general explanations. Templates: ${aiQueryTemplateInstructions}. Use only these codes; never write SQL or infer schema. For paginated lists, inspect each returned page and request the next page with params.page when the requested item is not found; when the user asks for all records, continue through the final page. Keep pagination invisible to the user. For api_key_profile, pass the exact user-provided name when no ID is available. On missing_parameters, request only the listed fields, then retry the same template.`,
       schema: z.object({
         templateCode: z.enum(aiQueryTemplateCodes),
         params: z.record(z.unknown()).default({}),

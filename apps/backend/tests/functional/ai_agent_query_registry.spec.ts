@@ -566,11 +566,11 @@ test.group('AI agent registered queries', (group) => {
     ])
   })
 
-  test('reads all AI query results across internal database pages', async ({ assert }) => {
+  test('paginates AI query results without dropping later rows', async ({ assert }) => {
     const { user, conversation } = await createAdminConversation()
     const suffix = Date.now()
     const keys = []
-    for (let index = 0; index < 101; index += 1) {
+    for (let index = 0; index < 21; index += 1) {
       keys.push(
         await ApiKey.create({
           name: `Paged key ${suffix}-${index}`,
@@ -580,18 +580,30 @@ test.group('AI agent registered queries', (group) => {
       )
     }
 
-    const result = await runRegisteredAiQuery({
+    const pageOne = await runRegisteredAiQuery({
       conversationId: conversation.id,
       userId: user.id,
       templateCode: 'active_api_keys',
-      params: {},
+      params: { page: 1 },
     })
-    assert.equal(result.kind, 'query_result')
-    if (result.kind !== 'query_result') throw new Error('Expected API Key query result')
+    const pageTwo = await runRegisteredAiQuery({
+      conversationId: conversation.id,
+      userId: user.id,
+      templateCode: 'active_api_keys',
+      params: { page: 2 },
+    })
+    assert.equal(pageOne.kind, 'query_result')
+    assert.equal(pageTwo.kind, 'query_result')
+    if (pageOne.kind !== 'query_result' || pageTwo.kind !== 'query_result') {
+      throw new Error('Expected paginated API Key query results')
+    }
 
-    assert.lengthOf(result.rows, 101)
+    assert.lengthOf(pageOne.rows, 20)
+    assert.lengthOf(pageTwo.rows, 1)
+    assert.include(pageOne.message ?? '', 'Request page=2 to continue.')
+    assert.include(pageTwo.message ?? '', 'This is the final page.')
     assert.sameMembers(
-      result.rows.map((row) => (row as { id: number }).id),
+      [...pageOne.rows, ...pageTwo.rows].map((row) => (row as { id: number }).id),
       keys.map((key) => key.id)
     )
   })
