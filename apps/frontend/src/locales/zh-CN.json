@@ -891,15 +891,79 @@
   },
   "audit_logs": {
     "title": "审计日志",
-    "desc": "查看安全敏感管理操作的不可变更记录。",
+    "desc": "查看安全操作、访问结果及其请求上下文。",
     "time": "时间",
     "actor": "操作者",
-    "search": "搜索操作、目标、IP、请求 ID 或操作者",
+    "actor_type": "操作者类型",
+    "search": "搜索操作、目标、操作者、来源 IP、原因、路由、请求 ID 或追踪 ID",
     "action": "操作",
     "target": "目标",
-    "source": "来源 IP",
+    "origin": "调用来源",
+    "source_ip": "来源 IP",
+    "outcome": "结果",
+    "details": "详情",
+    "view_details": "查看审计详情",
+    "request": "请求路由",
+    "reason": "原因",
+    "request_id": "请求 ID",
+    "trace_id": "追踪 ID",
+    "user_agent": "客户端",
+    "metadata": "安全摘要",
     "system": "系统",
+    "actor_types": {
+      "unknown": "未知",
+      "user": "用户",
+      "api_key": "API 密钥",
+      "anonymous": "匿名请求",
+      "system": "系统"
+    },
+    "sources": {
+      "http": "HTTP / 会话",
+      "api_key": "API 密钥",
+      "ai_agent": "AI 助手",
+      "channel": "机器人渠道",
+      "wecom": "企业微信",
+      "feishu": "飞书",
+      "dingtalk": "钉钉",
+      "test": "连接测试",
+      "system": "系统任务",
+      "legacy": "历史记录"
+    },
+    "outcomes": {
+      "success": "成功",
+      "unknown": "未知",
+      "denied": "拒绝",
+      "failure": "失败",
+      "attempted": "待验证",
+      "expired": "已过期",
+      "cancelled": "已取消"
+    },
+    "reasons": {
+      "turnstile_failed": "人机验证失败",
+      "account_disabled": "账号已停用",
+      "invalid_credentials": "账号或密码无效",
+      "two_factor_required": "需要完成 2FA 验证",
+      "invalid_exchange": "GitHub 登录凭据无效",
+      "account_not_linked": "该账号未关联此 GitHub 身份",
+      "invalid_temp_token": "2FA 临时会话无效",
+      "invalid_code": "2FA 验证码无效",
+      "permission_denied": "缺少所需权限",
+      "unknown_template": "查询模板不存在",
+      "unsupported_parameters": "查询参数不受支持",
+      "invalid_parameters": "查询参数无效",
+      "execution_failed": "查询执行失败",
+      "search_failed": "知识检索失败"
+    },
     "actions": {
+      "auth": {
+        "login_rejected": "登录被拒绝",
+        "login_challenged": "等待 2FA 验证",
+        "login_succeeded": "登录成功",
+        "logout_succeeded": "退出登录"
+      },
+      "authorization": {
+        "permission_denied": "权限检查拒绝"
+      },
       "user": {
         "created": "创建用户",
         "updated": "更新用户",
@@ -921,6 +985,7 @@
       "account": {
         "password_changed": "修改登录密码",
         "two_factor_enabled": "启用 2FA",
+        "two_factor_enable_rejected": "启用 2FA 被拒绝",
         "two_factor_disabled": "停用 2FA",
         "github_unlinked": "解绑 GitHub",
         "channel_identity_bound": "绑定 AI 渠道",
@@ -984,7 +1049,8 @@
       "ai_query_template": "AI 查询模板",
       "knowledge_document": "知识文档",
       "knowledge_catalog": "知识目录",
-      "knowledge_search": "知识文档检索"
+      "knowledge_search": "知识文档检索",
+      "authentication": "身份验证"
     }
   },
   "profile": {

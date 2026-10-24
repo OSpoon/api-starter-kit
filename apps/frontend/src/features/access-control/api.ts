@@ -37,10 +37,18 @@ export interface AuditLogEntry {
   action: string
   targetType: string
   targetId: string | null
+  eventVersion: number
+  actorType: string
+  source: string
+  outcome: string
+  reasonCode: string | null
   metadata: Record<string, unknown> | null
   ipAddress: string | null
   userAgent: string | null
   requestId: string | null
+  traceId: string | null
+  requestMethod: string | null
+  requestRoute: string | null
   createdAt: string
   actor: { id: number; fullName: string | null; email: string } | null
 }
@@ -48,6 +56,11 @@ export interface AuditLogEntry {
 export interface AuditLogPage {
   items: AuditLogEntry[]
   meta: { currentPage: number; perPage: number; lastPage: number; total: number }
+}
+export interface AuditLogFilters {
+  source?: string[]
+  outcome?: string[]
+  actorType?: string[]
 }
 export interface SystemPage<T> {
   items: T[]
@@ -245,10 +258,19 @@ export async function deleteSystemPermission(token: string | null, id: number) {
   )
 }
 
-export async function listAuditLogs(token: string | null, page = 1, search = '') {
+export async function listAuditLogs(
+  token: string | null,
+  page = 1,
+  search = '',
+  filters: AuditLogFilters = {}
+) {
+  const extra: Record<string, string> = {}
+  if (filters.source?.length) extra.source = filters.source.join(',')
+  if (filters.outcome?.length) extra.outcome = filters.outcome.join(',')
+  if (filters.actorType?.length) extra.actorType = filters.actorType.join(',')
   return readItem(
     await apiRequest<AuditLogPage>(
-      `/api/v1/system/audit-logs?${buildListQuery(page, search)}`,
+      `/api/v1/system/audit-logs?${buildListQuery(page, search, extra)}`,
       authOptions(token)
     )
   )

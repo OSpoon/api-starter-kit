@@ -107,8 +107,18 @@ export class AiAgentPendingQuerySchema extends BaseModel {
 }
 
 export class AiChatConversationSchema extends BaseModel {
-  static $columns = ['contextSummary', 'createdAt', 'id', 'title', 'updatedAt', 'userId'] as const
+  static $columns = [
+    'apiKeyId',
+    'contextSummary',
+    'createdAt',
+    'id',
+    'title',
+    'updatedAt',
+    'userId',
+  ] as const
   $columns = AiChatConversationSchema.$columns
+  @column()
+  declare apiKeyId: number | null
   @column()
   declare contextSummary: string | null
   @column.dateTime({ autoCreate: true })
@@ -246,23 +256,35 @@ export class ApiKeySchema extends BaseModel {
 export class AuditLogSchema extends BaseModel {
   static $columns = [
     'action',
+    'actorType',
     'actorUserId',
     'createdAt',
+    'eventVersion',
     'id',
     'ipAddress',
     'metadata',
+    'outcome',
+    'reasonCode',
     'requestId',
+    'requestMethod',
+    'requestRoute',
+    'source',
     'targetId',
     'targetType',
+    'traceId',
     'userAgent',
   ] as const
   $columns = AuditLogSchema.$columns
   @column()
   declare action: string
   @column()
+  declare actorType: string
+  @column()
   declare actorUserId: number | null
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
+  @column()
+  declare eventVersion: number
   @column({ isPrimary: true })
   declare id: number
   @column()
@@ -270,11 +292,23 @@ export class AuditLogSchema extends BaseModel {
   @column()
   declare metadata: any | null
   @column()
+  declare outcome: string
+  @column()
+  declare reasonCode: string | null
+  @column()
   declare requestId: string | null
+  @column()
+  declare requestMethod: string | null
+  @column()
+  declare requestRoute: string | null
+  @column()
+  declare source: string
   @column()
   declare targetId: string | null
   @column()
   declare targetType: string
+  @column()
+  declare traceId: string | null
   @column()
   declare userAgent: string | null
 }
@@ -579,6 +613,8 @@ export class LlmConfigurationSchema extends BaseModel {
     'asrModel',
     'chatApiKey',
     'chatBaseUrl',
+    'chatContextWindow',
+    'chatMaxTokens',
     'chatModel',
     'createdAt',
     'dingtalkCardTemplateId',
@@ -611,6 +647,10 @@ export class LlmConfigurationSchema extends BaseModel {
   declare chatApiKey: string | null
   @column()
   declare chatBaseUrl: string | null
+  @column()
+  declare chatContextWindow: number
+  @column()
+  declare chatMaxTokens: number
   @column()
   declare chatModel: string
   @column.dateTime({ autoCreate: true })
@@ -683,6 +723,17 @@ export class PermissionSchema extends BaseModel {
   declare updatedAt: DateTime | null
 }
 
+export class RateLimitSchema extends BaseModel {
+  static $columns = ['expire', 'key', 'points'] as const
+  $columns = RateLimitSchema.$columns
+  @column()
+  declare expire: bigint | number | null
+  @column({ isPrimary: true })
+  declare key: string
+  @column()
+  declare points: number
+}
+
 export class RolePermissionSchema extends BaseModel {
   static $columns = ['createdAt', 'permissionId', 'roleId'] as const
   $columns = RolePermissionSchema.$columns
@@ -719,17 +770,6 @@ export class RoleSchema extends BaseModel {
   declare name: string
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime | null
-}
-
-export class SharedThrottleBucketSchema extends BaseModel {
-  static $columns = ['bucketKey', 'requestCount', 'windowStartedAt'] as const
-  $columns = SharedThrottleBucketSchema.$columns
-  @column({ isPrimary: true })
-  declare bucketKey: string
-  @column()
-  declare requestCount: number
-  @column.dateTime()
-  declare windowStartedAt: DateTime
 }
 
 export class UserRoleSchema extends BaseModel {

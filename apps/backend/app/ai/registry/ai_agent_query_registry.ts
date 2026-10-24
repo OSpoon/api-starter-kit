@@ -1,3 +1,4 @@
+import type { HttpContext } from '@adonisjs/core/http'
 import { DateTime } from 'luxon'
 
 import { ensureAiAgentPermission } from '#ai/core/ai_agent_authorization'
@@ -16,7 +17,7 @@ import { wecomMessageTemplateProfileQuery } from '#ai/queries/wecom_message_temp
 import { wecomMessageTemplatesQuery } from '#ai/queries/wecom_message_templates'
 import type { AiQueryTemplate, AiQueryTemplateCode } from '#ai/registry/ai_agent_query_types'
 import AiAgentPendingQuery from '#models/ai_agent_pending_query'
-import AuditLog from '#models/audit_log'
+import { recordAuditEvent } from '#services/audit_log'
 
 export type AiQueryParameter = import('#ai/registry/ai_agent_query_types').AiQueryParameter
 
@@ -63,6 +64,7 @@ async function ensurePermission(userId: number, permission: string) {
 }
 
 async function recordQueryAudit(input: {
+  ctx?: HttpContext
   userId: number
   templateCode: string
   templateVersion?: number
@@ -79,8 +81,16 @@ async function recordQueryAudit(input: {
   resultCount?: number
   startedAt: number
 }) {
-  await AuditLog.create({
+  await recordAuditEvent(input.ctx, {
     actorUserId: input.userId,
+    source: 'ai_agent',
+    outcome:
+      input.action === 'agent.query_executed'
+        ? 'success'
+        : input.action === 'agent.query_failed'
+          ? 'failure'
+          : 'denied',
+    reasonCode: input.reason,
     action: input.action,
     targetType: 'ai_query_template',
     targetId: input.templateCode,
@@ -163,6 +173,7 @@ export async function getPendingAiQueryContext(input: { conversationId: number; 
 }
 
 export async function runRegisteredAiQuery(input: {
+  ctx?: HttpContext
   conversationId: number
   userId: number
   templateCode: string
@@ -172,6 +183,7 @@ export async function runRegisteredAiQuery(input: {
   const template = getAiQueryTemplate(input.templateCode)
   if (!template) {
     await recordQueryAudit({
+      ctx: input.ctx,
       userId: input.userId,
       templateCode: input.templateCode,
       action: 'agent.query_rejected',
@@ -186,6 +198,7 @@ export async function runRegisteredAiQuery(input: {
     await ensurePermission(input.userId, template.permission)
   } catch (error) {
     await recordQueryAudit({
+      ctx: input.ctx,
       userId: input.userId,
       templateCode: template.code,
       templateVersion: template.version,
@@ -202,6 +215,7 @@ export async function runRegisteredAiQuery(input: {
   )
   if (unknownParameters.length) {
     await recordQueryAudit({
+      ctx: input.ctx,
       userId: input.userId,
       templateCode: template.code,
       templateVersion: template.version,
@@ -261,6 +275,7 @@ export async function runRegisteredAiQuery(input: {
     parsedParams = parseParams(template, mergedParams)
   } catch (error) {
     await recordQueryAudit({
+      ctx: input.ctx,
       userId: input.userId,
       templateCode: template.code,
       templateVersion: template.version,
@@ -281,6 +296,7 @@ export async function runRegisteredAiQuery(input: {
     result = await template.execute(parsedParams)
   } catch (error) {
     await recordQueryAudit({
+      ctx: input.ctx,
       userId: input.userId,
       templateCode: template.code,
       templateVersion: template.version,
@@ -302,6 +318,7 @@ export async function runRegisteredAiQuery(input: {
     await active.save()
   }
   await recordQueryAudit({
+    ctx: input.ctx,
     userId: input.userId,
     templateCode: template.code,
     templateVersion: template.version,

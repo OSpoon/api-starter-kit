@@ -7,6 +7,7 @@ import { isTurnstileEnabled, verifyTurnstileToken } from '#integrations/turnstil
 import User from '#models/user'
 import { createTwoFactorTempToken } from '#security/two_factor_token'
 import { verifyUserCredentials } from '#security/user_credentials'
+import { recordAuditEvent } from '#services/audit_log'
 import { loadUserAccess } from '#services/user_access'
 import UserTransformer from '#transformers/user_transformer'
 import { loginValidator } from '#validators/user'
@@ -21,16 +22,34 @@ export default class AccessTokensController {
   })
   @ApiResponse({ status: 200, description: '登录结果、访问 token 或 2FA 临时 token' })
   @ApiResponse({ status: 401, description: '账号或密码错误' })
-  async store({ request, serialize }: HttpContext) {
+  async store(ctx: HttpContext) {
+    const { request, serialize } = ctx
     const { email, password, turnstileToken } = await request.validateUsing(loginValidator)
 
     if (isTurnstileEnabled() && !(await verifyTurnstileToken(turnstileToken ?? '', request.ip()))) {
+      await recordAuditEvent(ctx, {
+        actorUserId: null,
+        actorType: 'anonymous',
+        action: 'auth.login_rejected',
+        targetType: 'authentication',
+        outcome: 'denied',
+        reasonCode: 'turnstile_failed',
+      })
       throw { code: 'E_TURNSTILE_FAILED', status: 403 }
     }
 
     const userRecord = await User.findBy('email', email)
 
     if (userRecord?.disabledAt) {
+      await recordAuditEvent(ctx, {
+        actorUserId: null,
+        actorType: 'anonymous',
+        action: 'auth.login_rejected',
+        targetType: 'user',
+        targetId: userRecord.id,
+        outcome: 'denied',
+        reasonCode: 'account_disabled',
+      })
       throw INVALID_CREDENTIALS
     }
 
@@ -40,6 +59,15 @@ export default class AccessTokensController {
         await db.from('users').where('id', userRecord.id).increment('failed_login_attempts', 1)
       }
 
+      await recordAuditEvent(ctx, {
+        actorUserId: null,
+        actorType: 'anonymous',
+        action: 'auth.login_rejected',
+        targetType: 'user',
+        targetId: userRecord?.id ?? null,
+        outcome: 'failure',
+        reasonCode: 'invalid_credentials',
+      })
       throw INVALID_CREDENTIALS
     }
 
@@ -60,6 +88,14 @@ export default class AccessTokensController {
     }
 
     if (user.twoFactorEnabled) {
+      await recordAuditEvent(ctx, {
+        actorUserId: user.id,
+        action: 'auth.login_challenged',
+        targetType: 'user',
+        targetId: user.id,
+        outcome: 'attempted',
+        reasonCode: 'two_factor_required',
+      })
       return serialize({
         requiresTwoFactor: true,
         tempToken: createTwoFactorTempToken(user.id),
@@ -68,6 +104,12 @@ export default class AccessTokensController {
     }
 
     const token = await User.accessTokens.create(user)
+    await recordAuditEvent(ctx, {
+      actorUserId: user.id,
+      action: 'auth.login_succeeded',
+      targetType: 'user',
+      targetId: user.id,
+    })
 
     return serialize({
       user: UserTransformer.transform(await loadUserAccess(user)),
@@ -82,11 +124,19 @@ export default class AccessTokensController {
     description: '删除当前访问 token。',
   })
   @ApiResponse({ status: 200, description: '退出成功' })
-  async destroy({ auth }: HttpContext) {
+  async destroy(ctx: HttpContext) {
+    const { auth } = ctx
     const user = auth.getUserOrFail()
     if (user.currentAccessToken) {
       await User.accessTokens.delete(user, user.currentAccessToken.identifier)
     }
+
+    await recordAuditEvent(ctx, {
+      actorUserId: user.id,
+      action: 'auth.logout_succeeded',
+      targetType: 'user',
+      targetId: user.id,
+    })
 
     return {
       message: 'Logged out successfully',

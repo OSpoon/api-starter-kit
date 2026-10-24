@@ -12,6 +12,21 @@ export default class AuditLog extends BaseModel {
   declare actorUserId: number | null
 
   @column()
+  declare eventVersion: number
+
+  @column()
+  declare actorType: string
+
+  @column()
+  declare source: string
+
+  @column()
+  declare outcome: string
+
+  @column()
+  declare reasonCode: string | null
+
+  @column()
   declare action: string
 
   @column()
@@ -31,6 +46,15 @@ export default class AuditLog extends BaseModel {
 
   @column()
   declare requestId: string | null
+
+  @column()
+  declare traceId: string | null
+
+  @column()
+  declare requestMethod: string | null
+
+  @column()
+  declare requestRoute: string | null
 
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime

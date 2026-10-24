@@ -53,6 +53,14 @@ export default class TwoFactorAuthController {
     const { valid } = await verify({ token: payload.token, secret: payload.secret })
 
     if (!valid) {
+      await recordAuditEvent(ctx, {
+        actorUserId: user.id,
+        action: 'account.two_factor_enable_rejected',
+        targetType: 'user',
+        targetId: user.id,
+        outcome: 'denied',
+        reasonCode: 'invalid_code',
+      })
       return response.badRequest({ message: '验证码无效' })
     }
 
@@ -83,11 +91,20 @@ export default class TwoFactorAuthController {
   })
   @ApiResponse({ status: 200, description: '管理员资料和访问 token' })
   @ApiResponse({ status: 401, description: '临时会话过期或验证码无效' })
-  async verify({ request, response, serialize }: HttpContext) {
+  async verify(ctx: HttpContext) {
+    const { request, response, serialize } = ctx
     const payload = await request.validateUsing(verifyTwoFactorValidator)
     const pending = parseTwoFactorTempToken(payload.tempToken)
 
     if (!pending) {
+      await recordAuditEvent(ctx, {
+        actorUserId: null,
+        actorType: 'anonymous',
+        action: 'auth.two_factor_rejected',
+        targetType: 'authentication',
+        outcome: 'denied',
+        reasonCode: 'invalid_temp_token',
+      })
       return response.unauthorized({ message: '会话已过期，请重新登录' })
     }
 
@@ -127,10 +144,26 @@ export default class TwoFactorAuthController {
     })
 
     if (!user) {
+      await recordAuditEvent(ctx, {
+        actorUserId: null,
+        actorType: 'anonymous',
+        action: 'auth.two_factor_rejected',
+        targetType: 'user',
+        targetId: pending.userId,
+        outcome: 'denied',
+        reasonCode: 'invalid_code',
+      })
       return response.unauthorized({ message: '验证码无效' })
     }
 
     const token = await User.accessTokens.create(user)
+    await recordAuditEvent(ctx, {
+      actorUserId: user.id,
+      action: 'auth.login_succeeded',
+      targetType: 'user',
+      targetId: user.id,
+      metadata: { authenticationFactor: 'two_factor' },
+    })
 
     return serialize({
       user: UserTransformer.transform(await loadUserAccess(user)),

@@ -7,6 +7,7 @@ import { isTurnstileEnabled, verifyTurnstileToken } from '#integrations/turnstil
 import User from '#models/user'
 import { createTwoFactorTempToken } from '#security/two_factor_token'
 import { verifyUserCredentials } from '#security/user_credentials'
+import { recordAuditEvent } from '#services/audit_log'
 import {
   consumeGithubLinkState,
   consumeGithubLoginChallenge,
@@ -118,27 +119,80 @@ export default class GithubOauthController {
 
   @ApiOperation({ summary: '验证本地账号并完成 GitHub 登录绑定' })
   @ApiResponse({ status: 200, description: '绑定后的登录结果或 2FA 临时凭据' })
-  async complete({ request, session, serialize }: HttpContext) {
+  async complete(ctx: HttpContext) {
+    const { request, session, serialize } = ctx
     const payload = await request.validateUsing(githubLoginCompletionValidator)
     if (
       isTurnstileEnabled() &&
       !(await verifyTurnstileToken(payload.turnstileToken ?? '', request.ip()))
     ) {
+      await recordAuditEvent(ctx, {
+        actorUserId: null,
+        actorType: 'anonymous',
+        action: 'auth.login_rejected',
+        targetType: 'authentication',
+        outcome: 'denied',
+        reasonCode: 'turnstile_failed',
+        metadata: { authenticationMethod: 'github' },
+      })
       throw { code: 'E_TURNSTILE_FAILED', status: 403 }
     }
     const challengeCode =
       payload.code || (session.get(SESSION_LOGIN_CHALLENGE_KEY) as string | undefined)
-    if (!challengeCode) throw githubOAuthErrors.invalidExchange
+    if (!challengeCode) {
+      await recordAuditEvent(ctx, {
+        actorUserId: null,
+        actorType: 'anonymous',
+        action: 'auth.login_rejected',
+        targetType: 'authentication',
+        outcome: 'denied',
+        reasonCode: 'invalid_exchange',
+        metadata: { authenticationMethod: 'github' },
+      })
+      throw githubOAuthErrors.invalidExchange
+    }
     const { identity } = await readGithubLoginChallenge(challengeCode)
     const user = await User.findBy('email', payload.email)
-    if (!user || user.disabledAt) throw githubOAuthErrors.accountNotLinked
+    if (!user || user.disabledAt) {
+      await recordAuditEvent(ctx, {
+        actorUserId: null,
+        actorType: 'anonymous',
+        action: 'auth.login_rejected',
+        targetType: 'authentication',
+        outcome: 'denied',
+        reasonCode: 'account_not_linked',
+        metadata: { authenticationMethod: 'github' },
+      })
+      throw githubOAuthErrors.accountNotLinked
+    }
     const verifiedUser = await verifyUserCredentials(user.email, payload.password)
-    if (!verifiedUser) throw { code: 'E_INVALID_CREDENTIALS', status: 401 }
+    if (!verifiedUser) {
+      await recordAuditEvent(ctx, {
+        actorUserId: null,
+        actorType: 'anonymous',
+        action: 'auth.login_rejected',
+        targetType: 'user',
+        targetId: user.id,
+        outcome: 'failure',
+        reasonCode: 'invalid_credentials',
+        metadata: { authenticationMethod: 'github' },
+      })
+      throw { code: 'E_INVALID_CREDENTIALS', status: 401 }
+    }
     await consumeGithubLoginChallenge(challengeCode)
     session.forget(SESSION_LOGIN_CHALLENGE_KEY)
     await linkGithubIdentity(user, identity)
 
     if (user.twoFactorEnabled) {
+      await recordAuditEvent(ctx, {
+        actorUserId: user.id,
+        action: 'auth.login_challenged',
+        targetType: 'user',
+        targetId: user.id,
+        outcome: 'attempted',
+        reasonCode: 'two_factor_required',
+        metadata: { authenticationMethod: 'github' },
+      })
       return serialize({
         requiresTwoFactor: true,
         tempToken: createTwoFactorTempToken(user.id),
@@ -146,6 +200,13 @@ export default class GithubOauthController {
       })
     }
     const token = await User.accessTokens.create(user)
+    await recordAuditEvent(ctx, {
+      actorUserId: user.id,
+      action: 'auth.login_succeeded',
+      targetType: 'user',
+      targetId: user.id,
+      metadata: { authenticationMethod: 'github' },
+    })
     return serialize({
       user: UserTransformer.transform(await loadUserAccess(user)),
       token: token.value!.release(),

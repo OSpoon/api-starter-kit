@@ -20,6 +20,7 @@ export function createSearchKnowledgeCatalogTool(
         const user = await ensureAiAgentPermission(input.userId, 'knowledge:read')
         const sources = await searchKnowledgeCatalog({ user, query, publicOnly })
         await recordKnowledgeSearchAudit({
+          ctx: input.auditContext,
           userId: input.userId,
           query,
           stage: 'catalog',
@@ -43,6 +44,7 @@ export function createSearchKnowledgeCatalogTool(
         if (!(error instanceof DOMException && error.name === 'AbortError')) {
           const message = error instanceof Error ? error.message : ''
           await recordKnowledgeSearchAudit({
+            ctx: input.auditContext,
             userId: input.userId,
             query,
             stage: 'catalog',

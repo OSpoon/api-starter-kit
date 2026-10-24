@@ -175,6 +175,7 @@ export async function runAiChatAssistantTurn(input: {
     const run = await createAiAgentStream({
       conversationId: conversation.id,
       userId,
+      auditContext: input.ctx,
       messages: history,
       capabilityMode: input.capabilityMode,
       context: input.context,

@@ -9,7 +9,7 @@ export function createDiagnoseMyAccessTool(input: AiAgentToolContext, support: A
   return createAiAgentTool(
     async ({ permissionCode }) => {
       support.throwIfAborted()
-      return diagnoseMyAccess(input.userId, permissionCode)
+      return diagnoseMyAccess(input.userId, permissionCode, input.auditContext)
     },
     {
       name: 'diagnose_my_access',

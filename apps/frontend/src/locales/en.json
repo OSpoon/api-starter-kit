@@ -891,15 +891,79 @@
   },
   "audit_logs": {
     "title": "Audit logs",
-    "desc": "Review immutable records of security-sensitive management actions.",
+    "desc": "Review security events, access results, and their request context.",
     "time": "Time",
     "actor": "Actor",
-    "search": "Search action, target, IP, request ID, or actor",
+    "actor_type": "Actor type",
+    "search": "Search action, target, actor, source IP, reason, route, request ID, or trace ID",
     "action": "Action",
     "target": "Target",
-    "source": "Source IP",
+    "origin": "Call source",
+    "source_ip": "Source IP",
+    "outcome": "Outcome",
+    "details": "Details",
+    "view_details": "View audit details",
+    "request": "Request route",
+    "reason": "Reason",
+    "request_id": "Request ID",
+    "trace_id": "Trace ID",
+    "user_agent": "Client",
+    "metadata": "Safe summary",
     "system": "System",
+    "actor_types": {
+      "unknown": "Unknown",
+      "user": "User",
+      "api_key": "API key",
+      "anonymous": "Anonymous request",
+      "system": "System"
+    },
+    "sources": {
+      "http": "HTTP / session",
+      "api_key": "API key",
+      "ai_agent": "AI assistant",
+      "channel": "Bot channel",
+      "wecom": "WeCom",
+      "feishu": "Feishu",
+      "dingtalk": "DingTalk",
+      "test": "Connection test",
+      "system": "System task",
+      "legacy": "Legacy event"
+    },
+    "outcomes": {
+      "success": "Success",
+      "unknown": "Unknown",
+      "denied": "Denied",
+      "failure": "Failure",
+      "attempted": "Awaiting verification",
+      "expired": "Expired",
+      "cancelled": "Cancelled"
+    },
+    "reasons": {
+      "turnstile_failed": "Human verification failed",
+      "account_disabled": "Account is disabled",
+      "invalid_credentials": "Invalid credentials",
+      "two_factor_required": "2FA verification required",
+      "invalid_exchange": "GitHub login exchange is invalid",
+      "account_not_linked": "Account is not linked to this GitHub identity",
+      "invalid_temp_token": "Invalid 2FA session",
+      "invalid_code": "Invalid 2FA code",
+      "permission_denied": "Required permission is missing",
+      "unknown_template": "Query template does not exist",
+      "unsupported_parameters": "Query parameters are unsupported",
+      "invalid_parameters": "Query parameters are invalid",
+      "execution_failed": "Query execution failed",
+      "search_failed": "Knowledge search failed"
+    },
     "actions": {
+      "auth": {
+        "login_rejected": "Login rejected",
+        "login_challenged": "2FA verification pending",
+        "login_succeeded": "Login succeeded",
+        "logout_succeeded": "Logged out"
+      },
+      "authorization": {
+        "permission_denied": "Permission check denied"
+      },
       "user": {
         "created": "User created",
         "updated": "User updated",
@@ -921,6 +985,7 @@
       "account": {
         "password_changed": "Password changed",
         "two_factor_enabled": "2FA enabled",
+        "two_factor_enable_rejected": "2FA setup rejected",
         "two_factor_disabled": "2FA disabled",
         "github_unlinked": "GitHub unlinked",
         "channel_identity_bound": "AI channel bound",
@@ -984,7 +1049,8 @@
       "ai_query_template": "AI query template",
       "knowledge_document": "Knowledge document",
       "knowledge_catalog": "Knowledge catalog",
-      "knowledge_search": "Knowledge search"
+      "knowledge_search": "Knowledge search",
+      "authentication": "Authentication"
     }
   },
   "profile": {

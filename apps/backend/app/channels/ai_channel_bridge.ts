@@ -31,9 +31,10 @@ import {
 import { getChannelGuestUser } from '#services/channel_guest_principal'
 import { findActiveChannelIdentity } from '#services/channel_identity_service'
 
-function createChannelHttpContext(user: User) {
+function createChannelHttpContext(user: User, channel: NormalizedInboundMessage['channel']) {
   return {
     auth: { getUserOrFail: () => user },
+    auditChannel: channel,
     request: {
       ip: () => 'channel:external',
       header: () => undefined,
@@ -195,7 +196,7 @@ export class AiChannelBridge implements ReloadableBotRuntime {
         regeneration: null,
         capabilityMode: isVisitor ? 'knowledge-only' : 'full',
         signal: new AbortController().signal,
-        ctx: createChannelHttpContext(user),
+        ctx: createChannelHttpContext(user, message.channel),
         onEvent: async (event, data) => {
           if (event === 'delta' && data && typeof data === 'object') {
             const content = (data as Record<string, unknown>).content
@@ -367,7 +368,7 @@ export class AiChannelBridge implements ReloadableBotRuntime {
     if (!Number.isSafeInteger(confirmationId) || confirmationId <= 0) {
       return textReply('确认请求编号无效。')
     }
-    const ctx = createChannelHttpContext(user)
+    const ctx = createChannelHttpContext(user, input.channel)
     try {
       if (input.actionKey === `confirm:${input.taskId}`) {
         const execution = await confirmAiAgentAction(ctx, {

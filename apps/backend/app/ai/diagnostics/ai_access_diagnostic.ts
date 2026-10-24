@@ -1,5 +1,7 @@
-import AuditLog from '#models/audit_log'
+import type { HttpContext } from '@adonisjs/core/http'
+
 import User from '#models/user'
+import { recordAuditEvent } from '#services/audit_log'
 import { loadUserAccess } from '#services/user_access'
 
 export type AiAccessRole = {
@@ -29,7 +31,11 @@ export function buildMyAccessDiagnosis(roles: AiAccessRole[], requestedPermissio
   }
 }
 
-export async function diagnoseMyAccess(userId: number, requestedPermission?: string) {
+export async function diagnoseMyAccess(
+  userId: number,
+  requestedPermission?: string,
+  ctx?: HttpContext
+) {
   const user = await User.findOrFail(userId)
   await loadUserAccess(user)
   const diagnosis = buildMyAccessDiagnosis(
@@ -40,11 +46,12 @@ export async function diagnoseMyAccess(userId: number, requestedPermission?: str
     })),
     requestedPermission
   )
-  await AuditLog.create({
+  await recordAuditEvent(ctx, {
     actorUserId: user.id,
+    source: 'ai_agent',
     action: 'agent.access_diagnosed',
     targetType: 'user',
-    targetId: String(user.id),
+    targetId: user.id,
     metadata: { permissionCode: requestedPermission ?? null },
   })
   return diagnosis

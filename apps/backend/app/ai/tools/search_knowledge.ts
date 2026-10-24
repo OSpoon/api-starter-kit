@@ -24,6 +24,7 @@ export function createSearchKnowledgeTool(input: AiAgentToolContext, support: Ai
         const user = await ensureAiAgentPermission(input.userId, 'knowledge:read')
         const sources = await searchKnowledge({ user, query, documentIds, publicOnly })
         await recordKnowledgeSearchAudit({
+          ctx: input.auditContext,
           userId: input.userId,
           query,
           stage: 'detail',
@@ -50,6 +51,7 @@ export function createSearchKnowledgeTool(input: AiAgentToolContext, support: Ai
         if (!(error instanceof DOMException && error.name === 'AbortError')) {
           const message = error instanceof Error ? error.message : ''
           await recordKnowledgeSearchAudit({
+            ctx: input.auditContext,
             userId: input.userId,
             query,
             stage: 'detail',

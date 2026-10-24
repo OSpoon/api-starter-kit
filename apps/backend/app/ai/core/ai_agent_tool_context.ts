@@ -1,3 +1,5 @@
+import type { HttpContext } from '@adonisjs/core/http'
+
 export type AiAgentKnowledgeSource = {
   documentId: number
   chunkId: number
@@ -10,6 +12,7 @@ export type AiAgentCapabilityMode = 'full' | 'knowledge-only'
 export interface AiAgentToolRequestContext {
   userId: number
   conversationId: number
+  auditContext?: HttpContext
   capabilityMode?: AiAgentCapabilityMode
   signal?: AbortSignal
   onKnowledgeSources?: (sources: AiAgentKnowledgeSource[]) => void

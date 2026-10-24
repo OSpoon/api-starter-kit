@@ -2,6 +2,7 @@ import type { HttpContext } from '@adonisjs/core/http'
 import type { NextFn } from '@adonisjs/core/types/http'
 
 import type ApiKey from '#models/api_key'
+import type { ChannelName } from '#models/channel_identity'
 import type User from '#models/user'
 import { authenticateApiKey } from '#services/api_key_service'
 import { getAiIntegrationUser } from '#services/channel_guest_principal'
@@ -10,6 +11,7 @@ declare module '@adonisjs/core/http' {
   interface HttpContext {
     integrationApiKey?: ApiKey
     integrationUser?: User
+    auditChannel?: ChannelName
   }
 }
 

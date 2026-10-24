@@ -18,6 +18,7 @@ export function createRunRegisteredQueryTool(
       try {
         support.throwIfAborted()
         const result = await runRegisteredAiQuery({
+          ctx: input.auditContext,
           conversationId: input.conversationId,
           userId: input.userId,
           templateCode,
