@@ -1,25 +1,31 @@
-import { queryResultLimit } from '#ai/registry/ai_agent_query_helpers'
+import {
+  queryPageMessage,
+  queryPageParameter,
+  queryPageSize,
+} from '#ai/registry/ai_agent_query_helpers'
 import type { AiQueryTemplate } from '#ai/registry/ai_agent_query_types'
 import Role from '#models/role'
 import { permissionCatalogCodes } from '#services/permission_catalog'
 
 export const rolesWithPermissionsQuery: AiQueryTemplate = {
   code: 'roles_with_permissions',
-  version: 1,
-  description: 'List roles with assigned permissions and user counts.',
+  version: 2,
+  description:
+    'List roles with every assigned permission and user counts; roles can be paginated with params.page.',
   permission: 'roles:read',
-  parameters: {},
-  async execute() {
+  parameters: { page: queryPageParameter },
+  async execute(params) {
     const roles = await Role.query()
       .preload('permissions', (query) =>
-        query.whereIn('code', permissionCatalogCodes).orderBy('code').limit(200)
+        query.whereIn('code', permissionCatalogCodes).orderBy('code')
       )
       .withCount('users')
       .orderBy('is_system', 'desc')
       .orderBy('name')
-      .limit(queryResultLimit)
+      .orderBy('code')
+      .paginate(params.page as number, queryPageSize)
     return {
-      rows: roles.map((role) => ({
+      rows: roles.all().map((role) => ({
         id: role.id,
         code: role.code,
         name: role.name,
@@ -32,6 +38,7 @@ export const rolesWithPermissionsQuery: AiQueryTemplate = {
           name: permission.name,
         })),
       })),
+      message: queryPageMessage(roles.getMeta()),
     }
   },
 }

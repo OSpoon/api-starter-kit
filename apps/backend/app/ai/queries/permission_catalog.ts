@@ -1,11 +1,10 @@
-import { queryResultLimit } from '#ai/registry/ai_agent_query_helpers'
 import type { AiQueryTemplate } from '#ai/registry/ai_agent_query_types'
 import Permission from '#models/permission'
 import { permissionCatalogCodes } from '#services/permission_catalog'
 
 export const permissionCatalogQuery: AiQueryTemplate = {
   code: 'permission_catalog',
-  version: 1,
+  version: 2,
   description: 'List permission catalog entries with role reference counts.',
   permission: 'permissions:read',
   parameters: {},
@@ -15,7 +14,6 @@ export const permissionCatalogQuery: AiQueryTemplate = {
       .withCount('roles')
       .orderBy('group_name')
       .orderBy('code')
-      .limit(queryResultLimit)
     return {
       rows: permissions.map((permission) => ({
         id: permission.id,

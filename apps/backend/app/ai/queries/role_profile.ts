@@ -6,7 +6,7 @@ import { permissionCatalogCodes } from '#services/permission_catalog'
 
 export const roleProfileQuery: AiQueryTemplate = {
   code: 'role_profile',
-  version: 1,
+  version: 2,
   description: 'Look up one role by its stable code with assigned permissions and user count.',
   permission: 'roles:read',
   parameters: {

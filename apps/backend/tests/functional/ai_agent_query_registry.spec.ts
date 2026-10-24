@@ -399,7 +399,19 @@ test.group('AI agent registered queries', (group) => {
       kind: 'query_result',
       templateCode: 'permission_usage',
       rows: [],
+      message: 'No permission matched that code.',
     })
+
+    const catalogResult = await runRegisteredAiQuery({
+      conversationId: conversation.id,
+      userId: user.id,
+      templateCode: 'permission_catalog',
+      params: {},
+    })
+    assert.equal(catalogResult.kind, 'query_result')
+    if (catalogResult.kind !== 'query_result')
+      throw new Error('Expected permission catalog query result')
+    assert.notInclude(JSON.stringify(catalogResult.rows), permission.code)
   })
 
   test('redacts recent access-control change actors and omits metadata', async ({ assert }) => {
@@ -472,7 +484,7 @@ test.group('AI agent registered queries', (group) => {
     assert.notInclude(JSON.stringify(result.rows), user.email)
   })
 
-  test('uses bounded, permission-scoped templates for API Key, role, and permission lists', async ({
+  test('uses permission-scoped templates for API Key, role, and permission lists', async ({
     assert,
   }) => {
     const { user, conversation } = await createAdminConversation()
@@ -538,10 +550,10 @@ test.group('AI agent registered queries', (group) => {
     assert.equal(permissionResult.kind, 'query_result')
     if (permissionResult.kind !== 'query_result')
       throw new Error('Expected permission query result')
-    assert.deepInclude(permissionResult.rows, {
-      id: permission.id,
-      code: permission.code,
-    })
+    assert.include(
+      permissionResult.rows.map((row) => (row as { code: string }).code),
+      permission.code
+    )
     const queryAudits = await AuditLog.query()
       .where('action', 'agent.query_executed')
       .where('actor_user_id', user.id)
@@ -552,6 +564,48 @@ test.group('AI agent registered queries', (group) => {
       'roles_with_permissions',
       'permission_catalog',
     ])
+  })
+
+  test('paginates AI query results without dropping later rows', async ({ assert }) => {
+    const { user, conversation } = await createAdminConversation()
+    const suffix = Date.now()
+    const keys = []
+    for (let index = 0; index < 21; index += 1) {
+      keys.push(
+        await ApiKey.create({
+          name: `Paged key ${suffix}-${index}`,
+          prefix: `p${String(suffix).slice(-5)}${index.toString().padStart(2, '0')}`,
+          keyHash: `hash-paged-${suffix}-${index}`,
+        })
+      )
+    }
+
+    const pageOne = await runRegisteredAiQuery({
+      conversationId: conversation.id,
+      userId: user.id,
+      templateCode: 'active_api_keys',
+      params: { page: 1 },
+    })
+    const pageTwo = await runRegisteredAiQuery({
+      conversationId: conversation.id,
+      userId: user.id,
+      templateCode: 'active_api_keys',
+      params: { page: 2 },
+    })
+    assert.equal(pageOne.kind, 'query_result')
+    assert.equal(pageTwo.kind, 'query_result')
+    if (pageOne.kind !== 'query_result' || pageTwo.kind !== 'query_result') {
+      throw new Error('Expected paginated API Key query results')
+    }
+
+    assert.lengthOf(pageOne.rows, 20)
+    assert.lengthOf(pageTwo.rows, 1)
+    assert.include(pageOne.message ?? '', 'Request page=2 to continue.')
+    assert.include(pageTwo.message ?? '', 'This is the final page.')
+    assert.sameMembers(
+      [...pageOne.rows, ...pageTwo.rows].map((row) => (row as { id: number }).id),
+      keys.map((key) => key.id)
+    )
   })
 
   test('validates role-query parameters and denies every new access-control template', async ({

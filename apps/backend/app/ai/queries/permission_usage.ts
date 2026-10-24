@@ -6,7 +6,7 @@ import { permissionCatalogCodes } from '#services/permission_catalog'
 
 export const permissionUsageQuery: AiQueryTemplate = {
   code: 'permission_usage',
-  version: 1,
+  version: 2,
   description: 'Look up one permission by its stable code and the roles that currently use it.',
   permission: 'permissions:read',
   parameters: {
