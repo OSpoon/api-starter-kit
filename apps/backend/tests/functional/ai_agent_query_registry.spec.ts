@@ -349,9 +349,7 @@ test.group('AI agent registered queries', (group) => {
     assert.notInclude(JSON.stringify(audit.metadata), 'not-an-id')
   })
 
-  test('returns current role and permission assignments through permission-scoped templates', async ({
-    assert,
-  }) => {
+  test('omits unregistered permissions from permission-scoped templates', async ({ assert }) => {
     const { user, conversation } = await createAdminConversation()
     const suffix = Date.now()
     const permission = await Permission.create({
@@ -386,14 +384,7 @@ test.group('AI agent registered queries', (group) => {
           description: 'Can view reports',
           isSystem: false,
           userCount: 0,
-          permissions: [
-            {
-              id: permission.id,
-              code: permission.code,
-              name: 'View reports',
-              groupName: 'Reports',
-            },
-          ],
+          permissions: [],
         },
       ],
     })
@@ -407,17 +398,7 @@ test.group('AI agent registered queries', (group) => {
     assert.deepEqual(permissionResult, {
       kind: 'query_result',
       templateCode: 'permission_usage',
-      rows: [
-        {
-          id: permission.id,
-          code: permission.code,
-          name: 'View reports',
-          groupName: 'Reports',
-          description: 'Allows viewing reports',
-          isSystem: false,
-          roles: [{ id: role.id, code: role.code, name: 'Reporter', isSystem: false }],
-        },
-      ],
+      rows: [],
     })
   })
 
@@ -501,13 +482,7 @@ test.group('AI agent registered queries', (group) => {
       prefix: `q${suffix}`,
       keyHash: `hash-${suffix}`,
     })
-    const permission = await Permission.create({
-      code: `reports:${suffix}`,
-      name: 'View reports',
-      groupName: 'Reports',
-      description: 'Allows viewing reports',
-      isSystem: false,
-    })
+    const permission = await Permission.findByOrFail('code', 'dashboard:view')
     const role = await Role.create({
       code: `reporter-${suffix}`,
       name: 'Reporter',
@@ -566,11 +541,6 @@ test.group('AI agent registered queries', (group) => {
     assert.deepInclude(permissionResult.rows, {
       id: permission.id,
       code: permission.code,
-      name: permission.name,
-      groupName: permission.groupName,
-      description: permission.description,
-      isSystem: false,
-      roleCount: 1,
     })
     const queryAudits = await AuditLog.query()
       .where('action', 'agent.query_executed')

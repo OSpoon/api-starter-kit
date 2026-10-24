@@ -14,6 +14,7 @@ import {
   updateRoleWithPermissions,
 } from '#services/access_control_mutations'
 import { recordAuditEvent } from '#services/audit_log'
+import { permissionCatalogCodes } from '#services/permission_catalog'
 
 async function resolveRoleId(input: Record<string, unknown>) {
   const value = input.roleId
@@ -22,15 +23,6 @@ async function resolveRoleId(input: Record<string, unknown>) {
   const role = await Role.findBy('code', code)
   if (!role) throw new Error('角色不存在')
   return role.id
-}
-
-async function resolvePermissionId(input: Record<string, unknown>) {
-  const value = input.permissionId
-  if (value !== undefined) return integer({ permissionId: value }, 'permissionId')
-  const code = string(input, 'code', 100)
-  const permission = await Permission.findBy('code', code)
-  if (!permission) throw new Error('权限不存在')
-  return permission.id
 }
 
 function permissionIds(input: Record<string, unknown>) {
@@ -45,7 +37,9 @@ function permissionIds(input: Record<string, unknown>) {
 }
 
 async function ensurePermissionIds(ids: number[]) {
-  const permissions = await Permission.query().whereIn('id', ids)
+  const permissions = await Permission.query()
+    .whereIn('id', ids)
+    .whereIn('code', permissionCatalogCodes)
   return permissions.length === ids.length
 }
 
@@ -173,119 +167,6 @@ const deleteRoleAction: AiAgentActionImplementation = {
   },
 }
 
-const createPermissionAction: AiAgentActionImplementation = {
-  permission: 'permissions:create',
-  async prepare(input) {
-    const code = string(input, 'code', 100)
-    if (!/^[a-z0-9-]+:[a-z0-9-]+$/.test(code)) throw new Error('权限代码无效')
-    if (await Permission.findBy('code', code)) throw new Error('权限代码已存在')
-    return {
-      targetType: 'permission',
-      targetId: code,
-      targetSummary: { code, name: string(input, 'name', 120) },
-      payload: {
-        code,
-        name: string(input, 'name', 120),
-        groupName: string(input, 'groupName', 120),
-        description: optionalDescription(input),
-      },
-    }
-  },
-  async execute({ confirmation, ctx }) {
-    const actor = await ensurePermission(ctx, 'permissions:create')
-    const payload = confirmation.payload
-    const code = string(payload, 'code', 100)
-    if (await Permission.findBy('code', code)) throw new Error('权限代码已存在')
-    const permission = await Permission.create({
-      code,
-      name: string(payload, 'name', 120),
-      groupName: string(payload, 'groupName', 120),
-      description: optionalDescription(payload),
-    })
-    await recordAuditEvent(ctx, {
-      actorUserId: actor.id,
-      action: 'permission.created',
-      targetType: 'permission',
-      targetId: permission.id,
-      metadata: { code, source: 'ai_agent' },
-    })
-  },
-}
-
-const updatePermissionAction: AiAgentActionImplementation = {
-  permission: 'permissions:update',
-  async prepare(input) {
-    const permission = await Permission.find(await resolvePermissionId(input))
-    if (!permission || permission.isSystem) throw new Error('权限不存在或不可编辑')
-    return {
-      targetType: 'permission',
-      targetId: String(permission.id),
-      targetSummary: { code: permission.code, name: permission.name },
-      payload: {
-        permissionId: permission.id,
-        name: string(input, 'name', 120),
-        groupName: string(input, 'groupName', 120),
-        description: optionalDescription(input),
-      },
-    }
-  },
-  async execute({ confirmation, ctx }) {
-    const actor = await ensurePermission(ctx, 'permissions:update')
-    const payload = confirmation.payload
-    const permission = await Permission.find(integer(payload, 'permissionId'))
-    if (!permission || permission.isSystem) throw new Error('权限不存在或不可编辑')
-    permission.name = string(payload, 'name', 120)
-    permission.groupName = string(payload, 'groupName', 120)
-    permission.description = optionalDescription(payload)
-    await permission.save()
-    await recordAuditEvent(ctx, {
-      actorUserId: actor.id,
-      action: 'permission.updated',
-      targetType: 'permission',
-      targetId: permission.id,
-      metadata: { code: permission.code, source: 'ai_agent' },
-    })
-  },
-}
-
-const deletePermissionAction: AiAgentActionImplementation = {
-  permission: 'permissions:delete',
-  async prepare(input) {
-    const permission = await Permission.query()
-      .where('id', await resolvePermissionId(input))
-      .withCount('roles')
-      .first()
-    if (!permission) throw new Error('权限不存在')
-    if (permission.isSystem || Number(permission.$extras.roles_count ?? 0) > 0) {
-      throw new Error('系统权限或仍被角色引用的权限不可删除')
-    }
-    return {
-      targetType: 'permission',
-      targetId: String(permission.id),
-      targetSummary: { code: permission.code, name: permission.name },
-      payload: { permissionId: permission.id },
-    }
-  },
-  async execute({ confirmation, ctx }) {
-    const actor = await ensurePermission(ctx, 'permissions:delete')
-    const permission = await Permission.query()
-      .where('id', integer(confirmation.payload, 'permissionId'))
-      .withCount('roles')
-      .first()
-    if (!permission || permission.isSystem || Number(permission.$extras.roles_count ?? 0) > 0) {
-      throw new Error('权限不存在、受保护或仍被角色引用')
-    }
-    await permission.delete()
-    await recordAuditEvent(ctx, {
-      actorUserId: actor.id,
-      action: 'permission.deleted',
-      targetType: 'permission',
-      targetId: permission.id,
-      metadata: { code: permission.code, source: 'ai_agent' },
-    })
-  },
-}
-
 export const accessControlActions = {
   create_role: defineAiAgentAction(createRoleAction, {
     impact: 'standard',
@@ -304,26 +185,6 @@ export const accessControlActions = {
     ],
   }),
   delete_role: defineAiAgentAction(deleteRoleAction, {
-    impact: 'destructive',
-    summarize: () => [{ field: 'result', value: 'permanently_deleted' }],
-  }),
-  create_permission: defineAiAgentAction(createPermissionAction, {
-    impact: 'standard',
-    summarize: (payload) => [
-      { field: 'code', value: summaryValue(payload, 'code') },
-      { field: 'name', value: summaryValue(payload, 'name') },
-      { field: 'group', value: summaryValue(payload, 'groupName') },
-    ],
-  }),
-  update_permission: defineAiAgentAction(updatePermissionAction, {
-    impact: 'standard',
-    summarize: (payload) => [
-      { field: 'name', value: summaryValue(payload, 'name') },
-      { field: 'group', value: summaryValue(payload, 'groupName') },
-      { field: 'description', value: summaryValue(payload, 'description') },
-    ],
-  }),
-  delete_permission: defineAiAgentAction(deletePermissionAction, {
     impact: 'destructive',
     summarize: () => [{ field: 'result', value: 'permanently_deleted' }],
   }),

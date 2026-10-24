@@ -296,15 +296,6 @@ router
           .get('permissions', [PermissionsController, 'index'])
           .use(middleware.permission(['permissions:read']))
         router
-          .post('permissions', [PermissionsController, 'store'])
-          .use(middleware.permission(['permissions:create']))
-        router
-          .put('permissions/:id', [PermissionsController, 'update'])
-          .use(middleware.permission(['permissions:update']))
-        router
-          .delete('permissions/:id', [PermissionsController, 'destroy'])
-          .use(middleware.permission(['permissions:delete']))
-        router
           .get('audit-logs', [AuditLogsController, 'index'])
           .use(middleware.permission(['audit-logs:read']))
       })

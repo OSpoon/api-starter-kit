@@ -2,10 +2,8 @@ import type { Ref } from 'vue'
 import { toast } from 'vue-sonner'
 
 import {
-  createSystemPermission,
   createSystemRole,
   createSystemUser,
-  deleteSystemPermission,
   deleteSystemRole,
   deleteSystemUser,
   listSystemPermissionCatalog,
@@ -19,7 +17,6 @@ import {
   type SystemRole,
   type SystemRoleOption,
   type SystemUser,
-  updateSystemPermission,
   updateSystemRole,
   updateSystemUser,
 } from '@/features/access-control/api'
@@ -34,13 +31,6 @@ export type ManagedRolePayload = {
   description: string
   permissionIds: number[]
 }
-export type ManagedPermissionPayload = {
-  code: string
-  name: string
-  groupName: string
-  description: string
-}
-
 export function useAccessControlManagement(mode: Ref<AccessControlMode>) {
   const auth = useAuthStore()
   const { copy: copyText } = useCopyText()
@@ -62,10 +52,8 @@ export function useAccessControlManagement(mode: Ref<AccessControlMode>) {
   const initialPasswordDialogOpen = ref(false)
   const resetPasswordDialogOpen = ref(false)
   const roleDialogOpen = ref(false)
-  const permissionDialogOpen = ref(false)
   const deleteRoleDialogOpen = ref(false)
   const deleteUserDialogOpen = ref(false)
-  const deletePermissionDialogOpen = ref(false)
   const initialPasswordCopied = ref(false)
   const initialPasswordCopiedReset = useTimeoutFn(
     () => {
@@ -76,7 +64,6 @@ export function useAccessControlManagement(mode: Ref<AccessControlMode>) {
   )
   const selectedUser = ref<SystemUser | null>(null)
   const selectedRole = ref<SystemRole | null>(null)
-  const selectedPermission = ref<SystemPermission | null>(null)
   const createdInitialPassword = ref('')
   const permissionGroups = computed(() =>
     [...new Set(permissionCatalog.value.map((permission) => permission.groupName))].sort()
@@ -145,14 +132,9 @@ export function useAccessControlManagement(mode: Ref<AccessControlMode>) {
     selectedRole.value = role ?? null
     roleDialogOpen.value = true
   }
-  function openPermission(permission?: SystemPermission) {
-    selectedPermission.value = permission ?? null
-    permissionDialogOpen.value = true
-  }
   function openCreate() {
     if (mode.value === 'users') openUser()
     if (mode.value === 'roles') openRole()
-    if (mode.value === 'permissions') openPermission()
   }
 
   async function saveUser(payload: ManagedUserPayload) {
@@ -195,27 +177,6 @@ export function useAccessControlManagement(mode: Ref<AccessControlMode>) {
     }
   }
 
-  async function savePermission(payload: ManagedPermissionPayload) {
-    saving.value = true
-    try {
-      const normalized = { ...payload, description: payload.description || null }
-      if (selectedPermission.value) {
-        await updateSystemPermission(auth.token, selectedPermission.value.id, {
-          name: normalized.name,
-          groupName: normalized.groupName,
-          description: normalized.description,
-        })
-      } else await createSystemPermission(auth.token, normalized)
-      await load()
-      permissionDialogOpen.value = false
-      toast.success(t('common.success'))
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : t('common.error'))
-    } finally {
-      saving.value = false
-    }
-  }
-
   async function reloadAfterRemoval(itemCount: number) {
     const nextPage = itemCount <= 1 && page.value > 1 ? page.value - 1 : page.value
     if (nextPage !== page.value) page.value = nextPage
@@ -242,20 +203,6 @@ export function useAccessControlManagement(mode: Ref<AccessControlMode>) {
       await deleteSystemRole(auth.token, selectedRole.value.id)
       await reloadAfterRemoval(roles.value.length)
       deleteRoleDialogOpen.value = false
-      toast.success(t('common.success'))
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : t('common.error'))
-    } finally {
-      saving.value = false
-    }
-  }
-  async function removePermission() {
-    if (!selectedPermission.value) return
-    saving.value = true
-    try {
-      await deleteSystemPermission(auth.token, selectedPermission.value.id)
-      await reloadAfterRemoval(permissions.value.length)
-      deletePermissionDialogOpen.value = false
       toast.success(t('common.success'))
     } catch (error) {
       toast.error(error instanceof Error ? error.message : t('common.error'))
@@ -343,26 +290,20 @@ export function useAccessControlManagement(mode: Ref<AccessControlMode>) {
     initialPasswordDialogOpen,
     resetPasswordDialogOpen,
     roleDialogOpen,
-    permissionDialogOpen,
     deleteRoleDialogOpen,
     deleteUserDialogOpen,
-    deletePermissionDialogOpen,
     selectedUser,
     selectedRole,
-    selectedPermission,
     createdInitialPassword,
     initialPasswordCopied,
     load,
     openCreate,
     openUser,
     openRole,
-    openPermission,
     saveUser,
     saveRole,
-    savePermission,
     removeUser,
     removeRole,
-    removePermission,
     resetUserPassword,
     copyInitialPassword,
     copyPermissionCode,

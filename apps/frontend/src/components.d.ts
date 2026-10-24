@@ -46,7 +46,6 @@ declare module 'vue' {
     PageHeader: typeof import('./components/common/PageHeader.vue')['default']
     PageShell: typeof import('./components/common/PageShell.vue')['default']
     PasswordStrength: typeof import('./components/PasswordStrength.vue')['default']
-    PermissionDialog: typeof import('./components/access-control/PermissionDialog.vue')['default']
     PermissionRolesPopover: typeof import('./components/access-control/PermissionRolesPopover.vue')['default']
     PermissionTransfer: typeof import('./components/common/PermissionTransfer.vue')['default']
     RoleDialog: typeof import('./components/access-control/RoleDialog.vue')['default']

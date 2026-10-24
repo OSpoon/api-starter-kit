@@ -2,13 +2,9 @@ import type { HttpContext } from '@adonisjs/core/http'
 import { ApiResponse } from '@foadonis/openapi/decorators'
 
 import Permission from '#models/permission'
-import { recordAuditEvent } from '#services/audit_log'
+import { permissionCatalogCodes } from '#services/permission_catalog'
 import { clampLimit } from '#support/pagination'
-import {
-  createPermissionValidator,
-  listAccessControlValidator,
-  updatePermissionValidator,
-} from '#validators/rbac'
+import { listAccessControlValidator } from '#validators/rbac'
 
 function serializePermission(permission: Permission) {
   return {
@@ -29,7 +25,10 @@ function serializePermission(permission: Permission) {
 
 export default class PermissionsController {
   async catalog({ serialize }: HttpContext) {
-    const permissions = await Permission.query().orderBy('group_name').orderBy('code')
+    const permissions = await Permission.query()
+      .whereIn('code', permissionCatalogCodes)
+      .orderBy('group_name')
+      .orderBy('code')
     return serialize(
       permissions.map((permission) => ({
         id: permission.id,
@@ -47,6 +46,7 @@ export default class PermissionsController {
     const search = filters.search ?? ''
     const groupName = filters.groupName ?? ''
     const query = Permission.query()
+      .whereIn('code', permissionCatalogCodes)
       .withCount('roles')
       .preload('roles', (roles) => roles.select(['id', 'code', 'name']))
       .orderBy('group_name')
@@ -63,60 +63,5 @@ export default class PermissionsController {
     if (groupName) query.where('group_name', groupName)
     const paginator = await query.paginate(page, clampLimit(filters.limit, 20, 100))
     return serialize({ items: paginator.all().map(serializePermission), meta: paginator.getMeta() })
-  }
-
-  async store(ctx: HttpContext) {
-    const { auth, request, serialize } = ctx
-    const payload = await request.validateUsing(createPermissionValidator)
-    const permission = await Permission.create({
-      ...payload,
-      description: payload.description ?? null,
-    })
-    await recordAuditEvent(ctx, {
-      actorUserId: auth.getUserOrFail().id,
-      action: 'permission.created',
-      targetType: 'permission',
-      targetId: permission.id,
-      metadata: { code: permission.code },
-    })
-    return serialize(serializePermission(permission))
-  }
-
-  async update(ctx: HttpContext) {
-    const { auth, params, request, response, serialize } = ctx
-    const permission = await Permission.findOrFail(params.id)
-    if (permission.isSystem) return response.forbidden({ message: '系统内置权限不可编辑' })
-    const payload = await request.validateUsing(updatePermissionValidator)
-    permission.merge({ ...payload, description: payload.description ?? null })
-    await permission.save()
-    await recordAuditEvent(ctx, {
-      actorUserId: auth.getUserOrFail().id,
-      action: 'permission.updated',
-      targetType: 'permission',
-      targetId: permission.id,
-      metadata: { code: permission.code },
-    })
-    return serialize(serializePermission(permission))
-  }
-
-  async destroy(ctx: HttpContext) {
-    const { auth, params, response, serialize } = ctx
-    const permission = await Permission.query()
-      .where('id', params.id)
-      .withCount('roles')
-      .firstOrFail()
-    if (permission.isSystem) return response.forbidden({ message: '系统内置权限不可删除' })
-    if (Number(permission.$extras.roles_count ?? 0) > 0) {
-      return response.conflict({ message: '权限仍被角色引用，无法删除' })
-    }
-    await permission.delete()
-    await recordAuditEvent(ctx, {
-      actorUserId: auth.getUserOrFail().id,
-      action: 'permission.deleted',
-      targetType: 'permission',
-      targetId: permission.id,
-      metadata: { code: permission.code },
-    })
-    return serialize({ id: permission.id, deleted: true })
   }
 }

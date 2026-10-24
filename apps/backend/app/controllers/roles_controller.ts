@@ -8,6 +8,7 @@ import {
   updateRoleWithPermissions,
 } from '#services/access_control_mutations'
 import { recordAuditEvent } from '#services/audit_log'
+import { permissionCatalogCodes } from '#services/permission_catalog'
 import { clampLimit } from '#support/pagination'
 import {
   createRoleValidator,
@@ -41,7 +42,7 @@ export default class RolesController {
     const page = Number(filters.page ?? 1)
     const search = filters.search ?? ''
     const query = Role.query()
-      .preload('permissions')
+      .preload('permissions', (permissions) => permissions.whereIn('code', permissionCatalogCodes))
       .withCount('users')
       .orderBy('is_system', 'desc')
       .orderBy('name')

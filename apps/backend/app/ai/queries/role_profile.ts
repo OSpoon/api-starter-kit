@@ -2,6 +2,7 @@ import { z } from 'zod'
 
 import type { AiQueryTemplate } from '#ai/registry/ai_agent_query_types'
 import Role from '#models/role'
+import { permissionCatalogCodes } from '#services/permission_catalog'
 
 export const roleProfileQuery: AiQueryTemplate = {
   code: 'role_profile',
@@ -18,7 +19,9 @@ export const roleProfileQuery: AiQueryTemplate = {
   async execute(params) {
     const role = await Role.query()
       .where('code', params.roleCode as string)
-      .preload('permissions', (query) => query.orderBy('code'))
+      .preload('permissions', (query) =>
+        query.whereIn('code', permissionCatalogCodes).orderBy('code')
+      )
       .withCount('users')
       .first()
     if (!role) return { rows: [], message: 'No role matched that code.' }

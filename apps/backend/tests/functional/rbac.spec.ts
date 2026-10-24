@@ -225,7 +225,10 @@ test.group('rbac', (group) => {
     assert.isNull(await User.findBy('email', email))
   })
 
-  test('validates role permission IDs before updating role fields', async ({ client, assert }) => {
+  test('validates registered role permission IDs before updating role fields', async ({
+    client,
+    assert,
+  }) => {
     const superAdminRole = await Role.findByOrFail('code', 'super-admin')
     const admin = await User.create({
       fullName: 'Role update admin',
@@ -258,6 +261,17 @@ test.group('rbac', (group) => {
         .where('targetId', String(role.id))
         .first()
     )
+
+    const unregisteredPermission = await Permission.create({
+      code: `retired-permission-${Date.now()}:read`,
+      name: 'Retired permission',
+      groupName: 'Retired',
+    })
+    const unregisteredResponse = await client
+      .put(`/api/v1/system/roles/${role.id}`)
+      .bearerToken(bearerToken)
+      .json({ name: 'Changed role', permissionIds: [unregisteredPermission.id] })
+    unregisteredResponse.assertStatus(409)
 
     const code = `invalid-permission-${Date.now()}`
     const createResponse = await client
@@ -488,7 +502,7 @@ test.group('rbac', (group) => {
     assert.isNotNull(await User.find(superAdmin.id))
   })
 
-  test('records permission changes and protects the audit log endpoint', async ({
+  test('keeps the permission directory read-only and protects the audit log endpoint', async ({
     client,
     assert,
   }) => {
@@ -500,23 +514,27 @@ test.group('rbac', (group) => {
     })
     await admin.related('roles').sync([superAdminRole.id])
     const adminToken = await User.accessTokens.create(admin)
+    const adminBearerToken = adminToken.value!.release()
 
     const createResponse = await client
       .post('/api/v1/system/permissions')
-      .bearerToken(adminToken.value!.release())
-      .json({
-        code: `reports-${Date.now()}:read`,
-        name: 'Read reports',
-        groupName: 'Reports',
-      })
-    createResponse.assertStatus(200)
-
-    const auditLog = await AuditLog.query()
-      .where('action', 'permission.created')
-      .where('actorUserId', admin.id)
-      .firstOrFail()
-    assert.equal(auditLog.actorUserId, admin.id)
-    assert.equal(auditLog.targetType, 'permission')
+      .bearerToken(adminBearerToken)
+    createResponse.assertStatus(404)
+    const updateResponse = await client
+      .put('/api/v1/system/permissions/1')
+      .bearerToken(adminBearerToken)
+      .json({ name: 'Changed permission', groupName: 'Changed' })
+    updateResponse.assertStatus(404)
+    const deleteResponse = await client
+      .delete('/api/v1/system/permissions/1')
+      .bearerToken(adminBearerToken)
+    deleteResponse.assertStatus(404)
+    assert.isNull(
+      await AuditLog.query()
+        .whereIn('action', ['permission.created', 'permission.updated', 'permission.deleted'])
+        .where('actorUserId', admin.id)
+        .first()
+    )
 
     const readerPermission = await Permission.findByOrFail('code', 'permissions:read')
     const readerRole = await Role.create({
@@ -539,7 +557,7 @@ test.group('rbac', (group) => {
 
     const allowedResponse = await client
       .get('/api/v1/system/audit-logs')
-      .bearerToken(adminToken.value!.release())
+      .bearerToken(adminBearerToken)
     allowedResponse.assertStatus(200)
 
     const searchId = String(Date.now())
@@ -611,11 +629,7 @@ test.group('rbac', (group) => {
       password: generateInitialPassword(),
     })
     const role = await Role.create({ code: `search-role-${searchId}`, name: 'Search role' })
-    const permission = await Permission.create({
-      code: `search-permission-${searchId}:read`,
-      name: 'Search permission',
-      groupName: `Search group ${searchId}`,
-    })
+    const permission = await Permission.findByOrFail('code', 'dashboard:view')
     await role.related('permissions').sync([permission.id])
 
     const userResponse = await client
@@ -653,9 +667,7 @@ test.group('rbac', (group) => {
     assert.isTrue(roleItems.some((item) => item.id === role.id))
 
     const permissionResponse = await client
-      .get(
-        `/api/v1/system/permissions?search=${encodeURIComponent(searchId)}&groupName=${encodeURIComponent(permission.groupName)}`
-      )
+      .get(`/api/v1/system/permissions?search=${encodeURIComponent(permission.code)}`)
       .bearerToken(bearerToken)
     permissionResponse.assertStatus(200)
     const permissionItems = (
@@ -670,7 +682,19 @@ test.group('rbac', (group) => {
     ).data.items
     const permissionItem = permissionItems.find((item) => item.id === permission.id)
     assert.exists(permissionItem)
-    assert.deepEqual(permissionItem?.roles, [{ id: role.id, code: role.code, name: role.name }])
+    assert.isTrue(permissionItem?.roles.some((item) => item.id === role.id))
+
+    const unregisteredPermissionResponse = await client
+      .get(`/api/v1/system/permissions?search=${encodeURIComponent(searchId)}`)
+      .bearerToken(bearerToken)
+    unregisteredPermissionResponse.assertStatus(200)
+    assert.isEmpty(
+      (
+        unregisteredPermissionResponse.body() as {
+          data: { items: Array<{ id: number }> }
+        }
+      ).data.items
+    )
 
     const invalidRoleQuery = await client
       .get('/api/v1/system/roles?page=0')

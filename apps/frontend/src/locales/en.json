@@ -865,9 +865,7 @@
     },
     "permissions": {
       "title": "Permission catalog",
-      "desc": "Built-in and custom permission codes that roles can be granted.",
-      "create": "Create permission",
-      "edit": "Edit permission",
+      "desc": "Permission codes maintained in the code catalog and database migrations, for role assignment.",
       "name": "Permission name",
       "code": "Permission code",
       "description": "Permission description (optional)",
@@ -882,11 +880,7 @@
       "view_roles": "View roles using this permission",
       "roles_title": "Roles using this permission",
       "no_roles": "No roles use this permission",
-      "copy_code": "Copy permission code",
-      "delete_disabled": "Permission is still assigned to roles",
-      "form_desc": "Permission codes cannot be changed after creation. Use resource:action format.",
-      "delete_title": "Delete permission",
-      "delete_desc": "Every role will lose this permission."
+      "copy_code": "Copy permission code"
     }
   },
   "audit_logs": {

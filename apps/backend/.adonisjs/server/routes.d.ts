@@ -63,9 +63,6 @@ export type ScannedRoutes = {
     'roles.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'permissions.catalog': { paramsTuple?: []; params?: {} }
     'permissions.index': { paramsTuple?: []; params?: {} }
-    'permissions.store': { paramsTuple?: []; params?: {} }
-    'permissions.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
-    'permissions.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'audit_logs.index': { paramsTuple?: []; params?: {} }
     'ai_chat.index': { paramsTuple?: []; params?: {} }
     'ai_chat.usage': { paramsTuple?: []; params?: {} }
@@ -173,7 +170,6 @@ export type ScannedRoutes = {
     'users.store': { paramsTuple?: []; params?: {} }
     'users.reset_password': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'roles.store': { paramsTuple?: []; params?: {} }
-    'permissions.store': { paramsTuple?: []; params?: {} }
     'ai_chat.store': { paramsTuple?: []; params?: {} }
     'ai_chat.transcribe': { paramsTuple?: []; params?: {} }
     'ai_chat.send_message': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
@@ -197,7 +193,6 @@ export type ScannedRoutes = {
     'knowledge_documents.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'users.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'roles.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
-    'permissions.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
   }
   DELETE: {
     'api_keys.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
@@ -205,7 +200,6 @@ export type ScannedRoutes = {
     'knowledge_documents.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'users.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'roles.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
-    'permissions.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'ai_chat.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'integrations.ai_chat.ai_chat.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
   }

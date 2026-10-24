@@ -106,9 +106,6 @@ export interface ApiDefinition {
   permissions: {
     catalog: typeof routes['permissions.catalog']
     index: typeof routes['permissions.index']
-    store: typeof routes['permissions.store']
-    update: typeof routes['permissions.update']
-    destroy: typeof routes['permissions.destroy']
   }
   auditLogs: {
     index: typeof routes['audit_logs.index']

@@ -1,6 +1,7 @@
 import { queryResultLimit } from '#ai/registry/ai_agent_query_helpers'
 import type { AiQueryTemplate } from '#ai/registry/ai_agent_query_types'
 import Permission from '#models/permission'
+import { permissionCatalogCodes } from '#services/permission_catalog'
 
 export const permissionCatalogQuery: AiQueryTemplate = {
   code: 'permission_catalog',
@@ -10,6 +11,7 @@ export const permissionCatalogQuery: AiQueryTemplate = {
   parameters: {},
   async execute() {
     const permissions = await Permission.query()
+      .whereIn('code', permissionCatalogCodes)
       .withCount('roles')
       .orderBy('group_name')
       .orderBy('code')

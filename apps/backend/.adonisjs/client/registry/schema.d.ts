@@ -715,42 +715,6 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/permissions_controller').default['index']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
-  'permissions.store': {
-    methods: ["POST"]
-    pattern: '/api/v1/system/permissions'
-    types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/rbac').createPermissionValidator)>>
-      paramsTuple: []
-      params: {}
-      query: ExtractQuery<InferInput<(typeof import('#validators/rbac').createPermissionValidator)>>
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/permissions_controller').default['store']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/permissions_controller').default['store']>>> | { status: 422; response: { errors: SimpleError[] } }
-    }
-  }
-  'permissions.update': {
-    methods: ["PUT"]
-    pattern: '/api/v1/system/permissions/:id'
-    types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/rbac').updatePermissionValidator)>>
-      paramsTuple: [ParamValue]
-      params: { id: ParamValue }
-      query: ExtractQuery<InferInput<(typeof import('#validators/rbac').updatePermissionValidator)>>
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/permissions_controller').default['update']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/permissions_controller').default['update']>>> | { status: 422; response: { errors: SimpleError[] } }
-    }
-  }
-  'permissions.destroy': {
-    methods: ["DELETE"]
-    pattern: '/api/v1/system/permissions/:id'
-    types: {
-      body: {}
-      paramsTuple: [ParamValue]
-      params: { id: ParamValue }
-      query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/permissions_controller').default['destroy']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/permissions_controller').default['destroy']>>>
-    }
-  }
   'audit_logs.index': {
     methods: ["GET","HEAD"]
     pattern: '/api/v1/system/audit-logs'

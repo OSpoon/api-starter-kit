@@ -217,47 +217,6 @@ export async function listSystemPermissionCatalog(token: string | null) {
   )
 }
 
-export type SystemPermissionPayload = Pick<
-  SystemPermission,
-  'code' | 'name' | 'groupName' | 'description'
->
-
-export async function createSystemPermission(
-  token: string | null,
-  payload: SystemPermissionPayload
-) {
-  return readItem(
-    await apiRequest<SystemPermission>('/api/v1/system/permissions', {
-      ...authOptions(token),
-      method: 'POST',
-      body: JSON.stringify(payload),
-    })
-  )
-}
-
-export async function updateSystemPermission(
-  token: string | null,
-  id: number,
-  payload: Omit<SystemPermissionPayload, 'code'>
-) {
-  return readItem(
-    await apiRequest<SystemPermission>(`/api/v1/system/permissions/${id}`, {
-      ...authOptions(token),
-      method: 'PUT',
-      body: JSON.stringify(payload),
-    })
-  )
-}
-
-export async function deleteSystemPermission(token: string | null, id: number) {
-  return readItem(
-    await apiRequest<{ id: number; deleted: boolean }>(`/api/v1/system/permissions/${id}`, {
-      ...authOptions(token),
-      method: 'DELETE',
-    })
-  )
-}
-
 export async function listAuditLogs(
   token: string | null,
   page = 1,

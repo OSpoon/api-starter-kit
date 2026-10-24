@@ -89,6 +89,9 @@ test.group('AI agent confirmations', (group) => {
       assert.isNotNull(getAiAgentAction(action), `Missing action registration: ${action}`)
     }
     assert.notInclude(genericProposalActionNames, 'create_api_key')
+    assert.notInclude(aiAgentActionNames, 'create_permission')
+    assert.notInclude(aiAgentActionNames, 'update_permission')
+    assert.notInclude(aiAgentActionNames, 'delete_permission')
     assert.equal(getAiAgentAction('revoke_api_key')?.impact, 'destructive')
     assert.equal(getAiAgentAction('delete_api_key')?.impact, 'destructive')
     assert.equal(getAiAgentAction('create_api_key')?.impact, 'standard')

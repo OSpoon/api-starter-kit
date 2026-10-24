@@ -15,9 +15,6 @@ export const aiAgentActionNames = [
   'create_role',
   'update_role',
   'delete_role',
-  'create_permission',
-  'update_permission',
-  'delete_permission',
   'send_wecom_message',
 ] as const
 
@@ -32,9 +29,6 @@ export const genericProposalActionNames = [
   'create_role',
   'update_role',
   'delete_role',
-  'create_permission',
-  'update_permission',
-  'delete_permission',
 ] as const satisfies readonly AiAgentActionName[]
 
 export type AiAgentActionPreparation = {

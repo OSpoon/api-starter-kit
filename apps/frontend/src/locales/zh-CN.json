@@ -865,9 +865,7 @@
     },
     "permissions": {
       "title": "权限目录",
-      "desc": "系统预置和自定义权限编码，供角色进行组合授权。",
-      "create": "创建权限",
-      "edit": "编辑权限",
+      "desc": "由代码目录和数据库迁移维护的权限编码，供角色分配。",
       "name": "权限名称",
       "code": "权限编码",
       "description": "权限说明（可选）",
@@ -882,11 +880,7 @@
       "view_roles": "查看使用中的角色",
       "roles_title": "使用该权限的角色",
       "no_roles": "暂无角色使用此权限",
-      "copy_code": "复制权限编码",
-      "delete_disabled": "权限仍被角色引用，无法删除",
-      "form_desc": "权限编码创建后不可修改；请使用 resource:action 格式。",
-      "delete_title": "删除权限",
-      "delete_desc": "删除后，所有角色将失去该权限。"
+      "copy_code": "复制权限编码"
     }
   },
   "audit_logs": {

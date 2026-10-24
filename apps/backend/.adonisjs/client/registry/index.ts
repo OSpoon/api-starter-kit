@@ -360,24 +360,6 @@ const routes = {
     tokens: [{"old":"/api/v1/system/permissions","type":0,"val":"api","end":""},{"old":"/api/v1/system/permissions","type":0,"val":"v1","end":""},{"old":"/api/v1/system/permissions","type":0,"val":"system","end":""},{"old":"/api/v1/system/permissions","type":0,"val":"permissions","end":""}],
     types: placeholder as Registry['permissions.index']['types'],
   },
-  'permissions.store': {
-    methods: ["POST"],
-    pattern: '/api/v1/system/permissions',
-    tokens: [{"old":"/api/v1/system/permissions","type":0,"val":"api","end":""},{"old":"/api/v1/system/permissions","type":0,"val":"v1","end":""},{"old":"/api/v1/system/permissions","type":0,"val":"system","end":""},{"old":"/api/v1/system/permissions","type":0,"val":"permissions","end":""}],
-    types: placeholder as Registry['permissions.store']['types'],
-  },
-  'permissions.update': {
-    methods: ["PUT"],
-    pattern: '/api/v1/system/permissions/:id',
-    tokens: [{"old":"/api/v1/system/permissions/:id","type":0,"val":"api","end":""},{"old":"/api/v1/system/permissions/:id","type":0,"val":"v1","end":""},{"old":"/api/v1/system/permissions/:id","type":0,"val":"system","end":""},{"old":"/api/v1/system/permissions/:id","type":0,"val":"permissions","end":""},{"old":"/api/v1/system/permissions/:id","type":1,"val":"id","end":""}],
-    types: placeholder as Registry['permissions.update']['types'],
-  },
-  'permissions.destroy': {
-    methods: ["DELETE"],
-    pattern: '/api/v1/system/permissions/:id',
-    tokens: [{"old":"/api/v1/system/permissions/:id","type":0,"val":"api","end":""},{"old":"/api/v1/system/permissions/:id","type":0,"val":"v1","end":""},{"old":"/api/v1/system/permissions/:id","type":0,"val":"system","end":""},{"old":"/api/v1/system/permissions/:id","type":0,"val":"permissions","end":""},{"old":"/api/v1/system/permissions/:id","type":1,"val":"id","end":""}],
-    types: placeholder as Registry['permissions.destroy']['types'],
-  },
   'audit_logs.index': {
     methods: ["GET","HEAD"],
     pattern: '/api/v1/system/audit-logs',

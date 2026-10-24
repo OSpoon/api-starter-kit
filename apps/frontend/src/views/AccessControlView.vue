@@ -3,7 +3,6 @@ import { Check, Copy, Plus, RefreshCw } from '@lucide/vue'
 import { proxyRefs } from 'vue'
 
 import ManagedUserDialog from '@/components/access-control/ManagedUserDialog.vue'
-import PermissionDialog from '@/components/access-control/PermissionDialog.vue'
 import RoleDialog from '@/components/access-control/RoleDialog.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import DataTable from '@/components/common/DataTable.vue'
@@ -44,14 +43,14 @@ const management = proxyRefs(useAccessControlManagement(mode))
 const currentUserId = computed(() => auth.user?.id)
 const title = computed(() => t(`rbac.${props.mode}.title`))
 const description = computed(() => t(`rbac.${props.mode}.desc`))
-const canCreate = computed(() =>
-  props.mode === 'users'
-    ? can('users:create')
-    : props.mode === 'roles'
-      ? can('roles:create')
-      : can('permissions:create')
+const canCreate = computed(() => {
+  if (props.mode === 'users') return can('users:create')
+  if (props.mode === 'roles') return can('roles:create')
+  return false
+})
+const actionLabel = computed(() =>
+  props.mode === 'permissions' ? '' : t(`rbac.${props.mode}.create`)
 )
-const actionLabel = computed(() => t(`rbac.${props.mode}.create`))
 
 const { userColumns, roleColumns, permissionColumns } = useAccessControlColumns({
   currentUserId,
@@ -67,11 +66,6 @@ const { userColumns, roleColumns, permissionColumns } = useAccessControlColumns(
     management.deleteRoleDialogOpen = true
   },
   copyPermission: management.copyPermissionCode,
-  editPermission: management.openPermission,
-  deletePermission: (permission) => {
-    management.selectedPermission = permission
-    management.deletePermissionDialogOpen = true
-  },
 })
 </script>
 
@@ -215,14 +209,6 @@ const { userColumns, roleColumns, permissionColumns } = useAccessControlColumns(
           @save="management.saveRole"
         />
       </Dialog>
-      <Dialog v-model:open="management.permissionDialogOpen">
-        <PermissionDialog
-          v-model:open="management.permissionDialogOpen"
-          :permission="management.selectedPermission"
-          :saving="management.saving"
-          @save="management.savePermission"
-        />
-      </Dialog>
       <Dialog v-model:open="management.initialPasswordDialogOpen">
         <FormDialogContent
           :title="t('rbac.users.initial_password')"
@@ -275,14 +261,6 @@ const { userColumns, roleColumns, permissionColumns } = useAccessControlColumns(
         :confirm-label="t('common.delete')"
         :loading="management.saving"
         @confirm="management.removeUser"
-      />
-      <ConfirmDialog
-        v-model:open="management.deletePermissionDialogOpen"
-        :title="t('rbac.permissions.delete_title')"
-        :description="t('rbac.permissions.delete_desc')"
-        :confirm-label="t('common.delete')"
-        :loading="management.saving"
-        @confirm="management.removePermission"
       />
       <ConfirmDialog
         v-model:open="management.resetPasswordDialogOpen"

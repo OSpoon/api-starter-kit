@@ -19,9 +19,6 @@ export const permissionCatalog = [
   { code: 'roles:update', name: '编辑角色', groupName: '系统管理' },
   { code: 'roles:delete', name: '删除角色', groupName: '系统管理' },
   { code: 'permissions:read', name: '查看权限', groupName: '系统管理' },
-  { code: 'permissions:create', name: '创建权限', groupName: '系统管理' },
-  { code: 'permissions:update', name: '编辑权限', groupName: '系统管理' },
-  { code: 'permissions:delete', name: '删除权限', groupName: '系统管理' },
   { code: 'audit-logs:read', name: '查看审计日志', groupName: '系统管理' },
   { code: 'knowledge:read', name: '检索知识库', groupName: '系统管理' },
   { code: 'knowledge:manage', name: '管理知识库', groupName: '系统管理' },
@@ -40,3 +37,5 @@ export const permissionCatalog = [
   { code: 'ai-usage:read', name: '查看 AI 用量', groupName: 'AI 与知识' },
   todoBoardReadPermission,
 ] as const
+
+export const permissionCatalogCodes = permissionCatalog.map(({ code }) => code)

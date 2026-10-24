@@ -22,8 +22,6 @@ type AccessControlColumnActions = {
   editRole: (role: SystemRole) => void
   deleteRole: (role: SystemRole) => void
   copyPermission: (permission: SystemPermission) => void
-  editPermission: (permission: SystemPermission) => void
-  deletePermission: (permission: SystemPermission) => void
 }
 
 export function useAccessControlColumns(actions: AccessControlColumnActions) {
@@ -261,8 +259,6 @@ export function useAccessControlColumns(actions: AccessControlColumnActions) {
       header: () => h('div', { class: 'text-right' }, t('common.actions')),
       cell: ({ row }) => {
         const permission = row.original
-        const deleteLabel =
-          permission.roleCount > 0 ? t('rbac.permissions.delete_disabled') : t('common.delete')
         return h('div', { class: 'flex justify-end gap-1' }, [
           h(
             Button,
@@ -278,40 +274,6 @@ export function useAccessControlColumns(actions: AccessControlColumnActions) {
             },
             () => h(Copy, { class: 'size-4' })
           ),
-          !permission.isSystem && can('permissions:update')
-            ? h(
-                Button,
-                {
-                  variant: 'ghost',
-                  size: 'icon',
-                  title: t('common.edit'),
-                  'aria-label': t('common.edit'),
-                  onClick: (event: Event) => {
-                    event.stopPropagation()
-                    actions.editPermission(permission)
-                  },
-                },
-                () => h(Pencil, { class: 'size-4' })
-              )
-            : null,
-          !permission.isSystem && can('permissions:delete')
-            ? h(
-                Button,
-                {
-                  variant: 'ghost',
-                  size: 'icon',
-                  class: 'text-destructive',
-                  disabled: permission.roleCount > 0,
-                  title: deleteLabel,
-                  'aria-label': deleteLabel,
-                  onClick: (event: Event) => {
-                    event.stopPropagation()
-                    actions.deletePermission(permission)
-                  },
-                },
-                () => h(Trash2, { class: 'size-4' })
-              )
-            : null,
           permission.isSystem
             ? h(
                 'span',

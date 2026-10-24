@@ -8,6 +8,7 @@ import Role from '#models/role'
 import User from '#models/user'
 import { recordAuditEvent } from '#services/audit_log'
 import { isInternalUser } from '#services/channel_guest_principal'
+import { permissionCatalogCodes } from '#services/permission_catalog'
 import { countEnabledSuperAdminUsers, lockSuperAdminRole } from '#services/super_admin_access'
 
 export type MutationSource = 'api' | 'ai_agent'
@@ -148,10 +149,13 @@ async function validateUserRoleChange(input: {
 async function resolvePermissions(ids: number[], client: TransactionClientContract) {
   const normalizedIds = uniqueIds(ids)
   const permissions = normalizedIds.length
-    ? await Permission.query({ client }).whereIn('id', normalizedIds).select('id', 'code')
+    ? await Permission.query({ client })
+        .whereIn('id', normalizedIds)
+        .whereIn('code', permissionCatalogCodes)
+        .select('id', 'code')
     : []
   if (permissions.length !== normalizedIds.length) {
-    throw new AccessControlMutationError('invalid_permission_ids', '包含不存在的权限')
+    throw new AccessControlMutationError('invalid_permission_ids', '包含未注册或不存在的权限')
   }
   return { ids: normalizedIds, codes: permissions.map((permission) => permission.code) }
 }

@@ -2,6 +2,7 @@ import { z } from 'zod'
 
 import type { AiQueryTemplate } from '#ai/registry/ai_agent_query_types'
 import Permission from '#models/permission'
+import { permissionCatalogCodes } from '#services/permission_catalog'
 
 export const permissionUsageQuery: AiQueryTemplate = {
   code: 'permission_usage',
@@ -18,6 +19,7 @@ export const permissionUsageQuery: AiQueryTemplate = {
   async execute(params) {
     const permission = await Permission.query()
       .where('code', params.permissionCode as string)
+      .whereIn('code', permissionCatalogCodes)
       .preload('roles', (query) => query.orderBy('code'))
       .first()
     if (!permission) return { rows: [], message: 'No permission matched that code.' }
