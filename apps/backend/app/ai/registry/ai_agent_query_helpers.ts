@@ -5,7 +5,10 @@ export const queryPageSize = 20
 export const queryPageParameter = {
   description:
     'Optional 1-based page number; omit for page 1. Retrieve each following page through the final page when all records are requested.',
-  schema: z.coerce.number().int().min(1).default(1),
+  schema: z.preprocess(
+    (value) => (value === null || value === '' ? undefined : value),
+    z.coerce.number().int().min(1).default(1)
+  ),
 }
 
 export function queryPageMessage(meta: { currentPage: number; lastPage: number; total: number }) {

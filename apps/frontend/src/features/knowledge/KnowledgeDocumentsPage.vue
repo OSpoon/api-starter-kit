@@ -10,7 +10,6 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog } from '@/components/ui/dialog'
 import { useRemoteListSearch } from '@/composables/useRemoteListSearch'
-import { listSystemRoleCatalog, type SystemRoleOption } from '@/features/access-control/api'
 import { badgeToneClass } from '@/features/api-keys/api'
 import {
   createKnowledgeDocument,
@@ -55,7 +54,6 @@ const batchReindexCompleted = ref(0)
 const mutationBusy = computed(
   () => saving.value || deleting.value || reindexing.value || batchReindexing.value
 )
-const roles = ref<SystemRoleOption[]>([])
 const {
   open: dialogOpen,
   mounted: dialogMounted,
@@ -94,14 +92,14 @@ const columns = computed<ColumnDef<KnowledgeDocument>[]>(() => [
       ),
   },
   {
-    id: 'roles',
-    meta: { label: t('knowledge.roles') },
-    header: () => t('knowledge.roles'),
+    id: 'enabled',
+    meta: { label: t('knowledge.status') },
+    header: () => t('knowledge.status'),
     cell: ({ row }) =>
       h(
-        'span',
-        { class: 'text-sm text-muted-foreground' },
-        row.original.roles.map((role) => role.name).join(', ') || t('knowledge.all_readers')
+        Badge,
+        { variant: 'outline', class: badgeToneClass(row.original.enabled ? 'success' : 'muted') },
+        () => t(row.original.enabled ? 'knowledge.enabled' : 'knowledge.disabled')
       ),
   },
   {
@@ -321,8 +319,6 @@ async function confirmReindex() {
     reindexing.value = false
   }
 }
-
-onMounted(() => void listSystemRoleCatalog(auth.token).then((items) => (roles.value = items)))
 </script>
 
 <template>
@@ -368,7 +364,6 @@ onMounted(() => void listSystemRoleCatalog(auth.token).then((items) => (roles.va
         <KnowledgeDocumentDialog
           v-model:open="dialogOpen"
           :document="selectedDocument"
-          :roles="roles"
           :saving="saving"
           :metadata-loading="metadataLoading"
           :metadata-suggestion="metadataSuggestion"

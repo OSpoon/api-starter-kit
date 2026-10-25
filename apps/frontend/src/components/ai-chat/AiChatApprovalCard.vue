@@ -8,6 +8,7 @@ import { formatDateTime } from '@/lib/format'
 const props = defineProps<{
   approval: AiChatConfirmation
   loading?: boolean
+  cancelling?: boolean
   disabled?: boolean
 }>()
 
@@ -65,17 +66,17 @@ const sourceLabel = computed(() => {
         size="sm"
         variant="ghost"
         class="sm:min-w-24"
-        :disabled="loading || disabled"
+        :disabled="loading || cancelling || disabled"
         @click="emit('dismiss')"
       >
-        {{ approval.presentation.cancelLabel }}
+        {{ cancelling ? t('common.loading') : approval.presentation.cancelLabel }}
       </Button>
       <Button
         type="button"
         size="sm"
         variant="outline"
         class="sm:min-w-28"
-        :disabled="loading || disabled"
+        :disabled="loading || cancelling || disabled"
         @click="emit('approve')"
       >
         {{ loading ? t('common.loading') : approval.presentation.approveLabel }}

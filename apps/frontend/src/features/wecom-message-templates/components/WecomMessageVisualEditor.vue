@@ -85,6 +85,7 @@ function updateContent(value: string) {
         <Textarea
           id="wecom-visual-content"
           :model-value="String(body.content ?? '')"
+          :placeholder="t('wecom_templates.content_placeholder')"
           class="max-h-72 min-h-36 resize-y overflow-y-auto font-mono"
           @update:model-value="updateContent(String($event))"
         />
@@ -115,6 +116,7 @@ function updateContent(value: string) {
       <Textarea
         id="wecom-visual-content"
         :model-value="String(body.content ?? '')"
+        :placeholder="t('wecom_templates.content_placeholder')"
         class="max-h-72 min-h-36 resize-y overflow-y-auto"
         @update:model-value="updateContent(String($event))"
       />

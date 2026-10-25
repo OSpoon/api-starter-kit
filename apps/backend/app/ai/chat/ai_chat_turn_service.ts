@@ -17,7 +17,9 @@ import {
   isAiAgentReadTool,
   isRecoverableAiAgentReadToolError,
   maxConsecutiveAiAgentReadToolFailures,
+  sanitizeAiAgentToolErrorMessage,
 } from '#ai/core/ai_agent_tool_errors'
+import { aiAgentConfirmationNarrationPrompt } from '#ai/policy/ai_agent_prompt_policy'
 import { releaseAiAgentRun } from '#ai/runtime/ai_agent_run_registry'
 import type AiChatConversation from '#models/ai_chat_conversation'
 import AiChatMessage, {
@@ -42,7 +44,7 @@ function getSafeAiErrorMessage(error: unknown) {
   return '本次 AI 请求未完成，请稍后重试。'
 }
 
-function getTerminalToolAssistantContent(
+export function getTerminalToolAssistantContent(
   output: unknown,
   toolName: string,
   reportReadFailure: boolean
@@ -50,12 +52,23 @@ function getTerminalToolAssistantContent(
   if (!output || typeof output !== 'object' || !('kind' in output)) return null
   if (isRecoverableAiAgentReadToolError(toolName, output) && !reportReadFailure) return null
   const payload = output as { kind?: unknown; message?: unknown }
-  if (payload.kind === 'confirmation') return '已准备好管理操作提案，请在确认卡片中确认后执行。'
   if (payload.kind === 'action_error' || payload.kind === 'query_error') {
     const label = isAiAgentReadTool(toolName) ? '读取未完成' : '操作未完成'
     return typeof payload.message === 'string' ? `${label}：${payload.message}` : `${label}。`
   }
   return null
+}
+
+export function markConfirmationNarrationFailure(runtimeDetails: AiChatRuntimeDetail[]) {
+  const pendingTool = [...runtimeDetails]
+    .reverse()
+    .find((detail) => detail.kind === 'tool' && detail.phase === 'awaiting_confirmation')
+  if (pendingTool?.kind === 'tool') {
+    pendingTool.state = 'error'
+    pendingTool.phase = 'failed'
+    pendingTool.message = '无法生成操作说明，待确认操作未创建。'
+  }
+  return '我暂时无法生成清晰的操作说明，因此没有创建待确认操作。请稍后重试。'
 }
 
 export function shouldPreserveInterruptedRun(error: unknown) {
@@ -96,8 +109,11 @@ export async function runAiChatAssistantTurn(input: {
   conversation: AiChatConversation
   userId: number
   userMessage: AiChatMessage
+  assistantMessage?: AiChatMessage
   regeneration: AiChatResolvedRegeneration<AiChatMessage> | null
   capabilityMode?: import('#ai/core/ai_agent_tool_context').AiAgentCapabilityMode
+  enabledToolNames?: string[]
+  emitUserMessage?: boolean
   context?: AiAgentPageContext
   signal: AbortSignal
   response?: HttpContext['response']
@@ -109,20 +125,23 @@ export async function runAiChatAssistantTurn(input: {
     if (response) writeAiChatSse(response, event, data)
     return input.onEvent?.(event, data)
   }
-  let assistantContent = ''
+  let assistantContent = input.assistantMessage?.content ?? ''
   let agentRunId: string | null = null
-  let persistedAssistantMessage: AiChatMessage | null = null
-  let lastPersistedContentLength = 0
+  let persistedAssistantMessage = input.assistantMessage ?? null
+  let lastPersistedContentLength = assistantContent.length
   const knowledgeCitations = new Map<string, AiChatCitation>()
-  const runtimeDetails: AiChatRuntimeDetail[] = []
+  for (const citation of input.assistantMessage?.citations ?? []) {
+    knowledgeCitations.set(`${citation.documentId}:${citation.chunkId}`, citation)
+  }
+  const runtimeDetails: AiChatRuntimeDetail[] = [...(input.assistantMessage?.runtimeDetails ?? [])]
   let consecutiveReadToolFailures = 0
   const attachedConfirmations: Array<
     Awaited<ReturnType<typeof attachAgentRunConfirmations>>[number] & { messageId: number }
   > = []
   let aiFailureStage = 'initialization'
 
-  const persistAssistantMessage = async () => {
-    if (!assistantContent.trim()) return null
+  const persistAssistantMessage = async (allowEmpty = false) => {
+    if (!assistantContent.trim() && !persistedAssistantMessage && !allowEmpty) return null
 
     const attributes = {
       content: assistantContent,
@@ -149,10 +168,12 @@ export async function runAiChatAssistantTurn(input: {
 
   try {
     if (response) stopKeepalive = startAiChatSseKeepalive(response)
-    emit('user', {
-      conversation: serializeAiChatConversation(conversation),
-      message: serializeAiChatMessage(userMessage),
-    })
+    if (input.emitUserMessage !== false) {
+      emit('user', {
+        conversation: serializeAiChatConversation(conversation),
+        message: serializeAiChatMessage(userMessage),
+      })
+    }
 
     const regenerate = regeneration !== null
     if (!regenerate) {
@@ -160,14 +181,20 @@ export async function runAiChatAssistantTurn(input: {
     }
 
     const history = regenerate
-      ? regeneration.messages.map((message) => ({
-          role: message.role,
-          content: message.content,
-          id: message.id,
-        }))
+      ? regeneration.messages
+          .filter((message) => message.role !== 'assistant' || message.content.trim())
+          .map((message) => ({
+            role: message.role,
+            content: message.content,
+            id: message.id,
+          }))
       : [
           ...conversation.messages
-            .filter((message) => message.id !== userMessage.id)
+            .filter(
+              (message) =>
+                message.id !== userMessage.id &&
+                (message.role !== 'assistant' || message.content.trim())
+            )
             .map((message) => ({
               role: message.role,
               content: message.content,
@@ -190,6 +217,7 @@ export async function runAiChatAssistantTurn(input: {
       auditContext: input.ctx,
       messages: history,
       capabilityMode: input.capabilityMode,
+      enabledToolNames: input.enabledToolNames,
       context: input.context,
       signal: input.signal,
       onKnowledgeSources: (sources) => {
@@ -200,6 +228,7 @@ export async function runAiChatAssistantTurn(input: {
           citations: [...knowledgeCitations.values()],
         })
       },
+      onCredentialDisclosure: (credential) => emit('credential_disclosure', { credential }),
       onCompactionUsage: ({ usage: compactionUsage }) => {
         usage.modelCalls += 1
         usage.inputTokens += compactionUsage.input
@@ -219,12 +248,24 @@ export async function runAiChatAssistantTurn(input: {
       if (event.source === 'frame') {
         if (event.value.event === 'agent_status') {
           const status = event.value.data
+          if (status.state === 'error' && status.detail?.action && status.message) {
+            const toolError = sanitizeAiAgentToolErrorMessage(status.message)
+            if (toolError) {
+              assistantContent =
+                getTerminalToolAssistantContent(
+                  { kind: 'action_error', message: toolError },
+                  status.name,
+                  true
+                ) ?? toolError
+            }
+          }
           const detail: AiChatRuntimeDetail = {
             kind: 'tool',
             name: status.name,
             state: status.state,
             ...(status.callId ? { callId: status.callId } : {}),
             ...(status.durationMs !== undefined ? { durationMs: status.durationMs } : {}),
+            ...(status.message ? { message: status.message } : {}),
             ...(status.phase ? { phase: status.phase } : {}),
             ...(status.errorCode ? { errorCode: status.errorCode } : {}),
             ...(status.detail ? { detail: status.detail } : {}),
@@ -255,6 +296,18 @@ export async function runAiChatAssistantTurn(input: {
             consecutiveReadToolFailures >= maxConsecutiveAiAgentReadToolFailures
           )
           if (terminalContent) {
+            if (
+              output &&
+              typeof output === 'object' &&
+              'kind' in output &&
+              output.kind === 'action_error'
+            ) {
+              if (assistantContent.trim() !== terminalContent) {
+                assistantContent = terminalContent
+                await persistAssistantMessage()
+              }
+              continue
+            }
             const visibleContent = assistantContent.trim()
               ? `\n\n${terminalContent}`
               : terminalContent
@@ -263,6 +316,94 @@ export async function runAiChatAssistantTurn(input: {
             await persistAssistantMessage()
           }
           continue
+        }
+        if (event.value.event === 'agent_confirmation') {
+          if (!assistantContent.trim()) {
+            usage.modelCalls += 1
+            let narrationContent = ''
+            try {
+              const narration = await run.models.completeSimple(
+                run.model,
+                {
+                  systemPrompt: aiAgentConfirmationNarrationPrompt,
+                  messages: [
+                    {
+                      role: 'user',
+                      content: `<user-request>${JSON.stringify(userMessage.content)}</user-request>`,
+                      timestamp: Date.now(),
+                    },
+                  ],
+                },
+                { signal: input.signal }
+              )
+              usage.inputTokens += narration.usage.input
+              usage.outputTokens += narration.usage.output
+              usage.cacheReadTokens += narration.usage.cacheRead
+              usage.cacheWriteTokens += narration.usage.cacheWrite
+              usage.totalTokens += narration.usage.totalTokens
+              try {
+                await recordAiUsageEvent({
+                  userId,
+                  conversationId: conversation.id,
+                  agentRunId: run.agentRunId,
+                  callSequence: run.nextModelCallSequence(),
+                  providerId: run.model.provider,
+                  modelId: run.model.id,
+                  baseUrl: run.model.baseUrl,
+                  usage: {
+                    input: narration.usage.input,
+                    output: narration.usage.output,
+                    cacheRead: narration.usage.cacheRead,
+                    cacheWrite: narration.usage.cacheWrite,
+                    totalTokens: narration.usage.totalTokens,
+                  },
+                  status: narration.stopReason === 'stop' ? 'completed' : 'failed',
+                })
+              } catch (error) {
+                logger.warn(
+                  { err: error, conversationId: conversation.id, agentRunId: run.agentRunId },
+                  'AI confirmation narration usage event could not be recorded'
+                )
+              }
+              narrationContent =
+                narration.stopReason === 'stop'
+                  ? narration.content
+                      .filter((part) => part.type === 'text')
+                      .map((part) => part.text)
+                      .join(' ')
+                      .replace(/\s+/g, ' ')
+                      .trim()
+                      .slice(0, 240)
+                  : ''
+              if (narrationContent) {
+                assistantContent = narrationContent
+                await emit('delta', { content: narrationContent })
+                await persistAssistantMessage()
+              }
+            } catch (error) {
+              if (input.signal.aborted) throw error
+              logger.warn(
+                { err: error, conversationId: conversation.id, agentRunId: run.agentRunId },
+                'AI confirmation narration could not be generated'
+              )
+            }
+            if (!narrationContent) {
+              const message = markConfirmationNarrationFailure(runtimeDetails)
+              assistantContent = message
+              if (run.agentRunId) {
+                await failUnattachedConfirmationsWithRetry({
+                  conversationId: conversation.id,
+                  userId,
+                  agentRunId: run.agentRunId,
+                  ctx: input.ctx,
+                })
+              }
+              await emit('delta', { content: message })
+              await persistAssistantMessage()
+              continue
+            }
+          }
+          await persistAssistantMessage(true)
         }
         await emit(event.value.event, event.value.data)
         continue
@@ -381,15 +522,33 @@ export async function runAiChatAssistantTurn(input: {
       logger.error({ err: error, conversationId: conversation.id }, 'AI conversation reload failed')
     }
     aiFailureStage = 'done_event_serialization'
+    const previousRuns = runtimeDetails.filter((detail) => detail.kind === 'run')
+    const runUsage: Record<string, unknown> = { ...usage }
+    for (const previousRun of previousRuns) {
+      for (const [key, value] of Object.entries(previousRun.usage)) {
+        if (typeof value !== 'number') continue
+        const existingValue = runUsage[key]
+        runUsage[key] = (typeof existingValue === 'number' ? existingValue : 0) + value
+      }
+    }
+    const runDetail = {
+      kind: 'run',
+      durationMs:
+        Date.now() -
+        streamStartedAt +
+        previousRuns.reduce((total, previousRun) => total + previousRun.durationMs, 0),
+      usage: runUsage,
+    } satisfies AiChatRuntimeDetail
+    runtimeDetails.splice(
+      0,
+      runtimeDetails.length,
+      ...runtimeDetails.filter((detail) => detail.kind !== 'run'),
+      runDetail
+    )
     await emit('run', {
       agentRunId,
-      usage,
-      durationMs: Date.now() - streamStartedAt,
-    })
-    runtimeDetails.push({
-      kind: 'run',
-      durationMs: Date.now() - streamStartedAt,
-      usage,
+      usage: runDetail.usage,
+      durationMs: runDetail.durationMs,
     })
     await persistAssistantMessage()
     await emit('done', {
@@ -397,6 +556,7 @@ export async function runAiChatAssistantTurn(input: {
       message: serializeAiChatMessage(assistantMessage),
       confirmations: attachedConfirmations,
     })
+    return assistantMessage
   } catch (error) {
     logger.error(
       { err: error, conversationId: conversation.id, agentRunId, aiFailureStage },
@@ -451,7 +611,7 @@ export async function runAiChatAssistantTurn(input: {
           )
         }
       }
-      return
+      return failedAssistantMessage
     }
     if (agentRunId) {
       // Confirmation cleanup must not prevent the streamed assistant text
@@ -471,6 +631,7 @@ export async function runAiChatAssistantTurn(input: {
       message,
       assistantMessage: serializeAiChatMessage(failedAssistantMessage),
     })
+    return failedAssistantMessage
   } finally {
     if (agentRunId) {
       releaseAiAgentRun(conversation.id, userId, agentRunId)

@@ -24,3 +24,17 @@ export const queueAiChatMessageValidator = vine.compile(
     content: vine.string().trim().minLength(1).maxLength(8000),
   })
 )
+
+const positiveRouteId = () =>
+  vine
+    .string()
+    .trim()
+    .maxLength(15)
+    .regex(/^[1-9]\d*$/)
+
+export const aiChatConfirmationRouteValidator = vine.compile(
+  vine.object({
+    id: positiveRouteId(),
+    confirmationId: positiveRouteId(),
+  })
+)

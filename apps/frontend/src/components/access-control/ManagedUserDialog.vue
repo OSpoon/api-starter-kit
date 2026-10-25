@@ -70,7 +70,7 @@ function submit() {
           <Input
             id="managed-user-full-name"
             v-model="form.fullName"
-            :placeholder="t('rbac.users.name')"
+            :placeholder="t('rbac.users.name_placeholder')"
           />
         </div>
         <div class="grid gap-2">
@@ -79,7 +79,7 @@ function submit() {
             id="managed-user-email"
             v-model="form.email"
             type="email"
-            :placeholder="t('auth.email')"
+            :placeholder="t('rbac.users.email_placeholder')"
           />
         </div>
         <div class="grid gap-2">

@@ -11,6 +11,7 @@ import type {
   NormalizedInboundMessage,
   OutboundMessage,
 } from '#channels/channel_types'
+import { formatDingTalkConfirmationDescription } from '#channels/confirmation_details'
 import { LatestContentStream } from '#channels/latest_content_stream'
 
 export interface DingTalkBotAdapterOptions {
@@ -136,7 +137,12 @@ export class DingTalkBotAdapter implements ChannelAdapter {
 
     if (message.kind === 'confirmation') {
       try {
-        await this.deliverConfirmationCard(cached.message, target.externalTenantId, message)
+        await this.deliverConfirmationCard(
+          cached.message,
+          target.externalTenantId,
+          target.conversationKey,
+          message
+        )
       } catch (error) {
         this.logError(error, {
           operation: 'send_confirmation_card',
@@ -288,8 +294,10 @@ export class DingTalkBotAdapter implements ChannelAdapter {
         },
         'DingTalk streaming card update failed; final reply will use text'
       )
-    } else {
-      const finalContent = reply?.kind === 'text' ? reply.content : stream.latest
+    }
+
+    const finalContent = reply?.kind === 'text' ? reply.content : stream.latest
+    if (!streamingCardFailed) {
       try {
         await this.updateStreamingCard(outTrackId, finalContent)
         this.log.info(
@@ -316,8 +324,10 @@ export class DingTalkBotAdapter implements ChannelAdapter {
         )
       }
     }
-    if (!streamingCardFailed && reply?.kind !== 'confirmation') return
-    return reply
+    if (streamingCardFailed) {
+      return reply ?? (stream.latest ? { kind: 'text', content: stream.latest } : undefined)
+    }
+    return reply?.kind === 'confirmation' ? reply : undefined
   }
 
   private async handleCardEvent(event: DWClientDownStream) {
@@ -375,6 +385,7 @@ export class DingTalkBotAdapter implements ChannelAdapter {
   private async deliverConfirmationCard(
     message: RobotMessage,
     externalTenantId: string,
+    conversationKey: string,
     confirmation: Extract<OutboundMessage, { kind: 'confirmation' }>
   ) {
     const cardTemplateId = this.options.cardTemplateId?.trim()
@@ -385,7 +396,7 @@ export class DingTalkBotAdapter implements ChannelAdapter {
       })
       this.log.warn(
         {
-          conversationKey: message.conversationId,
+          conversationKey,
           confirmationId: confirmation.confirmationId,
         },
         'DingTalk confirmation card template is missing'
@@ -396,13 +407,13 @@ export class DingTalkBotAdapter implements ChannelAdapter {
     if (!accessToken) throw new Error('Unable to obtain DingTalk access token')
     const outTrackId = `ai-${confirmation.confirmationId}-${crypto.randomUUID()}`
     const cardData = {
-      description: confirmation.description,
+      description: formatDingTalkConfirmationDescription(confirmation),
       confirmLabel: confirmation.confirmLabel,
       cancelLabel: confirmation.cancelLabel,
       confirmActionKey: `confirm:${confirmation.confirmationId}`,
       cancelActionKey: `cancel:${confirmation.confirmationId}`,
       taskId: String(confirmation.confirmationId),
-      conversationKey: String(message.conversationId),
+      conversationKey,
       externalUserId: String(message.senderStaffId || message.senderId),
       externalTenantId,
     }
@@ -426,7 +437,7 @@ export class DingTalkBotAdapter implements ChannelAdapter {
     this.log.info(
       {
         confirmationId: confirmation.confirmationId,
-        conversationKey: message.conversationId,
+        conversationKey,
         cardTemplateId,
         conversationType: message.conversationType,
         openSpaceId: payload.openSpaceId,
@@ -446,7 +457,7 @@ export class DingTalkBotAdapter implements ChannelAdapter {
     this.log.info(
       {
         confirmationId: confirmation.confirmationId,
-        conversationKey: message.conversationId,
+        conversationKey,
         outTrackId,
         httpStatus: response.status,
         providerSuccess: result.success ?? null,

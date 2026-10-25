@@ -7,7 +7,13 @@ export type AiAgentKnowledgeSource = {
   excerpt: string
 }
 
-export type AiAgentCapabilityMode = 'full' | 'knowledge-only'
+export type AiAgentCredentialDisclosure = {
+  kind: 'api_key' | 'password'
+  value: string
+  label: string
+}
+
+export type AiAgentCapabilityMode = 'full' | 'channel' | 'knowledge-only'
 
 export interface AiAgentToolRequestContext {
   userId: number
@@ -16,7 +22,9 @@ export interface AiAgentToolRequestContext {
   capabilityMode?: AiAgentCapabilityMode
   signal?: AbortSignal
   onKnowledgeSources?: (sources: AiAgentKnowledgeSource[]) => void
+  onCredentialDisclosure?: (credential: AiAgentCredentialDisclosure) => void | Promise<void>
   knowledgeCatalogDocumentIds?: Set<number>
+  enabledToolNames?: string[]
 }
 
 export interface AiAgentToolContext extends AiAgentToolRequestContext {

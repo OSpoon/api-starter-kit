@@ -6,13 +6,14 @@ import {
   type TelemetrySpan,
 } from '@earendil-works/pi-telemetry'
 
+import type { AiAgentConfirmationSummary } from '#ai/core/ai_agent_confirmation'
 import type { AiAgentToolRequestContext } from '#ai/core/ai_agent_tool_context'
 import type { AiAgentMessage } from '#ai/core/ai_agent_types'
 import {
   type AiAgentPageContext,
   createAiAgentSystemPrompt,
 } from '#ai/policy/ai_agent_prompt_policy'
-import { createAiAgentTools } from '#ai/registry/ai_agent_tool_registry'
+import { createConfiguredAiAgentTools } from '#ai/registry/ai_agent_tool_registry'
 import {
   createPiAgent,
   type PiAgentMessage,
@@ -54,6 +55,14 @@ class AsyncQueue<T> implements AsyncIterable<T> {
     }
   }
 }
+
+type AiAgentRuntimeEvent =
+  | AgentEvent
+  | {
+      type: 'app_confirmation_requested'
+      toolCallId: string
+      confirmation: AiAgentConfirmationSummary
+    }
 
 const emptyUsage: Usage = {
   input: 0,
@@ -99,7 +108,7 @@ export async function createAiAgentPiStream(
     onCompactionUsage?: (usage: PiModelUsage) => void | Promise<void>
   }
 ) {
-  const events = new AsyncQueue<AgentEvent>()
+  const events = new AsyncQueue<AiAgentRuntimeEvent>()
   const telemetryStore = isAiTelemetryEnabled() ? new InMemoryTelemetryContext() : undefined
   const telemetry = telemetryStore ?? NOOP_TELEMETRY_CONTEXT
   let activeSpan: TelemetrySpan | undefined
@@ -108,15 +117,17 @@ export async function createAiAgentPiStream(
   const initialMessages =
     lastMessage?.role === 'user' ? input.messages.slice(0, -1) : input.messages
 
-  const { agent } = await createPiAgent({
+  const { agent, models } = await createPiAgent({
     systemPrompt: createAiAgentSystemPrompt(input.context, '', input.capabilityMode),
-    tools: createAiAgentTools({ ...input, agentRunId: input.agentRunId }),
+    tools: await createConfiguredAiAgentTools({ ...input, agentRunId: input.agentRunId }),
     messages: toPiMessages(initialMessages),
     sessionId: `ai-chat:${input.conversationId}`,
     signal: input.signal,
     initialRuntimeContext: input.liveSessionContext,
     onCompaction: input.onCompaction,
     onCompactionUsage: input.onCompactionUsage,
+    onConfirmationRequested: (toolCallId, confirmation) =>
+      events.push({ type: 'app_confirmation_requested', toolCallId, confirmation }),
     getTelemetrySpan: () => activeSpan,
     refreshRuntimeContext: async () => input.getLiveSessionContext?.(),
   })
@@ -179,6 +190,7 @@ export async function createAiAgentPiStream(
     events,
     control,
     model: agent.state.model,
+    models,
     telemetry,
     telemetryStore,
     completion,

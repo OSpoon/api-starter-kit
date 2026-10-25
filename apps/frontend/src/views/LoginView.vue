@@ -259,7 +259,7 @@ function backToLogin() {
               v-model="email"
               class="starter-login__input"
               type="email"
-              :placeholder="t('auth.email')"
+              :placeholder="t('auth.email_placeholder')"
               :aria-label="t('auth.email')"
               autocomplete="email"
               required
@@ -273,7 +273,7 @@ function backToLogin() {
                 v-model="password"
                 :type="passwordVisible ? 'text' : 'password'"
                 class="starter-login__input pr-11"
-                :placeholder="t('auth.password')"
+                :placeholder="t('auth.password_placeholder')"
                 :aria-label="t('auth.password')"
                 autocomplete="current-password"
                 required

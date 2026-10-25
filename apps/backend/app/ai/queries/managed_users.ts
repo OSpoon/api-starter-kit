@@ -14,10 +14,10 @@ import {
 
 export const managedUsersQuery: AiQueryTemplate = {
   code: 'managed_users',
+  permission: 'users:read',
   version: 2,
   description:
     'List managed users with masked personal information and their roles; results can be paginated with params.page.',
-  permission: 'users:read',
   parameters: { page: queryPageParameter },
   async execute(params) {
     const users = await User.query()

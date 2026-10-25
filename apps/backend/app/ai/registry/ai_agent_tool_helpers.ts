@@ -2,18 +2,21 @@ import type { AgentTool } from '@earendil-works/pi-agent-core'
 import type { TSchema } from '@earendil-works/pi-ai'
 import { type z, ZodError } from 'zod'
 
-import { type AiAgentActionName, getAiAgentAction } from '#ai/core/ai_agent_action_registry'
 import {
-  AiAgentPermissionDeniedError,
-  ensureAiAgentPermission,
-} from '#ai/core/ai_agent_authorization'
-import {
-  AiAgentConfirmationError,
-  createAiAgentActionToolResult,
-  proposeAiAgentAction,
-} from '#ai/core/ai_agent_confirmation'
+  type AiAgentActionName,
+  executeAiAgentActionImmediately,
+  getAiAgentAction,
+} from '#ai/core/ai_agent_action_registry'
+import { AiAgentPermissionDeniedError } from '#ai/core/ai_agent_authorization'
+import type { AiAgentConfirmationSummary } from '#ai/core/ai_agent_confirmation'
+import { AiAgentConfirmationError, proposeAiAgentAction } from '#ai/core/ai_agent_confirmation'
 import type { AiAgentToolContext } from '#ai/core/ai_agent_tool_context'
 import { isAiAgentTerminalToolResult } from '#ai/core/ai_agent_tool_errors'
+import { getAiAgentToolSettings } from '#services/ai_agent_configuration_service'
+
+export type AiAgentToolWithConfirmation = AgentTool & {
+  prepareConfirmation?: (args: unknown) => Promise<AiAgentConfirmationSummary>
+}
 
 export function createAiAgentTool<TZodSchema extends z.ZodTypeAny, TResult>(
   execute: (input: z.infer<TZodSchema>) => Promise<TResult>,
@@ -23,14 +26,21 @@ export function createAiAgentTool<TZodSchema extends z.ZodTypeAny, TResult>(
     schema: TZodSchema
     parameters: TSchema
     executionMode?: 'parallel' | 'sequential'
+    prepareConfirmation?: (input: z.infer<TZodSchema>) => Promise<AiAgentConfirmationSummary>
   }
-): AgentTool {
+): AiAgentToolWithConfirmation {
   return {
     name: options.name,
     label: options.name,
     description: options.description,
     parameters: options.parameters,
     executionMode: options.executionMode ?? 'sequential',
+    ...(options.prepareConfirmation
+      ? {
+          prepareConfirmation: (input: unknown) =>
+            options.prepareConfirmation!(options.schema.parse(input)),
+        }
+      : {}),
     execute: async (_toolCallId, input, signal) => {
       if (signal?.aborted) throw new DOMException('AI request was cancelled', 'AbortError')
       let details: TResult
@@ -42,7 +52,8 @@ export function createAiAgentTool<TZodSchema extends z.ZodTypeAny, TResult>(
         details = {
           kind: 'action_error',
           code:
-            error instanceof AiAgentPermissionDeniedError
+            error instanceof AiAgentPermissionDeniedError ||
+            (error instanceof AiAgentConfirmationError && error.status === 403)
               ? 'permission_denied'
               : error instanceof ZodError
                 ? 'invalid_input'
@@ -66,43 +77,58 @@ export function createAiAgentToolSupport(input: AiAgentToolContext) {
     }
   }
 
-  const proposeManagedChange = async (
-    action: AiAgentActionName,
-    actionInput: Record<string, unknown>
-  ) => {
-    try {
-      throwIfAborted()
-      const definition = getAiAgentAction(action)
-      if (!definition) throw new Error('无法准备受控操作')
-      await ensureAiAgentPermission(input.userId, definition.permission)
-      const confirmation = await proposeAiAgentAction({
-        action,
-        actionInput,
-        conversationId: input.conversationId,
-        userId: input.userId,
-        agentRunId: input.agentRunId,
-      })
-      throwIfAborted()
-      return createAiAgentActionToolResult({ kind: 'confirmation', confirmation })
-    } catch (error) {
-      const message = error instanceof Error ? error.message : '无法准备受控操作'
-      const isPermissionDenied = error instanceof AiAgentPermissionDeniedError
-      if (error instanceof AiAgentConfirmationError || isPermissionDenied) {
-        return createAiAgentActionToolResult({
-          kind: 'action_error',
-          code:
-            (error instanceof AiAgentConfirmationError && error.status === 403) ||
-            isPermissionDenied
-              ? 'permission_denied'
-              : 'failed',
-          message,
-        })
-      }
-      return createAiAgentActionToolResult({ kind: 'action_error', code: 'failed', message })
+  const assertToolMode = async (toolName: string, expectedMode: 'direct' | 'confirm') => {
+    const settings = await getAiAgentToolSettings()
+    const setting = settings.find((tool) => tool.code === toolName)
+    if (!setting?.enabled || setting.mode !== expectedMode) {
+      throw new AiAgentConfirmationError('Agent 工具已停用或执行策略已更改，请重新发起', 409)
     }
   }
 
-  return { throwIfAborted, proposeManagedChange }
+  const prepareManagedChange = async (
+    toolName: string,
+    action: AiAgentActionName,
+    actionInput: Record<string, unknown>
+  ) => {
+    throwIfAborted()
+    await assertToolMode(toolName, 'confirm')
+    if (!getAiAgentAction(action)) throw new Error('无法准备受控操作')
+    const confirmation = await proposeAiAgentAction({
+      action,
+      actionInput,
+      conversationId: input.conversationId,
+      userId: input.userId,
+      agentRunId: input.agentRunId,
+    })
+    throwIfAborted()
+    return confirmation
+  }
+
+  const executeManagedChange = async (
+    toolName: string,
+    action: AiAgentActionName,
+    actionInput: Record<string, unknown>
+  ) => {
+    throwIfAborted()
+    await assertToolMode(toolName, 'direct')
+    if (
+      ['create_api_key', 'create_user', 'reset_user_password'].includes(action) &&
+      !input.onCredentialDisclosure
+    ) {
+      throw new Error('一次性凭据安全消息通道不可用，操作未执行')
+    }
+    if (!input.auditContext) throw new Error('缺少 Agent 审计上下文')
+    const result = await executeAiAgentActionImmediately({
+      action,
+      actionInput,
+      ctx: input.auditContext,
+      onCredentialDisclosure: input.onCredentialDisclosure,
+    })
+    throwIfAborted()
+    return { kind: 'action_result', action, ...(result ?? {}) }
+  }
+
+  return { throwIfAborted, prepareManagedChange, executeManagedChange }
 }
 
 export type AiAgentToolSupport = ReturnType<typeof createAiAgentToolSupport>

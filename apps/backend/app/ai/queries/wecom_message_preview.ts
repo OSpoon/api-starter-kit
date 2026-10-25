@@ -11,10 +11,10 @@ import {
 
 export const wecomMessagePreviewQuery: AiQueryTemplate = {
   code: 'wecom_message_preview',
+  permission: 'wecom-templates:read',
   version: 1,
   description:
     'Render one enabled WeCom message template using structured parameters and optional runtime mention lists. This is side-effect free and never sends a message or returns a Webhook address.',
-  permission: 'wecom-templates:read',
   persistParameters: false,
   parameters: {
     templateId: {

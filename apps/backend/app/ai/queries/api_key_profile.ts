@@ -5,17 +5,18 @@ import ApiKey from '#models/api_key'
 
 export const apiKeyProfileQuery: AiQueryTemplate = {
   code: 'api_key_profile',
+  permission: 'api-keys:read',
   version: 1,
   description:
-    'Look up one API Key by positive ID (apiKeyId or id) or exact name and report its name, prefix, and revoked status. Use the exact name supplied by the user when no ID is available; never invent an ID.',
-  permission: 'api-keys:read',
+    'Look up one API Key by positive ID (apiKeyId or id) or exact name and report its name, prefix, and revoked status. For a key identified by name, pass the exact name in params.name and leave apiKeyId/id unset. Use this for a specific key named by the user, including revoked keys. Never substitute a similarly named key or invent an ID.',
   parameters: {
     apiKeyId: {
       description: 'Positive API Key ID; provide this or name.',
       schema: z.coerce.number().int().positive().optional(),
     },
     id: {
-      description: 'Positive API Key ID alias; provide this or name.',
+      description:
+        'Positive integer API Key ID alias for apiKeyId; do not put a name in this field.',
       schema: z.coerce.number().int().positive().optional(),
     },
     name: {

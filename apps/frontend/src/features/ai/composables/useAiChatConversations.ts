@@ -6,6 +6,7 @@ import {
   type AiChatConversation,
   type AiChatConversationPage,
   type AiChatConversationSummary,
+  type AiChatCredentialDisclosure,
   type AiChatMessage,
   type AiChatRunMeta,
   createAiChatConversation,
@@ -28,6 +29,7 @@ export type AiChatConversationState = {
   streamingMessageId: Ref<string | number | null>
   abortController: Ref<AbortController | null>
   confirmations: Ref<AiChatConfirmation[]>
+  credentialDisclosure?: Ref<AiChatCredentialDisclosure | null>
   pendingConfirmation: Ref<AiChatConfirmation | null>
   approvalDismissed: Ref<boolean>
   runMeta: Ref<AiChatRunMeta | null>

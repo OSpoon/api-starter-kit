@@ -3,7 +3,7 @@ import encryption from '@adonisjs/core/services/encryption'
 import type { AiAgentActionImplementation } from '#ai/core/ai_agent_action_contracts'
 import {
   defineAiAgentAction,
-  ensurePermission,
+  getAiAgentActor,
   integer,
   string,
   summaryValue,
@@ -77,7 +77,7 @@ const sendWecomMessageAction: AiAgentActionImplementation = {
     }
   },
   async execute({ confirmation, ctx }) {
-    const actor = await ensurePermission(ctx, 'wecom-templates:send')
+    const actor = getAiAgentActor(ctx)
     const template = await WecomMessageTemplate.find(integer(confirmation.payload, 'templateId'))
     if (!template || !template.enabled) throw new Error('消息模板不存在或已停用')
     const encryptedInput = string(confirmation.payload, 'encryptedInput', 100_000)

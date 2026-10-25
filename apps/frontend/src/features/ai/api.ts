@@ -51,6 +51,7 @@ export interface AiChatConfirmation {
   id: number
   messageId: number
   action: string
+  status?: 'pending' | 'confirmed' | 'expired' | 'failed' | 'cancelled'
   impact: 'standard' | 'destructive'
   targetType: string
   targetId: string | null
@@ -71,16 +72,6 @@ export interface AiChatCredentialDisclosure {
   kind: 'api_key' | 'password'
   value: string
   label: string
-}
-
-export interface AiChatActionResultMessage {
-  id: number
-  conversationId: number
-  role: 'assistant'
-  content: string
-  citations: AiChatCitation[]
-  createdAt: string
-  updatedAt: string
 }
 
 export type AiChatPendingConfirmation = Omit<AiChatConfirmation, 'messageId'>
@@ -121,6 +112,8 @@ export interface AiChatAgentActivity {
     targetType?: string
     targetId?: string | number
     targetLabel?: string
+    confirmationId?: number
+    toolName?: string
     resultCount?: number
     message?: string
     progress?: number
@@ -185,12 +178,12 @@ export type AiChatTimelineItem =
       kind: 'confirmation'
       action: string
       targetLabel?: string
-      status: 'confirmed' | 'failed' | 'expired'
+      status: 'confirmed' | 'failed' | 'expired' | 'cancelled'
       completedAt: string
     }
 
 export interface AiChatPlanStep {
-  key: 'identify_target' | 'prepare_proposal' | 'await_confirmation'
+  key: 'identify_target' | 'prepare_action' | 'await_confirmation'
   state: 'pending' | 'running' | 'done'
 }
 
@@ -235,18 +228,6 @@ export async function getAiChatConversation(token: string | null, id: number, pa
   return readItem(response)
 }
 
-export async function sendAiChatMessage(token: string | null, id: number, content: string) {
-  const response = await apiRequest<AiChatConversation>(
-    `/api/v1/ai-chat/conversations/${id}/messages`,
-    {
-      ...authOptions(token),
-      method: 'POST',
-      body: JSON.stringify({ content }),
-    }
-  )
-  return readItem(response)
-}
-
 export async function transcribeAiChatAudio(token: string | null, audio: Blob, fileName: string) {
   const body = new FormData()
   body.append('audio', audio, fileName)
@@ -277,6 +258,7 @@ type AiChatStreamEvent =
   | { type: 'agent_citations'; citations: AiChatCitation[] }
   | ({ type: 'agent_confirmation' } & AiChatPendingConfirmation)
   | ({ type: 'run' } & AiChatRunMeta)
+  | { type: 'credential_disclosure'; credential: AiChatCredentialDisclosure }
   | {
       type: 'done'
       conversation: AiChatConversationSummary
@@ -285,44 +267,36 @@ type AiChatStreamEvent =
     }
   | { type: 'error'; message: string; assistantMessage?: AiChatMessage }
 
-export async function streamAiChatMessage(
+async function streamAiChatRequest(
   token: string | null,
-  id: number,
-  content: string,
+  path: string,
+  init: RequestInit,
   onEvent: (event: AiChatStreamEvent) => void,
-  options: AiChatStreamOptions = {}
+  signal?: AbortSignal
 ) {
   const requestController = new AbortController()
-  const abortFromCaller = () => requestController.abort(options.signal?.reason)
+  const abortFromCaller = () => requestController.abort(signal?.reason)
   const timeout = setTimeout(() => {
     requestController.abort(new DOMException('AI response timed out', 'TimeoutError'))
   }, AI_STREAM_TIMEOUT_MS)
 
-  if (options.signal?.aborted) {
+  if (signal?.aborted) {
     abortFromCaller()
   } else {
-    options.signal?.addEventListener('abort', abortFromCaller, { once: true })
+    signal?.addEventListener('abort', abortFromCaller, { once: true })
   }
 
-  const headers = new Headers({
-    Accept: 'text/event-stream',
-    'Content-Type': 'application/json',
-  })
+  const headers = new Headers(init.headers)
+  headers.set('Accept', 'text/event-stream')
+  if (init.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json')
 
-  if (token) {
-    headers.set('Authorization', `Bearer ${token}`)
-  }
+  if (token) headers.set('Authorization', `Bearer ${token}`)
 
   try {
-    const response = await fetch(apiUrl(`/api/v1/ai-chat/conversations/${id}/messages`), {
-      method: 'POST',
+    const response = await fetch(apiUrl(path), {
+      ...init,
       credentials: 'include',
       headers,
-      body: JSON.stringify({
-        content,
-        context: options.context,
-        regenerateAssistantMessageId: options.regenerateAssistantMessageId,
-      }),
       signal: requestController.signal,
     })
 
@@ -375,8 +349,47 @@ export async function streamAiChatMessage(
     }
   } finally {
     clearTimeout(timeout)
-    options.signal?.removeEventListener('abort', abortFromCaller)
+    signal?.removeEventListener('abort', abortFromCaller)
   }
+}
+
+export function streamAiChatMessage(
+  token: string | null,
+  id: number,
+  content: string,
+  onEvent: (event: AiChatStreamEvent) => void,
+  options: AiChatStreamOptions = {}
+) {
+  return streamAiChatRequest(
+    token,
+    `/api/v1/ai-chat/conversations/${id}/messages`,
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        content,
+        context: options.context,
+        regenerateAssistantMessageId: options.regenerateAssistantMessageId,
+      }),
+    },
+    onEvent,
+    options.signal
+  )
+}
+
+export function streamAiAgentActionConfirmation(
+  token: string | null,
+  conversationId: number,
+  confirmationId: number,
+  onEvent: (event: AiChatStreamEvent) => void,
+  signal?: AbortSignal
+) {
+  return streamAiChatRequest(
+    token,
+    `/api/v1/ai-chat/conversations/${conversationId}/confirmations/${confirmationId}/confirm/stream`,
+    { method: 'POST' },
+    onEvent,
+    signal
+  )
 }
 
 export type AiChatQueueMode = 'steer' | 'followUp'
@@ -408,19 +421,17 @@ export async function deleteAiChatConversation(token: string | null, id: number)
   return readItem(response)
 }
 
-export async function confirmAiAgentAction(
+export async function cancelAiAgentAction(
   token: string | null,
   conversationId: number,
   confirmationId: number
 ) {
-  const response = await apiRequest<
-    Omit<AiChatConfirmation, 'messageId'> & {
-      result?: { credential?: AiChatCredentialDisclosure }
-      message: AiChatActionResultMessage
+  const response = await apiRequest<AiChatPendingConfirmation>(
+    `/api/v1/ai-chat/conversations/${conversationId}/confirmations/${confirmationId}/cancel`,
+    {
+      ...authOptions(token),
+      method: 'POST',
     }
-  >(`/api/v1/ai-chat/conversations/${conversationId}/confirmations/${confirmationId}/confirm`, {
-    ...authOptions(token),
-    method: 'POST',
-  })
+  )
   return readItem(response)
 }

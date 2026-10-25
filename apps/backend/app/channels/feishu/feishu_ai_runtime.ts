@@ -12,6 +12,7 @@ export async function createFeishuAiRuntime() {
     secret: config.secret,
     domain: config.domain,
     onMessage: (message) => bridge.handleMessage(message),
+    onMessageStream: (message, emit) => bridge.handleMessageStream(message, emit),
     onTemplateCardEvent: (event) => bridge.handleTemplateCardEvent(event),
   })
   bridge = new AiChannelBridge(adapter, config.configurationKey)

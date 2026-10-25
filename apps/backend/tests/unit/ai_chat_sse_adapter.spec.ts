@@ -10,6 +10,8 @@ type FakeToolCall = {
   input: unknown
   status: Promise<'finished' | 'error'>
   output: Promise<unknown>
+  errorOutput?: unknown
+  confirmation?: unknown
   updates?: unknown[]
 }
 
@@ -21,6 +23,13 @@ function createFakeRun(toolCalls: FakeToolCall[]) {
         toolCallId: toolCall.callId,
         toolName: toolCall.name,
         args: toolCall.input,
+      }
+      if (toolCall.confirmation) {
+        yield {
+          type: 'app_confirmation_requested',
+          toolCallId: toolCall.callId,
+          confirmation: toolCall.confirmation,
+        }
       }
       const state = await toolCall.status
       for (const partialResult of toolCall.updates ?? []) {
@@ -36,8 +45,13 @@ function createFakeRun(toolCalls: FakeToolCall[]) {
         type: 'tool_execution_end',
         toolCallId: toolCall.callId,
         toolName: toolCall.name,
-        result: state === 'finished' ? { details: await toolCall.output } : null,
-        isError: state === 'error',
+        result:
+          state === 'error' && toolCall.errorOutput !== undefined
+            ? { details: toolCall.errorOutput }
+            : state === 'finished' && !toolCall.confirmation
+              ? { details: await toolCall.output }
+              : null,
+        isError: state === 'error' || Boolean(toolCall.confirmation),
       }
     }
   }
@@ -83,6 +97,35 @@ function parseSse(writes: string[]) {
 }
 
 test.group('AI chat SSE adapter', () => {
+  test('shows a bounded, redacted reason and the MCP tool name when a tool fails', async ({
+    assert,
+  }) => {
+    const { writes, response } = createFakeResponse()
+    const run = createFakeRun([
+      {
+        name: 'mcp_read_2_search_logs_12345678',
+        callId: 'mcp-failure',
+        input: { limit: 1 },
+        status: Promise.resolve('error'),
+        output: Promise.resolve(null),
+        errorOutput: {
+          kind: 'action_error',
+          code: 'failed',
+          toolName: 'search_logs',
+          message: 'Connection refused\nDetails unavailable. Bearer abc123 api_key="secret-value"',
+        },
+      },
+    ])
+
+    await streamAiAgentToolStatuses(run, response, new AbortController().signal)
+    const failed = parseSse(writes)[1].data as Record<string, unknown>
+
+    assert.equal(failed.state, 'error')
+    assert.equal(failed.callId, 'mcp-failure')
+    assert.equal(failed.message, 'Connection refused')
+    assert.deepEqual(failed.detail, { toolName: 'search_logs' })
+  })
+
   test('emits running then done agent_status with callId and durationMs', async ({ assert }) => {
     const { writes, response } = createFakeResponse()
     const run = createFakeRun([
@@ -159,9 +202,7 @@ test.group('AI chat SSE adapter', () => {
     })
   })
 
-  test('emits confirmation and completes the plan for a management proposal', async ({
-    assert,
-  }) => {
+  test('emits confirmation from the tool preflight and completes the plan', async ({ assert }) => {
     const { writes, response } = createFakeResponse()
     const confirmation = {
       id: 7,
@@ -175,11 +216,12 @@ test.group('AI chat SSE adapter', () => {
     }
     const run = createFakeRun([
       {
-        name: 'propose_system_management_change',
+        name: 'system_management_change',
         callId: 'call-2',
         input: { action: 'reset_two_factor' },
         status: Promise.resolve('finished'),
-        output: Promise.resolve({ kind: 'confirmation', confirmation }),
+        output: Promise.resolve(null),
+        confirmation,
       },
     ])
 
@@ -188,28 +230,70 @@ test.group('AI chat SSE adapter', () => {
 
     assert.deepEqual(
       frames.map((frame) => frame.event),
-      ['agent_plan', 'agent_status', 'agent_status', 'agent_plan', 'agent_confirmation']
+      [
+        'agent_plan',
+        'agent_status',
+        'agent_plan',
+        'agent_confirmation',
+        'agent_status',
+        'agent_plan',
+      ]
     )
 
     const running = frames[1].data as Record<string, unknown>
     assert.equal(running.callId, 'call-2')
     assert.equal((running.detail as Record<string, unknown>).action, 'reset_two_factor')
 
-    const done = frames[2].data as Record<string, unknown>
+    const done = frames[4].data as Record<string, unknown>
     assert.equal(done.state, 'done')
+    assert.equal(done.phase, 'awaiting_confirmation')
     assert.equal((done.detail as Record<string, unknown>).targetType, 'user')
     assert.equal((done.detail as Record<string, unknown>).targetId, '42')
     assert.equal((done.detail as Record<string, unknown>).targetLabel, 'Ada Lovelace')
 
-    const lastPlan = frames[3].data as { steps: Array<{ key: string; state: string }> }
+    const lastPlan = frames[5].data as { steps: Array<{ key: string; state: string }> }
     assert.equal(lastPlan.steps[0].state, 'done')
     assert.equal(lastPlan.steps[1].state, 'done')
     assert.equal(lastPlan.steps[2].state, 'running')
 
-    assert.deepEqual(frames[4].data, confirmation)
+    assert.deepEqual(frames[3].data, confirmation)
   })
 
-  test('derives the action from the dedicated API Key proposal tool name', async ({ assert }) => {
+  test('includes the configured MCP tool name while awaiting confirmation', async ({ assert }) => {
+    const { writes, response } = createFakeResponse()
+    const confirmation = {
+      id: 9,
+      action: 'call_mcp_tool',
+      impact: { scope: 'single_user' },
+      targetType: 'mcp_server_tool',
+      targetId: '3:search_logs',
+      targetSummary: { name: 'Application logs', toolName: 'search_logs' },
+      changeSummary: [],
+      expiresAt: null,
+    }
+    const run = createFakeRun([
+      {
+        name: 'mcp_confirm_3_search_logs_12345678',
+        callId: 'mcp-call-1',
+        input: { query: 'latest', limit: 1 },
+        status: Promise.resolve('finished'),
+        output: Promise.resolve(null),
+        confirmation,
+      },
+    ])
+
+    await streamAiAgentToolStatuses(run, response, new AbortController().signal)
+    const done = parseSse(writes).find(
+      (frame) => frame.event === 'agent_status' && frame.data?.state === 'done'
+    )?.data as Record<string, unknown>
+
+    assert.equal(done.phase, 'awaiting_confirmation')
+    assert.equal((done.detail as Record<string, unknown>).targetLabel, 'Application logs')
+    assert.equal((done.detail as Record<string, unknown>).toolName, 'search_logs')
+    assert.equal((done.detail as Record<string, unknown>).confirmationId, 9)
+  })
+
+  test('derives the action from the dedicated API Key tool name', async ({ assert }) => {
     const { writes, response } = createFakeResponse()
     const confirmation = {
       id: 8,
@@ -223,11 +307,12 @@ test.group('AI chat SSE adapter', () => {
     }
     const run = createFakeRun([
       {
-        name: 'propose_api_key_revocation',
+        name: 'revoke_api_key',
         callId: 'call-5',
         input: { apiKeyId: 19 },
         status: Promise.resolve('finished'),
-        output: Promise.resolve({ kind: 'confirmation', confirmation }),
+        output: Promise.resolve(null),
+        confirmation,
       },
     ])
 
@@ -236,34 +321,41 @@ test.group('AI chat SSE adapter', () => {
 
     assert.deepEqual(
       frames.map((frame) => frame.event),
-      ['agent_plan', 'agent_status', 'agent_status', 'agent_plan', 'agent_confirmation']
+      [
+        'agent_plan',
+        'agent_status',
+        'agent_plan',
+        'agent_confirmation',
+        'agent_status',
+        'agent_plan',
+      ]
     )
 
     const running = frames[1].data as Record<string, unknown>
     assert.equal(running.state, 'running')
     assert.equal((running.detail as Record<string, unknown>).action, 'revoke_api_key')
-    assert.equal(running.phase, 'preparing_proposal')
+    assert.equal(running.phase, 'preparing_action')
 
-    const done = frames[2].data as Record<string, unknown>
+    const done = frames[4].data as Record<string, unknown>
     assert.equal(done.state, 'done')
     assert.equal((done.detail as Record<string, unknown>).targetType, 'api_key')
     assert.equal((done.detail as Record<string, unknown>).targetId, '19')
     assert.equal((done.detail as Record<string, unknown>).targetLabel, '测试密钥')
 
-    const lastPlan = frames[3].data as { steps: Array<{ key: string; state: string }> }
+    const lastPlan = frames[5].data as { steps: Array<{ key: string; state: string }> }
     assert.equal(lastPlan.steps[0].state, 'done')
     assert.equal(lastPlan.steps[1].state, 'done')
     assert.equal(lastPlan.steps[2].state, 'running')
 
-    assert.deepEqual(frames[4].data, confirmation)
-    assert.isTrue(result.has('propose_api_key_revocation'))
+    assert.deepEqual(frames[3].data, confirmation)
+    assert.isFalse(result.has('revoke_api_key'))
   })
 
   test('keeps a denied proposal terminal frame as done with its error code', async ({ assert }) => {
     const { writes, response } = createFakeResponse()
     const run = createFakeRun([
       {
-        name: 'propose_system_management_change',
+        name: 'system_management_change',
         callId: 'call-3',
         input: { action: 'reset_two_factor' },
         status: Promise.resolve('finished'),
@@ -289,11 +381,16 @@ test.group('AI chat SSE adapter', () => {
     assert.equal(terminal.errorCode, 'permission_denied')
     assert.equal(terminal.callId, 'call-3')
     assert.isNumber(terminal.durationMs)
+    assert.notExists(terminal.phase)
 
     const lastPlan = frames[3].data as { steps: Array<{ state: string }> }
     assert.equal(lastPlan.steps[1].state, 'done')
-    assert.equal(lastPlan.steps[2].state, 'running')
-    assert.isTrue(result.has('propose_system_management_change'))
+    assert.equal(lastPlan.steps[2].state, 'pending')
+    assert.notInclude(
+      frames.map((frame) => frame.event),
+      'agent_confirmation'
+    )
+    assert.isTrue(result.has('system_management_change'))
   })
 
   test('throws AbortError before writing when the signal is already aborted', async ({

@@ -77,6 +77,48 @@ function ensureGrantablePermissions(actorRoles: Role[], requestedCodes: string[]
   }
 }
 
+async function loadActorRolesForGrant(actorUserId: number) {
+  const actor = await User.query()
+    .where('id', actorUserId)
+    .preload('roles', (roles) => roles.preload('permissions'))
+    .firstOrFail()
+  if (actor.disabledAt) {
+    throw new AccessControlMutationError('inactive_actor', '已停用的用户不能执行此操作')
+  }
+  return actor.roles
+}
+
+export async function assertGrantablePermissionIds(actorUserId: number, ids: number[]) {
+  const normalizedIds = uniqueIds(ids)
+  const permissions = normalizedIds.length
+    ? await Permission.query().whereIn('id', normalizedIds).whereIn('code', permissionCatalogCodes)
+    : []
+  if (permissions.length !== normalizedIds.length) {
+    throw new AccessControlMutationError('invalid_permission_ids', '包含未注册或不存在的权限')
+  }
+  ensureGrantablePermissions(
+    await loadActorRolesForGrant(actorUserId),
+    permissions.map((permission) => permission.code)
+  )
+}
+
+export async function assertGrantableRoleIds(actorUserId: number, ids: number[]) {
+  const normalizedIds = uniqueIds(ids)
+  const roles = normalizedIds.length
+    ? await Role.query().whereIn('id', normalizedIds).preload('permissions')
+    : []
+  if (roles.length !== normalizedIds.length) {
+    throw new AccessControlMutationError('invalid_role_ids', '包含不存在的角色')
+  }
+  if (roles.some((role) => role.code === 'super-admin')) {
+    throw new AccessControlMutationError('super_admin_role_grant', '超级管理员角色不可授予')
+  }
+  ensureGrantablePermissions(
+    await loadActorRolesForGrant(actorUserId),
+    roles.flatMap((role) => role.permissions.map((permission) => permission.code))
+  )
+}
+
 async function resolveActorRoles(actorUserId: number, client: TransactionClientContract) {
   const actor = await User.query({ client })
     .where('id', actorUserId)

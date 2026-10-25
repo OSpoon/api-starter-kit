@@ -13,6 +13,6 @@ export type DisplayAiChatMessage = {
 }
 
 export type LocalAiChatMessage = DisplayAiChatMessage & {
-  id: string
+  id: string | number
   citations?: AiChatCitation[]
 }

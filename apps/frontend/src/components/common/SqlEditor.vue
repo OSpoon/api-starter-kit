@@ -228,7 +228,7 @@ defineExpose({ formatSql, validateSql, insertVariable, focusVariable, validate: 
               id="sql-editor-dialect"
               :aria-label="t('sql_editor.dialect_label')"
               class="h-6 min-w-0 border-0 bg-transparent px-1 font-mono text-xs font-medium tracking-wide text-muted-foreground uppercase shadow-none transition-none focus-visible:border-0 focus-visible:ring-0"
-              ><SelectValue
+              ><SelectValue :placeholder="t('sql_editor.dialect_label')"
             /></SelectTrigger>
             <SelectContent class="min-w-36 font-mono">
               <SelectItem

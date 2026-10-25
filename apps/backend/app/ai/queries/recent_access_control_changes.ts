@@ -9,10 +9,10 @@ import AuditLog from '#models/audit_log'
 
 export const recentAccessControlChangesQuery: AiQueryTemplate = {
   code: 'recent_access_control_changes',
+  permission: 'audit-logs:read',
   version: 2,
   description:
     'List role and historical permission audit events without metadata or unredacted actor details; results can be paginated with params.page.',
-  permission: 'audit-logs:read',
   parameters: { page: queryPageParameter },
   async execute(params) {
     const logs = await AuditLog.query()

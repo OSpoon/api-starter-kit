@@ -23,6 +23,7 @@ test.group('knowledge documents', (group) => {
     const reloaded = await KnowledgeDocument.findOrFail(document.id)
 
     assert.deepEqual(reloaded.topics, topics)
+    assert.isTrue(reloaded.enabled)
   })
 
   test('rejects persisted topics with a non-string entry', async ({ assert }) => {
@@ -120,5 +121,36 @@ test.group('knowledge documents', (group) => {
       .get('/api/v1/system/knowledge-documents')
       .bearerToken(deniedToken.value!.release())
     deniedResponse.assertStatus(403)
+  })
+
+  test('lists disabled documents with their enabled state and no role access data', async ({
+    client,
+    assert,
+  }) => {
+    const superAdminRole = await Role.findByOrFail('code', 'super-admin')
+    const user = await User.create({
+      fullName: 'Knowledge document status admin',
+      email: `knowledge-status-${Date.now()}@example.com`,
+      password: generateInitialPassword(),
+    })
+    await user.related('roles').sync([superAdminRole.id])
+    const token = await User.accessTokens.create(user)
+    const document = await KnowledgeDocument.create({
+      title: `Disabled document ${Date.now()}`,
+      content: 'This document is disabled for assistant retrieval.',
+      contentHash: `${Date.now()}c`.slice(0, 64),
+      topics: [],
+      enabled: false,
+    })
+
+    const response = await client
+      .get(`/api/v1/system/knowledge-documents?search=${encodeURIComponent(document.title)}`)
+      .bearerToken(token.value!.release())
+    response.assertStatus(200)
+    const items = (response.body().data as { items: Array<Record<string, unknown>> }).items
+    const listed = items.find((item) => item.id === document.id)
+    assert.exists(listed)
+    assert.isFalse(listed!.enabled)
+    assert.notProperty(listed!, 'roles')
   })
 })

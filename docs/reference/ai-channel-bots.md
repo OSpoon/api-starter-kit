@@ -18,6 +18,9 @@ AiChannelBridge
 
 渠道适配器只负责连接和协议转换，不复制 AI 编排、权限判断或业务执行逻辑。私聊用户首次发消息时，系统为该渠道身份生成一次性绑定码；绑定后，私聊消息使用系统用户的角色、权限、知识库范围和 AI 确认机制。群聊采用独立的访客模式，只回答公开知识库内容，不开放系统查询、管理操作或确认卡片。
 
+受控操作确认卡片显示操作标题、目标、服务端生成的变更摘要和影响提示；原始操作参数不会发送到 IM 渠道。
+飞书优先使用 CardKit 流式卡片显示“正在输入……”和 AI 回复；缺少 `cardkit:card:write` 权限时，回退为普通文本状态提示和最终回复。确认操作仍发送独立的确认卡片。
+
 ## 2. 官方文档
 
 ### 企业微信
@@ -47,11 +50,11 @@ AiChannelBridge
 - [互动卡片更新接口](https://open.dingtalk.com/document/orgapp/interactive-card-update-interface)
 - [互动卡片事件回调](https://open.dingtalk.com/document/orgapp/event-callback-card)
 
-钉钉机器人使用官方 Stream WebSocket 接收机器人消息和卡片回调，普通文本/Markdown 回复使用消息中的会话 Webhook。受控操作使用钉钉互动卡片模板投放，模板回调再转换为系统统一的确认事件。一个 Client ID 只运行一个 Stream worker；卡片模板投放必须使用 `STREAM` 回调类型。
+钉钉机器人使用官方 Stream WebSocket 接收机器人消息和卡片回调，普通文本/Markdown 回复使用消息中的会话 Webhook。受控操作使用钉钉互动卡片模板投放，模板回调再转换为系统统一的确认事件。流式回复产生确认提案时，确认或取消后的结果会更新回原流式卡片；卡片更新失败时回退为普通回复。一个 Client ID 只运行一个 Stream worker；卡片模板投放必须使用 `STREAM` 回调类型。
 
 ## 3. 运行时配置
 
-机器人凭据统一在系统管理的「IM 配置」页面维护。敏感字段由后端加密保存，保存后对应 Bot worker 会自动重新加载运行时配置；模型、ASR 和 Embedding 配置仍在「LLM 配置」页面维护。
+机器人凭据统一在系统管理的「Agent 配置 → IM 渠道」页面维护。敏感字段由后端加密保存，保存后对应 Bot worker 会自动重新加载运行时配置；模型、ASR 和 Embedding 配置也在「Agent 配置」页面维护。
 
 ### 企业微信字段
 
@@ -89,7 +92,7 @@ pnpm --dir apps/backend exec node ace migration:status
 
 1. 在企业微信管理后台创建或打开智能机器人。
 2. 进入智能机器人 API 配置，取得 Bot ID、Secret、Tenant ID 和 WebSocket 地址。
-3. 在本系统「系统管理 → IM 配置 → 企微机器人」保存配置。
+3. 在本系统「系统管理 → Agent 配置 → IM 渠道 → 企微机器人」保存配置。
 4. 启动企业微信 Bot worker。
 5. 向机器人发送消息，首次回复会包含一次性绑定码。
 6. 登录本系统，在「个人设置 → AI 渠道绑定 → 企微机器人」点击绑定，使用 Input OTP 组件输入 8 位绑定码。
@@ -114,7 +117,7 @@ pnpm --dir apps/backend exec node ace migration:status
 7. 如需群聊触发，开通群聊中 @ 机器人的消息权限，并在群里使用 `@机器人` 测试。
 8. 在「权限管理」中开通以应用身份发送消息所需的消息权限。
 9. 发布应用版本；仅保存开发者后台配置但未发布时，权限和可见范围可能不会生效。
-10. 在本系统「系统管理 → IM 配置 → 飞书机器人」配置 App ID、App Secret 和 Domain。
+10. 在本系统「系统管理 → Agent 配置 → IM 渠道 → 飞书机器人」配置 App ID、App Secret 和 Domain。
 11. 启动飞书 Bot worker。
 12. 私聊机器人获取一次性绑定码，并在本系统个人设置中绑定。
 
@@ -135,9 +138,9 @@ pnpm --dir apps/backend exec node ace migration:status
 
 1. 在[钉钉开放平台](https://open.dingtalk.com/)创建企业内部应用并启用机器人能力。
 2. 按 Stream 文档配置机器人消息接收；本项目使用长连接，不需要公网回调服务器。
-3. 创建并发布受控操作互动卡片模板，模板需要接收 `description`、`confirmLabel`、`cancelLabel`、`confirmActionKey`、`cancelActionKey`、`taskId`、`conversationKey`、`externalUserId` 和 `externalTenantId` 参数，并通过卡片按钮回传 `actionKey`、`taskId`、`conversationKey`、`externalUserId` 和 `externalTenantId` 等私有参数。标准示例见 [`dingtalk-controlled-action-confirmation-template.example.json`](./dingtalk-controlled-action-confirmation-template.example.json)。
+3. 创建并发布受控操作互动卡片模板，模板需要接收 `description`、`confirmLabel`、`cancelLabel`、`confirmActionKey`、`cancelActionKey`、`taskId`、`conversationKey`、`externalUserId` 和 `externalTenantId` 参数，并通过卡片按钮回传 `actionKey`、`taskId`、`conversationKey`、`externalUserId` 和 `externalTenantId` 等私有参数。`description` 应绑定 Markdown 组件；其中会包含操作标题、目标、变更摘要和影响提示。标准示例见 [`dingtalk-controlled-action-confirmation-template.example.json`](./dingtalk-controlled-action-confirmation-template.example.json)。
 4. 如需普通问答流式输出，再创建并发布流式回复互动卡片模板。模板只需要接收 `content`，卡片标题使用模板中的固定文本，系统通过官方卡片更新接口更新 `content`。标准示例见 [`dingtalk-streaming-reply-template.example.json`](./dingtalk-streaming-reply-template.example.json)。
-5. 在本系统「系统管理 → IM 配置 → 钉钉机器人」保存 Client ID、Client Secret，以及对应的受控操作和流式回复卡片模板 ID。
+5. 在本系统「系统管理 → Agent 配置 → IM 渠道 → 钉钉机器人」保存 Client ID、Client Secret，以及对应的受控操作和流式回复卡片模板 ID。
 6. 仅启动一个 `bot:dingtalk` 进程，向机器人发送消息获取一次性绑定码，并在个人设置中绑定。
 
 如果日志显示 Stream 已认证但收不到消息，检查机器人能力、应用发布状态、消息事件订阅和当前用户可见范围；如果普通消息正常但没有确认卡，检查卡片模板 ID、模板发布状态、卡片回调主题和按钮回传参数。
@@ -192,7 +195,7 @@ docker compose -f docker/docker-compose.yml logs -f feishu-bot
 docker compose -f docker/docker-compose.yml logs -f dingtalk-bot
 ```
 
-Bot worker 会监听 PostgreSQL 的 IM 配置变更通知。管理员在「IM 配置」页面保存后，
+Bot worker 会监听 PostgreSQL 的 IM 配置变更通知。管理员在「Agent 配置 → IM 渠道」页面保存后，
 对应渠道会自动使用新配置建立连接，无需执行 `docker compose restart`。如果配置不完整，
 worker 会保持运行并等待；如果 PostgreSQL 监听连接断开，worker 会自动重连并重新读取
 数据库配置。

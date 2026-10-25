@@ -4,9 +4,9 @@ import { permissionCatalogCodes } from '#services/permission_catalog'
 
 export const permissionCatalogQuery: AiQueryTemplate = {
   code: 'permission_catalog',
+  permission: 'permissions:read',
   version: 2,
   description: 'List permission catalog entries with role reference counts.',
-  permission: 'permissions:read',
   parameters: {},
   async execute() {
     const permissions = await Permission.query()

@@ -5,7 +5,7 @@ import type { HttpContext } from '@adonisjs/core/http'
 import { recordAuditEvent } from '#services/audit_log'
 
 export type KnowledgeSearchAuditStage = 'catalog' | 'detail'
-export type KnowledgeSearchAuditAuthorization = 'allowed' | 'denied' | 'failed'
+export type KnowledgeSearchAuditAuthorization = 'allowed' | 'failed'
 
 export function buildKnowledgeSearchAuditMetadata(input: {
   query: string
@@ -48,18 +48,8 @@ export async function recordKnowledgeSearchAudit(input: {
   await recordAuditEvent(input.ctx, {
     actorUserId: input.userId,
     source: 'ai_agent',
-    outcome:
-      input.authorization === 'allowed'
-        ? 'success'
-        : input.authorization === 'denied'
-          ? 'denied'
-          : 'failure',
-    reasonCode:
-      input.authorization === 'denied'
-        ? 'permission_denied'
-        : input.authorization === 'failed'
-          ? 'search_failed'
-          : undefined,
+    outcome: input.authorization === 'allowed' ? 'success' : 'failure',
+    reasonCode: input.authorization === 'failed' ? 'search_failed' : undefined,
     action: input.stage === 'catalog' ? 'knowledge.catalog_searched' : 'knowledge.searched',
     targetType: input.stage === 'catalog' ? 'knowledge_catalog' : 'knowledge_search',
     metadata: buildKnowledgeSearchAuditMetadata(input),

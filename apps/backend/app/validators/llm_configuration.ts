@@ -45,7 +45,12 @@ export const updateLlmConfigurationValidator = vine.compile(
         .nullable(),
       embeddingModel: vine.string().trim().maxLength(160).optional().nullable(),
       embeddingDimensions: vine.number().min(1024).max(1024),
-      requestTimeoutMs: vine.number().min(5000).max(300000),
     })
     .use(validChatModelLimits())
+)
+
+export const testLlmConnectionValidator = vine.compile(
+  vine.object({
+    service: vine.enum(['chat', 'asr', 'embedding'] as const).optional(),
+  })
 )

@@ -42,9 +42,6 @@ export default class LlmConfiguration extends BaseModel {
   declare embeddingDimensions: number
 
   @column()
-  declare requestTimeoutMs: number
-
-  @column()
   declare wecomBotId: string | null
 
   @column({ serializeAs: null })

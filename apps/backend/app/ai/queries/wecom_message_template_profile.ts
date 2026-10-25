@@ -5,10 +5,10 @@ import WecomMessageTemplate from '#models/wecom_message_template'
 
 export const wecomMessageTemplateProfileQuery: AiQueryTemplate = {
   code: 'wecom_message_template_profile',
+  permission: 'wecom-templates:read',
   version: 1,
   description:
     'Look up one enabled WeCom message template by ID, including its safe payload template and required parameters, but never its Webhook address.',
-  permission: 'wecom-templates:read',
   parameters: {
     templateId: {
       description: 'Required positive WeCom message template ID.',

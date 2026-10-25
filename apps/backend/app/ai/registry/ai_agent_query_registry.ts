@@ -10,6 +10,7 @@ import { permissionCatalogQuery } from '#ai/queries/permission_catalog'
 import { permissionUsageQuery } from '#ai/queries/permission_usage'
 import { recentAccessControlChangesQuery } from '#ai/queries/recent_access_control_changes'
 import { recentAuditLogsQuery } from '#ai/queries/recent_audit_logs'
+import { revokedApiKeysQuery } from '#ai/queries/revoked_api_keys'
 import { roleProfileQuery } from '#ai/queries/role_profile'
 import { rolesWithPermissionsQuery } from '#ai/queries/roles_with_permissions'
 import { wecomMessagePreviewQuery } from '#ai/queries/wecom_message_preview'
@@ -21,20 +22,36 @@ import { recordAuditEvent } from '#services/audit_log'
 
 export type AiQueryParameter = import('#ai/registry/ai_agent_query_types').AiQueryParameter
 
+export type AiQueryMatch = {
+  status: 'matched' | 'not_found' | 'ambiguous'
+  field: 'userId' | 'email' | 'fullName'
+}
+
 export type AiRegisteredQueryResult =
-  | { kind: 'query_error'; code: 'unknown_template' | 'invalid_input' | 'failed'; message: string }
+  | {
+      kind: 'query_error'
+      code: 'unknown_template' | 'permission_denied' | 'invalid_input' | 'failed'
+      message: string
+    }
   | {
       kind: 'missing_parameters'
       templateCode: AiQueryTemplateCode
       missingFields: Array<{ name: string; description: string }>
     }
-  | { kind: 'query_result'; templateCode: AiQueryTemplateCode; rows: unknown[]; message?: string }
+  | {
+      kind: 'query_result'
+      templateCode: AiQueryTemplateCode
+      rows: unknown[]
+      message?: string
+      match?: AiQueryMatch
+    }
 
 const queryTemplates: readonly AiQueryTemplate[] = [
   wecomMessageTemplatesQuery,
   wecomMessageTemplateProfileQuery,
   wecomMessagePreviewQuery,
   activeApiKeysQuery,
+  revokedApiKeysQuery,
   apiKeyProfileQuery,
   managedUsersQuery,
   managedUserProfileQuery,
@@ -57,10 +74,6 @@ export const aiQueryTemplateInstructions = queryTemplates
 
 export function getAiQueryTemplate(code: string) {
   return queryTemplates.find((template) => template.code === code)
-}
-
-async function ensurePermission(userId: number, permission: string) {
-  await ensureAiAgentPermission(userId, permission, '当前账号没有执行此查询的权限')
 }
 
 async function recordQueryAudit(input: {
@@ -116,6 +129,12 @@ function getMissingFields(template: AiQueryTemplate, params: Record<string, unkn
     const hasName = typeof params.name === 'string' && params.name.trim() !== ''
     return hasId || hasName ? [] : ['apiKeyIdOrName']
   }
+  if (template.code === 'managed_user_profile') {
+    const hasId = params.userId !== undefined && params.userId !== null
+    const hasEmail = typeof params.email === 'string' && params.email.trim() !== ''
+    const hasFullName = typeof params.fullName === 'string' && params.fullName.trim() !== ''
+    return hasId || hasEmail || hasFullName ? [] : ['userIdOrExactEmailOrName']
+  }
   return Object.entries(template.parameters)
     .filter(([name, parameter]) => {
       const value = params[name]
@@ -133,7 +152,9 @@ function describeMissingFields(template: AiQueryTemplate, names: string[]) {
     description:
       name === 'apiKeyIdOrName'
         ? 'Required positive API Key ID or exact name.'
-        : (template.parameters[name]?.description ?? 'Required parameter.'),
+        : name === 'userIdOrExactEmailOrName'
+          ? 'Required managed-user ID, exact email, or exact full name.'
+          : (template.parameters[name]?.description ?? 'Required parameter.'),
   }))
 }
 
@@ -143,10 +164,38 @@ function parseParams(template: AiQueryTemplate, params: Record<string, unknown>)
   const result: Record<string, unknown> = {}
   for (const [name, parameter] of Object.entries(template.parameters)) {
     const parsed = parameter.schema.safeParse(params[name])
-    if (!parsed.success) throw new Error(`${name} 参数无效：${parameter.description}`)
-    result[name] = parsed.data
+    if (!parsed.success) throw new Error(getInvalidQueryParameterMessage(name))
+    if (parsed.data !== undefined) result[name] = parsed.data
   }
   return result
+}
+
+function getInvalidQueryParameterMessage(name: string) {
+  return name === 'page' ? '页码必须为正整数；查询第一页时请省略页码。' : `查询参数 ${name} 无效。`
+}
+
+export function validateRegisteredAiQueryParameters(
+  templateCode: string,
+  params: Record<string, unknown>
+) {
+  const template = getAiQueryTemplate(templateCode)
+  if (!template) throw new Error('未知的查询模板')
+  const unknownParameters = Object.keys(params).filter((name) => !(name in template.parameters))
+  if (unknownParameters.length) {
+    throw new Error(`不支持的查询参数：${unknownParameters.join(', ')}`)
+  }
+  for (const [name, parameter] of Object.entries(template.parameters)) {
+    if (parameter.required && params[name] === undefined) continue
+    if (!parameter.schema.safeParse(params[name]).success) {
+      throw new Error(getInvalidQueryParameterMessage(name))
+    }
+  }
+}
+
+export async function ensureRegisteredAiQueryPermission(templateCode: string, userId: number) {
+  const template = getAiQueryTemplate(templateCode)
+  if (!template) throw new Error('未知的查询模板')
+  await ensureAiAgentPermission(userId, template.permission, '当前账号没有执行此查询的权限')
 }
 
 async function findActivePendingQuery(input: { conversationId: number; userId: number }) {
@@ -195,7 +244,7 @@ export async function runRegisteredAiQuery(input: {
     return { kind: 'query_error', code: 'unknown_template', message: '未知的查询模板' }
   }
   try {
-    await ensurePermission(input.userId, template.permission)
+    await ensureAiAgentPermission(input.userId, template.permission, '当前账号没有执行此查询的权限')
   } catch (error) {
     await recordQueryAudit({
       ctx: input.ctx,
@@ -208,7 +257,11 @@ export async function runRegisteredAiQuery(input: {
       parameterNames: Object.keys(input.params),
       startedAt,
     })
-    throw error
+    return {
+      kind: 'query_error',
+      code: 'permission_denied',
+      message: error instanceof Error ? error.message : '当前账号没有执行此查询的权限',
+    }
   }
   const unknownParameters = Object.keys(input.params).filter(
     (name) => !(name in template.parameters)
@@ -333,5 +386,8 @@ export async function runRegisteredAiQuery(input: {
     templateCode: template.code,
     rows: Array.isArray(result.rows) ? result.rows : [],
     ...(typeof result.message === 'string' ? { message: result.message } : {}),
+    ...(result.match && typeof result.match === 'object'
+      ? { match: result.match as AiQueryMatch }
+      : {}),
   }
 }

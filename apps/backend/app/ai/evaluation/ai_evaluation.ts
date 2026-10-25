@@ -91,7 +91,7 @@ export const aiAssistantEvaluationCases: readonly AiEvaluationCase[] = [
     turns: [
       {
         question: '请吊销 ID 为 19 的测试密钥。',
-        expectedTools: ['propose_api_key_revocation'],
+        expectedTools: ['revoke_api_key'],
       },
     ],
   },
@@ -100,7 +100,7 @@ export const aiAssistantEvaluationCases: readonly AiEvaluationCase[] = [
     turns: [
       {
         question: '请吊销名为测试密钥的 API Key。',
-        expectedTools: ['propose_api_key_revocation'],
+        expectedTools: ['revoke_api_key'],
       },
     ],
   },
@@ -119,16 +119,15 @@ export const aiAssistantEvaluationCases: readonly AiEvaluationCase[] = [
     ],
   },
   {
-    name: 'permission denied change',
+    name: 'configured action without user RBAC checks',
     turns: [
       {
         question: '请吊销 ID 为 19 的测试密钥。',
-        expectedTools: ['propose_api_key_revocation'],
+        expectedTools: ['revoke_api_key'],
         toolOutputs: {
-          propose_api_key_revocation: {
-            kind: 'action_error',
-            code: 'permission_denied',
-            message: '当前账号没有执行此操作的权限',
+          revoke_api_key: {
+            kind: 'action_result',
+            status: 'simulated',
           },
         },
       },

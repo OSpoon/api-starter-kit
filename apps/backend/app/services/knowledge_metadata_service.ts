@@ -1,7 +1,10 @@
 import OpenAI from 'openai'
 import { z } from 'zod'
 
-import { readRuntimeLlmConfiguration } from '#services/llm_configuration_service'
+import {
+  LLM_REQUEST_TIMEOUT_MS,
+  readRuntimeLlmConfiguration,
+} from '#services/llm_configuration_service'
 
 const knowledgeMetadataSchema = z.object({
   summary: z.string().trim().max(2_000).nullable().catch(null),
@@ -22,7 +25,7 @@ export async function suggestKnowledgeMetadata(input: { title: string; content: 
   const runtime = await readRuntimeLlmConfiguration()
   const client = new OpenAI({
     apiKey: runtime.chat.apiKey,
-    timeout: runtime.requestTimeoutMs,
+    timeout: LLM_REQUEST_TIMEOUT_MS,
     ...(runtime.chat.baseURL ? { baseURL: runtime.chat.baseURL.replace(/\/+$/, '') } : {}),
   })
   const excerpt = input.content.trim().slice(0, 14_000)

@@ -23,6 +23,7 @@ const {
   aiVoiceTranscribing,
   pendingAiConfirmation,
   aiConfirming,
+  aiCancelling,
   displayedAiChatMessages,
   hasOlderAiMessages,
   aiOlderMessagesLoading,
@@ -83,6 +84,7 @@ const breadcrumbs = computed(() => {
         :usage-loading="aiUsageLoading"
         :approval="aiApprovalDismissed ? null : pendingAiConfirmation"
         :approval-loading="aiConfirming"
+        :approval-cancelling="aiCancelling"
         :credential-disclosure="aiCredentialDisclosure"
         :voice-transcribing="aiVoiceTranscribing"
         @clear="handleAiNewChat"

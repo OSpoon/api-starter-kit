@@ -331,7 +331,7 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/api_keys_controller').default['destroy']>>>
     }
   }
-  'llm_configurations.show': {
+  'llm-config.legacy.show': {
     methods: ["GET","HEAD"]
     pattern: '/api/v1/system/llm-config'
     types: {
@@ -343,7 +343,7 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/llm_configurations_controller').default['show']>>>
     }
   }
-  'llm_configurations.update': {
+  'llm-config.legacy.update': {
     methods: ["PUT"]
     pattern: '/api/v1/system/llm-config'
     types: {
@@ -355,16 +355,208 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/llm_configurations_controller').default['update']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
-  'llm_configurations.test': {
+  'llm-config.legacy.test': {
     methods: ["POST"]
     pattern: '/api/v1/system/llm-config/test'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/llm_configuration').testLlmConnectionValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/llm_configuration').testLlmConnectionValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/llm_configurations_controller').default['test']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/llm_configurations_controller').default['test']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'agent_configurations.show': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/system/agent-config'
     types: {
       body: {}
       paramsTuple: []
       params: {}
       query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['show']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['show']>>>
+    }
+  }
+  'agent_configurations.update_configuration': {
+    methods: ["PUT"]
+    pattern: '/api/v1/system/agent-config'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/ai_agent_configuration').updateAiAgentConfigurationValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/ai_agent_configuration').updateAiAgentConfigurationValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['updateConfiguration']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['updateConfiguration']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'agent-config.llm.show': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/system/agent-config/llm'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/llm_configurations_controller').default['show']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/llm_configurations_controller').default['show']>>>
+    }
+  }
+  'agent-config.llm.update': {
+    methods: ["PUT"]
+    pattern: '/api/v1/system/agent-config/llm'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/llm_configuration').updateLlmConfigurationValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/llm_configuration').updateLlmConfigurationValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/llm_configurations_controller').default['update']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/llm_configurations_controller').default['update']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'agent-config.llm.test': {
+    methods: ["POST"]
+    pattern: '/api/v1/system/agent-config/llm/test'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/llm_configuration').testLlmConnectionValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/llm_configuration').testLlmConnectionValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/llm_configurations_controller').default['test']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/llm_configurations_controller').default['test']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/llm_configurations_controller').default['test']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'agent_configurations.skills': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/system/agent-config/skills'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/pagination').paginationSearchQueryValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['skills']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['skills']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'agent_configurations.show_skill': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/system/agent-config/skills/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/ai_agent_configuration').aiAgentModuleIdValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['showSkill']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['showSkill']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'agent_configurations.create_skill': {
+    methods: ["POST"]
+    pattern: '/api/v1/system/agent-config/skills'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/ai_agent_configuration').createAiAgentSkillValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/ai_agent_configuration').createAiAgentSkillValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['createSkill']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['createSkill']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'agent_configurations.update_skill': {
+    methods: ["PUT"]
+    pattern: '/api/v1/system/agent-config/skills/:id'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/ai_agent_configuration').updateAiAgentSkillValidator)>|InferInput<(typeof import('#validators/ai_agent_configuration').aiAgentModuleIdValidator)>>
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/ai_agent_configuration').updateAiAgentSkillValidator)>|InferInput<(typeof import('#validators/ai_agent_configuration').aiAgentModuleIdValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['updateSkill']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['updateSkill']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'agent_configurations.delete_skill': {
+    methods: ["DELETE"]
+    pattern: '/api/v1/system/agent-config/skills/:id'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/ai_agent_configuration').aiAgentModuleIdValidator)>>
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/ai_agent_configuration').aiAgentModuleIdValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['deleteSkill']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['deleteSkill']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'agent_configurations.mcp_servers': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/system/agent-config/mcp-servers'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/pagination').paginationSearchQueryValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['mcpServers']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['mcpServers']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'agent_configurations.create_mcp_server': {
+    methods: ["POST"]
+    pattern: '/api/v1/system/agent-config/mcp-servers'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/ai_agent_configuration').createAiAgentMcpServerValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/ai_agent_configuration').createAiAgentMcpServerValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['createMcpServer']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['createMcpServer']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'agent_configurations.update_mcp_server': {
+    methods: ["PUT"]
+    pattern: '/api/v1/system/agent-config/mcp-servers/:id'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/ai_agent_configuration').updateAiAgentMcpServerValidator)>|InferInput<(typeof import('#validators/ai_agent_configuration').aiAgentModuleIdValidator)>>
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/ai_agent_configuration').updateAiAgentMcpServerValidator)>|InferInput<(typeof import('#validators/ai_agent_configuration').aiAgentModuleIdValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['updateMcpServer']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['updateMcpServer']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'agent_configurations.delete_mcp_server': {
+    methods: ["DELETE"]
+    pattern: '/api/v1/system/agent-config/mcp-servers/:id'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/ai_agent_configuration').aiAgentModuleIdValidator)>>
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/ai_agent_configuration').aiAgentModuleIdValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['deleteMcpServer']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['deleteMcpServer']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'agent_configurations.test_mcp_connection': {
+    methods: ["POST"]
+    pattern: '/api/v1/system/agent-config/mcp-servers/test'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/ai_agent_configuration').testAiAgentMcpConnectionValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/ai_agent_configuration').testAiAgentMcpConnectionValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['testMcpConnection']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['testMcpConnection']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'agent_configurations.discover_mcp_tools': {
+    methods: ["POST"]
+    pattern: '/api/v1/system/agent-config/mcp-servers/:id/discover'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/ai_agent_configuration').aiAgentModuleIdValidator)>>
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/ai_agent_configuration').aiAgentModuleIdValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['discoverMcpTools']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['discoverMcpTools']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
   'im_configurations.show': {
@@ -835,6 +1027,30 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['confirmAiAgentAction']>>>
     }
   }
+  'ai_chat.cancel_ai_agent_action': {
+    methods: ["POST"]
+    pattern: '/api/v1/ai-chat/conversations/:id/confirmations/:confirmationId/cancel'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/ai_chat').aiChatConfirmationRouteValidator)>>
+      paramsTuple: [ParamValue, ParamValue]
+      params: { id: ParamValue; confirmationId: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/ai_chat').aiChatConfirmationRouteValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['cancelAiAgentAction']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['cancelAiAgentAction']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'ai_chat.confirm_ai_agent_action_stream': {
+    methods: ["POST"]
+    pattern: '/api/v1/ai-chat/conversations/:id/confirmations/:confirmationId/confirm/stream'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue, ParamValue]
+      params: { id: ParamValue; confirmationId: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['confirmAiAgentActionStream']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['confirmAiAgentActionStream']>>>
+    }
+  }
   'ai_chat.destroy': {
     methods: ["DELETE"]
     pattern: '/api/v1/ai-chat/conversations/:id'
@@ -953,6 +1169,18 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['confirmAiAgentAction']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['confirmAiAgentAction']>>>
+    }
+  }
+  'integrations.ai_chat.ai_chat.cancel_ai_agent_action': {
+    methods: ["POST"]
+    pattern: '/api/v1/integrations/ai-chat/conversations/:id/confirmations/:confirmationId/cancel'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/ai_chat').aiChatConfirmationRouteValidator)>>
+      paramsTuple: [ParamValue, ParamValue]
+      params: { id: ParamValue; confirmationId: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/ai_chat').aiChatConfirmationRouteValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['cancelAiAgentAction']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['cancelAiAgentAction']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
   'integrations.ai_chat.ai_chat.destroy': {

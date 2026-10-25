@@ -116,7 +116,7 @@ defineExpose({ revealPosition })
           ><span>{{ t('sql_workspace.dialect') }}</span
           ><Select v-model="dialectModel">
             <SelectTrigger size="sm" class="h-7 w-23 gap-1 px-2 text-xs">
-              <SelectValue />
+              <SelectValue :placeholder="t('sql_workspace.dialect')" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem

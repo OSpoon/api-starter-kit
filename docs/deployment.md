@@ -59,9 +59,33 @@ frontend 环境变量。管理员密码至少 15 位，并满足项目密码强�
 `VITE_TURNSTILE_SITE_KEY` 同时匹配。
 
 不要把 backend `.env` 提交到 Git，也不要把 `APP_KEY`、数据库密码、OAuth
-secret、Bot secret 或 AI API key 写入 frontend 环境变量。LLM、Embedding 和
-ASR 凭据在首次迁移后通过系统管理的「LLM 配置」页面维护，Bot 凭据通过「IM
-配置」页面维护，敏感值由 backend 加密保存。
+secret、Bot secret 或 AI API key 写入 frontend 环境变量。LLM、Embedding、ASR
+和 Bot 凭据通过系统管理的「Agent 配置」页面维护，敏感值由 backend 加密保存。
+
+### 手动接入 MCP
+
+项目不会把 MCP 安装进应用镜像，也不会通过 Compose 自动挂载或启动 MCP。backend 通过 stdio
+启动 Agent 配置中登记的 MCP 程序，不会为 MCP 开放入站 HTTP 端点。
+
+添加 MCP 时，先由运维将程序单独安装到 backend 运行环境可访问的位置，并确认 backend 运行用户有执行程序及访问所需文件的权限。Docker 部署需要运维自行提供容器内的程序路径和文件挂载；项目不会自动处理这些步骤。
+
+然后在「Agent 配置 → MCP」中登记服务名称、程序绝对路径、启动参数、工作目录和环境变量。标准 MCP JSON 中的 `command`、`args`、`cwd`、`env` 对应这些字段，例如：
+
+```json
+{
+  "mcpServers": {
+    "logs": {
+      "command": "/absolute/path/to/node",
+      "args": ["/absolute/path/to/logs-mcp/dist/index.js", "--log-dir", "/absolute/path/to/logs"],
+      "cwd": "/absolute/path/to/mcp"
+    }
+  }
+}
+```
+
+保存后点击“启动并发现工具”，启用需要的工具，并选择直接读取或用户确认后执行。MCP 子进程以 backend 运行用户身份启动，因此只登记可信程序，并按最小需要提供文件和环境变量访问权限。stdio 不会暴露入站 MCP HTTP 服务，但不会限制子进程自身发起网络连接。
+
+日志查询 MCP 的独立安装和工具说明见 [`packages/logs-mcp/README.md`](../packages/logs-mcp/README.md)。
 
 如果 PostgreSQL 已经使用现有 volume 初始化，之后仅修改 `.env` 中的
 `DB_PASSWORD` 不会修改数据库内部密码；请按既有数据库凭据轮换流程先同步更新
@@ -253,12 +277,12 @@ node ace feishu:bot
 node ace dingtalk:bot
 ```
 
-Bot 未在「IM 配置」中完成对应渠道配置时，worker 会保持运行并等待配置；保存配置后，
+Bot 未在「Agent 配置 → IM 渠道」中完成对应渠道配置时，worker 会保持运行并等待配置；保存配置后，
 对应渠道会自动建立连接。生产 Compose 不会对这三个 worker 设置自动重启，因此 worker
 进程异常退出时仍需要按运维流程恢复服务。
 
 它们使用 backend 的数据库、权限、知识库和受控 AI 操作，不是独立的 API
-服务。LLM 配置保存后，backend 的普通请求会读取新的运行时配置；IM 配置保存后，
+服务。模型配置保存后，backend 的普通请求会读取新的运行时配置；IM 渠道配置保存后，
 对应 Bot worker 会通过 PostgreSQL 配置变更通知重新读取数据库配置，先建立新长连接，
 再停止旧连接。通知连接短暂断开时，worker 重连成功会主动重新对账配置。
 
@@ -298,6 +322,7 @@ ASR/LLM 地址。渠道平台的应用发布、长连接、权限、绑定和卡
 开发环境使用 `pnpm docker:up` 或 `docker/docker-compose.dev.yml`，会额外
 映射 PostgreSQL `5432` 供宿主机 backend 使用；不要把该开发 override 文件
 用于生产部署。
+
 # 网页版本更新提示
 
 管理前端和独立助手网页使用 `@plugin-web-update-notification/vite`，仅在生产构建启用。每次构建生成时间戳版本，首次加载、每 10 分钟、窗口重新获得焦点及脚本加载失败时检查更新。提示复用 Sonner 和中英文语言包，用户选择刷新或稍后，不会自动刷新。刷新前应保存未完成内容。

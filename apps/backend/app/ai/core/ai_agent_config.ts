@@ -1,4 +1,4 @@
-import { readRuntimeLlmConfiguration } from '#services/llm_configuration_service'
+import { LLM_REQUEST_TIMEOUT_MS } from '#services/llm_configuration_service'
 
 export function getAiAgentModelName() {
   return 'runtime'
@@ -11,7 +11,6 @@ export function getAiAgentSummarizationOptions() {
   }
 }
 
-export async function getAiRequestTimeout() {
-  const config = await readRuntimeLlmConfiguration()
-  return config.requestTimeoutMs
+export function getAiRequestTimeout() {
+  return LLM_REQUEST_TIMEOUT_MS
 }

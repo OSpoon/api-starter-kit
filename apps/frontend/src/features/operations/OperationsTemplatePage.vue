@@ -153,7 +153,7 @@ function selectCommand(messageKey: 'create_opened' | 'settings_opened' | 'search
               ><Input
                 id="operation-resource-name"
                 v-model="form.name"
-                :placeholder="t('operations_template.resource_name')"
+                :placeholder="t('operations_template.resource_name_placeholder')"
               />
             </div>
             <div class="grid gap-2">
@@ -163,7 +163,7 @@ function selectCommand(messageKey: 'create_opened' | 'settings_opened' | 'search
               ><Textarea
                 id="operation-resource-description"
                 v-model="form.description"
-                :placeholder="t('operations_template.resource_description')"
+                :placeholder="t('operations_template.resource_description_placeholder')"
               />
             </div>
             <Label

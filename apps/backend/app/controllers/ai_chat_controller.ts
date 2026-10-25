@@ -1,21 +1,28 @@
 import type { HttpContext } from '@adonisjs/core/http'
+import logger from '@adonisjs/core/services/logger'
 import { ApiOperation, ApiQuery, ApiResponse, ApiSecurity } from '@foadonis/openapi/decorators'
 
 import { resolveAiChatRegeneration } from '#ai/chat/ai_chat_regeneration'
+import { startAiChatSseKeepalive, writeAiChatSse } from '#ai/chat/ai_chat_sse_adapter'
 import { runAiChatAssistantTurn } from '#ai/chat/ai_chat_turn_service'
 import { resetAiConversationState } from '#ai/chat/ai_conversation_state'
+import { summarizeConfirmedToolResult } from '#ai/chat/confirmed_tool_result_summary'
 import { getAiRequestTimeout } from '#ai/core/ai_agent_config'
 import {
   AiAgentConfirmationError,
+  cancelAiAgentAction as cancelAgentAction,
   confirmAiAgentAction as executeAiAgentAction,
+  findPendingConfirmationTool,
   getAiAgentActionResultMessage,
   listConversationConfirmations,
 } from '#ai/core/ai_agent_confirmation'
+import { sanitizeAiAgentToolErrorMessage } from '#ai/core/ai_agent_tool_errors'
 import {
   claimAiAgentConversation,
   getAiAgentRun,
   releaseAiAgentConversation,
 } from '#ai/runtime/ai_agent_run_registry'
+import AiAgentConfirmation from '#models/ai_agent_confirmation'
 import AiChatConversation from '#models/ai_chat_conversation'
 import AiChatMessage from '#models/ai_chat_message'
 import { getAudioMimeType, transcribeAudio } from '#services/ai_speech_service'
@@ -27,6 +34,7 @@ import {
   serializeAiChatMessage,
 } from '#transformers/ai_chat_transformer'
 import {
+  aiChatConfirmationRouteValidator,
   createConversationValidator,
   queueAiChatMessageValidator,
   sendAiChatMessageValidator,
@@ -36,6 +44,160 @@ import { paginationSearchQueryValidator } from '#validators/pagination'
 function createTitle(content: string) {
   const title = content.replace(/\s+/g, ' ').trim()
   return title.length > 60 ? `${title.slice(0, 57)}...` : title || 'New chat'
+}
+
+function getCredentialDisclosure(result: Record<string, unknown> | undefined) {
+  const value = result?.credential
+  if (!value || typeof value !== 'object') return null
+  const credential = value as Record<string, unknown>
+  if (
+    (credential.kind !== 'api_key' && credential.kind !== 'password') ||
+    typeof credential.value !== 'string' ||
+    typeof credential.label !== 'string'
+  ) {
+    return null
+  }
+  return {
+    kind: credential.kind,
+    value: credential.value,
+    label: credential.label,
+  }
+}
+
+async function executeConfirmationAndCreateMessage(input: {
+  ctx: HttpContext
+  conversation: AiChatConversation
+  confirmationId: number
+  userId: number
+  response?: HttpContext['response']
+}) {
+  const { ctx, conversation, confirmationId, userId, response } = input
+  const confirmationRecord = await AiAgentConfirmation.query()
+    .where('id', confirmationId)
+    .where('conversation_id', conversation.id)
+    .where('requested_by_user_id', userId)
+    .first()
+  if (!confirmationRecord) {
+    throw new AiAgentConfirmationError('受控操作确认不存在', 404)
+  }
+  if (!confirmationRecord.assistantMessageId) {
+    throw new AiAgentConfirmationError('找不到对应的助手消息', 409)
+  }
+  let assistantMessage = await AiChatMessage.query()
+    .where('id', confirmationRecord.assistantMessageId)
+    .where('conversation_id', conversation.id)
+    .where('role', 'assistant')
+    .first()
+  if (!assistantMessage) {
+    throw new AiAgentConfirmationError('找不到对应的助手消息', 409)
+  }
+  const pendingTool = findPendingConfirmationTool(
+    assistantMessage.runtimeDetails,
+    confirmationId,
+    confirmationRecord.action
+  )
+  const callId = pendingTool?.kind === 'tool' ? pendingTool.callId : undefined
+  const isToolAction =
+    confirmationRecord.action === 'call_mcp_tool' ||
+    confirmationRecord.action === 'call_builtin_tool'
+  const executionName =
+    isToolAction || pendingTool?.kind !== 'tool' ? 'confirmation_execution' : pendingTool.name
+  const executionDetail = {
+    ...(pendingTool?.kind === 'tool' ? pendingTool.detail : {}),
+    confirmationId,
+    ...(pendingTool?.kind === 'tool' && typeof pendingTool.detail?.toolName === 'string'
+      ? { toolName: pendingTool.detail.toolName }
+      : isToolAction && typeof confirmationRecord.targetSummary?.name === 'string'
+        ? { toolName: confirmationRecord.targetSummary.name }
+        : {}),
+  }
+  const activityCallId = callId ?? `confirmation-${confirmationId}`
+  const actionStartedAt = Date.now()
+  if (response) {
+    writeAiChatSse(response, 'agent_status', {
+      name: executionName,
+      state: 'running',
+      callId: activityCallId,
+      phase: 'executing_confirmation',
+      detail: executionDetail,
+    })
+  }
+  let confirmation: Awaited<ReturnType<typeof executeAiAgentAction>>
+  try {
+    confirmation = await executeAiAgentAction(ctx, {
+      confirmationId,
+      conversationId: conversation.id,
+      userId,
+    })
+  } catch (error) {
+    if (response) {
+      const errorMessage = sanitizeAiAgentToolErrorMessage(
+        error instanceof Error ? error.message : undefined
+      )
+      writeAiChatSse(response, 'agent_status', {
+        name: executionName,
+        state: 'error',
+        callId: activityCallId,
+        durationMs: Date.now() - actionStartedAt,
+        phase: 'failed',
+        detail: executionDetail,
+        ...(errorMessage ? { message: errorMessage } : {}),
+      })
+    }
+    throw error
+  }
+  assistantMessage = await AiChatMessage.findOrFail(assistantMessage.id)
+  const actionResult =
+    confirmation.result && typeof confirmation.result === 'object' ? confirmation.result : undefined
+  const toolName = actionResult?.mcpToolName ?? actionResult?.agentToolName
+
+  if (response) {
+    writeAiChatSse(response, 'agent_status', {
+      name: executionName,
+      state: 'done',
+      callId: activityCallId,
+      durationMs: Date.now() - actionStartedAt,
+      phase: 'confirmed',
+      detail: {
+        ...executionDetail,
+        ...(typeof toolName === 'string' ? { toolName } : {}),
+      },
+    })
+  }
+
+  const credential = getCredentialDisclosure(actionResult)
+  if (response && credential) writeAiChatSse(response, 'credential_disclosure', { credential })
+
+  if (isToolAction) {
+    const { message } = await summarizeConfirmedToolResult({
+      ctx,
+      conversation,
+      assistantMessage,
+      userId,
+      result: actionResult,
+      response,
+    })
+    return { confirmation, actionResult, message, isToolAction }
+  }
+
+  const content = await getAiAgentActionResultMessage({
+    confirmationId,
+    conversationId: conversation.id,
+    userId,
+    result: actionResult,
+  })
+  const delta = `${assistantMessage.content.trim() ? '\n\n' : ''}${content}`
+  assistantMessage.content += delta
+  await assistantMessage.save()
+  if (response) writeAiChatSse(response, 'delta', { content: delta })
+  if (response) {
+    writeAiChatSse(response, 'done', {
+      conversation: serializeAiChatConversation(conversation),
+      message: serializeAiChatMessage(assistantMessage),
+      confirmations: [],
+    })
+  }
+  return { confirmation, actionResult, message: assistantMessage, isToolAction }
 }
 
 function currentUser(ctx: HttpContext) {
@@ -318,29 +480,22 @@ export default class AiChatController {
     const { params, response, serialize } = ctx
     const user = currentUser(ctx)
     const conversation = await conversationsFor(ctx, user.id).where('id', params.id).firstOrFail()
+    if (!claimAiAgentConversation(conversation.id, user.id)) {
+      return response.conflict({ message: '当前会话已有 AI 请求正在运行，请稍后再试' })
+    }
 
     try {
-      const confirmation = await executeAiAgentAction(ctx, {
+      const { confirmation, message, isToolAction } = await executeConfirmationAndCreateMessage({
+        ctx,
+        conversation,
         confirmationId: Number(params.confirmationId),
-        conversationId: conversation.id,
         userId: user.id,
       })
-      const resultMessage = await AiChatMessage.create({
-        conversationId: conversation.id,
-        role: 'assistant',
-        content: await getAiAgentActionResultMessage({
-          confirmationId: Number(params.confirmationId),
-          conversationId: conversation.id,
-          userId: user.id,
-          result:
-            confirmation.result && typeof confirmation.result === 'object'
-              ? confirmation.result
-              : undefined,
-        }),
-      })
+      const confirmationSummary = { ...confirmation }
+      if (isToolAction) delete confirmationSummary.result
       return serialize({
-        ...confirmation,
-        message: serializeAiChatMessage(resultMessage),
+        ...confirmationSummary,
+        message: serializeAiChatMessage(message),
       })
     } catch (error) {
       if (error instanceof AiAgentConfirmationError) {
@@ -356,6 +511,82 @@ export default class AiChatController {
         return response.unprocessableEntity({ message: error.message })
       }
       throw error
+    } finally {
+      releaseAiAgentConversation(conversation.id, user.id)
+    }
+  }
+
+  @ApiOperation({
+    summary: '取消 AI 代理受控操作',
+    description: '取消当前用户在 AI 对话中创建且尚未执行的受控操作。',
+  })
+  @ApiResponse({ status: 200, description: '受控操作已取消' })
+  async cancelAiAgentAction(ctx: HttpContext) {
+    const { params, request, response, serialize } = ctx
+    const route = await request.validateUsing(aiChatConfirmationRouteValidator, { data: params })
+    const user = currentUser(ctx)
+    const conversation = await conversationsFor(ctx, user.id).where('id', route.id).firstOrFail()
+
+    try {
+      const confirmation = await cancelAgentAction(ctx, {
+        confirmationId: Number(route.confirmationId),
+        conversationId: conversation.id,
+        userId: user.id,
+        source: 'api',
+      })
+      return serialize(confirmation)
+    } catch (error) {
+      if (error instanceof AiAgentConfirmationError) {
+        if (error.status === 404) return response.notFound({ message: error.message })
+        if (error.status === 409) return response.conflict({ message: error.message })
+        if (error.status === 403) return response.forbidden({ message: error.message })
+        return response.unprocessableEntity({ message: error.message })
+      }
+      throw error
+    }
+  }
+
+  @ApiOperation({
+    summary: '流式确认 AI 代理受控操作',
+    description: '执行当前用户创建且尚未过期的受控操作，并通过 SSE 流式返回助手结果。',
+  })
+  @ApiResponse({ status: 200, description: 'SSE 流返回助手文本和执行状态' })
+  async confirmAiAgentActionStream(ctx: HttpContext) {
+    const { params, response } = ctx
+    const user = currentUser(ctx)
+    const conversation = await conversationsFor(ctx, user.id).where('id', params.id).firstOrFail()
+    if (!claimAiAgentConversation(conversation.id, user.id)) {
+      return response.conflict({ message: '当前会话已有 AI 请求正在运行，请稍后再试' })
+    }
+
+    response.header('Content-Type', 'text/event-stream; charset=utf-8')
+    response.header('Cache-Control', 'no-cache, no-transform')
+    response.header('Connection', 'keep-alive')
+    response.header('X-Accel-Buffering', 'no')
+    response.writeHead(200)
+    const stopKeepalive = startAiChatSseKeepalive(response)
+    try {
+      await executeConfirmationAndCreateMessage({
+        ctx,
+        conversation,
+        confirmationId: Number(params.confirmationId),
+        userId: user.id,
+        response,
+      })
+    } catch (error) {
+      const message =
+        error instanceof AiAgentConfirmationError ? error.message : '确认操作未完成，请稍后重试。'
+      if (!(error instanceof AiAgentConfirmationError)) {
+        logger.error(
+          { err: error, conversationId: conversation.id, confirmationId: params.confirmationId },
+          'AI confirmation stream failed'
+        )
+      }
+      writeAiChatSse(response, 'error', { message })
+    } finally {
+      stopKeepalive()
+      if (!response.response.writableEnded) response.response.end()
+      releaseAiAgentConversation(conversation.id, user.id)
     }
   }
 

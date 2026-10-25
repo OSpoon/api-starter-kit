@@ -23,6 +23,7 @@ import { estimateContextTokens, estimateMessageTokens } from '@earendil-works/pi
 import { getCurrentSystemMessage } from '@earendil-works/pi-ai/utils/transcript'
 import type { TelemetrySpan } from '@earendil-works/pi-telemetry'
 
+import type { AiAgentConfirmationSummary } from '#ai/core/ai_agent_confirmation'
 import {
   isAiAgentReadTool,
   isAiAgentTerminalToolResult,
@@ -30,6 +31,7 @@ import {
   maxConsecutiveAiAgentReadToolFailures,
 } from '#ai/core/ai_agent_tool_errors'
 import { aiAgentSummaryPrompt } from '#ai/policy/ai_agent_prompt_policy'
+import type { AiAgentToolWithConfirmation } from '#ai/registry/ai_agent_tool_helpers'
 import { readRuntimeLlmConfiguration } from '#services/llm_configuration_service'
 import { resolveModelsDevPricing } from '#services/models_dev_pricing_service'
 
@@ -345,6 +347,7 @@ export async function createPiAgent(input: {
   refreshRuntimeContext?: () => Promise<string | undefined>
   onCompaction?: (summary: string) => Promise<void>
   onCompactionUsage?: (usage: PiModelUsage) => void | Promise<void>
+  onConfirmationRequested?: (toolCallId: string, confirmation: AiAgentConfirmationSummary) => void
   getTelemetrySpan?: () => TelemetrySpan | undefined
 }) {
   const models = await createPiModels()
@@ -471,9 +474,25 @@ export async function createPiAgent(input: {
             ],
           }
     },
-    beforeToolCall: async ({ args }) => {
+    beforeToolCall: async ({ toolCall, args }) => {
       if (!args || typeof args !== 'object' || Array.isArray(args)) {
         return { block: true, terminate: true, reason: '工具参数必须是对象' }
+      }
+      const tool = input.tools.find((candidate) => candidate.name === toolCall.name) as
+        | AiAgentToolWithConfirmation
+        | undefined
+      if (tool?.prepareConfirmation) {
+        try {
+          const confirmation = await tool.prepareConfirmation(args)
+          input.onConfirmationRequested?.(toolCall.id, confirmation)
+          return { block: true, terminate: true, reason: '等待用户确认后执行' }
+        } catch (error) {
+          return {
+            block: true,
+            terminate: true,
+            reason: error instanceof Error ? error.message : '无法准备确认提案',
+          }
+        }
       }
       return undefined
     },

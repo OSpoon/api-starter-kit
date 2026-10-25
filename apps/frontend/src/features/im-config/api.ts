@@ -23,6 +23,20 @@ export interface ImConfiguration {
   updatedAt: string | null
 }
 
+export type UpdateImConfigurationInput = Partial<{
+  wecomBotId: string | null
+  wecomBotSecret: string | null
+  wecomBotTenantId: string | null
+  wecomBotWsUrl: string | null
+  feishuAppId: string | null
+  feishuAppSecret: string | null
+  feishuDomain: string | null
+  dingtalkClientId: string | null
+  dingtalkClientSecret: string | null
+  dingtalkCardTemplateId: string | null
+  dingtalkStreamingCardTemplateId: string | null
+}>
+
 export async function getImConfiguration(token: string | null) {
   return readItem(
     await apiRequest<ApiEnvelope<ImConfiguration>>('/api/v1/system/im-config', { token })
@@ -31,7 +45,7 @@ export async function getImConfiguration(token: string | null) {
 
 export async function updateImConfiguration(
   token: string | null,
-  payload: Record<string, unknown>
+  payload: UpdateImConfigurationInput
 ) {
   return readItem(
     await apiRequest<ApiEnvelope<ImConfiguration>>('/api/v1/system/im-config', {

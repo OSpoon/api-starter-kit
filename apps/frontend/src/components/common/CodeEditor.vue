@@ -11,6 +11,7 @@ const props = withDefaults(
     modelValue: string
     readonly?: boolean
     extensions?: Extension[]
+    ariaLabel?: string
   }>(),
   { readonly: false, extensions: () => [] }
 )
@@ -24,6 +25,7 @@ const editorElement = ref<HTMLElement | null>(null)
 let view: EditorView | null = null
 const readonlyCompartment = new Compartment()
 const extensionsCompartment = new Compartment()
+const contentAttributesCompartment = new Compartment()
 const themeCompartment = new Compartment()
 let themeObserver: MutationObserver | null = null
 
@@ -90,6 +92,9 @@ function createEditor() {
       extensions: [
         basicSetup,
         keymap.of([indentWithTab]),
+        contentAttributesCompartment.of(
+          EditorView.contentAttributes.of(props.ariaLabel ? { 'aria-label': props.ariaLabel } : {})
+        ),
         themeCompartment.of(editorTheme(document.documentElement.classList.contains('dark'))),
         updateListener,
         readonlyCompartment.of(readonlyExtensions(props.readonly)),
@@ -141,6 +146,17 @@ watch(
   () => props.readonly,
   (readonly) => {
     view?.dispatch({ effects: readonlyCompartment.reconfigure(readonlyExtensions(readonly)) })
+  }
+)
+watch(
+  () => props.ariaLabel,
+  (ariaLabel) => {
+    if (!view) return
+    view.dispatch({
+      effects: contentAttributesCompartment.reconfigure(
+        EditorView.contentAttributes.of(ariaLabel ? { 'aria-label': ariaLabel } : {})
+      ),
+    })
   }
 )
 

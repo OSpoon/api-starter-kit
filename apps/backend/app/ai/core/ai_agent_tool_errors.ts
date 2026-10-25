@@ -3,12 +3,29 @@ const readToolNames = new Set([
   'run_registered_query',
   'search_knowledge_catalog',
   'search_knowledge',
+  'list_agent_skills',
+  'load_agent_skill',
 ])
 
 export const maxConsecutiveAiAgentReadToolFailures = 2
 
+export function sanitizeAiAgentToolErrorMessage(value: unknown) {
+  if (typeof value !== 'string') return undefined
+  const message = value
+    .split(/\r?\n/, 1)[0]!
+    .replace(/\bBearer\s+\S+/gi, 'Bearer [redacted]')
+    .replace(
+      /\b(password|secret|token|authorization|api[\s_-]?key|cookie)(\s*[:=]\s*)(?:"[^"]*"|'[^']*'|[^\s,;]+)/gi,
+      '$1$2[redacted]'
+    )
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 240)
+  return message || undefined
+}
+
 export function isAiAgentReadTool(toolName: string) {
-  return readToolNames.has(toolName)
+  return readToolNames.has(toolName) || toolName.startsWith('mcp_read_')
 }
 
 export function isRecoverableAiAgentReadToolError(toolName: string, output: unknown) {
@@ -26,5 +43,5 @@ export function isAiAgentTerminalToolResult(toolName: string, output: unknown) {
   if (isRecoverableAiAgentReadToolError(toolName, output)) return false
 
   const kind = (output as { kind?: unknown }).kind
-  return kind === 'confirmation' || kind === 'action_error' || kind === 'query_error'
+  return kind === 'action_error' || kind === 'query_error'
 }

@@ -4,9 +4,7 @@ import { buildKnowledgeSearchAuditMetadata } from '#services/knowledge_audit'
 import {
   buildKnowledgeCatalogText,
   buildSemanticKnowledgeChunks,
-  canReadKnowledgeDocument,
   extractKnowledgeSearchTerms,
-  getKnowledgeAccess,
   splitKnowledgeContent,
 } from '#services/knowledge_service'
 
@@ -77,32 +75,5 @@ test.group('knowledge service', () => {
     assert.lengthOf(chunks, 2)
     assert.include(chunks[0], '修改密码')
     assert.include(chunks[1], '订单发货')
-  })
-
-  test('allows a document when the user has its required permission', ({ assert }) => {
-    const access = getKnowledgeAccess({
-      roles: [
-        {
-          code: 'support',
-          permissions: [{ code: 'users:read' }],
-        },
-      ],
-    })
-
-    assert.isTrue(canReadKnowledgeDocument(access, 'users:read'))
-    assert.isTrue(canReadKnowledgeDocument(access, null))
-  })
-
-  test('denies a document when the user does not have its required permission', ({ assert }) => {
-    const access = getKnowledgeAccess({
-      roles: [
-        {
-          code: 'support',
-          permissions: [{ code: 'users:read' }],
-        },
-      ],
-    })
-
-    assert.isFalse(canReadKnowledgeDocument(access, 'api-keys:delete'))
   })
 })

@@ -8,7 +8,6 @@ import { z } from 'zod'
 import FormDialogContent from '@/components/common/FormDialogContent.vue'
 import FormDialogFooter from '@/components/common/FormDialogFooter.vue'
 import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
 import {
   FormControl,
   FormDescription,
@@ -19,8 +18,8 @@ import {
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
-import type { SystemRoleOption } from '@/features/access-control/api'
 import type {
   KnowledgeDocument,
   KnowledgeDocumentInput,
@@ -30,7 +29,6 @@ import { firstFormError } from '@/lib/form-validation'
 
 const props = defineProps<{
   document: KnowledgeDocument | null
-  roles: SystemRoleOption[]
   saving: boolean
   metadataLoading: boolean
   metadataSuggestion: KnowledgeMetadataSuggestion | null
@@ -42,12 +40,12 @@ const emit = defineEmits<{
 }>()
 const { t } = useI18n()
 const file = ref<File | null>(null)
-const roleIds = ref<number[]>([])
 const formSchema = computed(() =>
   toTypedSchema(
     z.object({
       summary: z.string().trim().max(2_000).optional(),
       topics: z.string().trim().max(1_000).optional(),
+      enabled: z.boolean(),
     })
   )
 )
@@ -56,6 +54,7 @@ const form = useForm({
   initialValues: {
     summary: '',
     topics: '',
+    enabled: true,
   },
 })
 
@@ -64,11 +63,11 @@ watch(
   ([isOpen, document]) => {
     if (!isOpen) return
     file.value = null
-    roleIds.value = document?.roles.map((role) => role.id) ?? []
     form.resetForm({
       values: {
         summary: document?.summary ?? '',
         topics: document?.topics.join(', ') ?? '',
+        enabled: document?.enabled ?? true,
       },
     })
   },
@@ -90,7 +89,7 @@ function submit(values: typeof form.values) {
   if (!props.document && !file.value) return
   emit('save', {
     file: file.value,
-    roleIds: roleIds.value,
+    enabled: values.enabled ?? true,
     summary: values.summary || null,
     topics: values.topics
       ? values.topics
@@ -105,13 +104,6 @@ function selectFile(event: Event) {
   const files = Array.from((event.target as HTMLInputElement).files ?? [])
   file.value = files[0] ?? null
   if (file.value) emit('preview', file.value)
-}
-
-function toggleRole(roleId: number, checked: boolean | 'indeterminate') {
-  roleIds.value =
-    checked === true
-      ? [...new Set([...roleIds.value, roleId])]
-      : roleIds.value.filter((id) => id !== roleId)
 }
 
 function invalidSubmit({ errors }: { errors: Parameters<typeof firstFormError>[0] }) {
@@ -209,7 +201,11 @@ const onSubmit = form.handleSubmit(submit, invalidSubmit)
               <FormField v-slot="{ componentField }" name="topics" :validate-on-blur="false">
                 <FormItem>
                   <FormLabel>{{ t('knowledge.topics') }}</FormLabel>
-                  <FormControl><Input v-bind="componentField" /></FormControl>
+                  <FormControl
+                    ><Input
+                      v-bind="componentField"
+                      :placeholder="t('knowledge.topics_placeholder')"
+                  /></FormControl>
                   <FormDescription>{{ t('knowledge.topics_hint') }}</FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -219,23 +215,35 @@ const onSubmit = form.handleSubmit(submit, invalidSubmit)
               <FormField v-slot="{ componentField }" name="summary" :validate-on-blur="false">
                 <FormItem>
                   <FormLabel>{{ t('knowledge.summary') }}</FormLabel>
-                  <FormControl><Textarea v-bind="componentField" rows="4" /></FormControl>
+                  <FormControl
+                    ><Textarea
+                      v-bind="componentField"
+                      rows="4"
+                      :placeholder="t('knowledge.summary_placeholder')"
+                  /></FormControl>
                   <FormMessage />
                 </FormItem>
               </FormField>
             </div>
           </div>
-          <div class="grid gap-2">
-            <Label>{{ t('knowledge.roles') }}</Label>
-            <p class="text-sm text-muted-foreground">{{ t('knowledge.roles_hint') }}</p>
-            <label v-for="role in roles" :key="role.id" class="flex items-center gap-2 text-sm">
-              <Checkbox
-                :model-value="roleIds.includes(role.id)"
-                @update:model-value="(checked) => toggleRole(role.id, checked)"
-              />
-              {{ role.name }} <code>{{ role.code }}</code>
-            </label>
-          </div>
+          <FormField v-slot="{ value, handleChange }" name="enabled" :validate-on-blur="false">
+            <FormItem>
+              <div class="flex items-center justify-between rounded-lg border p-4">
+                <div class="space-y-1">
+                  <FormLabel>{{ t('knowledge.enabled') }}</FormLabel>
+                  <FormDescription>{{ t('knowledge.enabled_hint') }}</FormDescription>
+                </div>
+                <FormControl>
+                  <Switch
+                    :model-value="value"
+                    :aria-label="t('knowledge.enabled')"
+                    @update:model-value="handleChange"
+                  />
+                </FormControl>
+              </div>
+              <FormMessage />
+            </FormItem>
+          </FormField>
         </div>
       </div>
       <FormDialogFooter class="justify-end">

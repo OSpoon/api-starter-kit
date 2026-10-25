@@ -7,6 +7,21 @@
 import { BaseModel, column } from '@adonisjs/lucid/orm'
 import { DateTime } from 'luxon'
 
+export class AiAgentConfigurationSchema extends BaseModel {
+  static $columns = ['createdAt', 'enabledTools', 'id', 'toolModes', 'updatedAt'] as const
+  $columns = AiAgentConfigurationSchema.$columns
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare enabledTools: any
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare toolModes: any
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
 export class AiAgentConfirmationSchema extends BaseModel {
   static $columns = [
     'action',
@@ -67,6 +82,42 @@ export class AiAgentConfirmationSchema extends BaseModel {
   declare updatedAt: DateTime
 }
 
+export class AiAgentMcpServerSchema extends BaseModel {
+  static $columns = [
+    'args',
+    'command',
+    'createdAt',
+    'cwd',
+    'enabled',
+    'enabledTools',
+    'environment',
+    'id',
+    'name',
+    'updatedAt',
+  ] as const
+  $columns = AiAgentMcpServerSchema.$columns
+  @column()
+  declare args: any
+  @column()
+  declare command: string
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare cwd: string | null
+  @column()
+  declare enabled: boolean
+  @column()
+  declare enabledTools: any
+  @column()
+  declare environment: string | null
+  @column({ isPrimary: true })
+  declare id: bigint | number
+  @column()
+  declare name: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
 export class AiAgentPendingQuerySchema extends BaseModel {
   static $columns = [
     'completedAt',
@@ -102,6 +153,36 @@ export class AiAgentPendingQuerySchema extends BaseModel {
   declare templateCode: string
   @column()
   declare templateVersion: number
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class AiAgentSkillSchema extends BaseModel {
+  static $columns = [
+    'code',
+    'createdAt',
+    'description',
+    'enabled',
+    'id',
+    'instructions',
+    'name',
+    'updatedAt',
+  ] as const
+  $columns = AiAgentSkillSchema.$columns
+  @column()
+  declare code: string
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare description: string
+  @column()
+  declare enabled: boolean
+  @column({ isPrimary: true })
+  declare id: bigint | number
+  @column()
+  declare instructions: string
+  @column()
+  declare name: string
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime
 }
@@ -553,17 +634,6 @@ export class KnowledgeChunkSchema extends BaseModel {
   declare id: bigint | number
 }
 
-export class KnowledgeDocumentRoleSchema extends BaseModel {
-  static $columns = ['createdAt', 'documentId', 'roleId'] as const
-  $columns = KnowledgeDocumentRoleSchema.$columns
-  @column.dateTime({ autoCreate: true })
-  declare createdAt: DateTime
-  @column({ isPrimary: true })
-  declare documentId: bigint | number
-  @column()
-  declare roleId: number
-}
-
 export class KnowledgeDocumentSchema extends BaseModel {
   static $columns = [
     'catalogEmbedding',
@@ -572,6 +642,7 @@ export class KnowledgeDocumentSchema extends BaseModel {
     'content',
     'contentHash',
     'createdAt',
+    'enabled',
     'id',
     'requiredPermission',
     'summary',
@@ -592,6 +663,8 @@ export class KnowledgeDocumentSchema extends BaseModel {
   declare contentHash: string
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
+  @column()
+  declare enabled: boolean
   @column({ isPrimary: true })
   declare id: bigint | number
   @column()
@@ -629,7 +702,6 @@ export class LlmConfigurationSchema extends BaseModel {
     'feishuAppSecret',
     'feishuDomain',
     'id',
-    'requestTimeoutMs',
     'updatedAt',
     'wecomBotId',
     'wecomBotSecret',
@@ -679,8 +751,6 @@ export class LlmConfigurationSchema extends BaseModel {
   declare feishuDomain: string | null
   @column({ isPrimary: true })
   declare id: number
-  @column()
-  declare requestTimeoutMs: number
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime
   @column()

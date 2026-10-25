@@ -6,11 +6,11 @@ export interface KnowledgeDocument {
   id: number
   title: string
   content: string
+  enabled: boolean
   summary: string | null
   topics: string[]
   contentHash: string
   chunkCount: number
-  roles: Array<{ id: number; code: string; name: string }>
   createdAt: string
   updatedAt: string
 }
@@ -22,7 +22,7 @@ export interface KnowledgeDocumentPage {
 
 export type KnowledgeDocumentInput = {
   file?: File | null
-  roleIds: number[]
+  enabled: boolean
   summary?: string | null
   topics?: string[]
 }
@@ -54,7 +54,7 @@ function asFormData(input: KnowledgeDocumentInput, requireFile: boolean) {
   if (requireFile && !input.file) throw new Error('请选择纯文本文件')
   const form = new FormData()
   if (input.file) form.append('file', input.file)
-  form.append('roleIds', JSON.stringify(input.roleIds))
+  form.append('enabled', String(input.enabled))
   form.append('summary', input.summary ?? '')
   form.append('topics', JSON.stringify(input.topics ?? []))
   return form

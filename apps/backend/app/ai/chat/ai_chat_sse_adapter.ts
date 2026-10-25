@@ -2,13 +2,11 @@ import type { HttpContext } from '@adonisjs/core/http'
 import type { AssistantMessage } from '@earendil-works/pi-ai'
 
 import type { createAiAgentStream } from '#ai/chat/ai_agent_service'
-import type {
-  AiAgentActionToolArtifact,
-  AiAgentConfirmationSummary,
-} from '#ai/core/ai_agent_confirmation'
+import type { AiAgentConfirmationSummary } from '#ai/core/ai_agent_confirmation'
+import { sanitizeAiAgentToolErrorMessage } from '#ai/core/ai_agent_tool_errors'
 
 type AiAgentPlanStep = {
-  key: 'identify_target' | 'prepare_proposal' | 'await_confirmation'
+  key: 'identify_target' | 'prepare_action' | 'await_confirmation'
   state: 'pending' | 'running' | 'done'
 }
 
@@ -69,33 +67,39 @@ export function startAiChatSseKeepalive(response: HttpContext['response']) {
   return () => clearInterval(handle)
 }
 
-const PROPOSAL_TOOL_ACTIONS: Record<string, string> = {
-  propose_api_key_creation: 'create_api_key',
-  propose_api_key_revocation: 'revoke_api_key',
-  propose_api_key_deletion: 'delete_api_key',
+const MANAGED_ACTION_TOOL_ACTIONS: Record<string, string> = {
+  create_api_key: 'create_api_key',
+  revoke_api_key: 'revoke_api_key',
+  delete_api_key: 'delete_api_key',
 }
 
-function isProposalTool(name: string) {
+function isManagedActionTool(name: string) {
   return (
-    name === 'propose_system_management_change' ||
-    name === 'propose_api_key_creation' ||
-    name === 'propose_api_key_revocation' ||
-    name === 'propose_api_key_deletion'
+    name === 'system_management_change' ||
+    name === 'create_api_key' ||
+    name === 'revoke_api_key' ||
+    name === 'delete_api_key' ||
+    name === 'send_wecom_message'
   )
 }
 
-function getProposalAction(name: string, input: unknown) {
-  if (name === 'propose_system_management_change') {
+function getManagedAction(name: string, input: unknown) {
+  if (name === 'system_management_change') {
     if (input && typeof input === 'object') {
       const action = (input as Record<string, unknown>).action
       if (typeof action === 'string') return action
     }
     return null
   }
-  return PROPOSAL_TOOL_ACTIONS[name] ?? null
+  return MANAGED_ACTION_TOOL_ACTIONS[name] ?? null
 }
 
-function getAgentStatusDetail(name: string, input: unknown, output?: unknown) {
+function getAgentStatusDetail(
+  name: string,
+  input: unknown,
+  output?: unknown,
+  confirmation?: AiAgentConfirmationSummary
+) {
   if (!input || typeof input !== 'object') return undefined
   const values = input as Record<string, unknown>
   const outputRecord =
@@ -108,15 +112,11 @@ function getAgentStatusDetail(name: string, input: unknown, output?: unknown) {
         : {}),
     }
   }
-  const action = getProposalAction(name, input)
-  if (isProposalTool(name) && action) {
-    const confirmation =
-      outputRecord?.kind === 'confirmation' && typeof outputRecord.confirmation === 'object'
-        ? (outputRecord.confirmation as Record<string, unknown>)
-        : null
+  const action = getManagedAction(name, input)
+  if (isManagedActionTool(name) && action) {
     const targetSummary =
       confirmation?.targetSummary && typeof confirmation.targetSummary === 'object'
-        ? (confirmation.targetSummary as Record<string, unknown>)
+        ? confirmation.targetSummary
         : null
     const targetLabel =
       (typeof targetSummary?.name === 'string' && targetSummary.name) ||
@@ -125,20 +125,43 @@ function getAgentStatusDetail(name: string, input: unknown, output?: unknown) {
       (typeof targetSummary?.code === 'string' && targetSummary.code)
     return {
       action,
+      ...(confirmation ? { confirmationId: confirmation.id } : {}),
       ...(confirmation?.targetType ? { targetType: confirmation.targetType } : {}),
       ...(confirmation?.targetId ? { targetId: confirmation.targetId } : {}),
       ...(targetLabel ? { targetLabel } : {}),
+      ...(typeof targetSummary?.toolName === 'string' ? { toolName: targetSummary.toolName } : {}),
     }
   }
+  if (confirmation) {
+    const targetSummary = confirmation.targetSummary
+    const targetLabel =
+      (typeof targetSummary.name === 'string' && targetSummary.name) ||
+      (typeof targetSummary.toolName === 'string' && targetSummary.toolName)
+    return {
+      action: confirmation.action,
+      targetType: confirmation.targetType,
+      targetId: confirmation.targetId,
+      confirmationId: confirmation.id,
+      ...(targetLabel ? { targetLabel } : {}),
+      ...(typeof targetSummary.toolName === 'string' ? { toolName: targetSummary.toolName } : {}),
+    }
+  }
+  if (typeof outputRecord?.toolName === 'string') return { toolName: outputRecord.toolName }
   if (name === 'diagnose_my_access' && typeof values.permissionCode === 'string') {
     return { permissionCode: values.permissionCode }
   }
   return undefined
 }
 
-function getAgentStatusPhase(name: string, state: 'running' | 'done' | 'error') {
-  if (isProposalTool(name)) {
-    return state === 'running' ? 'preparing_proposal' : 'awaiting_confirmation'
+function getAgentStatusPhase(
+  name: string,
+  state: 'running' | 'done' | 'error',
+  awaitingConfirmation = false
+) {
+  if (awaitingConfirmation) return 'awaiting_confirmation'
+  if (isManagedActionTool(name)) {
+    if (state === 'running') return 'preparing_action'
+    return undefined
   }
   if (name === 'search_knowledge_catalog') {
     return state === 'running' ? 'retrieving_knowledge_catalog' : 'knowledge_catalog_retrieved'
@@ -169,16 +192,36 @@ function getToolProgressDetail(partialResult: unknown) {
   return Object.keys(detail).length > 0 ? detail : undefined
 }
 
-function readAgentToolArtifact(output: unknown): AiAgentActionToolArtifact | null {
+function readAgentToolArtifact(output: unknown) {
   if (
     output &&
     typeof output === 'object' &&
     'kind' in output &&
-    (output.kind === 'confirmation' || output.kind === 'action_error')
+    (output.kind === 'action_error' || output.kind === 'query_error')
   ) {
-    return output as AiAgentActionToolArtifact
+    return output as { kind: 'action_error' | 'query_error'; code?: string; message?: string }
   }
   return null
+}
+
+function getToolErrorMessage(result: unknown, output: unknown) {
+  const artifact = readAgentToolArtifact(output)
+  const resultContent =
+    result && typeof result === 'object' && 'content' in result && Array.isArray(result.content)
+      ? result.content
+          .filter(
+            (item): item is { type: 'text'; text: string } =>
+              item !== null &&
+              typeof item === 'object' &&
+              'type' in item &&
+              item.type === 'text' &&
+              'text' in item &&
+              typeof item.text === 'string'
+          )
+          .map((item) => item.text)
+          .join('\n')
+      : undefined
+  return sanitizeAiAgentToolErrorMessage(artifact?.message || resultContent)
 }
 
 function assistantText(message: AssistantMessage) {
@@ -194,7 +237,7 @@ export async function* streamAiAgentTurnEvents(
 ): AsyncGenerator<AiAgentTurnEvent> {
   const plan: AiAgentPlanStep[] = [
     { key: 'identify_target', state: 'pending' },
-    { key: 'prepare_proposal', state: 'pending' },
+    { key: 'prepare_action', state: 'pending' },
     { key: 'await_confirmation', state: 'pending' },
   ]
   const planFrame = (): AiAgentToolFrame => ({
@@ -203,10 +246,23 @@ export async function* streamAiAgentTurnEvents(
   })
   const toolStartedAt = new Map<string, number>()
   const toolInputs = new Map<string, unknown>()
+  const pendingConfirmations = new Map<string, AiAgentConfirmationSummary>()
   let streamedAssistantText = ''
   let userMessagesSeen = 0
   for await (const event of run.stream.events) {
     if (signal.aborted) throw new DOMException('AI request was cancelled', 'AbortError')
+    if (event.type === 'app_confirmation_requested') {
+      pendingConfirmations.set(event.toolCallId, event.confirmation)
+      plan[0].state = 'done'
+      plan[1].state = 'done'
+      plan[2].state = 'running'
+      yield { source: 'frame', value: planFrame() }
+      yield {
+        source: 'frame',
+        value: { event: 'agent_confirmation', data: event.confirmation },
+      }
+      continue
+    }
     if (event.type === 'message_start' && event.message.role === 'user') {
       userMessagesSeen += 1
       if (userMessagesSeen > 1) yield { source: 'queued_user_message' }
@@ -255,7 +311,7 @@ export async function* streamAiAgentTurnEvents(
     if (event.type === 'tool_execution_start') {
       toolStartedAt.set(event.toolCallId, Date.now())
       toolInputs.set(event.toolCallId, event.args)
-      if (isProposalTool(event.toolName)) {
+      if (isManagedActionTool(event.toolName)) {
         plan[0].state = 'done'
         plan[1].state = 'running'
         yield { source: 'frame', value: planFrame() }
@@ -296,16 +352,20 @@ export async function* streamAiAgentTurnEvents(
     }
     if (event.type === 'tool_execution_end') {
       const output = event.result?.details ?? event.result
+      const confirmation = pendingConfirmations.get(event.toolCallId)
       const toolArtifact = readAgentToolArtifact(output)
-      const toolError = toolArtifact?.kind === 'action_error' ? toolArtifact.message : null
       const toolErrorCode = toolArtifact?.kind === 'action_error' ? toolArtifact.code : undefined
-      const visibleToolError = toolArtifact?.kind === 'action_error' ? null : toolError
+      const visibleToolError = getToolErrorMessage(event.result, output)
       const completedDetail = getAgentStatusDetail(
         event.toolName,
         toolInputs.get(event.toolCallId),
-        output
+        output,
+        confirmation
       )
-      const completedState = !event.isError && !visibleToolError ? 'done' : 'error'
+      const completedState =
+        confirmation || toolErrorCode === 'permission_denied' || (!event.isError && !toolArtifact)
+          ? 'done'
+          : 'error'
       yield {
         source: 'frame',
         value: {
@@ -316,33 +376,32 @@ export async function* streamAiAgentTurnEvents(
             state: completedState,
             durationMs: Date.now() - (toolStartedAt.get(event.toolCallId) ?? Date.now()),
             ...(completedDetail ? { detail: completedDetail } : {}),
-            ...(getAgentStatusPhase(event.toolName, completedState)
-              ? { phase: getAgentStatusPhase(event.toolName, completedState) }
+            ...(getAgentStatusPhase(event.toolName, completedState, Boolean(confirmation))
+              ? {
+                  phase: getAgentStatusPhase(event.toolName, completedState, Boolean(confirmation)),
+                }
               : {}),
             ...(visibleToolError ? { message: visibleToolError } : {}),
             ...(toolErrorCode ? { errorCode: toolErrorCode } : {}),
           },
         },
       }
-      if (!event.isError) {
-        if (isProposalTool(event.toolName)) {
+      if (confirmation) {
+        plan[2].state = 'running'
+        yield { source: 'frame', value: planFrame() }
+      } else if (!event.isError) {
+        if (isManagedActionTool(event.toolName)) {
           plan[1].state = 'done'
-          plan[2].state = 'running'
           yield { source: 'frame', value: planFrame() }
         }
         yield {
           source: 'frame',
           value: { event: 'tool_completed', data: { name: event.toolName, output } },
         }
-        if (toolArtifact?.kind === 'confirmation') {
-          yield {
-            source: 'frame',
-            value: { event: 'agent_confirmation', data: toolArtifact.confirmation },
-          }
-        }
       }
       toolStartedAt.delete(event.toolCallId)
       toolInputs.delete(event.toolCallId)
+      pendingConfirmations.delete(event.toolCallId)
     }
   }
 }

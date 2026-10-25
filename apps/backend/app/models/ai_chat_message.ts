@@ -17,6 +17,7 @@ export type AiChatRuntimeDetail =
       state: 'running' | 'done' | 'error'
       callId?: string
       durationMs?: number
+      message?: string
       phase?: string
       errorCode?: string
       detail?: Record<string, unknown>
@@ -31,7 +32,7 @@ export type AiChatRuntimeDetail =
       kind: 'confirmation'
       action: string
       targetLabel?: string
-      status: 'confirmed' | 'failed' | 'expired'
+      status: 'confirmed' | 'failed' | 'expired' | 'cancelled'
       completedAt: string
     }
 
@@ -57,6 +58,7 @@ function isRuntimeDetail(value: unknown): value is AiChatRuntimeDetail {
       ['running', 'done', 'error'].includes(value.state as string) &&
       (value.callId === undefined || typeof value.callId === 'string') &&
       (value.durationMs === undefined || typeof value.durationMs === 'number') &&
+      (value.message === undefined || typeof value.message === 'string') &&
       (value.phase === undefined || typeof value.phase === 'string') &&
       (value.errorCode === undefined || typeof value.errorCode === 'string') &&
       (value.detail === undefined || isJsonRecord(value.detail))
@@ -72,7 +74,7 @@ function isRuntimeDetail(value: unknown): value is AiChatRuntimeDetail {
     value.kind === 'confirmation' &&
     typeof value.action === 'string' &&
     (value.targetLabel === undefined || typeof value.targetLabel === 'string') &&
-    ['confirmed', 'failed', 'expired'].includes(value.status as string) &&
+    ['confirmed', 'failed', 'expired', 'cancelled'].includes(value.status as string) &&
     typeof value.completedAt === 'string'
   )
 }

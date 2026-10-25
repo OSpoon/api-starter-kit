@@ -141,6 +141,7 @@ export async function createAiAgentStream(
     stream,
     agentRunId,
     model: stream.model,
+    models: stream.models,
     nextModelCallSequence,
   }
 }

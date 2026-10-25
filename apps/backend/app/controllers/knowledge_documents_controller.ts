@@ -5,7 +5,6 @@ import type { HttpContext } from '@adonisjs/core/http'
 import { ApiOperation, ApiQuery, ApiResponse, ApiSecurity } from '@foadonis/openapi/decorators'
 
 import KnowledgeDocument from '#models/knowledge_document'
-import Role from '#models/role'
 import { recordAuditEvent } from '#services/audit_log'
 import { suggestKnowledgeMetadata } from '#services/knowledge_metadata_service'
 import {
@@ -21,18 +20,11 @@ import {
 } from '#validators/knowledge_document'
 import { paginationSearchQueryValidator } from '#validators/pagination'
 
-function parseRoleIds(value: unknown) {
-  const parsed = typeof value === 'string' ? JSON.parse(value) : value
-  if (!Array.isArray(parsed) || parsed.some((id) => !Number.isInteger(id) || id <= 0)) {
-    throw new Error('角色选择无效')
-  }
-  return parsed as number[]
-}
-
-async function validateRoleIds(roleIds: number[]) {
-  const roles = await Role.query().whereIn('id', roleIds)
-  if (roles.length !== roleIds.length) throw new Error('包含不存在的角色')
-  return roleIds
+function parseEnabled(value: unknown, defaultValue: boolean) {
+  if (value === undefined || value === null || value === '') return defaultValue
+  if (value === true || value === 'true') return true
+  if (value === false || value === 'false') return false
+  throw new Error('启用状态无效')
 }
 
 async function readTextFile(ctx: HttpContext, required: boolean) {
@@ -108,10 +100,7 @@ export default class KnowledgeDocumentsController {
   async index({ request, serialize }: HttpContext) {
     const payload = await paginationSearchQueryValidator.validate(request.qs())
     const search = payload.search ?? ''
-    const query = KnowledgeDocument.query()
-      .preload('roles')
-      .withCount('chunks')
-      .orderBy('updated_at', 'desc')
+    const query = KnowledgeDocument.query().withCount('chunks').orderBy('updated_at', 'desc')
     if (search) {
       query.where((builder) => {
         builder
@@ -156,7 +145,7 @@ export default class KnowledgeDocumentsController {
         content: textFile!.content,
         summary: request.input('summary') || null,
         topics: parseTopics(request.input('topics', '[]')),
-        roleIds: await validateRoleIds(parseRoleIds(request.input('roleIds', '[]'))),
+        enabled: parseEnabled(request.input('enabled'), true),
       })
       const document = await createKnowledgeDocument(payload)
       await recordAuditEvent(ctx, {
@@ -166,15 +155,12 @@ export default class KnowledgeDocumentsController {
         targetId: document.id,
         metadata: {
           title: document.title,
-          roleIds: payload.roleIds ?? [],
+          enabled: document.enabled,
         },
       })
       return serialize(serializeKnowledgeDocument(document))
     } catch (error) {
-      if (
-        error instanceof Error &&
-        /角色选择|不存在的角色|上传|文本文件|主题|元数据/.test(error.message)
-      ) {
+      if (error instanceof Error && /启用状态|上传|文本文件|主题|元数据/.test(error.message)) {
         return response.unprocessableEntity({ message: error.message })
       }
       throw error
@@ -188,7 +174,7 @@ export default class KnowledgeDocumentsController {
     try {
       const textFiles = await readTextFiles(ctx)
       const actorUserId = ctx.auth.getUserOrFail().id
-      const roleIds = await validateRoleIds(parseRoleIds(request.input('roleIds', '[]')))
+      const enabled = parseEnabled(request.input('enabled'), true)
       const created: KnowledgeDocument[] = []
       const failed: Array<{ fileName: string; message: string }> = []
 
@@ -198,7 +184,7 @@ export default class KnowledgeDocumentsController {
             await createKnowledgeDocument({
               title: textFile.title,
               content: textFile.content,
-              roleIds,
+              enabled,
             })
           )
         } catch (error) {
@@ -223,7 +209,7 @@ export default class KnowledgeDocumentsController {
           targetId: document.id,
           metadata: {
             title: document.title,
-            roleIds,
+            enabled: document.enabled,
             batch: true,
           },
         })
@@ -234,7 +220,6 @@ export default class KnowledgeDocumentsController {
           'id',
           created.map((document) => document.id)
         )
-        .preload('roles')
         .withCount('chunks')
         .orderBy('created_at', 'asc')
 
@@ -243,7 +228,7 @@ export default class KnowledgeDocumentsController {
         failed,
       })
     } catch (error) {
-      if (error instanceof Error && /角色选择|不存在的角色|上传|文件|纯文本/.test(error.message)) {
+      if (error instanceof Error && /启用状态|上传|文件|纯文本/.test(error.message)) {
         return response.unprocessableEntity({ message: error.message })
       }
       throw error
@@ -255,23 +240,20 @@ export default class KnowledgeDocumentsController {
   async update(ctx: HttpContext) {
     const { auth, params, request, response, serialize } = ctx
     const document = await KnowledgeDocument.findOrFail(params.id)
-    await document.load('roles')
     const textFile = await readTextFile(ctx, false)
     try {
-      const previousRoleIds = document.roles.map((role) => role.id).sort((a, b) => a - b)
       const payload = await knowledgeDocumentValidator.validate({
         title: textFile?.title ?? document.title,
         content: textFile?.content ?? document.content,
         summary: request.input('summary') || null,
-        topics: parseTopics(request.input('topics', '[]')),
-        roleIds: await validateRoleIds(parseRoleIds(request.input('roleIds', '[]'))),
+        topics: parseTopics(request.input('topics', JSON.stringify(document.topics ?? []))),
+        enabled: parseEnabled(request.input('enabled'), document.enabled),
       })
       const shouldReindex =
         document.title !== payload.title ||
         document.content !== payload.content ||
         document.summary !== (payload.summary ?? null) ||
         JSON.stringify(document.topics ?? []) !== JSON.stringify(payload.topics ?? [])
-      const nextRoleIds = [...(payload.roleIds ?? [])].sort((a, b) => a - b)
       const changedFields = [
         document.title !== payload.title ? 'title' : null,
         document.content !== payload.content ? 'content' : null,
@@ -279,21 +261,20 @@ export default class KnowledgeDocumentsController {
         JSON.stringify(document.topics ?? []) !== JSON.stringify(payload.topics ?? [])
           ? 'topics'
           : null,
-        JSON.stringify(previousRoleIds) !== JSON.stringify(nextRoleIds) ? 'roles' : null,
+        document.enabled !== (payload.enabled ?? document.enabled) ? 'enabled' : null,
       ].filter((field): field is string => field !== null)
       document.merge({
         title: payload.title,
         content: payload.content,
         summary: payload.summary ?? null,
         topics: payload.topics ?? [],
+        enabled: payload.enabled ?? document.enabled,
       })
       if (shouldReindex) {
         await indexKnowledgeDocument(document)
       } else {
         await document.save()
       }
-      await document.related('roles').sync(payload.roleIds ?? [])
-      await document.load('roles')
       await recordAuditEvent(ctx, {
         actorUserId: auth.getUserOrFail().id,
         action: 'knowledge_document.updated',
@@ -303,12 +284,12 @@ export default class KnowledgeDocumentsController {
           title: document.title,
           changedFields,
           reindexed: shouldReindex,
-          roleIds: nextRoleIds,
+          enabled: document.enabled,
         },
       })
       return serialize(serializeKnowledgeDocument(document))
     } catch (error) {
-      if (error instanceof Error && /角色选择|不存在的角色|上传|文本文件/.test(error.message)) {
+      if (error instanceof Error && /启用状态|上传|文本文件/.test(error.message)) {
         return response.unprocessableEntity({ message: error.message })
       }
       throw error
@@ -323,7 +304,6 @@ export default class KnowledgeDocumentsController {
     await indexKnowledgeDocument(document)
     const indexedDocument = await KnowledgeDocument.query()
       .where('id', document.id)
-      .preload('roles')
       .withCount('chunks')
       .firstOrFail()
     await recordAuditEvent(ctx, {

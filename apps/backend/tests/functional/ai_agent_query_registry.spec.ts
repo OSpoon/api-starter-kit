@@ -6,6 +6,7 @@ import {
   getPendingAiQueryContext,
   runRegisteredAiQuery,
 } from '#ai/registry/ai_agent_query_registry'
+import type { AiAgentToolWithConfirmation } from '#ai/registry/ai_agent_tool_helpers'
 import { createAiAgentTools } from '#ai/registry/ai_agent_tool_registry'
 import AiAgentPendingQuery from '#models/ai_agent_pending_query'
 import AiChatConversation from '#models/ai_chat_conversation'
@@ -33,16 +34,76 @@ test.group('AI agent registered queries', (group) => {
   group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
 
   test('exposes one registered-query tool instead of dedicated system-list tools', ({ assert }) => {
-    const toolNames = createAiAgentTools({
+    const tools = createAiAgentTools({
       userId: 1,
       conversationId: 1,
       agentRunId: 'test-run',
-    }).map((registeredTool) => registeredTool.name)
+    })
+    const toolNames = tools.map((registeredTool) => registeredTool.name)
 
     assert.include(toolNames, 'run_registered_query')
     assert.notInclude(toolNames, 'list_api_keys')
     assert.notInclude(toolNames, 'list_roles')
     assert.notInclude(toolNames, 'list_permissions')
+
+    const queryTool = tools.find((tool) => tool.name === 'run_registered_query')
+    const schema = queryTool?.parameters as unknown as {
+      properties?: {
+        params?: { properties?: { page?: { type?: string; minimum?: number } } }
+      }
+    }
+    assert.equal(schema.properties?.params?.properties?.page?.type, 'integer')
+    assert.equal(schema.properties?.params?.properties?.page?.minimum, 1)
+  })
+
+  test('rejects an invalid page before creating its confirmation card', async ({ assert }) => {
+    const { user, conversation } = await createAdminConversation()
+    const queryTool = createAiAgentTools({
+      userId: user.id,
+      conversationId: conversation.id,
+      agentRunId: 'invalid-page-test',
+    }).find((tool) => tool.name === 'run_registered_query') as
+      | AiAgentToolWithConfirmation
+      | undefined
+    assert.isFunction(queryTool?.prepareConfirmation)
+
+    await assert.rejects(
+      () =>
+        queryTool?.prepareConfirmation?.({
+          templateCode: 'recent_audit_logs',
+          params: { page: 'Optional 1-based page number; omit for page 1.' },
+        }),
+      /页码必须为正整数；查询第一页时请省略页码。/
+    )
+  })
+
+  test('denies a registered query when the requester lacks its named permission', async ({
+    assert,
+  }) => {
+    const user = await User.create({
+      fullName: 'Unprivileged query user',
+      email: `unprivileged-query-${Date.now()}@example.com`,
+      password: generateInitialPassword(),
+    })
+    const result = await runRegisteredAiQuery({
+      conversationId: 1,
+      userId: user.id,
+      templateCode: 'managed_users',
+      params: {},
+    })
+
+    assert.deepEqual(result, {
+      kind: 'query_error',
+      code: 'permission_denied',
+      message: '当前账号没有执行此查询的权限',
+    })
+    assert.exists(
+      await AuditLog.query()
+        .where('action', 'agent.query_rejected')
+        .where('target_id', 'managed_users')
+        .where('reason_code', 'permission_denied')
+        .first()
+    )
   })
 
   test('rejects a pending query whose persisted parameters are not an object', async ({
@@ -84,7 +145,12 @@ test.group('AI agent registered queries', (group) => {
     assert.deepEqual(waiting, {
       kind: 'missing_parameters',
       templateCode: 'managed_user_profile',
-      missingFields: [{ name: 'userId', description: 'Required positive managed-user ID.' }],
+      missingFields: [
+        {
+          name: 'userIdOrExactEmailOrName',
+          description: 'Required managed-user ID, exact email, or exact full name.',
+        },
+      ],
     })
     const pending = await AiAgentPendingQuery.query()
       .where('conversation_id', conversation.id)
@@ -95,7 +161,7 @@ test.group('AI agent registered queries', (group) => {
       userId: user.id,
     })
     assert.include(pendingContext, 'managed_user_profile')
-    assert.include(pendingContext, '"missingRequired":["userId"]')
+    assert.include(pendingContext, '"missingRequired":["userIdOrExactEmailOrName"]')
 
     const completed = await runRegisteredAiQuery({
       conversationId: conversation.id,
@@ -134,13 +200,58 @@ test.group('AI agent registered queries', (group) => {
         authorization: audit.metadata?.authorization,
       },
       {
-        templateVersion: 1,
+        templateVersion: 3,
         parameterNames: ['userId'],
         resultCount: 1,
         authorization: 'allowed',
       }
     )
     assert.isNumber(audit.metadata?.durationMs)
+  })
+
+  test('resolves managed users by exact name or email and reports ambiguous names', async ({
+    assert,
+  }) => {
+    const { user, conversation } = await createAdminConversation()
+    const first = await User.create({
+      fullName: 'Exact Match User',
+      email: `exact-match-${Date.now()}@example.com`,
+      password: generateInitialPassword(),
+    })
+    const emailMatch = await runRegisteredAiQuery({
+      conversationId: conversation.id,
+      userId: user.id,
+      templateCode: 'managed_user_profile',
+      params: { email: first.email },
+    })
+    assert.equal(emailMatch.kind, 'query_result')
+    if (emailMatch.kind !== 'query_result') throw new Error('Expected exact email result')
+    assert.deepEqual(emailMatch.match, { status: 'matched', field: 'email' })
+    assert.equal(emailMatch.rows.length, 1)
+    assert.equal((emailMatch.rows[0] as { id: number }).id, first.id)
+    assert.notInclude(JSON.stringify(emailMatch.rows), first.email)
+
+    const second = await User.create({
+      fullName: first.fullName,
+      email: `exact-match-second-${Date.now()}@example.com`,
+      password: generateInitialPassword(),
+    })
+    const nameMatch = await runRegisteredAiQuery({
+      conversationId: conversation.id,
+      userId: user.id,
+      templateCode: 'managed_user_profile',
+      params: { fullName: first.fullName },
+    })
+    assert.equal(nameMatch.kind, 'query_result')
+    if (nameMatch.kind !== 'query_result') throw new Error('Expected exact name result')
+    assert.deepEqual(nameMatch.match, { status: 'ambiguous', field: 'fullName' })
+    assert.deepEqual(
+      nameMatch.rows.map((row) => (row as { id: number }).id).sort(),
+      [first.id, second.id].sort()
+    )
+    assert.include(nameMatch.message ?? '', 'choose by ID')
+    assert.notInclude(JSON.stringify(nameMatch.rows), first.email)
+    assert.notInclude(JSON.stringify(nameMatch.rows), second.email)
   })
 
   test('looks up an API Key profile by ID with status and without the key hash', async ({
@@ -239,6 +350,92 @@ test.group('AI agent registered queries', (group) => {
     assert.equal(completed.kind, 'query_result')
   })
 
+  test('resolves an exact revoked API Key name when a similar active name exists', async ({
+    assert,
+  }) => {
+    const { user, conversation } = await createAdminConversation()
+    const suffix = Date.now()
+    const revoked = await ApiKey.create({
+      name: `Browser-QA-Cancelled-${suffix}`,
+      prefix: `rev${suffix}`,
+      keyHash: `hash-revoked-${suffix}`,
+      revokedAt: DateTime.now(),
+    })
+    const similar = await ApiKey.create({
+      name: `Browser-qa-cancelled-${suffix}`,
+      prefix: `act${suffix}`,
+      keyHash: `hash-active-${suffix}`,
+    })
+
+    const activeKeys = await runRegisteredAiQuery({
+      conversationId: conversation.id,
+      userId: user.id,
+      templateCode: 'active_api_keys',
+      params: {},
+    })
+    assert.equal(activeKeys.kind, 'query_result')
+    if (activeKeys.kind !== 'query_result') throw new Error('Expected active API Key result')
+    assert.isTrue(activeKeys.rows.some((row) => (row as { id: number }).id === similar.id))
+    assert.isFalse(activeKeys.rows.some((row) => (row as { id: number }).id === revoked.id))
+
+    const exactProfile = await runRegisteredAiQuery({
+      conversationId: conversation.id,
+      userId: user.id,
+      templateCode: 'api_key_profile',
+      params: { name: revoked.name },
+    })
+    assert.deepEqual(exactProfile, {
+      kind: 'query_result',
+      templateCode: 'api_key_profile',
+      rows: [
+        {
+          id: revoked.id,
+          name: revoked.name,
+          prefix: revoked.prefix,
+          status: 'revoked',
+          expiresAt: null,
+        },
+      ],
+    })
+  })
+
+  test('lists only revoked API Keys as deletion candidates without exposing secrets', async ({
+    assert,
+  }) => {
+    const { user, conversation } = await createAdminConversation()
+    const suffix = Date.now()
+    const revoked = await ApiKey.create({
+      name: `Revoked deletion candidate ${suffix}`,
+      prefix: `rd${suffix}`,
+      keyHash: `hash-revoked-${suffix}`,
+      revokedAt: DateTime.now(),
+    })
+    const active = await ApiKey.create({
+      name: `Active key ${suffix}`,
+      prefix: `ak${suffix}`,
+      keyHash: `hash-active-${suffix}`,
+    })
+
+    const result = await runRegisteredAiQuery({
+      conversationId: conversation.id,
+      userId: user.id,
+      templateCode: 'revoked_api_keys',
+      params: {},
+    })
+
+    assert.equal(result.kind, 'query_result')
+    if (result.kind !== 'query_result') throw new Error('Expected revoked API Key results')
+    assert.deepInclude(result.rows, {
+      id: revoked.id,
+      name: revoked.name,
+      prefix: revoked.prefix,
+      revokedAt: revoked.revokedAt?.toISO(),
+      expiresAt: null,
+    })
+    assert.isFalse(result.rows.some((row) => (row as { id: number }).id === active.id))
+    assert.notInclude(JSON.stringify(result.rows), 'hash-')
+  })
+
   test('rejects unknown parameters without persisting them', async ({ assert }) => {
     const { user, conversation } = await createAdminConversation()
 
@@ -262,7 +459,7 @@ test.group('AI agent registered queries', (group) => {
       .where('target_id', 'managed_user_profile')
       .firstOrFail()
     assert.deepEqual(audit.metadata, {
-      templateVersion: 1,
+      templateVersion: 3,
       parameterNames: ['userId', 'sql'],
       unknownParameterNames: ['sql'],
       authorization: 'allowed',
@@ -273,30 +470,33 @@ test.group('AI agent registered queries', (group) => {
     assert.notProperty(audit.metadata ?? {}, 'params')
   })
 
-  test('denies an unprivileged user before creating pending query state', async ({ assert }) => {
+  test('runs registered queries for users with the matching read permission', async ({
+    assert,
+  }) => {
+    const permission = await Permission.findByOrFail('code', 'users:read')
+    const role = await Role.create({ code: `query-reader-${Date.now()}`, name: 'Query Reader' })
+    await role.related('permissions').sync([permission.id])
     const user = await User.create({
       fullName: 'Query Reader',
       email: `query-reader-${Date.now()}@example.com`,
       password: generateInitialPassword(),
     })
+    await user.related('roles').sync([role.id])
     const conversation = await AiChatConversation.create({ userId: user.id, title: 'Denied query' })
 
-    await assert.rejects(
-      () =>
-        runRegisteredAiQuery({
-          conversationId: conversation.id,
-          userId: user.id,
-          templateCode: 'managed_user_profile',
-          params: {},
-        }),
-      '当前账号没有执行此查询的权限'
-    )
+    const result = await runRegisteredAiQuery({
+      conversationId: conversation.id,
+      userId: user.id,
+      templateCode: 'managed_users',
+      params: {},
+    })
+    assert.equal(result.kind, 'query_result')
     assert.isNull(
       await AiAgentPendingQuery.query().where('conversation_id', conversation.id).first()
     )
     const audit = await AuditLog.query()
-      .where('action', 'agent.query_rejected')
-      .where('target_id', 'managed_user_profile')
+      .where('action', 'agent.query_executed')
+      .where('target_id', 'managed_users')
       .where('actor_user_id', user.id)
       .firstOrFail()
     assert.deepEqual(
@@ -304,14 +504,20 @@ test.group('AI agent registered queries', (group) => {
         templateVersion: audit.metadata?.templateVersion,
         parameterNames: audit.metadata?.parameterNames,
         authorization: audit.metadata?.authorization,
-        reason: audit.metadata?.reason,
+        resultCount: audit.metadata?.resultCount,
       },
       {
-        templateVersion: 1,
-        parameterNames: [],
-        authorization: 'denied',
-        reason: 'permission_denied',
+        templateVersion: 2,
+        parameterNames: ['page'],
+        authorization: 'allowed',
+        resultCount: result.kind === 'query_result' ? result.rows.length : 0,
       }
+    )
+    assert.equal(result.kind, 'query_result')
+    if (result.kind !== 'query_result') throw new Error('Expected managed user query results')
+    assert.include(
+      result.rows.map((row) => (row as { id: number }).id),
+      user.id
     )
     assert.isNumber(audit.metadata?.durationMs)
   })
@@ -340,7 +546,7 @@ test.group('AI agent registered queries', (group) => {
         reason: audit.metadata?.reason,
       },
       {
-        templateVersion: 1,
+        templateVersion: 3,
         parameterNames: ['userId'],
         authorization: 'allowed',
         reason: 'invalid_parameters',
@@ -433,18 +639,17 @@ test.group('AI agent registered queries', (group) => {
 
     assert.equal(result.kind, 'query_result')
     if (result.kind !== 'query_result') throw new Error('Expected a query result')
-    assert.deepEqual(result.rows, [
-      {
-        id: audit.id,
-        action: 'role.updated',
-        targetType: 'role',
-        targetId: '123',
-        createdAt: audit.createdAt.toISO(),
-        actor: { fullName: 'Q*' },
-      },
-    ])
-    assert.notProperty(result.rows[0] as object, 'metadata')
-    assert.notProperty((result.rows[0] as { actor?: object }).actor ?? {}, 'id')
+    const row = result.rows.find((item) => (item as { id: number }).id === audit.id)
+    assert.deepEqual(row, {
+      id: audit.id,
+      action: 'role.updated',
+      targetType: 'role',
+      targetId: '123',
+      createdAt: audit.createdAt.toISO(),
+      actor: { fullName: 'Q*' },
+    })
+    assert.notProperty(row as object, 'metadata')
+    assert.notProperty((row as { actor?: object }).actor ?? {}, 'id')
   })
 
   test('redacts recent audit-log actors and excludes IPs, user agents, and metadata', async ({
@@ -482,6 +687,38 @@ test.group('AI agent registered queries', (group) => {
     assert.notProperty(auditRow ?? {}, 'metadata')
     assert.notProperty((auditRow as { actor?: object }).actor ?? {}, 'id')
     assert.notInclude(JSON.stringify(result.rows), user.email)
+  })
+
+  test('uses page one when an optional page is null or blank', async ({ assert }) => {
+    const { user, conversation } = await createAdminConversation()
+
+    for (const page of [null, '']) {
+      const result = await runRegisteredAiQuery({
+        conversationId: conversation.id,
+        userId: user.id,
+        templateCode: 'recent_audit_logs',
+        params: { page },
+      })
+      assert.equal(result.kind, 'query_result')
+    }
+  })
+
+  test('does not expose the query parameter schema description as a user error', async ({
+    assert,
+  }) => {
+    const { user, conversation } = await createAdminConversation()
+    const result = await runRegisteredAiQuery({
+      conversationId: conversation.id,
+      userId: user.id,
+      templateCode: 'recent_audit_logs',
+      params: { page: 'Optional 1-based page number; omit for page 1.' },
+    })
+
+    assert.deepEqual(result, {
+      kind: 'query_error',
+      code: 'invalid_input',
+      message: '页码必须为正整数；查询第一页时请省略页码。',
+    })
   })
 
   test('uses permission-scoped templates for API Key, role, and permission lists', async ({
@@ -568,6 +805,7 @@ test.group('AI agent registered queries', (group) => {
 
   test('paginates AI query results without dropping later rows', async ({ assert }) => {
     const { user, conversation } = await createAdminConversation()
+    await ApiKey.query().whereNull('revoked_at').update({ revokedAt: DateTime.now() })
     const suffix = Date.now()
     const keys = []
     for (let index = 0; index < 21; index += 1) {
@@ -608,7 +846,7 @@ test.group('AI agent registered queries', (group) => {
     )
   })
 
-  test('validates role-query parameters and denies every new access-control template', async ({
+  test('validates role-query parameters and denies templates without matching RBAC grants', async ({
     assert,
   }) => {
     const { user, conversation } = await createAdminConversation()
@@ -642,15 +880,20 @@ test.group('AI agent registered queries', (group) => {
       ['roles_with_permissions', {}],
       ['permission_catalog', {}],
     ] as const) {
-      await assert.rejects(
-        () =>
-          runRegisteredAiQuery({
-            conversationId: deniedConversation.id,
-            userId: deniedUser.id,
-            templateCode,
-            params,
-          }),
-        '当前账号没有执行此查询的权限'
+      const result = await runRegisteredAiQuery({
+        conversationId: deniedConversation.id,
+        userId: deniedUser.id,
+        templateCode,
+        params,
+      })
+      assert.deepEqual(
+        result,
+        {
+          kind: 'query_error',
+          code: 'permission_denied',
+          message: '当前账号没有执行此查询的权限',
+        },
+        templateCode
       )
     }
   })

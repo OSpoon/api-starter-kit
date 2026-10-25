@@ -80,6 +80,7 @@ const props = withDefaults(
     showMessageActions?: boolean
     approval?: AiChatConfirmation | null
     approvalLoading?: boolean
+    approvalCancelling?: boolean
     credentialDisclosure?: AiChatCredentialDisclosure | null
     voiceTranscribing?: boolean
     usage?: AiChatUsageSummary | null
@@ -105,6 +106,7 @@ const props = withDefaults(
     showMessageActions: true,
     approval: null,
     approvalLoading: false,
+    approvalCancelling: false,
     credentialDisclosure: null,
     voiceTranscribing: false,
     usage: null,
@@ -985,6 +987,7 @@ watch(
               v-if="approval"
               :approval="approval"
               :loading="approvalLoading"
+              :cancelling="approvalCancelling"
               :disabled="disabled"
               @approve="emit('approveConfirmation')"
               @dismiss="emit('dismissConfirmation')"

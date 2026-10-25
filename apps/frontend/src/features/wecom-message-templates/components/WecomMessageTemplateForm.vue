@@ -313,7 +313,11 @@ const onSubmit = form.handleSubmit(submitValues, onInvalidSubmit)
           <FormField v-slot="{ componentField }" name="name" :validate-on-blur="false">
             <FormItem>
               <FormLabel>{{ t('wecom_templates.name') }}</FormLabel>
-              <FormControl><Input v-bind="componentField" /></FormControl>
+              <FormControl
+                ><Input
+                  v-bind="componentField"
+                  :placeholder="t('wecom_templates.name_placeholder')"
+              /></FormControl>
               <FormMessage />
             </FormItem>
           </FormField>
@@ -328,7 +332,9 @@ const onSubmit = form.handleSubmit(submitValues, onInvalidSubmit)
                 @update:model-value="msgtype = String($event) as WecomMessageType"
               >
                 <FormControl
-                  ><SelectTrigger class="w-full"><SelectValue /></SelectTrigger
+                  ><SelectTrigger class="w-full"
+                    ><SelectValue
+                      :placeholder="t('wecom_templates.select_message_type')" /></SelectTrigger
                 ></FormControl>
                 <SelectContent
                   ><SelectItem v-for="type in Object.keys(examples)" :key="type" :value="type">{{
@@ -344,7 +350,11 @@ const onSubmit = form.handleSubmit(submitValues, onInvalidSubmit)
           <FormField v-slot="{ componentField }" name="description" :validate-on-blur="false">
             <FormItem>
               <FormLabel>{{ t('wecom_templates.description') }}</FormLabel>
-              <FormControl><Input v-bind="componentField" /></FormControl>
+              <FormControl
+                ><Input
+                  v-bind="componentField"
+                  :placeholder="t('wecom_templates.description_placeholder')"
+              /></FormControl>
               <FormMessage />
             </FormItem>
           </FormField>
@@ -360,7 +370,7 @@ const onSubmit = form.handleSubmit(submitValues, onInvalidSubmit)
                   :placeholder="
                     template
                       ? t('wecom_templates.webhook_keep')
-                      : 'https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=...'
+                      : t('wecom_templates.webhook_placeholder')
                   "
               /></FormControl>
               <FormDescription>{{ t('wecom_templates.webhook_hint') }}</FormDescription>

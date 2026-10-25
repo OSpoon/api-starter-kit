@@ -1,7 +1,7 @@
 import { BaseModel, column } from '@adonisjs/lucid/orm'
 import { DateTime } from 'luxon'
 
-export type AiAgentConfirmationStatus = 'pending' | 'confirmed' | 'expired' | 'failed'
+export type AiAgentConfirmationStatus = 'pending' | 'confirmed' | 'expired' | 'failed' | 'cancelled'
 
 export default class AiAgentConfirmation extends BaseModel {
   static table = 'ai_agent_confirmations'

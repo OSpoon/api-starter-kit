@@ -8,6 +8,7 @@ export const aiAgentActionNames = [
   'delete_api_key',
   'create_api_key',
   'reset_user_password',
+  'create_user',
   'disable_user',
   'enable_user',
   'update_user',
@@ -16,12 +17,25 @@ export const aiAgentActionNames = [
   'update_role',
   'delete_role',
   'send_wecom_message',
+  'call_mcp_tool',
+  'call_builtin_tool',
 ] as const
 
 export type AiAgentActionName = (typeof aiAgentActionNames)[number]
 
 export const genericProposalActionNames = [
   'reset_user_password',
+  'create_user',
+  'disable_user',
+  'enable_user',
+  'update_user',
+  'delete_user',
+  'create_role',
+  'update_role',
+  'delete_role',
+] as const satisfies readonly AiAgentActionName[]
+
+export const channelProposalActionNames = [
   'disable_user',
   'enable_user',
   'update_user',
@@ -45,7 +59,10 @@ export type AiAgentActionChangeSummary = Array<{ field: string; value: string }>
 export type AiAgentActionDefinition = {
   permission: string
   impact: AiAgentActionImpact
-  prepare: (input: Record<string, unknown>) => Promise<AiAgentActionPreparation>
+  prepare: (
+    input: Record<string, unknown>,
+    actorUserId: number
+  ) => Promise<AiAgentActionPreparation>
   execute: (input: {
     confirmation: AiAgentConfirmation
     ctx: HttpContext
@@ -55,12 +72,17 @@ export type AiAgentActionDefinition = {
 
 export type AiAgentActionImplementation = Omit<AiAgentActionDefinition, 'impact' | 'summarize'>
 
-export class AiAgentActionAuthorizationError extends Error {}
-
-// API Key revocation and deletion use dedicated proposal tools so the model's
+// API Key revocation and deletion use dedicated operation tools so the model's
 // choice between those security-sensitive operations stays explicit.
 export const aiAgentChangeSchema = z.object({
   action: z.enum(genericProposalActionNames),
+  input: z
+    .record(z.unknown())
+    .refine((value) => Object.keys(value).length > 0, '受控操作缺少必要参数'),
+})
+
+export const channelAiAgentChangeSchema = z.object({
+  action: z.enum(channelProposalActionNames),
   input: z
     .record(z.unknown())
     .refine((value) => Object.keys(value).length > 0, '受控操作缺少必要参数'),

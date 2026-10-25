@@ -13,7 +13,9 @@ const jiti = createJiti(import.meta.url, {
 const { validatePasswordChange } = await jiti.import(
   `${root}/src/features/account/change-password-form.ts`
 )
-const { streamAiChatMessage } = await jiti.import(`${root}/src/features/ai/api.ts`)
+const { streamAiAgentActionConfirmation, streamAiChatMessage } = await jiti.import(
+  `${root}/src/features/ai/api.ts`
+)
 const { formatAiChatMessagesAsMarkdown } = await jiti.import(`${root}/src/features/ai/markdown.ts`)
 const { hasAiChatConversationContent } = await jiti.import(
   `${root}/src/features/ai/conversation-state.ts`
@@ -22,8 +24,8 @@ const { didReachMessageScrollerStart } = await jiti.import(
   `${root}/src/components/ui/message-scroller/useMessageScroller.ts`
 )
 const { buildListQuery } = await jiti.import(`${root}/src/lib/list-query.ts`)
-const { hasUnsavedLlmConfiguration } = await jiti.import(
-  `${root}/src/features/llm-config/form-state.ts`
+const { buildLlmConfigurationUpdate, hasUnsavedLlmConfiguration } = await jiti.import(
+  `${root}/src/features/agent-config/form-state.ts`
 )
 const { workbenchRoutes } = await jiti.import(`${root}/src/router/modules/workbench.ts`)
 const { developmentWorkbenchRoutes } = await jiti.import(
@@ -94,6 +96,36 @@ test('AI stream accepts a terminal done event', async () => {
   }
 })
 
+test('confirmation stream delivers status and assistant text before completion', async () => {
+  const originalFetch = globalThis.fetch
+  globalThis.fetch = async (_url, options) => {
+    assert.equal(options.method, 'POST')
+    assert.equal(new Headers(options.headers).get('Accept'), 'text/event-stream')
+    return new Response(
+      'event: agent_status\ndata: {"name":"confirmation_execution","state":"running","callId":"tool-call-2"}\n\n' +
+        'event: agent_status\ndata: {"name":"confirmation_execution","state":"done","callId":"tool-call-2","detail":{"toolName":"search_logs"}}\n\n' +
+        'event: delta\ndata: {"content":"操作完成"}\n\n' +
+        'event: done\ndata: {"conversation":{"id":1},"message":{"id":2},"confirmations":[]}\n\n',
+      { status: 200 }
+    )
+  }
+  const events = []
+
+  try {
+    await streamAiAgentActionConfirmation(null, 1, 2, (event) => events.push(event))
+    assert.deepEqual(
+      events.map(({ type }) => type),
+      ['agent_status', 'agent_status', 'delta', 'done']
+    )
+    assert.equal(events[0].callId, 'tool-call-2')
+    assert.equal(events[1].callId, events[0].callId)
+    assert.equal(events[1].detail.toolName, 'search_logs')
+    assert.equal(events[2].content, '操作完成')
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})
+
 test('AI chat Markdown export preserves selected messages in conversation order', () => {
   assert.equal(
     formatAiChatMessagesAsMarkdown(
@@ -133,7 +165,13 @@ test('remote list query trims search and omits an empty search parameter', () =>
 
 test('LLM connection test draft comparison detects unsaved fields and secrets', () => {
   const saved = {
-    chat: { baseUrl: 'https://chat.example', model: 'chat-model', apiKeyConfigured: true },
+    chat: {
+      baseUrl: 'https://chat.example',
+      model: 'chat-model',
+      contextWindow: 128000,
+      maxTokens: 16384,
+      apiKeyConfigured: true,
+    },
     asr: { baseUrl: null, model: 'asr-model', apiKeyConfigured: false },
     embedding: {
       baseUrl: 'https://embed.example',
@@ -141,26 +179,82 @@ test('LLM connection test draft comparison detects unsaved fields and secrets', 
       dimensions: 1024,
       apiKeyConfigured: true,
     },
-    requestTimeoutMs: 180000,
     updatedAt: '2026-09-20T00:00:00.000Z',
   }
   const unchanged = {
     chatApiKey: '',
     chatBaseUrl: 'https://chat.example',
     chatModel: 'chat-model',
+    chatContextWindow: 128000,
+    chatMaxTokens: 16384,
     asrApiKey: '',
     asrBaseUrl: '',
     asrModel: 'asr-model',
     embeddingApiKey: '',
     embeddingBaseUrl: 'https://embed.example',
     embeddingModel: 'embedding-model',
-    requestTimeoutMs: 180000,
   }
 
   assert.equal(hasUnsavedLlmConfiguration(unchanged, saved), false)
   assert.equal(hasUnsavedLlmConfiguration({ ...unchanged, chatModel: 'draft-model' }, saved), true)
   assert.equal(hasUnsavedLlmConfiguration({ ...unchanged, chatApiKey: 'new-secret' }, saved), true)
+  assert.equal(
+    hasUnsavedLlmConfiguration({ ...unchanged, chatModel: 'draft-model' }, saved, 'asr'),
+    false
+  )
+  assert.equal(
+    hasUnsavedLlmConfiguration({ ...unchanged, chatModel: 'draft-model' }, saved, 'chat'),
+    true
+  )
   assert.equal(hasUnsavedLlmConfiguration(unchanged, null), true)
+})
+
+test('saving one LLM model keeps the other saved models unchanged', () => {
+  const saved = {
+    chat: {
+      baseUrl: 'https://chat.example',
+      model: 'chat-model',
+      contextWindow: 128000,
+      maxTokens: 16384,
+      apiKeyConfigured: true,
+    },
+    asr: { baseUrl: null, model: 'asr-model', apiKeyConfigured: false },
+    embedding: {
+      baseUrl: 'https://embed.example',
+      model: 'embedding-model',
+      dimensions: 1024,
+      apiKeyConfigured: true,
+    },
+    updatedAt: '2026-09-20T00:00:00.000Z',
+  }
+  const draft = {
+    chatApiKey: '',
+    chatBaseUrl: 'https://chat.example',
+    chatModel: 'chat-model',
+    chatContextWindow: 128000,
+    chatMaxTokens: 16384,
+    asrApiKey: 'new-asr-key',
+    asrBaseUrl: 'https://asr.example',
+    asrModel: 'new-asr-model',
+    embeddingApiKey: '',
+    embeddingBaseUrl: 'https://embed.example',
+    embeddingModel: 'embedding-model',
+  }
+
+  assert.deepEqual(buildLlmConfigurationUpdate(draft, saved, 'asr'), {
+    chatApiKey: undefined,
+    chatBaseUrl: 'https://chat.example',
+    chatModel: 'chat-model',
+    chatContextWindow: 128000,
+    chatMaxTokens: 16384,
+    asrApiKey: 'new-asr-key',
+    asrBaseUrl: 'https://asr.example',
+    asrModel: 'new-asr-model',
+    embeddingApiKey: undefined,
+    embeddingBaseUrl: 'https://embed.example',
+    embeddingModel: 'embedding-model',
+    embeddingDimensions: 1024,
+  })
 })
 
 test('workbench template pages are removed while SQL tools stay development-only', () => {
@@ -181,6 +275,16 @@ test('workbench template pages are removed while SQL tools stay development-only
     assert.equal(productionNames.includes(name), false, `${name} should not ship as a route`)
     assert.equal(developmentNames.includes(name), true, `${name} should remain available in dev`)
   }
+})
+
+test('IM configuration is a section of Agent configuration without a separate menu entry', () => {
+  const routes = workbenchRoutes[0].children
+  const agentConfig = routes.find((route) => route.name === 'agent-config')
+  const imConfig = routes.find((route) => route.name === 'im-config')
+
+  assert.ok(agentConfig)
+  assert.deepEqual(imConfig.redirect, { name: 'agent-config', query: { module: 'im' } })
+  assert.equal(imConfig.meta?.nav, undefined)
 })
 
 test('permission-aware landing picks the first accessible module', () => {

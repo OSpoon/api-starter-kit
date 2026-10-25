@@ -1,13 +1,11 @@
 import type { HttpContext } from '@adonisjs/core/http'
 
 import {
-  AiAgentActionAuthorizationError,
   type AiAgentActionChangeSummary,
   type AiAgentActionDefinition,
   type AiAgentActionImpact,
   type AiAgentActionImplementation,
 } from '#ai/core/ai_agent_action_contracts'
-import { ensureAiAgentPermission } from '#ai/core/ai_agent_authorization'
 
 export function defineAiAgentAction(
   implementation: AiAgentActionImplementation,
@@ -19,14 +17,8 @@ export function defineAiAgentAction(
   return { ...implementation, ...metadata }
 }
 
-export async function ensurePermission(ctx: HttpContext, permission: string) {
-  const user = ctx.integrationUser ?? ctx.auth.getUserOrFail()
-  try {
-    await ensureAiAgentPermission(user.id, permission)
-  } catch {
-    throw new AiAgentActionAuthorizationError('当前账号没有执行此操作的权限')
-  }
-  return user
+export function getAiAgentActor(ctx: HttpContext) {
+  return ctx.integrationUser ?? ctx.auth.getUserOrFail()
 }
 
 export function integer(input: Record<string, unknown>, name: string) {

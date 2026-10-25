@@ -1,7 +1,7 @@
 import type { AiAgentActionImplementation } from '#ai/core/ai_agent_action_contracts'
 import {
   defineAiAgentAction,
-  ensurePermission,
+  getAiAgentActor,
   integer,
   string,
   summaryValue,
@@ -38,7 +38,7 @@ const revokeApiKeyAction: AiAgentActionImplementation = {
     }
   },
   async execute({ confirmation, ctx }) {
-    const actor = await ensurePermission(ctx, 'api-keys:delete')
+    const actor = getAiAgentActor(ctx)
     await revokeApiKey(ctx, {
       actorUserId: actor.id,
       apiKeyId: integer(confirmation.payload, 'apiKeyId'),
@@ -62,7 +62,7 @@ const deleteApiKeyAction: AiAgentActionImplementation = {
     }
   },
   async execute({ confirmation, ctx }) {
-    const actor = await ensurePermission(ctx, 'api-keys:delete')
+    const actor = getAiAgentActor(ctx)
     await deleteRevokedApiKey(ctx, {
       actorUserId: actor.id,
       apiKeyId: integer(confirmation.payload, 'apiKeyId'),
@@ -86,7 +86,7 @@ const createApiKeyAction: AiAgentActionImplementation = {
     }
   },
   async execute({ confirmation, ctx }) {
-    const actor = await ensurePermission(ctx, 'api-keys:create')
+    const actor = getAiAgentActor(ctx)
     const { apiKey, secret } = await createApiKey(
       ctx,
       actor.id,

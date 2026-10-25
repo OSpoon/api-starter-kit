@@ -76,6 +76,7 @@ async function handleSubmit() {
             id="currentPassword"
             v-model="currentPassword"
             type="password"
+            :placeholder="t('profile.current_password_placeholder')"
             required
             :disabled="saving"
           />
@@ -86,6 +87,7 @@ async function handleSubmit() {
             id="newPassword"
             v-model="newPassword"
             type="password"
+            :placeholder="t('profile.new_password_placeholder')"
             required
             :disabled="saving"
           />
@@ -97,6 +99,7 @@ async function handleSubmit() {
             id="confirmPassword"
             v-model="confirmPassword"
             type="password"
+            :placeholder="t('profile.confirm_password_placeholder')"
             required
             :disabled="saving"
           />

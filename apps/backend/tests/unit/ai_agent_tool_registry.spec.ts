@@ -1,6 +1,9 @@
 import { test } from '@japa/runner'
 
-import { createAiAgentTools } from '#ai/registry/ai_agent_tool_registry'
+import {
+  createAiAgentTools,
+  createConfiguredAiAgentTools,
+} from '#ai/registry/ai_agent_tool_registry'
 
 test.group('AI agent tool registry', () => {
   test('registers every Pi tool with an explicit name and description', ({ assert }) => {
@@ -17,11 +20,13 @@ test.group('AI agent tool registry', () => {
         'run_registered_query',
         'search_knowledge_catalog',
         'search_knowledge',
-        'propose_api_key_revocation',
-        'propose_api_key_deletion',
-        'propose_system_management_change',
-        'propose_api_key_creation',
-        'propose_wecom_message_send',
+        'list_agent_skills',
+        'load_agent_skill',
+        'revoke_api_key',
+        'delete_api_key',
+        'system_management_change',
+        'create_api_key',
+        'send_wecom_message',
       ]
     )
     for (const tool of tools) {
@@ -47,6 +52,27 @@ test.group('AI agent tool registry', () => {
     )
   })
 
+  test('distinguishes registered query tools from their template codes', ({ assert }) => {
+    const queryTool = createAiAgentTools({
+      userId: 1,
+      conversationId: 1,
+      agentRunId: 'test-run',
+    }).find((registeredTool) => registeredTool.name === 'run_registered_query')
+
+    if (!queryTool) throw new Error('Expected registered query tool')
+    assert.include(queryTool.description, 'The only tool for current system data')
+    assert.include(
+      queryTool.description,
+      'Template codes, including api_key_profile, are values for its templateCode argument'
+    )
+    assert.include(queryTool.description, 'never call a template code as a separate tool')
+    assert.include(queryTool.description, 'not a lookup for one named key')
+    assert.include(queryTool.description, 'pass the exact name under params.name')
+    assert.include(queryTool.description, 'leaving apiKeyId/id unset')
+    assert.include(queryTool.description, 'use revoked_api_keys to list deletion candidates')
+    assert.include(queryTool.description, 'never conclude a revoked key does not exist')
+  })
+
   test('exposes only public knowledge search in visitor mode', ({ assert }) => {
     const tools = createAiAgentTools({
       userId: 1,
@@ -62,32 +88,112 @@ test.group('AI agent tool registry', () => {
     for (const tool of tools) assert.equal(tool.executionMode, 'sequential')
   })
 
-  test('documents direct fields for API Key creation', ({ assert }) => {
+  test('keeps one-time credential operations in the web assistant only', async ({ assert }) => {
+    const tools = createAiAgentTools({
+      userId: 1,
+      conversationId: 1,
+      agentRunId: 'channel-run',
+      capabilityMode: 'channel',
+    })
+    assert.notInclude(
+      tools.map(({ name }) => name),
+      'create_api_key'
+    )
+
+    const managementTool = tools.find(({ name }) => name === 'system_management_change')
+    if (!managementTool) throw new Error('Expected channel system management tool')
+    assert.include(
+      managementTool.description,
+      'Password reset and user creation are available only in the web assistant'
+    )
+    const result = await managementTool.execute('channel-password-reset', {
+      action: 'reset_user_password',
+      input: { userId: 1 },
+    })
+    assert.equal((result.details as { kind: string }).kind, 'action_error')
+    assert.equal((result.details as { code: string }).code, 'invalid_input')
+  })
+
+  test('exposes only administrator-enabled built-in tools', ({ assert }) => {
+    const tools = createAiAgentTools({
+      userId: 1,
+      conversationId: 1,
+      agentRunId: 'test-run',
+      enabledToolNames: ['search_knowledge', 'load_agent_skill'],
+    })
+
+    assert.deepEqual(
+      tools.map((tool) => tool.name),
+      ['search_knowledge', 'load_agent_skill']
+    )
+  })
+
+  test('supports a tool-free assistant turn for confirmed MCP result summaries', async ({
+    assert,
+  }) => {
+    const tools = await createConfiguredAiAgentTools({
+      userId: 1,
+      conversationId: 1,
+      agentRunId: 'mcp-summary-run',
+      enabledToolNames: [],
+    })
+
+    assert.deepEqual(tools, [])
+  })
+
+  test('documents the configured execution policy for API Key creation', ({ assert }) => {
     const tool = createAiAgentTools({
       userId: 1,
       conversationId: 1,
       agentRunId: 'test-run',
-    }).find((registeredTool) => registeredTool.name === 'propose_api_key_creation')
+    }).find((registeredTool) => registeredTool.name === 'create_api_key')
 
     if (!tool) throw new Error('Expected API Key creation tool')
     assert.include(tool.description, 'direct fields')
-    assert.include(tool.description, 'call this tool before replying')
-    assert.include(tool.description, 'never claim that a proposal')
+    assert.include(tool.description, 'configured execution policy')
+    assert.include(tool.description, 'confirmation card')
     assert.include(tool.description, 'name')
     assert.notInclude(tool.description, 'input.name')
   })
 
-  test('documents the generic management proposal input shape', ({ assert }) => {
+  test('uses the exact requested name when deleting a revoked API Key', ({ assert }) => {
     const tool = createAiAgentTools({
       userId: 1,
       conversationId: 1,
       agentRunId: 'test-run',
-    }).find((registeredTool) => registeredTool.name === 'propose_system_management_change')
+    }).find((registeredTool) => registeredTool.name === 'delete_api_key')
 
-    if (!tool) throw new Error('Expected system management proposal tool')
+    if (!tool) throw new Error('Expected API Key deletion tool')
+    assert.include(tool.description, 'templateCode revoked_api_keys')
+    assert.include(tool.description, 'call this tool with that exact name')
+    assert.include(tool.description, 'Never substitute a similarly named key')
+  })
+
+  test('passes an exact API Key target directly to the revocation tool', ({ assert }) => {
+    const tool = createAiAgentTools({
+      userId: 1,
+      conversationId: 1,
+      agentRunId: 'test-run',
+    }).find((registeredTool) => registeredTool.name === 'revoke_api_key')
+
+    if (!tool) throw new Error('Expected API Key revocation tool')
+    assert.include(tool.description, 'pass that target directly')
+    assert.include(tool.description, 'Do not substitute a similar key')
+    assert.include(tool.description, 'before the configured execution policy runs')
+  })
+
+  test('documents the generic management change input shape', ({ assert }) => {
+    const tool = createAiAgentTools({
+      userId: 1,
+      conversationId: 1,
+      agentRunId: 'test-run',
+    }).find((registeredTool) => registeredTool.name === 'system_management_change')
+
+    if (!tool) throw new Error('Expected system management change tool')
     assert.include(tool.description, 'direct top-level fields')
     assert.include(tool.description, 'action create_role')
-    assert.include(tool.description, 'code, name')
+    assert.include(tool.description, 'fields code and name')
+    assert.include(tool.description, 'create_user requires fullName, email, and roleIds')
   })
 
   test('runs all registered tools sequentially', ({ assert }) => {

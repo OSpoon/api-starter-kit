@@ -31,6 +31,47 @@ export interface WecomBotAdapterOptions {
   logger?: WSClientOptions['logger']
 }
 
+export function createWecomConfirmationCard(
+  message: Extract<OutboundMessage, { kind: 'confirmation' }>
+): TemplateCard {
+  const changes = message.changes ?? []
+  const details: NonNullable<TemplateCard['horizontal_content_list']> = []
+  if (message.targetLabel) {
+    details.push({ keyname: '操作对象', value: message.targetLabel.slice(0, 26) })
+  }
+
+  const maximumChanges = Math.max(0, 6 - details.length - Number(Boolean(message.impactLabel)))
+  const needsOverflowRow = changes.length > maximumChanges
+  const visibleChangeCount = needsOverflowRow ? Math.max(0, maximumChanges - 1) : changes.length
+  details.push(
+    ...changes.slice(0, visibleChangeCount).map(({ label, value }) => ({
+      keyname: label.slice(0, 8),
+      value: value.slice(0, 26),
+    }))
+  )
+  if (needsOverflowRow && maximumChanges > 0) {
+    details.push({
+      keyname: '更多',
+      value: `另有 ${changes.length - visibleChangeCount} 项变更`,
+    })
+  }
+  if (message.impactLabel) {
+    details.push({ keyname: '影响提示', value: message.impactLabel.slice(0, 26) })
+  }
+
+  return {
+    card_type: 'button_interaction',
+    main_title: { title: message.title },
+    sub_title_text: message.description,
+    ...(details.length ? { horizontal_content_list: details } : {}),
+    task_id: message.confirmationId,
+    button_list: [
+      { text: message.confirmLabel, key: `confirm:${message.confirmationId}`, style: 1 },
+      { text: message.cancelLabel, key: `cancel:${message.confirmationId}`, style: 2 },
+    ],
+  }
+}
+
 /**
  * Enterprise WeCom intelligent-bot WebSocket adapter.
  *
@@ -161,16 +202,7 @@ export class WecomBotAdapter implements ChannelAdapter {
   private toTemplateCard(
     message: Extract<OutboundMessage, { kind: 'confirmation' }>
   ): TemplateCard {
-    return {
-      card_type: 'button_interaction',
-      main_title: { title: message.title },
-      sub_title_text: message.description,
-      task_id: message.confirmationId,
-      button_list: [
-        { text: message.confirmLabel, key: `confirm:${message.confirmationId}`, style: 1 },
-        { text: message.cancelLabel, key: `cancel:${message.confirmationId}`, style: 2 },
-      ],
-    }
+    return createWecomConfirmationCard(message)
   }
 
   private async handleText(frame: WsFrame) {

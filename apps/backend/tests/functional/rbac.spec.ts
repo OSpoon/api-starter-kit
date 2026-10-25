@@ -64,21 +64,21 @@ test.group('rbac', (group) => {
     assert.isFalse(await bouncer.allows('access', 'api-keys:delete'))
   })
 
-  test('keeps IM configuration updates separate from LLM configuration updates', async ({
+  test('uses the Agent configuration permission for IM configuration updates', async ({
     assert,
   }) => {
-    const imUpdatePermission = await Permission.findByOrFail('code', 'im-config:update')
+    const agentUpdatePermission = await Permission.findByOrFail('code', 'agent-config:update')
     const role = await Role.create({ code: `im-reader-${Date.now()}`, name: 'IM operator' })
     const user = await User.create({
       fullName: 'IM operator',
       email: `im-operator-${Date.now()}@example.com`,
       password: generateInitialPassword(),
     })
-    await role.related('permissions').sync([imUpdatePermission.id])
+    await role.related('permissions').sync([agentUpdatePermission.id])
     await user.related('roles').sync([role.id])
 
     const bouncer = new Bouncer(() => user, { access })
-    assert.isTrue(await bouncer.allows('access', 'im-config:update'))
+    assert.isTrue(await bouncer.allows('access', 'agent-config:update'))
     assert.isFalse(await bouncer.allows('access', 'llm-config:update'))
   })
 

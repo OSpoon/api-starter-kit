@@ -20,11 +20,14 @@ test.group('Pi agent runtime', () => {
   })
 
   test('stops after terminal Pi tool results', ({ assert }) => {
-    const message = { stopReason: 'stop' } as never
+    const message = {
+      stopReason: 'stop',
+      content: [{ type: 'text', text: '请在确认卡中确认后执行。' }],
+    } as never
     assert.isTrue(
       shouldStopPiAfterTurn({
         message,
-        toolResults: [{ details: { kind: 'confirmation' } } as never],
+        toolResults: [{ details: { kind: 'action_error' } } as never],
       })
     )
     assert.isFalse(shouldStopPiAfterTurn({ message, toolResults: [] }))

@@ -58,6 +58,7 @@ declare module 'vue' {
     SchemaVisualEditor: typeof import('./components/json-schema/components/SchemaVisualEditor.vue')['default']
     SegmentedCodeInput: typeof import('./components/common/SegmentedCodeInput.vue')['default']
     SettingsPageTemplate: typeof import('./components/templates/SettingsPageTemplate.vue')['default']
+    SettingsSectionNavigation: typeof import('./components/common/SettingsSectionNavigation.vue')['default']
     SiteHeader: typeof import('./components/SiteHeader.vue')['default']
     SqlEditor: typeof import('./components/common/SqlEditor.vue')['default']
     StringEditor: typeof import('./components/json-schema/components/types/StringEditor.vue')['default']

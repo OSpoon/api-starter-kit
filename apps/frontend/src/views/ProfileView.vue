@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Copy } from '@lucide/vue'
+import { Copy, Link2, ShieldCheck, UserRound } from '@lucide/vue'
 import { toTypedSchema } from '@vee-validate/zod'
 import { useForm } from 'vee-validate'
 import { toast } from 'vue-sonner'
@@ -9,7 +9,9 @@ import DescriptionActionRow from '@/components/common/DescriptionActionRow.vue'
 import FormDialogContent from '@/components/common/FormDialogContent.vue'
 import FormDialogFooter from '@/components/common/FormDialogFooter.vue'
 import SegmentedCodeInput from '@/components/common/SegmentedCodeInput.vue'
+import SettingsSectionNavigation from '@/components/common/SettingsSectionNavigation.vue'
 import SettingsPageTemplate from '@/components/templates/SettingsPageTemplate.vue'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -35,9 +37,9 @@ import {
   unbindWecomChannelIdentity,
   unlinkGithub,
 } from '@/features/account/api'
-import DingtalkIcon from '@/features/llm-config/components/DingtalkIcon.vue'
-import FeishuIcon from '@/features/llm-config/components/FeishuIcon.vue'
-import WecomIcon from '@/features/llm-config/components/WecomIcon.vue'
+import DingtalkIcon from '@/features/agent-config/components/DingtalkIcon.vue'
+import FeishuIcon from '@/features/agent-config/components/FeishuIcon.vue'
+import WecomIcon from '@/features/agent-config/components/WecomIcon.vue'
 import { useCopyText } from '@/lib/clipboard'
 import { firstFormError } from '@/lib/form-validation'
 import { PASSWORD_EXPIRY_DAYS, passwordDaysRemaining } from '@/lib/password'
@@ -49,6 +51,12 @@ const { copy: copyText } = useCopyText()
 const router = useRouter()
 const route = useRoute()
 const { t, locale } = useI18n()
+const activeSection = ref('account')
+const sections = computed(() => [
+  { value: 'account', label: t('profile.basic_info'), icon: UserRound },
+  { value: 'security', label: t('profile.security_title'), icon: ShieldCheck },
+  { value: 'channels', label: t('profile.channel_binding.title'), icon: Link2 },
+])
 
 const isLoading = ref(false)
 const disablePassword = ref('')
@@ -329,7 +337,14 @@ onMounted(async () => {
 
 <template>
   <SettingsPageTemplate :title="t('profile.title')" :description="t('profile.desc')">
-    <Card class="rounded-xl">
+    <template #navigation>
+      <SettingsSectionNavigation
+        v-model="activeSection"
+        :items="sections"
+        :label="t('profile.sections_label')"
+      />
+    </template>
+    <Card v-show="activeSection === 'account'" class="rounded-xl">
       <CardHeader>
         <CardTitle>{{ t('profile.basic_info') }}</CardTitle>
         <CardDescription>{{ t('profile.basic_desc') }}</CardDescription>
@@ -356,11 +371,32 @@ onMounted(async () => {
               </Button>
             </dd>
           </div>
+          <div class="rounded-lg border bg-muted/20 p-4">
+            <dt class="text-sm font-medium text-muted-foreground">{{ t('profile.account_id') }}</dt>
+            <dd class="mt-1.5 font-mono font-medium">{{ auth.user?.id ?? '-' }}</dd>
+          </div>
+          <div class="rounded-lg border bg-muted/20 p-4">
+            <dt class="text-sm font-medium text-muted-foreground">{{ t('profile.roles') }}</dt>
+            <dd class="mt-1.5 flex flex-wrap gap-2">
+              <Badge v-for="role in auth.user?.roles ?? []" :key="role.id" variant="secondary">
+                {{ role.name }}
+              </Badge>
+              <span v-if="!auth.user?.roles.length">-</span>
+            </dd>
+          </div>
+          <div class="rounded-lg border bg-muted/20 p-4">
+            <dt class="text-sm font-medium text-muted-foreground">{{ t('profile.created_at') }}</dt>
+            <dd class="mt-1.5 font-medium">{{ formatDate(auth.user?.createdAt) }}</dd>
+          </div>
+          <div class="rounded-lg border bg-muted/20 p-4">
+            <dt class="text-sm font-medium text-muted-foreground">{{ t('profile.updated_at') }}</dt>
+            <dd class="mt-1.5 font-medium">{{ formatDate(auth.user?.updatedAt) }}</dd>
+          </div>
         </dl>
       </CardContent>
     </Card>
 
-    <Card class="rounded-xl">
+    <Card v-show="activeSection === 'security'" class="rounded-xl">
       <CardHeader>
         <CardTitle>{{ t('profile.security_title') }}</CardTitle>
         <CardDescription>{{ t('profile.security_desc') }}</CardDescription>
@@ -445,7 +481,7 @@ onMounted(async () => {
       </CardContent>
     </Card>
 
-    <Card class="rounded-xl">
+    <Card v-show="activeSection === 'channels'" class="rounded-xl">
       <CardHeader>
         <CardTitle>{{ t('profile.channel_binding.title') }}</CardTitle>
         <CardDescription>{{ t('profile.channel_binding.hint') }}</CardDescription>
@@ -565,6 +601,7 @@ onMounted(async () => {
             v-model="unbindChannelPassword"
             type="password"
             autocomplete="current-password"
+            :placeholder="t('profile.current_password_placeholder')"
           />
         </div>
         <FormDialogFooter class="justify-end">
@@ -586,7 +623,12 @@ onMounted(async () => {
       >
         <div class="grid gap-2 p-6 pt-4">
           <Label for="unlink-github-password">{{ t('profile.current_password') }}</Label>
-          <Input id="unlink-github-password" v-model="unlinkGithubPassword" type="password" />
+          <Input
+            id="unlink-github-password"
+            v-model="unlinkGithubPassword"
+            type="password"
+            :placeholder="t('profile.current_password_placeholder')"
+          />
         </div>
         <FormDialogFooter class="justify-end">
           <Button variant="outline" @click="showUnlinkGithubDialog = false">
@@ -607,7 +649,12 @@ onMounted(async () => {
       >
         <div class="grid gap-2 p-6 pt-4">
           <Label for="disable-password">{{ t('profile.current_password') }}</Label>
-          <Input id="disable-password" v-model="disablePassword" type="password" />
+          <Input
+            id="disable-password"
+            v-model="disablePassword"
+            type="password"
+            :placeholder="t('profile.current_password_placeholder')"
+          />
         </div>
         <FormDialogFooter class="justify-end">
           <Button variant="outline" @click="showDisableDialog = false">

@@ -1,7 +1,6 @@
 import testUtils from '@adonisjs/core/services/test_utils'
 import { test } from '@japa/runner'
 
-import { ensureAiAgentPermission } from '#ai/core/ai_agent_authorization'
 import AiChatConversation from '#models/ai_chat_conversation'
 import AiUsageEvent from '#models/ai_usage_event'
 import ApiKey from '#models/api_key'
@@ -10,7 +9,6 @@ import User from '#models/user'
 import { generateInitialPassword } from '#security/user_credentials'
 import { hashApiKey } from '#services/api_key_service'
 import { getAiIntegrationUser } from '#services/channel_guest_principal'
-import { permissionCatalog } from '#services/permission_catalog'
 
 test.group('AI API Key integration', (group) => {
   group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
@@ -32,10 +30,6 @@ test.group('AI API Key integration', (group) => {
     const firstKey = await createApiKey('first')
     const secondKey = await createApiKey('second')
     const principal = await getAiIntegrationUser()
-
-    for (const permission of permissionCatalog) {
-      await ensureAiAgentPermission(principal.id, permission.code)
-    }
 
     const created = await client
       .post('/api/v1/integrations/ai-chat/conversations')

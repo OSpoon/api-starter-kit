@@ -43,6 +43,9 @@ export interface ConfirmationOutboundMessage {
   confirmationId: string
   confirmLabel: string
   cancelLabel: string
+  targetLabel?: string
+  changes?: Array<{ label: string; value: string }>
+  impactLabel?: string
 }
 
 export type OutboundMessage = TextOutboundMessage | ConfirmationOutboundMessage

@@ -1,20 +1,19 @@
 import type { AiAgentActionImplementation } from '#ai/core/ai_agent_action_contracts'
 import {
   defineAiAgentAction,
-  ensurePermission,
+  getAiAgentActor,
   integer,
   optionalDescription,
   string,
   summaryValue,
 } from '#ai/core/ai_agent_action_helpers'
-import Permission from '#models/permission'
 import Role from '#models/role'
 import {
+  assertGrantablePermissionIds,
   createRoleWithPermissions,
   updateRoleWithPermissions,
 } from '#services/access_control_mutations'
 import { recordAuditEvent } from '#services/audit_log'
-import { permissionCatalogCodes } from '#services/permission_catalog'
 
 async function resolveRoleId(input: Record<string, unknown>) {
   const value = input.roleId
@@ -36,21 +35,14 @@ function permissionIds(input: Record<string, unknown>) {
   return value
 }
 
-async function ensurePermissionIds(ids: number[]) {
-  const permissions = await Permission.query()
-    .whereIn('id', ids)
-    .whereIn('code', permissionCatalogCodes)
-  return permissions.length === ids.length
-}
-
 const createRoleAction: AiAgentActionImplementation = {
   permission: 'roles:create',
-  async prepare(input) {
+  async prepare(input, actorUserId) {
     const code = string(input, 'code', 100)
     if (!/^[a-z0-9-]+$/.test(code) || code.length < 2) throw new Error('角色代码无效')
     if (await Role.findBy('code', code)) throw new Error('角色代码已存在')
     const ids = permissionIds(input)
-    if (!(await ensurePermissionIds(ids))) throw new Error('包含不存在的权限')
+    await assertGrantablePermissionIds(actorUserId, ids)
     return {
       targetType: 'role',
       targetId: code,
@@ -64,7 +56,7 @@ const createRoleAction: AiAgentActionImplementation = {
     }
   },
   async execute({ confirmation, ctx }) {
-    const actor = await ensurePermission(ctx, 'roles:create')
+    const actor = getAiAgentActor(ctx)
     const payload = confirmation.payload
     const code = string(payload, 'code', 100)
     const ids = permissionIds(payload)
@@ -82,12 +74,12 @@ const createRoleAction: AiAgentActionImplementation = {
 
 const updateRoleAction: AiAgentActionImplementation = {
   permission: 'roles:update',
-  async prepare(input) {
+  async prepare(input, actorUserId) {
     const role = await Role.find(await resolveRoleId(input))
     if (!role) throw new Error('角色不存在')
     if (role.isSystem) throw new Error('系统内置角色不可编辑')
     const ids = permissionIds(input)
-    if (!(await ensurePermissionIds(ids))) throw new Error('包含不存在的权限')
+    await assertGrantablePermissionIds(actorUserId, ids)
     return {
       targetType: 'role',
       targetId: String(role.id),
@@ -101,7 +93,7 @@ const updateRoleAction: AiAgentActionImplementation = {
     }
   },
   async execute({ confirmation, ctx }) {
-    const actor = await ensurePermission(ctx, 'roles:update')
+    const actor = getAiAgentActor(ctx)
     const payload = confirmation.payload
     const role = await Role.find(integer(payload, 'roleId'))
     if (!role || role.isSystem) throw new Error('角色不存在或不可编辑')
@@ -142,7 +134,7 @@ const deleteRoleAction: AiAgentActionImplementation = {
     }
   },
   async execute({ confirmation, ctx }) {
-    const actor = await ensurePermission(ctx, 'roles:delete')
+    const actor = getAiAgentActor(ctx)
     const role = await Role.query()
       .where('id', integer(confirmation.payload, 'roleId'))
       .withCount('users')

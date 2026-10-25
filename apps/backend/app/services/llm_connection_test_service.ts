@@ -1,6 +1,9 @@
 import OpenAI, { toFile } from 'openai'
 
-import { readRuntimeLlmConfiguration } from '#services/llm_configuration_service'
+import {
+  LLM_REQUEST_TIMEOUT_MS,
+  readRuntimeLlmConfiguration,
+} from '#services/llm_configuration_service'
 
 export type LlmServiceName = 'chat' | 'asr' | 'embedding'
 
@@ -32,16 +35,16 @@ function createTestWav() {
   return wav
 }
 
-function createClient(apiKey: string | null, baseURL: string | null, timeout: number) {
+function createClient(apiKey: string | null, baseURL: string | null) {
   return new OpenAI({
     apiKey: apiKey ?? 'no-key',
     baseURL: baseURL ?? undefined,
-    timeout,
+    timeout: LLM_REQUEST_TIMEOUT_MS,
   })
 }
 
 async function testChatConnection(config: Awaited<ReturnType<typeof readRuntimeLlmConfiguration>>) {
-  const client = createClient(config.chat.apiKey, config.chat.baseURL, config.requestTimeoutMs)
+  const client = createClient(config.chat.apiKey, config.chat.baseURL)
   await client.models.list()
 }
 
@@ -50,7 +53,7 @@ async function testAsrConnection(config: Awaited<ReturnType<typeof readRuntimeLl
     throw new Error('ASR configuration is incomplete')
   }
 
-  const client = createClient(config.asr.apiKey, config.asr.baseURL, config.requestTimeoutMs)
+  const client = createClient(config.asr.apiKey, config.asr.baseURL)
   await client.audio.transcriptions.create({
     file: await toFile(createTestWav(), 'llm-connection-test.wav', { type: 'audio/wav' }),
     model: config.asr.model,
@@ -65,11 +68,7 @@ async function testEmbeddingConnection(
     throw new Error('Embedding model is not configured')
   }
 
-  const client = createClient(
-    config.embedding.apiKey,
-    config.embedding.baseURL,
-    config.requestTimeoutMs
-  )
+  const client = createClient(config.embedding.apiKey, config.embedding.baseURL)
   const response = await client.embeddings.create({
     model: config.embedding.model,
     input: 'connection test',
@@ -77,16 +76,19 @@ async function testEmbeddingConnection(
   if (!response.data.length) throw new Error('Embedding service returned no vector')
 }
 
-export async function testLlmConnections(): Promise<LlmConnectionTestResult> {
+export async function testLlmConnections(
+  service?: LlmServiceName
+): Promise<LlmConnectionTestResult> {
   const config = await readRuntimeLlmConfiguration()
-  const tests: Array<[LlmServiceName, Promise<void>]> = [
-    ['chat', testChatConnection(config)],
-    ['asr', testAsrConnection(config)],
-    ['embedding', testEmbeddingConnection(config)],
-  ]
-  const results = await Promise.allSettled(tests.map(([, promise]) => promise))
+  const tests: Record<LlmServiceName, () => Promise<void>> = {
+    chat: () => testChatConnection(config),
+    asr: () => testAsrConnection(config),
+    embedding: () => testEmbeddingConnection(config),
+  }
+  const services = service ? [service] : (Object.keys(tests) as LlmServiceName[])
+  const results = await Promise.allSettled(services.map((name) => tests[name]()))
   const failedServices = results.flatMap((result, index) =>
-    result.status === 'rejected' ? [tests[index]![0]] : []
+    result.status === 'rejected' ? [services[index]!] : []
   )
 
   return {

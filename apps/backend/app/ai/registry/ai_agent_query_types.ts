@@ -8,6 +8,7 @@ export type AiQueryParameter = {
 
 export type AiQueryTemplateCode =
   | 'active_api_keys'
+  | 'revoked_api_keys'
   | 'api_key_profile'
   | 'managed_users'
   | 'managed_user_profile'

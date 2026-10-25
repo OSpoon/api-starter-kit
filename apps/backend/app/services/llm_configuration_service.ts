@@ -5,6 +5,8 @@ import db from '@adonisjs/lucid/services/db'
 import LlmConfiguration from '#models/llm_configuration'
 import { IM_CONFIGURATION_CHANGED_CHANNEL } from '#services/im_configuration_change_listener'
 
+export const LLM_REQUEST_TIMEOUT_MS = 180_000
+
 type LlmConfigInput = {
   chatApiKey?: string | null
   chatBaseUrl?: string | null
@@ -18,7 +20,6 @@ type LlmConfigInput = {
   embeddingBaseUrl?: string | null
   embeddingModel?: string | null
   embeddingDimensions: number
-  requestTimeoutMs: number
 }
 
 export type ImConfigInput = {
@@ -69,7 +70,6 @@ export async function getLlmConfiguration() {
     asrModel: 'Qwen3-ASR-0.6B-4bit',
     embeddingModel: 'Qwen3-Embedding-0.6B-4bit-DWQ',
     embeddingDimensions: 1024,
-    requestTimeoutMs: 180000,
   })
 }
 
@@ -97,7 +97,6 @@ export async function readRuntimeLlmConfiguration() {
       baseURL: config.embeddingBaseUrl ?? config.chatBaseUrl,
       model: config.embeddingModel,
     },
-    requestTimeoutMs: config.requestTimeoutMs,
   }
 }
 
@@ -173,7 +172,6 @@ export async function updateLlmConfiguration(input: LlmConfigInput) {
   config.embeddingBaseUrl = input.embeddingBaseUrl?.trim() || null
   config.embeddingModel = input.embeddingModel?.trim() || null
   config.embeddingDimensions = 1024
-  config.requestTimeoutMs = input.requestTimeoutMs
   if (input.chatApiKey?.trim()) config.chatApiKey = encryptSecret(input.chatApiKey)
   if (input.asrApiKey?.trim()) config.asrApiKey = encryptSecret(input.asrApiKey)
   if (input.embeddingApiKey?.trim()) config.embeddingApiKey = encryptSecret(input.embeddingApiKey)
@@ -183,14 +181,19 @@ export async function updateLlmConfiguration(input: LlmConfigInput) {
 
 export async function updateImConfiguration(input: ImConfigInput) {
   const config = await getImConfiguration()
-  config.wecomBotId = input.wecomBotId?.trim() || null
-  config.wecomBotTenantId = input.wecomBotTenantId?.trim() || null
-  config.wecomBotWsUrl = input.wecomBotWsUrl?.trim() || null
-  config.feishuAppId = input.feishuAppId?.trim() || null
-  config.feishuDomain = input.feishuDomain?.trim() || null
-  config.dingtalkClientId = input.dingtalkClientId?.trim() || null
-  config.dingtalkCardTemplateId = input.dingtalkCardTemplateId?.trim() || null
-  config.dingtalkStreamingCardTemplateId = input.dingtalkStreamingCardTemplateId?.trim() || null
+  if (input.wecomBotId !== undefined) config.wecomBotId = input.wecomBotId?.trim() || null
+  if (input.wecomBotTenantId !== undefined)
+    config.wecomBotTenantId = input.wecomBotTenantId?.trim() || null
+  if (input.wecomBotWsUrl !== undefined) config.wecomBotWsUrl = input.wecomBotWsUrl?.trim() || null
+  if (input.feishuAppId !== undefined) config.feishuAppId = input.feishuAppId?.trim() || null
+  if (input.feishuDomain !== undefined) config.feishuDomain = input.feishuDomain?.trim() || null
+  if (input.dingtalkClientId !== undefined)
+    config.dingtalkClientId = input.dingtalkClientId?.trim() || null
+  if (input.dingtalkCardTemplateId !== undefined)
+    config.dingtalkCardTemplateId = input.dingtalkCardTemplateId?.trim() || null
+  if (input.dingtalkStreamingCardTemplateId !== undefined) {
+    config.dingtalkStreamingCardTemplateId = input.dingtalkStreamingCardTemplateId?.trim() || null
+  }
   if (input.wecomBotSecret?.trim()) config.wecomBotSecret = encryptSecret(input.wecomBotSecret)
   if (input.feishuAppSecret?.trim()) config.feishuAppSecret = encryptSecret(input.feishuAppSecret)
   if (input.dingtalkClientSecret?.trim()) {
@@ -221,7 +224,6 @@ export function serializeLlmConfiguration(config: LlmConfiguration) {
       dimensions: 1024,
       apiKeyConfigured: Boolean(config.embeddingApiKey || config.chatApiKey),
     },
-    requestTimeoutMs: config.requestTimeoutMs,
     updatedAt: config.updatedAt.toISO(),
   }
 }

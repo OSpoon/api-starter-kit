@@ -80,7 +80,7 @@ export default class AiEvaluate extends BaseCommand {
           ),
           evaluationTool(
             'search_knowledge_catalog',
-            'Search permission-filtered knowledge sources. Use returned document IDs in search_knowledge.',
+            'Search the Agent knowledge sources. Use returned document IDs in search_knowledge.',
             output('search_knowledge_catalog', {
               sources: [{ documentId: 1, title: 'Evaluation document' }],
             }),
@@ -88,7 +88,7 @@ export default class AiEvaluate extends BaseCommand {
           ),
           evaluationTool(
             'search_knowledge',
-            'Search selected permission-checked project documentation excerpts.',
+            'Search selected project documentation excerpts.',
             output('search_knowledge', { sources: [] }),
             calledTools
           ),
@@ -99,21 +99,21 @@ export default class AiEvaluate extends BaseCommand {
             calledTools
           ),
           evaluationTool(
-            'propose_system_management_change',
-            'Prepare a management proposal. Never execute it without structured confirmation.',
-            output('propose_system_management_change', { kind: 'confirmation' }),
+            'system_management_change',
+            'Perform the requested management operation using direct fields. Follow the configured execution policy.',
+            output('system_management_change', { kind: 'action_result', status: 'simulated' }),
             calledTools
           ),
           evaluationTool(
-            'propose_api_key_revocation',
-            'Prepare an API key revocation proposal.',
-            output('propose_api_key_revocation', { kind: 'confirmation' }),
+            'revoke_api_key',
+            'Revoke the specified API Key. Follow the configured execution policy.',
+            output('revoke_api_key', { kind: 'action_result', status: 'simulated' }),
             calledTools
           ),
           evaluationTool(
-            'propose_api_key_deletion',
-            'Prepare an API key deletion proposal.',
-            output('propose_api_key_deletion', { kind: 'confirmation' }),
+            'delete_api_key',
+            'Delete the specified API Key. Follow the configured execution policy.',
+            output('delete_api_key', { kind: 'action_result', status: 'simulated' }),
             calledTools
           ),
         ],

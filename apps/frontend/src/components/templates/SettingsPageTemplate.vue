@@ -19,14 +19,16 @@ const slots = useSlots()
     <div
       :class="
         slots.navigation
-          ? 'grid gap-6 lg:grid-cols-[14rem_minmax(0,42rem)]'
+          ? 'grid min-h-0 min-w-0 flex-1 gap-6 lg:grid-cols-[12rem_minmax(0,1fr)]'
           : 'mx-auto w-full max-w-3xl space-y-6'
       "
     >
       <nav v-if="$slots.navigation" class="lg:sticky lg:top-6 lg:h-fit">
         <slot name="navigation" />
       </nav>
-      <main class="min-w-0 space-y-6"><slot /></main>
+      <main :class="slots.navigation ? 'flex min-h-0 min-w-0 flex-col gap-6' : 'min-w-0 space-y-6'">
+        <slot />
+      </main>
     </div>
   </PageShell>
 </template>

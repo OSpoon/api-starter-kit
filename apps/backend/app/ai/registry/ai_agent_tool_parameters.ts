@@ -1,6 +1,9 @@
 import { type TSchema, Type } from '@earendil-works/pi-ai'
 
-import { genericProposalActionNames } from '#ai/core/ai_agent_action_contracts'
+import {
+  channelProposalActionNames,
+  genericProposalActionNames,
+} from '#ai/core/ai_agent_action_contracts'
 import { aiQueryTemplateCodes } from '#ai/registry/ai_agent_query_registry'
 
 export const piToolParameters = {
@@ -13,7 +16,12 @@ export const piToolParameters = {
         ...TSchema[],
       ]
     ),
-    params: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
+    params: Type.Optional(
+      Type.Object(
+        { page: Type.Optional(Type.Integer({ minimum: 1 })) },
+        { additionalProperties: true }
+      )
+    ),
   }),
   searchKnowledge: Type.Object({
     query: Type.String(),
@@ -28,6 +36,16 @@ export const piToolParameters = {
   systemManagementChange: Type.Object({
     action: Type.Union(
       genericProposalActionNames.map((action) => Type.Literal(action)) as unknown as [
+        TSchema,
+        TSchema,
+        ...TSchema[],
+      ]
+    ),
+    input: Type.Record(Type.String(), Type.Unknown()),
+  }),
+  channelSystemManagementChange: Type.Object({
+    action: Type.Union(
+      channelProposalActionNames.map((action) => Type.Literal(action)) as unknown as [
         TSchema,
         TSchema,
         ...TSchema[],

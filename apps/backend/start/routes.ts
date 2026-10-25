@@ -21,6 +21,7 @@ const WecomMessageTemplatesController = () =>
   import('#controllers/wecom_message_templates_controller')
 const SystemStatusController = () => import('#controllers/system_status_controller')
 const LlmConfigurationsController = () => import('#controllers/llm_configurations_controller')
+const AgentConfigurationsController = () => import('#controllers/agent_configurations_controller')
 const ImConfigurationsController = () => import('#controllers/im_configurations_controller')
 
 router.get('/api/v1/health', () => {
@@ -193,19 +194,82 @@ router
       .group(() => {
         router
           .get('llm-config', [LlmConfigurationsController, 'show'])
-          .use(middleware.permission(['llm-config:read']))
+          .as('llm-config.legacy.show')
+          .use(middleware.permission(['agent-config:read']))
         router
           .put('llm-config', [LlmConfigurationsController, 'update'])
-          .use(middleware.permission(['llm-config:update']))
+          .as('llm-config.legacy.update')
+          .use(middleware.permission(['agent-config:update']))
         router
           .post('llm-config/test', [LlmConfigurationsController, 'test'])
-          .use(middleware.permission(['llm-config:test']))
+          .as('llm-config.legacy.test')
+          .use(middleware.permission(['agent-config:update']))
+        router
+          .get('agent-config', [AgentConfigurationsController, 'show'])
+          .use(middleware.permission(['agent-config:read']))
+        router
+          .put('agent-config', [AgentConfigurationsController, 'updateConfiguration'])
+          .use(middleware.permission(['agent-config:update']))
+        router
+          .get('agent-config/llm', [LlmConfigurationsController, 'show'])
+          .as('agent-config.llm.show')
+          .use(middleware.permission(['agent-config:read']))
+        router
+          .put('agent-config/llm', [LlmConfigurationsController, 'update'])
+          .as('agent-config.llm.update')
+          .use(middleware.permission(['agent-config:update']))
+        router
+          .post('agent-config/llm/test', [LlmConfigurationsController, 'test'])
+          .as('agent-config.llm.test')
+          .use(middleware.permission(['agent-config:update']))
+        router
+          .get('agent-config/skills', [AgentConfigurationsController, 'skills'])
+          .use(middleware.permission(['agent-config:read']))
+        router
+          .get('agent-config/skills/:id', [AgentConfigurationsController, 'showSkill'])
+          .use(middleware.permission(['agent-config:read']))
+        router
+          .post('agent-config/skills', [AgentConfigurationsController, 'createSkill'])
+          .use(middleware.permission(['agent-config:update']))
+        router
+          .put('agent-config/skills/:id', [AgentConfigurationsController, 'updateSkill'])
+          .use(middleware.permission(['agent-config:update']))
+        router
+          .delete('agent-config/skills/:id', [AgentConfigurationsController, 'deleteSkill'])
+          .use(middleware.permission(['agent-config:update']))
+        router
+          .get('agent-config/mcp-servers', [AgentConfigurationsController, 'mcpServers'])
+          .use(middleware.permission(['agent-config:read']))
+        router
+          .post('agent-config/mcp-servers', [AgentConfigurationsController, 'createMcpServer'])
+          .use(middleware.permission(['agent-config:update']))
+        router
+          .put('agent-config/mcp-servers/:id', [AgentConfigurationsController, 'updateMcpServer'])
+          .use(middleware.permission(['agent-config:update']))
+        router
+          .delete('agent-config/mcp-servers/:id', [
+            AgentConfigurationsController,
+            'deleteMcpServer',
+          ])
+          .use(middleware.permission(['agent-config:update']))
+        router
+          .post('agent-config/mcp-servers/test', [
+            AgentConfigurationsController,
+            'testMcpConnection',
+          ])
+          .use(middleware.permission(['agent-config:update']))
+        router
+          .post('agent-config/mcp-servers/:id/discover', [
+            AgentConfigurationsController,
+            'discoverMcpTools',
+          ])
+          .use(middleware.permission(['agent-config:update']))
         router
           .get('im-config', [ImConfigurationsController, 'show'])
-          .use(middleware.permission(['im-config:read']))
+          .use(middleware.permission(['agent-config:read']))
         router
           .put('im-config', [ImConfigurationsController, 'update'])
-          .use(middleware.permission(['im-config:update']))
+          .use(middleware.permission(['agent-config:update']))
         router
           .get('wecom-message-templates', [WecomMessageTemplatesController, 'index'])
           .use(middleware.permission(['wecom-templates:read']))
@@ -318,6 +382,14 @@ router
           AiChatController,
           'confirmAiAgentAction',
         ])
+        router.post('conversations/:id/confirmations/:confirmationId/cancel', [
+          AiChatController,
+          'cancelAiAgentAction',
+        ])
+        router.post('conversations/:id/confirmations/:confirmationId/confirm/stream', [
+          AiChatController,
+          'confirmAiAgentActionStream',
+        ])
         router.delete('conversations/:id', [AiChatController, 'destroy'])
       })
       .prefix('ai-chat')
@@ -339,6 +411,10 @@ router
         router.post('conversations/:id/confirmations/:confirmationId/confirm', [
           AiChatController,
           'confirmAiAgentAction',
+        ])
+        router.post('conversations/:id/confirmations/:confirmationId/cancel', [
+          AiChatController,
+          'cancelAiAgentAction',
         ])
         router.delete('conversations/:id', [AiChatController, 'destroy'])
       })

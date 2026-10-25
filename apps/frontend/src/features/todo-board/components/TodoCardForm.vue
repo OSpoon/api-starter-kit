@@ -61,12 +61,19 @@ const submit = form.handleSubmit(
         <FormField v-slot="{ componentField }" name="title" :validate-on-blur="false"
           ><FormItem
             ><FormLabel>{{ t('todo_board.task_title') }}</FormLabel
-            ><FormControl><Input v-bind="componentField" /></FormControl><FormMessage /></FormItem
+            ><FormControl
+              ><Input
+                v-bind="componentField"
+                :placeholder="t('todo_board.task_title_placeholder')" /></FormControl
+            ><FormMessage /></FormItem
         ></FormField>
         <FormField v-slot="{ componentField }" name="description" :validate-on-blur="false"
           ><FormItem
             ><FormLabel>{{ t('todo_board.task_description') }}</FormLabel
-            ><FormControl><Textarea v-bind="componentField" /></FormControl
+            ><FormControl
+              ><Textarea
+                v-bind="componentField"
+                :placeholder="t('todo_board.task_description_placeholder')" /></FormControl
             ><FormMessage /></FormItem
         ></FormField>
         <FormField v-slot="{ componentField }" name="columnId" :validate-on-blur="false"
@@ -74,7 +81,9 @@ const submit = form.handleSubmit(
             ><FormLabel>{{ t('todo_board.status') }}</FormLabel
             ><Select v-bind="componentField"
               ><FormControl
-                ><SelectTrigger class="w-full"><SelectValue /></SelectTrigger></FormControl
+                ><SelectTrigger class="w-full"
+                  ><SelectValue
+                    :placeholder="t('todo_board.select_status')" /></SelectTrigger></FormControl
               ><SelectContent
                 ><SelectItem v-for="column in columns" :key="column.id" :value="column.id">{{
                   column.title

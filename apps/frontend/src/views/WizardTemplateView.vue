@@ -89,7 +89,7 @@ function finish() {
         ><Input
           id="integration-endpoint"
           v-model="endpoint"
-          placeholder="https://api.example.com"
+          :placeholder="t('wizard_template.endpoint_placeholder')"
         />
       </div>
       <Label

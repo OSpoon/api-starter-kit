@@ -69,31 +69,20 @@ const workbenchRootRoute = {
       },
     },
     {
-      path: 'system/llm-config',
-      name: 'llm-config',
-      component: () => import('@/features/llm-config/LlmConfigurationPage.vue'),
+      path: 'system/agent-config',
+      name: 'agent-config',
+      component: () => import('@/features/agent-config/LlmConfigurationPage.vue'),
       meta: {
-        title: 'sidebar.llm_config',
+        title: 'sidebar.agent_config',
         pageKind: 'settings',
-        permission: 'llm-config:read',
+        permission: 'agent-config:read',
         nav: { group: 'sidebar.agent_management', groupOrder: 29, icon: BrainCircuit, order: 10 },
       },
     },
     {
       path: 'system/im-config',
       name: 'im-config',
-      component: () => import('@/features/im-config/ImConfigurationPage.vue'),
-      meta: {
-        title: 'sidebar.im_config',
-        pageKind: 'settings',
-        permission: 'im-config:read',
-        nav: {
-          group: 'sidebar.agent_management',
-          groupOrder: 29,
-          icon: MessageSquare,
-          order: 20,
-        },
-      },
+      redirect: { name: 'agent-config', query: { module: 'im' } },
     },
     {
       path: 'system/users',

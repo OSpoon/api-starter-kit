@@ -1,7 +1,18 @@
-import { defineConfig, syncDestination, targets } from '@adonisjs/core/logger'
+import { mkdir } from 'node:fs/promises'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+import { defineConfig, targets } from '@adonisjs/core/logger'
 import app from '@adonisjs/core/services/app'
 
 import env from '#start/env'
+
+const configDirectory = dirname(fileURLToPath(import.meta.url))
+const logDirectory = resolve(
+  configDirectory,
+  app.inProduction ? '../log/backend' : '../../../log/backend'
+)
+await mkdir(logDirectory, { recursive: true, mode: 0o700 })
 
 const loggerConfig = defineConfig({
   /**
@@ -26,16 +37,22 @@ const loggerConfig = defineConfig({
        */
       level: env.get('LOG_LEVEL'),
 
-      /**
-       * Use sync destination in non-production for immediate flush.
-       */
-      destination: !app.inProduction ? await syncDestination() : undefined,
-
-      /**
-       * Configure where logs are written.
-       */
       transport: {
-        targets: [targets.file({ destination: 1 })],
+        targets: [
+          app.inProduction ? targets.file({ destination: 1 }) : targets.pretty({ sync: true }),
+          {
+            target: 'pino-roll',
+            options: {
+              file: resolve(logDirectory, 'backend'),
+              size: '20m',
+              limit: { count: 5, removeOtherLogFiles: true },
+              symlink: true,
+              mkdir: true,
+              mode: 0o600,
+            },
+          },
+        ],
+        sync: !app.inProduction,
       },
     },
   },

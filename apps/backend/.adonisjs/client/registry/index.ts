@@ -168,23 +168,119 @@ const routes = {
     tokens: [{"old":"/api/v1/api-keys/:id","type":0,"val":"api","end":""},{"old":"/api/v1/api-keys/:id","type":0,"val":"v1","end":""},{"old":"/api/v1/api-keys/:id","type":0,"val":"api-keys","end":""},{"old":"/api/v1/api-keys/:id","type":1,"val":"id","end":""}],
     types: placeholder as Registry['api_keys.destroy']['types'],
   },
-  'llm_configurations.show': {
+  'llm-config.legacy.show': {
     methods: ["GET","HEAD"],
     pattern: '/api/v1/system/llm-config',
     tokens: [{"old":"/api/v1/system/llm-config","type":0,"val":"api","end":""},{"old":"/api/v1/system/llm-config","type":0,"val":"v1","end":""},{"old":"/api/v1/system/llm-config","type":0,"val":"system","end":""},{"old":"/api/v1/system/llm-config","type":0,"val":"llm-config","end":""}],
-    types: placeholder as Registry['llm_configurations.show']['types'],
+    types: placeholder as Registry['llm-config.legacy.show']['types'],
   },
-  'llm_configurations.update': {
+  'llm-config.legacy.update': {
     methods: ["PUT"],
     pattern: '/api/v1/system/llm-config',
     tokens: [{"old":"/api/v1/system/llm-config","type":0,"val":"api","end":""},{"old":"/api/v1/system/llm-config","type":0,"val":"v1","end":""},{"old":"/api/v1/system/llm-config","type":0,"val":"system","end":""},{"old":"/api/v1/system/llm-config","type":0,"val":"llm-config","end":""}],
-    types: placeholder as Registry['llm_configurations.update']['types'],
+    types: placeholder as Registry['llm-config.legacy.update']['types'],
   },
-  'llm_configurations.test': {
+  'llm-config.legacy.test': {
     methods: ["POST"],
     pattern: '/api/v1/system/llm-config/test',
     tokens: [{"old":"/api/v1/system/llm-config/test","type":0,"val":"api","end":""},{"old":"/api/v1/system/llm-config/test","type":0,"val":"v1","end":""},{"old":"/api/v1/system/llm-config/test","type":0,"val":"system","end":""},{"old":"/api/v1/system/llm-config/test","type":0,"val":"llm-config","end":""},{"old":"/api/v1/system/llm-config/test","type":0,"val":"test","end":""}],
-    types: placeholder as Registry['llm_configurations.test']['types'],
+    types: placeholder as Registry['llm-config.legacy.test']['types'],
+  },
+  'agent_configurations.show': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/v1/system/agent-config',
+    tokens: [{"old":"/api/v1/system/agent-config","type":0,"val":"api","end":""},{"old":"/api/v1/system/agent-config","type":0,"val":"v1","end":""},{"old":"/api/v1/system/agent-config","type":0,"val":"system","end":""},{"old":"/api/v1/system/agent-config","type":0,"val":"agent-config","end":""}],
+    types: placeholder as Registry['agent_configurations.show']['types'],
+  },
+  'agent_configurations.update_configuration': {
+    methods: ["PUT"],
+    pattern: '/api/v1/system/agent-config',
+    tokens: [{"old":"/api/v1/system/agent-config","type":0,"val":"api","end":""},{"old":"/api/v1/system/agent-config","type":0,"val":"v1","end":""},{"old":"/api/v1/system/agent-config","type":0,"val":"system","end":""},{"old":"/api/v1/system/agent-config","type":0,"val":"agent-config","end":""}],
+    types: placeholder as Registry['agent_configurations.update_configuration']['types'],
+  },
+  'agent-config.llm.show': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/v1/system/agent-config/llm',
+    tokens: [{"old":"/api/v1/system/agent-config/llm","type":0,"val":"api","end":""},{"old":"/api/v1/system/agent-config/llm","type":0,"val":"v1","end":""},{"old":"/api/v1/system/agent-config/llm","type":0,"val":"system","end":""},{"old":"/api/v1/system/agent-config/llm","type":0,"val":"agent-config","end":""},{"old":"/api/v1/system/agent-config/llm","type":0,"val":"llm","end":""}],
+    types: placeholder as Registry['agent-config.llm.show']['types'],
+  },
+  'agent-config.llm.update': {
+    methods: ["PUT"],
+    pattern: '/api/v1/system/agent-config/llm',
+    tokens: [{"old":"/api/v1/system/agent-config/llm","type":0,"val":"api","end":""},{"old":"/api/v1/system/agent-config/llm","type":0,"val":"v1","end":""},{"old":"/api/v1/system/agent-config/llm","type":0,"val":"system","end":""},{"old":"/api/v1/system/agent-config/llm","type":0,"val":"agent-config","end":""},{"old":"/api/v1/system/agent-config/llm","type":0,"val":"llm","end":""}],
+    types: placeholder as Registry['agent-config.llm.update']['types'],
+  },
+  'agent-config.llm.test': {
+    methods: ["POST"],
+    pattern: '/api/v1/system/agent-config/llm/test',
+    tokens: [{"old":"/api/v1/system/agent-config/llm/test","type":0,"val":"api","end":""},{"old":"/api/v1/system/agent-config/llm/test","type":0,"val":"v1","end":""},{"old":"/api/v1/system/agent-config/llm/test","type":0,"val":"system","end":""},{"old":"/api/v1/system/agent-config/llm/test","type":0,"val":"agent-config","end":""},{"old":"/api/v1/system/agent-config/llm/test","type":0,"val":"llm","end":""},{"old":"/api/v1/system/agent-config/llm/test","type":0,"val":"test","end":""}],
+    types: placeholder as Registry['agent-config.llm.test']['types'],
+  },
+  'agent_configurations.skills': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/v1/system/agent-config/skills',
+    tokens: [{"old":"/api/v1/system/agent-config/skills","type":0,"val":"api","end":""},{"old":"/api/v1/system/agent-config/skills","type":0,"val":"v1","end":""},{"old":"/api/v1/system/agent-config/skills","type":0,"val":"system","end":""},{"old":"/api/v1/system/agent-config/skills","type":0,"val":"agent-config","end":""},{"old":"/api/v1/system/agent-config/skills","type":0,"val":"skills","end":""}],
+    types: placeholder as Registry['agent_configurations.skills']['types'],
+  },
+  'agent_configurations.show_skill': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/v1/system/agent-config/skills/:id',
+    tokens: [{"old":"/api/v1/system/agent-config/skills/:id","type":0,"val":"api","end":""},{"old":"/api/v1/system/agent-config/skills/:id","type":0,"val":"v1","end":""},{"old":"/api/v1/system/agent-config/skills/:id","type":0,"val":"system","end":""},{"old":"/api/v1/system/agent-config/skills/:id","type":0,"val":"agent-config","end":""},{"old":"/api/v1/system/agent-config/skills/:id","type":0,"val":"skills","end":""},{"old":"/api/v1/system/agent-config/skills/:id","type":1,"val":"id","end":""}],
+    types: placeholder as Registry['agent_configurations.show_skill']['types'],
+  },
+  'agent_configurations.create_skill': {
+    methods: ["POST"],
+    pattern: '/api/v1/system/agent-config/skills',
+    tokens: [{"old":"/api/v1/system/agent-config/skills","type":0,"val":"api","end":""},{"old":"/api/v1/system/agent-config/skills","type":0,"val":"v1","end":""},{"old":"/api/v1/system/agent-config/skills","type":0,"val":"system","end":""},{"old":"/api/v1/system/agent-config/skills","type":0,"val":"agent-config","end":""},{"old":"/api/v1/system/agent-config/skills","type":0,"val":"skills","end":""}],
+    types: placeholder as Registry['agent_configurations.create_skill']['types'],
+  },
+  'agent_configurations.update_skill': {
+    methods: ["PUT"],
+    pattern: '/api/v1/system/agent-config/skills/:id',
+    tokens: [{"old":"/api/v1/system/agent-config/skills/:id","type":0,"val":"api","end":""},{"old":"/api/v1/system/agent-config/skills/:id","type":0,"val":"v1","end":""},{"old":"/api/v1/system/agent-config/skills/:id","type":0,"val":"system","end":""},{"old":"/api/v1/system/agent-config/skills/:id","type":0,"val":"agent-config","end":""},{"old":"/api/v1/system/agent-config/skills/:id","type":0,"val":"skills","end":""},{"old":"/api/v1/system/agent-config/skills/:id","type":1,"val":"id","end":""}],
+    types: placeholder as Registry['agent_configurations.update_skill']['types'],
+  },
+  'agent_configurations.delete_skill': {
+    methods: ["DELETE"],
+    pattern: '/api/v1/system/agent-config/skills/:id',
+    tokens: [{"old":"/api/v1/system/agent-config/skills/:id","type":0,"val":"api","end":""},{"old":"/api/v1/system/agent-config/skills/:id","type":0,"val":"v1","end":""},{"old":"/api/v1/system/agent-config/skills/:id","type":0,"val":"system","end":""},{"old":"/api/v1/system/agent-config/skills/:id","type":0,"val":"agent-config","end":""},{"old":"/api/v1/system/agent-config/skills/:id","type":0,"val":"skills","end":""},{"old":"/api/v1/system/agent-config/skills/:id","type":1,"val":"id","end":""}],
+    types: placeholder as Registry['agent_configurations.delete_skill']['types'],
+  },
+  'agent_configurations.mcp_servers': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/v1/system/agent-config/mcp-servers',
+    tokens: [{"old":"/api/v1/system/agent-config/mcp-servers","type":0,"val":"api","end":""},{"old":"/api/v1/system/agent-config/mcp-servers","type":0,"val":"v1","end":""},{"old":"/api/v1/system/agent-config/mcp-servers","type":0,"val":"system","end":""},{"old":"/api/v1/system/agent-config/mcp-servers","type":0,"val":"agent-config","end":""},{"old":"/api/v1/system/agent-config/mcp-servers","type":0,"val":"mcp-servers","end":""}],
+    types: placeholder as Registry['agent_configurations.mcp_servers']['types'],
+  },
+  'agent_configurations.create_mcp_server': {
+    methods: ["POST"],
+    pattern: '/api/v1/system/agent-config/mcp-servers',
+    tokens: [{"old":"/api/v1/system/agent-config/mcp-servers","type":0,"val":"api","end":""},{"old":"/api/v1/system/agent-config/mcp-servers","type":0,"val":"v1","end":""},{"old":"/api/v1/system/agent-config/mcp-servers","type":0,"val":"system","end":""},{"old":"/api/v1/system/agent-config/mcp-servers","type":0,"val":"agent-config","end":""},{"old":"/api/v1/system/agent-config/mcp-servers","type":0,"val":"mcp-servers","end":""}],
+    types: placeholder as Registry['agent_configurations.create_mcp_server']['types'],
+  },
+  'agent_configurations.update_mcp_server': {
+    methods: ["PUT"],
+    pattern: '/api/v1/system/agent-config/mcp-servers/:id',
+    tokens: [{"old":"/api/v1/system/agent-config/mcp-servers/:id","type":0,"val":"api","end":""},{"old":"/api/v1/system/agent-config/mcp-servers/:id","type":0,"val":"v1","end":""},{"old":"/api/v1/system/agent-config/mcp-servers/:id","type":0,"val":"system","end":""},{"old":"/api/v1/system/agent-config/mcp-servers/:id","type":0,"val":"agent-config","end":""},{"old":"/api/v1/system/agent-config/mcp-servers/:id","type":0,"val":"mcp-servers","end":""},{"old":"/api/v1/system/agent-config/mcp-servers/:id","type":1,"val":"id","end":""}],
+    types: placeholder as Registry['agent_configurations.update_mcp_server']['types'],
+  },
+  'agent_configurations.delete_mcp_server': {
+    methods: ["DELETE"],
+    pattern: '/api/v1/system/agent-config/mcp-servers/:id',
+    tokens: [{"old":"/api/v1/system/agent-config/mcp-servers/:id","type":0,"val":"api","end":""},{"old":"/api/v1/system/agent-config/mcp-servers/:id","type":0,"val":"v1","end":""},{"old":"/api/v1/system/agent-config/mcp-servers/:id","type":0,"val":"system","end":""},{"old":"/api/v1/system/agent-config/mcp-servers/:id","type":0,"val":"agent-config","end":""},{"old":"/api/v1/system/agent-config/mcp-servers/:id","type":0,"val":"mcp-servers","end":""},{"old":"/api/v1/system/agent-config/mcp-servers/:id","type":1,"val":"id","end":""}],
+    types: placeholder as Registry['agent_configurations.delete_mcp_server']['types'],
+  },
+  'agent_configurations.test_mcp_connection': {
+    methods: ["POST"],
+    pattern: '/api/v1/system/agent-config/mcp-servers/test',
+    tokens: [{"old":"/api/v1/system/agent-config/mcp-servers/test","type":0,"val":"api","end":""},{"old":"/api/v1/system/agent-config/mcp-servers/test","type":0,"val":"v1","end":""},{"old":"/api/v1/system/agent-config/mcp-servers/test","type":0,"val":"system","end":""},{"old":"/api/v1/system/agent-config/mcp-servers/test","type":0,"val":"agent-config","end":""},{"old":"/api/v1/system/agent-config/mcp-servers/test","type":0,"val":"mcp-servers","end":""},{"old":"/api/v1/system/agent-config/mcp-servers/test","type":0,"val":"test","end":""}],
+    types: placeholder as Registry['agent_configurations.test_mcp_connection']['types'],
+  },
+  'agent_configurations.discover_mcp_tools': {
+    methods: ["POST"],
+    pattern: '/api/v1/system/agent-config/mcp-servers/:id/discover',
+    tokens: [{"old":"/api/v1/system/agent-config/mcp-servers/:id/discover","type":0,"val":"api","end":""},{"old":"/api/v1/system/agent-config/mcp-servers/:id/discover","type":0,"val":"v1","end":""},{"old":"/api/v1/system/agent-config/mcp-servers/:id/discover","type":0,"val":"system","end":""},{"old":"/api/v1/system/agent-config/mcp-servers/:id/discover","type":0,"val":"agent-config","end":""},{"old":"/api/v1/system/agent-config/mcp-servers/:id/discover","type":0,"val":"mcp-servers","end":""},{"old":"/api/v1/system/agent-config/mcp-servers/:id/discover","type":1,"val":"id","end":""},{"old":"/api/v1/system/agent-config/mcp-servers/:id/discover","type":0,"val":"discover","end":""}],
+    types: placeholder as Registry['agent_configurations.discover_mcp_tools']['types'],
   },
   'im_configurations.show': {
     methods: ["GET","HEAD"],
@@ -420,6 +516,18 @@ const routes = {
     tokens: [{"old":"/api/v1/ai-chat/conversations/:id/confirmations/:confirmationId/confirm","type":0,"val":"api","end":""},{"old":"/api/v1/ai-chat/conversations/:id/confirmations/:confirmationId/confirm","type":0,"val":"v1","end":""},{"old":"/api/v1/ai-chat/conversations/:id/confirmations/:confirmationId/confirm","type":0,"val":"ai-chat","end":""},{"old":"/api/v1/ai-chat/conversations/:id/confirmations/:confirmationId/confirm","type":0,"val":"conversations","end":""},{"old":"/api/v1/ai-chat/conversations/:id/confirmations/:confirmationId/confirm","type":1,"val":"id","end":""},{"old":"/api/v1/ai-chat/conversations/:id/confirmations/:confirmationId/confirm","type":0,"val":"confirmations","end":""},{"old":"/api/v1/ai-chat/conversations/:id/confirmations/:confirmationId/confirm","type":1,"val":"confirmationId","end":""},{"old":"/api/v1/ai-chat/conversations/:id/confirmations/:confirmationId/confirm","type":0,"val":"confirm","end":""}],
     types: placeholder as Registry['ai_chat.confirm_ai_agent_action']['types'],
   },
+  'ai_chat.cancel_ai_agent_action': {
+    methods: ["POST"],
+    pattern: '/api/v1/ai-chat/conversations/:id/confirmations/:confirmationId/cancel',
+    tokens: [{"old":"/api/v1/ai-chat/conversations/:id/confirmations/:confirmationId/cancel","type":0,"val":"api","end":""},{"old":"/api/v1/ai-chat/conversations/:id/confirmations/:confirmationId/cancel","type":0,"val":"v1","end":""},{"old":"/api/v1/ai-chat/conversations/:id/confirmations/:confirmationId/cancel","type":0,"val":"ai-chat","end":""},{"old":"/api/v1/ai-chat/conversations/:id/confirmations/:confirmationId/cancel","type":0,"val":"conversations","end":""},{"old":"/api/v1/ai-chat/conversations/:id/confirmations/:confirmationId/cancel","type":1,"val":"id","end":""},{"old":"/api/v1/ai-chat/conversations/:id/confirmations/:confirmationId/cancel","type":0,"val":"confirmations","end":""},{"old":"/api/v1/ai-chat/conversations/:id/confirmations/:confirmationId/cancel","type":1,"val":"confirmationId","end":""},{"old":"/api/v1/ai-chat/conversations/:id/confirmations/:confirmationId/cancel","type":0,"val":"cancel","end":""}],
+    types: placeholder as Registry['ai_chat.cancel_ai_agent_action']['types'],
+  },
+  'ai_chat.confirm_ai_agent_action_stream': {
+    methods: ["POST"],
+    pattern: '/api/v1/ai-chat/conversations/:id/confirmations/:confirmationId/confirm/stream',
+    tokens: [{"old":"/api/v1/ai-chat/conversations/:id/confirmations/:confirmationId/confirm/stream","type":0,"val":"api","end":""},{"old":"/api/v1/ai-chat/conversations/:id/confirmations/:confirmationId/confirm/stream","type":0,"val":"v1","end":""},{"old":"/api/v1/ai-chat/conversations/:id/confirmations/:confirmationId/confirm/stream","type":0,"val":"ai-chat","end":""},{"old":"/api/v1/ai-chat/conversations/:id/confirmations/:confirmationId/confirm/stream","type":0,"val":"conversations","end":""},{"old":"/api/v1/ai-chat/conversations/:id/confirmations/:confirmationId/confirm/stream","type":1,"val":"id","end":""},{"old":"/api/v1/ai-chat/conversations/:id/confirmations/:confirmationId/confirm/stream","type":0,"val":"confirmations","end":""},{"old":"/api/v1/ai-chat/conversations/:id/confirmations/:confirmationId/confirm/stream","type":1,"val":"confirmationId","end":""},{"old":"/api/v1/ai-chat/conversations/:id/confirmations/:confirmationId/confirm/stream","type":0,"val":"confirm","end":""},{"old":"/api/v1/ai-chat/conversations/:id/confirmations/:confirmationId/confirm/stream","type":0,"val":"stream","end":""}],
+    types: placeholder as Registry['ai_chat.confirm_ai_agent_action_stream']['types'],
+  },
   'ai_chat.destroy': {
     methods: ["DELETE"],
     pattern: '/api/v1/ai-chat/conversations/:id',
@@ -479,6 +587,12 @@ const routes = {
     pattern: '/api/v1/integrations/ai-chat/conversations/:id/confirmations/:confirmationId/confirm',
     tokens: [{"old":"/api/v1/integrations/ai-chat/conversations/:id/confirmations/:confirmationId/confirm","type":0,"val":"api","end":""},{"old":"/api/v1/integrations/ai-chat/conversations/:id/confirmations/:confirmationId/confirm","type":0,"val":"v1","end":""},{"old":"/api/v1/integrations/ai-chat/conversations/:id/confirmations/:confirmationId/confirm","type":0,"val":"integrations","end":""},{"old":"/api/v1/integrations/ai-chat/conversations/:id/confirmations/:confirmationId/confirm","type":0,"val":"ai-chat","end":""},{"old":"/api/v1/integrations/ai-chat/conversations/:id/confirmations/:confirmationId/confirm","type":0,"val":"conversations","end":""},{"old":"/api/v1/integrations/ai-chat/conversations/:id/confirmations/:confirmationId/confirm","type":1,"val":"id","end":""},{"old":"/api/v1/integrations/ai-chat/conversations/:id/confirmations/:confirmationId/confirm","type":0,"val":"confirmations","end":""},{"old":"/api/v1/integrations/ai-chat/conversations/:id/confirmations/:confirmationId/confirm","type":1,"val":"confirmationId","end":""},{"old":"/api/v1/integrations/ai-chat/conversations/:id/confirmations/:confirmationId/confirm","type":0,"val":"confirm","end":""}],
     types: placeholder as Registry['integrations.ai_chat.ai_chat.confirm_ai_agent_action']['types'],
+  },
+  'integrations.ai_chat.ai_chat.cancel_ai_agent_action': {
+    methods: ["POST"],
+    pattern: '/api/v1/integrations/ai-chat/conversations/:id/confirmations/:confirmationId/cancel',
+    tokens: [{"old":"/api/v1/integrations/ai-chat/conversations/:id/confirmations/:confirmationId/cancel","type":0,"val":"api","end":""},{"old":"/api/v1/integrations/ai-chat/conversations/:id/confirmations/:confirmationId/cancel","type":0,"val":"v1","end":""},{"old":"/api/v1/integrations/ai-chat/conversations/:id/confirmations/:confirmationId/cancel","type":0,"val":"integrations","end":""},{"old":"/api/v1/integrations/ai-chat/conversations/:id/confirmations/:confirmationId/cancel","type":0,"val":"ai-chat","end":""},{"old":"/api/v1/integrations/ai-chat/conversations/:id/confirmations/:confirmationId/cancel","type":0,"val":"conversations","end":""},{"old":"/api/v1/integrations/ai-chat/conversations/:id/confirmations/:confirmationId/cancel","type":1,"val":"id","end":""},{"old":"/api/v1/integrations/ai-chat/conversations/:id/confirmations/:confirmationId/cancel","type":0,"val":"confirmations","end":""},{"old":"/api/v1/integrations/ai-chat/conversations/:id/confirmations/:confirmationId/cancel","type":1,"val":"confirmationId","end":""},{"old":"/api/v1/integrations/ai-chat/conversations/:id/confirmations/:confirmationId/cancel","type":0,"val":"cancel","end":""}],
+    types: placeholder as Registry['integrations.ai_chat.ai_chat.cancel_ai_agent_action']['types'],
   },
   'integrations.ai_chat.ai_chat.destroy': {
     methods: ["DELETE"],

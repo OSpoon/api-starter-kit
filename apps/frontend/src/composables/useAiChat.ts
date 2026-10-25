@@ -11,12 +11,14 @@ import {
   type AiChatConversationSummary,
   type AiChatMessage,
   type AiChatUsageSummary,
-  confirmAiAgentAction,
+  cancelAiAgentAction,
+  getAiChatConversation,
   getAiChatUsage,
   transcribeAiChatAudio,
 } from '@/features/ai/api'
 import { useAiChatConversations } from '@/features/ai/composables/useAiChatConversations'
 import { useAiChatStream } from '@/features/ai/composables/useAiChatStream'
+import { mergeAiChatMessages } from '@/features/ai/conversation-state'
 import { formatAiChatMessagesAsMarkdown } from '@/features/ai/markdown'
 import type { DisplayAiChatMessage, LocalAiChatMessage } from '@/features/ai/types'
 import { useCopyText } from '@/lib/clipboard'
@@ -43,6 +45,7 @@ export function useAiChat() {
   const pendingAiConfirmation = ref<AiChatConfirmation | null>(null)
   const aiConfirmations = ref<AiChatConfirmation[]>([])
   const aiConfirming = ref(false)
+  const aiCancelling = ref(false)
   const aiApprovalDismissed = ref(false)
   const aiCredentialDisclosure = ref<AiChatCredentialDisclosure | null>(null)
   const aiRunMeta = ref<AiChatRunMeta | null>(null)
@@ -182,14 +185,10 @@ export function useAiChat() {
     aiApprovalDismissed.value = false
   }
 
-  function dismissAiConfirmation() {
-    aiApprovalDismissed.value = true
-  }
-
   function appendConfirmationTimeline(
     messageId: number,
     confirmation: AiChatConfirmation,
-    status: 'confirmed' | 'failed' | 'expired'
+    status: 'cancelled'
   ) {
     const item: AiChatTimelineItem = {
       kind: 'confirmation',
@@ -205,39 +204,59 @@ export function useAiChat() {
         ...aiConversation.value,
         messages: aiConversation.value.messages.map((message) =>
           message.id === messageId
-            ? { ...message, timeline: [...(message.timeline ?? []), item] }
+            ? {
+                ...message,
+                timeline: [
+                  ...(message.timeline ?? []).map((entry) =>
+                    entry.kind === 'tool' &&
+                    entry.phase === 'awaiting_confirmation' &&
+                    entry.detail?.action === confirmation.action
+                      ? { ...entry, phase: 'cancelled' }
+                      : entry
+                  ),
+                  item,
+                ],
+              }
             : message
         ),
       }
     }
   }
 
-  async function confirmAiConfirmation() {
+  async function refreshAiConfirmationState(conversationId: number) {
+    try {
+      const refreshed = await getAiChatConversation(auth.token, conversationId)
+      const current = aiConversation.value
+      if (!current || current.id !== conversationId) return
+
+      aiConversation.value = {
+        ...current,
+        messages: mergeAiChatMessages(current.messages, refreshed.messages),
+        confirmations: refreshed.confirmations ?? [],
+      }
+      aiConfirmations.value = refreshed.confirmations ?? []
+      presentLatestAiConfirmation(aiConfirmations.value)
+    } catch {
+      // Keep the current card available when the refresh itself fails.
+    }
+  }
+
+  async function dismissAiConfirmation() {
     const confirmation = pendingAiConfirmation.value
     const conversation = aiConversation.value
-    if (!confirmation || !conversation) {
-      return
-    }
+    if (!confirmation || !conversation || aiCancelling.value) return
 
-    aiConfirming.value = true
+    aiCancelling.value = true
     try {
-      const result = await confirmAiAgentAction(auth.token, conversation.id, confirmation.id)
-      aiCredentialDisclosure.value = result.result?.credential ?? null
-      aiConfirmations.value = aiConfirmations.value.filter((item) => item.id !== confirmation.id)
+      await cancelAiAgentAction(auth.token, conversation.id, confirmation.id)
       pendingAiConfirmation.value = null
-      aiApprovalDismissed.value = false
-      appendConfirmationTimeline(confirmation.messageId, confirmation, 'confirmed')
-      if (result.message && aiConversation.value) {
-        aiConversation.value = {
-          ...aiConversation.value,
-          messages: [...aiConversation.value.messages, result.message],
-        }
-      }
-      toast.success(t('ai_chat.confirmations.success'))
+      aiConfirmations.value = aiConfirmations.value.filter((item) => item.id !== confirmation.id)
+      appendConfirmationTimeline(confirmation.messageId, confirmation, 'cancelled')
     } catch (error) {
+      await refreshAiConfirmationState(conversation.id)
       toast.error(error instanceof Error ? error.message : t('common.error'))
     } finally {
-      aiConfirming.value = false
+      aiCancelling.value = false
     }
   }
 
@@ -270,7 +289,7 @@ export function useAiChat() {
     }
   }
 
-  const { send: handleAiSend } = useAiChatStream(
+  const { send: handleAiSend, confirmAction: streamAiConfirmation } = useAiChatStream(
     () => auth.token,
     (key) => t(key),
     aiPageContext,
@@ -289,11 +308,29 @@ export function useAiChat() {
       pendingConfirmation: pendingAiConfirmation,
       approvalDismissed: aiApprovalDismissed,
       runMeta: aiRunMeta,
+      credentialDisclosure: aiCredentialDisclosure,
     },
     conversationManager.ensure,
     conversationManager.refresh,
     presentLatestAiConfirmation
   )
+
+  async function confirmAiConfirmation() {
+    const confirmation = pendingAiConfirmation.value
+    const conversation = aiConversation.value
+    if (!confirmation || !conversation) return
+
+    pendingAiConfirmation.value = null
+    aiApprovalDismissed.value = false
+    aiConfirming.value = true
+    const succeeded = await streamAiConfirmation(conversation.id, confirmation.id)
+    if (succeeded) {
+      aiConfirmations.value = aiConfirmations.value.filter((item) => item.id !== confirmation.id)
+    } else {
+      await refreshAiConfirmationState(conversation.id)
+    }
+    aiConfirming.value = false
+  }
 
   onMounted(() => {
     void conversationManager.refresh().catch(() => undefined)
@@ -320,6 +357,7 @@ export function useAiChat() {
     pendingAiConfirmation,
     aiConfirmations,
     aiConfirming,
+    aiCancelling,
     aiApprovalDismissed,
     aiCredentialDisclosure,
     aiRunMeta,

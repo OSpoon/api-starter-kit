@@ -9,10 +9,10 @@ import { permissionCatalogCodes } from '#services/permission_catalog'
 
 export const rolesWithPermissionsQuery: AiQueryTemplate = {
   code: 'roles_with_permissions',
+  permission: 'roles:read',
   version: 2,
   description:
     'List roles with every assigned permission and user counts; roles can be paginated with params.page.',
-  permission: 'roles:read',
   parameters: { page: queryPageParameter },
   async execute(params) {
     const roles = await Role.query()

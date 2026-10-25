@@ -48,18 +48,26 @@ watch(
       <div class="grid min-h-0 flex-1 gap-4 overflow-y-auto px-6 pb-6">
         <div v-if="!role" class="grid gap-2">
           <Label for="role-code">{{ t('rbac.roles.code') }}</Label>
-          <Input id="role-code" v-model="form.code" placeholder="role-code" />
+          <Input
+            id="role-code"
+            v-model="form.code"
+            :placeholder="t('rbac.roles.code_placeholder')"
+          />
         </div>
         <div class="grid gap-2">
           <Label for="role-name">{{ t('rbac.roles.name') }}</Label>
-          <Input id="role-name" v-model="form.name" :placeholder="t('rbac.roles.name')" />
+          <Input
+            id="role-name"
+            v-model="form.name"
+            :placeholder="t('rbac.roles.name_placeholder')"
+          />
         </div>
         <div class="grid gap-2">
           <Label for="role-description">{{ t('rbac.roles.description') }}</Label>
           <Textarea
             id="role-description"
             v-model="form.description"
-            :placeholder="t('rbac.roles.description')"
+            :placeholder="t('rbac.roles.description_placeholder')"
           />
         </div>
         <div class="grid gap-2">

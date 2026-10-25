@@ -12,6 +12,8 @@ import type {
   NormalizedInboundMessage,
   OutboundMessage,
 } from '#channels/channel_types'
+import { formatConfirmationDetails } from '#channels/confirmation_details'
+import { LatestContentStream } from '#channels/latest_content_stream'
 import { getAudioMimeType, transcribeAudio } from '#services/ai_speech_service'
 
 export interface FeishuBotAdapterOptions {
@@ -20,6 +22,10 @@ export interface FeishuBotAdapterOptions {
   tenantId?: string
   domain?: string
   onMessage: (message: NormalizedInboundMessage) => Promise<OutboundMessage | void>
+  onMessageStream?: (
+    message: NormalizedInboundMessage,
+    emit: (content: string) => Promise<void>
+  ) => Promise<OutboundMessage | void>
   onTemplateCardEvent?: (input: ChannelCardActionEvent) => Promise<OutboundMessage | void>
 }
 
@@ -60,6 +66,65 @@ function readAudioTranscript(content: Record<string, unknown>) {
     if (typeof value === 'string' && value.trim()) return value.trim()
   }
   return null
+}
+
+function asRecord(value: unknown) {
+  return value && typeof value === 'object' ? (value as Record<string, unknown>) : null
+}
+
+function hasMissingCardKitPermission(error: unknown) {
+  const source = asRecord(error)
+  const response = asRecord(source?.response)
+  const data = asRecord(response?.data)
+  const providerError = asRecord(data?.error)
+  if (data?.code !== 99991672) return false
+
+  const violations = JSON.stringify(providerError?.permission_violations ?? [])
+  return /cardkit:card:write/.test(
+    [data.msg, providerError?.message, violations].filter(Boolean).join(' ')
+  )
+}
+
+function buildStreamingCard() {
+  return {
+    schema: '2.0',
+    config: {
+      streaming_mode: true,
+      summary: { content: '[Generating...]' },
+      streaming_config: {
+        print_frequency_ms: { default: 70 },
+        print_step: { default: 1 },
+        print_strategy: 'fast',
+      },
+    },
+    body: {
+      elements: [{ tag: 'markdown', element_id: 'stream_md', content: '正在输入……' }],
+    },
+  }
+}
+
+function cardSummary(content: string) {
+  const summary = content.replace(/\s+/g, ' ').trim()
+  return summary.length <= 50 ? summary : `${summary.slice(0, 49)}…`
+}
+
+export function getSafeFeishuErrorDetails(error: unknown) {
+  const source = asRecord(error)
+  const response = asRecord(source?.response)
+  const data = asRecord(response?.data)
+  const providerError = asRecord(data?.error)
+  const message = error instanceof Error ? error.message : 'Unknown Feishu error'
+  return {
+    name: error instanceof Error ? error.name : 'Error',
+    message: message
+      .replace(/\bBearer\s+[^\s,;]+/gi, 'Bearer [REDACTED]')
+      .replace(/(authorization|token|secret|api[ _-]?key)\s*[:=]\s*[^\s,;]+/gi, '$1=[REDACTED]')
+      .slice(0, 500),
+    ...(typeof source?.code === 'string' ? { code: source.code } : {}),
+    ...(typeof response?.status === 'number' ? { status: response.status } : {}),
+    ...(typeof data?.code === 'number' ? { apiCode: data.code } : {}),
+    ...(typeof providerError?.log_id === 'string' ? { apiLogId: providerError.log_id } : {}),
+  }
 }
 
 export class FeishuBotAdapter implements ChannelAdapter {
@@ -262,16 +327,114 @@ export class FeishuBotAdapter implements ChannelAdapter {
       },
       'Feishu message normalized; handing off to AI bridge'
     )
-    const reply = await this.options.onMessage(message)
-    if (reply) {
-      await this.send(
-        {
-          channel: this.channel,
-          externalTenantId: message.externalTenantId,
-          conversationKey: message.conversationKey,
+    const target = {
+      channel: this.channel,
+      externalTenantId: message.externalTenantId,
+      conversationKey: message.conversationKey,
+    }
+    if (this.options.onMessageStream) {
+      await this.handleStreamingReply(message, target)
+      return
+    }
+
+    await this.send(target, { kind: 'text', content: '正在输入……' })
+    await this.sendReply(message, target, await this.options.onMessage(message))
+  }
+
+  private async sendReply(
+    message: NormalizedInboundMessage,
+    target: ChannelTarget,
+    reply: OutboundMessage | void
+  ) {
+    if (!reply) return
+    await this.send(target, reply)
+    this.log.info(
+      { messageId: message.messageId, conversationKey: message.conversationKey, kind: reply.kind },
+      'Feishu AI reply sent'
+    )
+  }
+
+  private async handleStreamingReply(message: NormalizedInboundMessage, target: ChannelTarget) {
+    let cardId: string
+    try {
+      const card = await this.client.cardkit.v1.card.create({
+        data: { type: 'card_json', data: JSON.stringify(buildStreamingCard()) },
+      })
+      cardId = card.data?.card_id ?? ''
+      if (!cardId) throw new Error('Feishu CardKit create card returned no card_id')
+      await this.client.im.v1.message.create({
+        params: { receive_id_type: 'chat_id' },
+        data: {
+          receive_id: target.conversationKey,
+          msg_type: 'interactive',
+          content: JSON.stringify({ type: 'card', data: { card_id: cardId } }),
         },
-        reply
+      })
+    } catch (error) {
+      if (!hasMissingCardKitPermission(error)) throw error
+      this.log.warn(
+        { errorDetails: getSafeFeishuErrorDetails(error), messageId: message.messageId },
+        'Feishu CardKit permission unavailable; falling back to ordinary messages'
       )
+      await this.send(target, { kind: 'text', content: '正在输入……' })
+      await this.sendReply(message, target, await this.options.onMessage(message))
+      return
+    }
+
+    let sequence = 0
+    const stream = new LatestContentStream('正在输入……', async (content) => {
+      await this.updateStreamingCard(cardId, content, ++sequence)
+    })
+    let reply: OutboundMessage | void
+    try {
+      reply = await this.options.onMessageStream!(message, async (content) =>
+        stream.publish(content)
+      )
+    } catch (error) {
+      await stream.finish()
+      this.logError(error, {
+        operation: 'stream_reply',
+        messageId: message.messageId,
+        conversationKey: message.conversationKey,
+      })
+      try {
+        await this.updateStreamingCard(cardId, '本次请求处理失败，请稍后重试。', ++sequence)
+        await this.finishStreamingCard(cardId, ++sequence, '本次请求处理失败，请稍后重试。')
+      } catch (cardError) {
+        this.logError(cardError, {
+          operation: 'finalize_failed_stream',
+          messageId: message.messageId,
+          conversationKey: message.conversationKey,
+        })
+        await this.send(target, { kind: 'text', content: '本次请求处理失败，请稍后重试。' })
+      }
+      return
+    }
+
+    const finalContent =
+      reply?.kind === 'text'
+        ? reply.content
+        : stream.latest === '正在输入……'
+          ? reply?.kind === 'confirmation'
+            ? '请在下方确认卡片中确认操作。'
+            : 'AI 没有生成可显示的回复。'
+          : stream.latest
+    await stream.finish()
+    try {
+      await this.updateStreamingCard(cardId, finalContent, ++sequence)
+      await this.finishStreamingCard(cardId, ++sequence, cardSummary(finalContent))
+    } catch (error) {
+      this.logError(error, {
+        operation: 'finalize_stream',
+        messageId: message.messageId,
+        conversationKey: message.conversationKey,
+      })
+      await this.sendReply(message, target, reply ?? { kind: 'text', content: finalContent })
+      return
+    }
+
+    if (reply?.kind === 'confirmation') await this.send(target, reply)
+    if (reply) {
       this.log.info(
         {
           messageId: message.messageId,
@@ -281,6 +444,26 @@ export class FeishuBotAdapter implements ChannelAdapter {
         'Feishu AI reply sent'
       )
     }
+  }
+
+  private async updateStreamingCard(cardId: string, content: string, sequence: number) {
+    await this.client.cardkit.v1.cardElement.content({
+      path: { card_id: cardId, element_id: 'stream_md' },
+      data: { content, sequence, uuid: `c_${cardId}_${sequence}` },
+    })
+  }
+
+  private async finishStreamingCard(cardId: string, sequence: number, summary: string) {
+    await this.client.cardkit.v1.card.settings({
+      path: { card_id: cardId },
+      data: {
+        settings: JSON.stringify({
+          config: { streaming_mode: false, summary: { content: summary } },
+        }),
+        sequence,
+        uuid: `s_${cardId}_${sequence}`,
+      },
+    })
   }
 
   private async transcribeAudioMessage(messageId: string, rawContent: string) {
@@ -342,7 +525,7 @@ export class FeishuBotAdapter implements ChannelAdapter {
       header: { title: { tag: 'plain_text', content: message.title }, template: 'blue' },
       body: {
         elements: [
-          { tag: 'markdown', content: message.description },
+          { tag: 'markdown', content: formatConfirmationDetails(message) },
           {
             tag: 'column_set',
             flex_mode: 'none',
@@ -410,6 +593,9 @@ export class FeishuBotAdapter implements ChannelAdapter {
   }
 
   private logError(error: unknown, context: Record<string, unknown>) {
-    this.log.error({ err: error, ...context }, 'Feishu bot event handler failed')
+    this.log.error(
+      { errorDetails: getSafeFeishuErrorDetails(error), ...context },
+      'Feishu bot event handler failed'
+    )
   }
 }

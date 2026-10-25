@@ -53,10 +53,34 @@ export interface ApiDefinition {
     update: typeof routes['api_keys.update']
     destroy: typeof routes['api_keys.destroy']
   }
-  llmConfigurations: {
-    show: typeof routes['llm_configurations.show']
-    update: typeof routes['llm_configurations.update']
-    test: typeof routes['llm_configurations.test']
+  llmConfig: {
+    legacy: {
+      show: typeof routes['llm-config.legacy.show']
+      update: typeof routes['llm-config.legacy.update']
+      test: typeof routes['llm-config.legacy.test']
+    }
+  }
+  agentConfigurations: {
+    show: typeof routes['agent_configurations.show']
+    updateConfiguration: typeof routes['agent_configurations.update_configuration']
+    skills: typeof routes['agent_configurations.skills']
+    showSkill: typeof routes['agent_configurations.show_skill']
+    createSkill: typeof routes['agent_configurations.create_skill']
+    updateSkill: typeof routes['agent_configurations.update_skill']
+    deleteSkill: typeof routes['agent_configurations.delete_skill']
+    mcpServers: typeof routes['agent_configurations.mcp_servers']
+    createMcpServer: typeof routes['agent_configurations.create_mcp_server']
+    updateMcpServer: typeof routes['agent_configurations.update_mcp_server']
+    deleteMcpServer: typeof routes['agent_configurations.delete_mcp_server']
+    testMcpConnection: typeof routes['agent_configurations.test_mcp_connection']
+    discoverMcpTools: typeof routes['agent_configurations.discover_mcp_tools']
+  }
+  agentConfig: {
+    llm: {
+      show: typeof routes['agent-config.llm.show']
+      update: typeof routes['agent-config.llm.update']
+      test: typeof routes['agent-config.llm.test']
+    }
   }
   imConfigurations: {
     show: typeof routes['im_configurations.show']
@@ -120,6 +144,8 @@ export interface ApiDefinition {
     steer: typeof routes['ai_chat.steer']
     followUp: typeof routes['ai_chat.follow_up']
     confirmAiAgentAction: typeof routes['ai_chat.confirm_ai_agent_action']
+    cancelAiAgentAction: typeof routes['ai_chat.cancel_ai_agent_action']
+    confirmAiAgentActionStream: typeof routes['ai_chat.confirm_ai_agent_action_stream']
     destroy: typeof routes['ai_chat.destroy']
   }
   integrations: {
@@ -134,6 +160,7 @@ export interface ApiDefinition {
         steer: typeof routes['integrations.ai_chat.ai_chat.steer']
         followUp: typeof routes['integrations.ai_chat.ai_chat.follow_up']
         confirmAiAgentAction: typeof routes['integrations.ai_chat.ai_chat.confirm_ai_agent_action']
+        cancelAiAgentAction: typeof routes['integrations.ai_chat.ai_chat.cancel_ai_agent_action']
         destroy: typeof routes['integrations.ai_chat.ai_chat.destroy']
       }
     }

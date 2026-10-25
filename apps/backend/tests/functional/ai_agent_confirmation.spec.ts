@@ -4,13 +4,25 @@ import testUtils from '@adonisjs/core/services/test_utils'
 import type { AgentTool } from '@earendil-works/pi-agent-core'
 import { test } from '@japa/runner'
 import { DateTime } from 'luxon'
+import { ZodError } from 'zod'
 
 import {
+  getConfirmedToolResultFallback,
+  summarizeConfirmedToolResult,
+} from '#ai/chat/confirmed_tool_result_summary'
+import {
   aiAgentActionNames,
+  executeAiAgentActionImmediately,
   genericProposalActionNames,
   getAiAgentAction,
 } from '#ai/core/ai_agent_action_registry'
-import { proposeAiAgentAction } from '#ai/core/ai_agent_confirmation'
+import {
+  AiAgentConfirmationError,
+  type AiAgentConfirmationSummary,
+  attachAgentRunConfirmations,
+  findPendingConfirmationTool,
+  proposeAiAgentAction,
+} from '#ai/core/ai_agent_confirmation'
 import { createAiAgentTools } from '#ai/registry/ai_agent_tool_registry'
 import AiAgentConfirmation from '#models/ai_agent_confirmation'
 import AiChatConversation from '#models/ai_chat_conversation'
@@ -22,9 +34,27 @@ import Role from '#models/role'
 import User from '#models/user'
 import WecomMessageTemplate from '#models/wecom_message_template'
 import { generateInitialPassword } from '#security/user_credentials'
+import {
+  getAiAgentToolSettings,
+  updateAiAgentToolSettings,
+} from '#services/ai_agent_configuration_service'
 import { getChannelGuestUser } from '#services/channel_guest_principal'
 
 async function executeTool(tool: AgentTool, input: unknown) {
+  const confirmationTool = tool as AgentTool & {
+    prepareConfirmation?: (args: unknown) => Promise<AiAgentConfirmationSummary>
+  }
+  if (confirmationTool.prepareConfirmation) {
+    try {
+      return JSON.stringify(await confirmationTool.prepareConfirmation(input))
+    } catch (error) {
+      return JSON.stringify({
+        kind: 'action_error',
+        code: error instanceof ZodError ? 'invalid_input' : 'failed',
+        message: error instanceof Error ? error.message : '操作准备失败',
+      })
+    }
+  }
   const result = await tool.execute('test-call', input)
   return JSON.stringify(result.details)
 }
@@ -54,6 +84,18 @@ async function createConfirmation(user: User) {
     status: 'pending',
     expiresAt: DateTime.now().plus({ minutes: 5 }),
   })
+  message.runtimeDetails = [
+    {
+      kind: 'tool',
+      name: 'revoke_api_key',
+      state: 'done',
+      callId: `revoke-api-key-${confirmation.id}`,
+      phase: 'awaiting_confirmation',
+      message: '等待用户确认后执行',
+      detail: { action: confirmation.action, confirmationId: confirmation.id },
+    },
+  ]
+  await message.save()
 
   return { apiKey, confirmation, conversation }
 }
@@ -89,12 +131,89 @@ test.group('AI agent confirmations', (group) => {
       assert.isNotNull(getAiAgentAction(action), `Missing action registration: ${action}`)
     }
     assert.notInclude(genericProposalActionNames, 'create_api_key')
+    assert.include(genericProposalActionNames, 'create_user')
     assert.notInclude(aiAgentActionNames, 'create_permission')
     assert.notInclude(aiAgentActionNames, 'update_permission')
     assert.notInclude(aiAgentActionNames, 'delete_permission')
     assert.equal(getAiAgentAction('revoke_api_key')?.impact, 'destructive')
     assert.equal(getAiAgentAction('delete_api_key')?.impact, 'destructive')
     assert.equal(getAiAgentAction('create_api_key')?.impact, 'standard')
+  })
+
+  test('matches one pending confirmation tool without action metadata but avoids ambiguous matches', ({
+    assert,
+  }) => {
+    const pendingTool = {
+      kind: 'tool' as const,
+      name: 'run_registered_query',
+      state: 'done' as const,
+      phase: 'awaiting_confirmation',
+      callId: 'query-call',
+      detail: {},
+    }
+    const otherPendingTool = { ...pendingTool, callId: 'other-call' }
+
+    assert.equal(findPendingConfirmationTool([pendingTool], 42, 'call_builtin_tool'), pendingTool)
+    assert.isUndefined(
+      findPendingConfirmationTool([pendingTool, otherPendingTool], 42, 'call_builtin_tool')
+    )
+    assert.isUndefined(
+      findPendingConfirmationTool(
+        [{ ...pendingTool, detail: { confirmationId: 7 } }],
+        42,
+        'call_builtin_tool'
+      )
+    )
+    const actionTool = { ...pendingTool, detail: { action: 'call_builtin_tool' } }
+    const otherActionTool = { ...otherPendingTool, detail: { action: 'call_builtin_tool' } }
+    assert.isUndefined(
+      findPendingConfirmationTool([actionTool, otherActionTool], 42, 'call_builtin_tool')
+    )
+  })
+
+  test('appends the confirmed tool reply to the original assistant message', async ({ assert }) => {
+    const user = await User.create({
+      fullName: 'Confirmed tool result user',
+      email: `confirmed-tool-result-${Date.now()}@example.com`,
+      password: generateInitialPassword(),
+    })
+    const conversation = await AiChatConversation.create({ userId: user.id, title: 'Tool result' })
+    const assistantMessage = await AiChatMessage.create({
+      conversationId: conversation.id,
+      role: 'assistant',
+      content: '正在等待确认。',
+    })
+    const events: Array<{ event: string; data: unknown }> = []
+
+    const result = await summarizeConfirmedToolResult({
+      ctx: {} as never,
+      conversation,
+      assistantMessage,
+      userId: user.id,
+      result: { mcpToolName: 'search_logs', mcpToolResult: '' },
+      onEvent: (event, data) => {
+        events.push({ event, data })
+      },
+    })
+
+    assert.include(result.reply, '没有返回可供整理的文本结果')
+    assert.equal(result.message.id, assistantMessage.id)
+    const savedMessage = await AiChatMessage.findOrFail(assistantMessage.id)
+    assert.include(savedMessage.content, '正在等待确认。\n\n')
+    assert.include(savedMessage.content, result.reply)
+    assert.deepInclude(events[0], { event: 'delta', data: { content: '\n\n' + result.reply } })
+    assert.notInclude(
+      events.map(({ event }) => event),
+      'assistant_segment_start'
+    )
+  })
+
+  test('includes the concrete result when the assistant cannot summarize it', ({ assert }) => {
+    const fallback = getConfirmedToolResultFallback('search_logs', '{"items":[{"id":42}]}')
+
+    assert.include(fallback, 'search_logs')
+    assert.include(fallback, '{"items":[{"id":42}]}')
+    assert.include(fallback, '已执行成功')
   })
 
   test('refuses AI proposals to mutate the internal channel guest account', async ({ assert }) => {
@@ -114,7 +233,7 @@ test.group('AI agent confirmations', (group) => {
       userId: admin.id,
       conversationId: conversation.id,
       agentRunId: crypto.randomUUID(),
-    }).find((tool) => tool.name === 'propose_system_management_change')
+    }).find((tool) => tool.name === 'system_management_change')
     const changes = [
       { action: 'reset_user_password', input: { email: guest.email } },
       { action: 'disable_user', input: { email: guest.email } },
@@ -218,7 +337,7 @@ test.group('AI agent confirmations', (group) => {
       userId: operator.id,
       conversationId: conversation.id,
       agentRunId: crypto.randomUUID(),
-    }).find((tool) => tool.name === 'propose_system_management_change')
+    }).find((tool) => tool.name === 'system_management_change')
 
     const selfProposal = JSON.parse(
       await executeTool(proposalTool!, {
@@ -231,10 +350,10 @@ test.group('AI agent confirmations', (group) => {
         },
       })
     )
-    assert.equal(selfProposal.kind, 'confirmation')
+    assert.equal(selfProposal.action, 'update_user')
     const selfResponse = await client
       .post(
-        `/api/v1/ai-chat/conversations/${conversation.id}/confirmations/${selfProposal.confirmation.id}/confirm`
+        `/api/v1/ai-chat/conversations/${conversation.id}/confirmations/${selfProposal.id}/confirm`
       )
       .bearerToken(token.value!.release())
     selfResponse.assertStatus(409)
@@ -244,24 +363,25 @@ test.group('AI agent confirmations', (group) => {
       .firstOrFail()
     assert.equal(unchangedOperator.roles[0]?.id, operatorRole.id)
 
-    const adminProposal = JSON.parse(
+    const adminResult = JSON.parse(
       await executeTool(proposalTool!, {
         action: 'update_user',
         input: {
           userId: protectedAdmin.id,
           fullName: protectedAdmin.fullName,
           email: protectedAdmin.email,
-          roleIds: [superAdminRole.id],
+          roleIds: [],
         },
       })
     )
-    assert.equal(adminProposal.kind, 'confirmation')
-    const adminResponse = await client
-      .post(
-        `/api/v1/ai-chat/conversations/${conversation.id}/confirmations/${adminProposal.confirmation.id}/confirm`
-      )
-      .bearerToken(token.value!.release())
-    adminResponse.assertStatus(409)
+    assert.equal(adminResult.kind, 'action_error')
+    assert.include(adminResult.message, '仅超级管理员可以维护超级管理员账户')
+    assert.isNull(
+      await AiAgentConfirmation.query()
+        .where('conversation_id', conversation.id)
+        .where('target_id', String(protectedAdmin.id))
+        .first()
+    )
     const unchangedAdmin = await User.query()
       .where('id', protectedAdmin.id)
       .preload('roles')
@@ -292,7 +412,7 @@ test.group('AI agent confirmations', (group) => {
       agentRunId: crypto.randomUUID(),
     })
     const genericTool = tools.find(
-      (registeredTool) => registeredTool.name === 'propose_system_management_change'
+      (registeredTool) => registeredTool.name === 'system_management_change'
     )
     const genericOutput = JSON.parse(
       await executeTool(genericTool!, {
@@ -303,17 +423,133 @@ test.group('AI agent confirmations', (group) => {
     assert.equal(genericOutput.kind, 'action_error')
     assert.equal(genericOutput.code, 'invalid_input')
 
-    const tool = tools.find((registeredTool) => registeredTool.name === 'propose_api_key_creation')
+    const tool = tools.find((registeredTool) => registeredTool.name === 'create_api_key')
 
     const output = JSON.parse(
       await executeTool(tool!, { name: 'default-api-key', expiresIn: 'long' })
     )
 
-    assert.equal(output.kind, 'confirmation')
-    assert.equal(output.confirmation.action, 'create_api_key')
-    assert.equal(output.confirmation.targetSummary.name, 'default-api-key')
-    assert.equal(output.confirmation.changeSummary[0].value, 'default-api-key')
-    assert.isUndefined(output.confirmation.payload)
+    assert.equal(output.action, 'create_api_key')
+    assert.equal(output.targetSummary.name, 'default-api-key')
+    assert.equal(output.changeSummary[0].value, 'default-api-key')
+    assert.isUndefined(output.payload)
+  })
+
+  test('creates a role only with permissions the operator is allowed to grant', async ({
+    client,
+    assert,
+  }) => {
+    const rolesCreate = await Permission.findByOrFail('code', 'roles:create')
+    const apiKeysCreate = await Permission.findByOrFail('code', 'api-keys:create')
+    const operatorRole = await Role.create({
+      code: `agent-role-operator-${Date.now()}`,
+      name: 'AI role operator',
+    })
+    await operatorRole.related('permissions').sync([rolesCreate.id, apiKeysCreate.id])
+    const user = await User.create({
+      fullName: 'Agent role operator',
+      email: `agent-role-create-${Date.now()}@example.com`,
+      password: generateInitialPassword(),
+    })
+    await user.related('roles').sync([operatorRole.id])
+    const token = await User.accessTokens.create(user)
+    const conversation = await AiChatConversation.create({
+      userId: user.id,
+      title: 'Create configured role',
+    })
+    const assistantMessage = await AiChatMessage.create({
+      conversationId: conversation.id,
+      role: 'assistant',
+      content: '',
+    })
+    const code = `agent-configured-${Date.now()}`
+    const tool = createAiAgentTools({
+      userId: user.id,
+      conversationId: conversation.id,
+      agentRunId: crypto.randomUUID(),
+    }).find((registeredTool) => registeredTool.name === 'system_management_change')
+    const proposal = JSON.parse(
+      await executeTool(tool!, {
+        action: 'create_role',
+        input: { code, name: 'Agent configured role', permissionIds: [apiKeysCreate.id] },
+      })
+    )
+
+    assert.equal(proposal.action, 'create_role')
+    const confirmation = await AiAgentConfirmation.findOrFail(proposal.id)
+    confirmation.assistantMessageId = assistantMessage.id
+    await confirmation.save()
+    const response = await client
+      .post(`/api/v1/ai-chat/conversations/${conversation.id}/confirmations/${proposal.id}/confirm`)
+      .bearerToken(token.value!.release())
+    response.assertStatus(200)
+
+    const role = await Role.query().where('code', code).preload('permissions').firstOrFail()
+    assert.deepEqual(
+      role.permissions.map(({ id }) => id),
+      [apiKeysCreate.id]
+    )
+  })
+
+  test('does not let role or user proposals grant permissions the operator lacks', async ({
+    assert,
+  }) => {
+    const rolesCreate = await Permission.findByOrFail('code', 'roles:create')
+    const usersCreate = await Permission.findByOrFail('code', 'users:create')
+    const apiKeysCreate = await Permission.findByOrFail('code', 'api-keys:create')
+    const operatorRole = await Role.create({
+      code: `agent-limited-operator-${Date.now()}`,
+      name: 'AI limited operator',
+    })
+    await operatorRole.related('permissions').sync([rolesCreate.id, usersCreate.id])
+    const targetRole = await Role.create({
+      code: `agent-elevated-target-${Date.now()}`,
+      name: 'Elevated target role',
+    })
+    await targetRole.related('permissions').sync([apiKeysCreate.id])
+    const user = await User.create({
+      fullName: 'Limited AI operator',
+      email: `agent-limited-${Date.now()}@example.com`,
+      password: generateInitialPassword(),
+    })
+    await user.related('roles').sync([operatorRole.id])
+    const conversation = await AiChatConversation.create({
+      userId: user.id,
+      title: 'Reject permission escalation',
+    })
+    const tool = createAiAgentTools({
+      userId: user.id,
+      conversationId: conversation.id,
+      agentRunId: crypto.randomUUID(),
+    }).find((registeredTool) => registeredTool.name === 'system_management_change')
+    const createRoleResult = JSON.parse(
+      await executeTool(tool!, {
+        action: 'create_role',
+        input: {
+          code: `agent-forbidden-role-${Date.now()}`,
+          name: 'Forbidden role',
+          permissionIds: [apiKeysCreate.id],
+        },
+      })
+    )
+    const createUserResult = JSON.parse(
+      await executeTool(tool!, {
+        action: 'create_user',
+        input: {
+          fullName: 'Forbidden user',
+          email: `agent-forbidden-user-${Date.now()}@example.com`,
+          roleIds: [targetRole.id],
+        },
+      })
+    )
+
+    for (const result of [createRoleResult, createUserResult]) {
+      assert.equal(result.kind, 'action_error')
+      assert.include(result.message, '只能授予自己拥有的权限')
+    }
+    assert.isNull(
+      await AiAgentConfirmation.query().where('conversation_id', conversation.id).first()
+    )
   })
 
   test('normalizes a nested API Key target before preparing revocation', async ({ assert }) => {
@@ -337,12 +573,12 @@ test.group('AI agent confirmations', (group) => {
       userId: user.id,
       conversationId: conversation.id,
       agentRunId: crypto.randomUUID(),
-    }).find((registeredTool) => registeredTool.name === 'propose_api_key_revocation')
+    }).find((registeredTool) => registeredTool.name === 'revoke_api_key')
 
     const output = JSON.parse(await executeTool(tool!, { input: { id: apiKey.id } }))
 
-    assert.equal(output.kind, 'confirmation')
-    assert.equal(output.confirmation.targetId, String(apiKey.id))
+    assert.equal(output.action, 'revoke_api_key')
+    assert.equal(output.targetId, String(apiKey.id))
   })
 
   test('reuses a pending proposal when the same agent run retries an action', async ({
@@ -377,7 +613,67 @@ test.group('AI agent confirmations', (group) => {
 
     assert.equal(retry.id, first.id)
     assert.equal(retry.impact, 'destructive')
+    assert.equal(first.presentation.summary, '请确认是否执行以下操作。')
+    assert.deepInclude(first.presentation.changes, {
+      label: '操作结果',
+      value: '吊销（待确认）',
+    })
     assert.lengthOf(await AiAgentConfirmation.query().where('agent_run_id', input.agentRunId), 1)
+  })
+
+  test('labels built-in tool and skill confirmations by their actual type', async ({ assert }) => {
+    const superAdminRole = await Role.findByOrFail('code', 'super-admin')
+    const user = await User.create({
+      fullName: 'Confirmation type admin',
+      email: `confirmation-type-${Date.now()}@example.com`,
+      password: generateInitialPassword(),
+    })
+    await user.related('roles').sync([superAdminRole.id])
+    const conversation = await AiChatConversation.create({
+      userId: user.id,
+      title: 'Tool type confirmation',
+    })
+    const settings = await getAiAgentToolSettings()
+    await updateAiAgentToolSettings(
+      settings.map((setting) =>
+        ['run_registered_query', 'load_agent_skill'].includes(setting.code)
+          ? { ...setting, mode: 'confirm' }
+          : setting
+      )
+    )
+
+    const queryConfirmation = await proposeAiAgentAction({
+      action: 'call_builtin_tool',
+      actionInput: {
+        toolName: 'run_registered_query',
+        arguments: { templateCode: 'recent_audit_logs', params: {} },
+      },
+      conversationId: conversation.id,
+      userId: user.id,
+      agentRunId: crypto.randomUUID(),
+    })
+    assert.equal(queryConfirmation.presentation.title, '确认调用工具')
+    assert.deepInclude(queryConfirmation.presentation.changes, {
+      label: '工具',
+      value: 'run_registered_query',
+    })
+
+    const skillConfirmation = await proposeAiAgentAction({
+      action: 'call_builtin_tool',
+      actionInput: {
+        toolName: 'load_agent_skill',
+        arguments: { code: 'log_lookup' },
+      },
+      conversationId: conversation.id,
+      userId: user.id,
+      agentRunId: crypto.randomUUID(),
+    })
+    assert.equal(skillConfirmation.presentation.title, '确认加载技能')
+    assert.equal(skillConfirmation.presentation.targetLabel, 'log_lookup')
+    assert.deepInclude(skillConfirmation.presentation.changes, {
+      label: '技能',
+      value: 'log_lookup',
+    })
   })
 
   test('confirms a proposed API Key revocation only for an authorized owner', async ({
@@ -401,16 +697,38 @@ test.group('AI agent confirmations', (group) => {
       .bearerToken(token.value!.release())
 
     response.assertStatus(200)
+    const responseData = response.body().data as {
+      message: { id: number; content: string }
+      presentation: { summary: string; changes: Array<{ label: string; value: string }> }
+    }
+    const responseMessage = responseData.message
+    assert.equal(responseData.presentation.summary, '操作已执行。')
+    assert.deepInclude(responseData.presentation.changes, {
+      label: '操作结果',
+      value: '吊销（已执行）',
+    })
+    assert.equal(responseMessage.id, confirmation.assistantMessageId)
+    assert.include(responseMessage.content, 'API Key')
+    assert.include(responseMessage.content, '已吊销')
+    assert.lengthOf(
+      await AiChatMessage.query()
+        .where('conversation_id', conversation.id)
+        .where('role', 'assistant'),
+      1
+    )
     const revokedApiKey = await ApiKey.findOrFail(apiKey.id)
     const confirmedRequest = await AiAgentConfirmation.findOrFail(confirmation.id)
     const assistantMessage = await AiChatMessage.findOrFail(confirmation.assistantMessageId)
     assert.isNotNull(revokedApiKey.revokedAt)
     assert.equal(confirmedRequest.status, 'confirmed')
-    assert.deepInclude(assistantMessage.runtimeDetails.at(-1), {
-      kind: 'confirmation',
-      action: 'revoke_api_key',
-      status: 'confirmed',
+    assert.lengthOf(assistantMessage.runtimeDetails, 1)
+    assert.deepInclude(assistantMessage.runtimeDetails[0], {
+      kind: 'tool',
+      callId: `revoke-api-key-${confirmation.id}`,
+      phase: 'confirmed',
+      state: 'done',
     })
+    assert.notProperty(assistantMessage.runtimeDetails[0], 'message')
     assert.exists(
       await AuditLog.query()
         .where('action', 'agent.action_confirmed')
@@ -425,10 +743,250 @@ test.group('AI agent confirmations', (group) => {
     )
   })
 
-  test('denies confirmation when the current user lacks API Key delete permission', async ({
+  test('streams action progress and appends the result to the original assistant message', async ({
     client,
     assert,
   }) => {
+    const superAdminRole = await Role.findByOrFail('code', 'super-admin')
+    const user = await User.create({
+      fullName: 'Streaming confirmation admin',
+      email: `streaming-confirmation-${Date.now()}@example.com`,
+      password: generateInitialPassword(),
+    })
+    await user.related('roles').sync([superAdminRole.id])
+    const token = await User.accessTokens.create(user)
+    const { apiKey, confirmation, conversation } = await createConfirmation(user)
+    const pendingMessage = await AiChatMessage.findOrFail(confirmation.assistantMessageId)
+    pendingMessage.runtimeDetails.push({
+      kind: 'plan',
+      steps: [
+        { key: 'identify_target', state: 'done' },
+        { key: 'prepare_action', state: 'done' },
+        { key: 'await_confirmation', state: 'running' },
+      ],
+    })
+    await pendingMessage.save()
+
+    const response = await client
+      .post(
+        `/api/v1/ai-chat/conversations/${conversation.id}/confirmations/${confirmation.id}/confirm/stream`
+      )
+      .bearerToken(token.value!.release())
+
+    response.assertStatus(200)
+    assert.include(response.header('content-type') ?? '', 'text/event-stream')
+    const body = response.text()
+    const doneEvent = body.split('event: done\n')[1]?.split('\n\n')[0]
+    const statusEvents = body
+      .split('\n\n')
+      .filter((event) => event.startsWith('event: agent_status\n'))
+      .map((event) => JSON.parse(event.split('\n')[1]!.replace(/^data: /, '')))
+    assert.include(body, 'event: agent_status')
+    assert.notInclude(body, 'event: assistant_segment_start')
+    assert.include(body, 'event: delta')
+    assert.include(body, 'event: done')
+    assert.include(body, 'API Key「')
+    assert.include(body, '已吊销')
+    assert.include(body, '"state":"running"')
+    assert.include(body, '"state":"done"')
+    assert.isBelow(body.indexOf('"state":"running"'), body.indexOf('"state":"done"'))
+    assert.lengthOf(statusEvents, 2)
+    assert.equal(statusEvents[0].callId, `revoke-api-key-${confirmation.id}`)
+    assert.equal(statusEvents[1].callId, statusEvents[0].callId)
+    const resultMessageId = JSON.parse(doneEvent!.replace(/^data: /, '')).message.id
+    assert.equal(resultMessageId, confirmation.assistantMessageId)
+    assert.lengthOf(
+      await AiChatMessage.query()
+        .where('conversation_id', conversation.id)
+        .where('role', 'assistant'),
+      1
+    )
+    const completedMessage = await AiChatMessage.findOrFail(confirmation.assistantMessageId)
+    assert.include(completedMessage.content, '已吊销')
+    const completedTool = completedMessage.runtimeDetails.find((item) => item.kind === 'tool')
+    const completedPlan = completedMessage.runtimeDetails.find((item) => item.kind === 'plan')
+    assert.isDefined(completedTool)
+    assert.equal(completedTool?.phase, 'confirmed')
+    assert.isDefined(completedPlan)
+    if (completedPlan?.kind === 'plan') {
+      assert.equal(completedPlan.steps[2]?.state, 'done')
+    }
+    assert.notInclude(
+      completedMessage.runtimeDetails.map((item) => item.kind),
+      'confirmation'
+    )
+    const revokedApiKey = await ApiKey.findOrFail(apiKey.id)
+    const confirmedProposal = await AiAgentConfirmation.findOrFail(confirmation.id)
+    assert.isNotNull(revokedApiKey.revokedAt)
+    assert.equal(confirmedProposal.status, 'confirmed')
+  })
+
+  test('creates a user after confirmation and discloses the initial password once', async ({
+    client,
+    assert,
+  }) => {
+    const superAdminRole = await Role.findByOrFail('code', 'super-admin')
+    const memberRole = await Role.create({
+      code: `agent-created-user-${Date.now()}`,
+      name: 'Agent created user role',
+    })
+    const actor = await User.create({
+      fullName: 'User creation administrator',
+      email: `user-creation-admin-${Date.now()}@example.com`,
+      password: generateInitialPassword(),
+    })
+    await actor.related('roles').sync([superAdminRole.id])
+    const token = await User.accessTokens.create(actor)
+    const conversation = await AiChatConversation.create({
+      userId: actor.id,
+      title: 'Create managed user',
+    })
+    const email = `created-by-agent-${Date.now()}@example.com`
+    const agentRunId = crypto.randomUUID()
+    const proposal = await proposeAiAgentAction({
+      action: 'create_user',
+      actionInput: { fullName: 'Created by Agent', email, roleIds: [memberRole.id] },
+      conversationId: conversation.id,
+      userId: actor.id,
+      agentRunId,
+    })
+    const assistantMessage = await AiChatMessage.create({
+      conversationId: conversation.id,
+      role: 'assistant',
+      content: '请确认创建用户。',
+      runtimeDetails: [
+        {
+          kind: 'tool',
+          name: 'system_management_change',
+          state: 'done',
+          callId: 'create-user-call',
+          phase: 'awaiting_confirmation',
+          detail: { action: 'create_user', confirmationId: proposal.id },
+        },
+      ],
+    })
+    const attached = await attachAgentRunConfirmations({
+      conversationId: conversation.id,
+      userId: actor.id,
+      agentRunId,
+      assistantMessageId: assistantMessage.id,
+    })
+    assert.lengthOf(attached, 1)
+
+    const response = await client
+      .post(
+        `/api/v1/ai-chat/conversations/${conversation.id}/confirmations/${proposal.id}/confirm/stream`
+      )
+      .bearerToken(token.value!.release())
+
+    response.assertStatus(200)
+    const body = response.text()
+    const credentialEvents = body
+      .split('\n\n')
+      .filter((event) => event.startsWith('event: credential_disclosure\n'))
+    assert.lengthOf(credentialEvents, 1)
+    const credentialPayload = JSON.parse(
+      credentialEvents[0]!.split('\n')[1]!.replace(/^data: /, '')
+    ) as { credential: { kind: string; value: string; label: string } }
+    assert.equal(credentialPayload.credential.kind, 'password')
+    assert.equal(credentialPayload.credential.label, email)
+
+    const createdUser = await User.query().where('email', email).preload('roles').firstOrFail()
+    assert.deepEqual(
+      createdUser.roles.map((role) => role.id),
+      [memberRole.id]
+    )
+    const completedMessage = await AiChatMessage.findOrFail(assistantMessage.id)
+    assert.include(completedMessage.content, '初始密码已通过当前网页会话的一次性安全消息展示')
+    assert.notInclude(completedMessage.content, credentialPayload.credential.value)
+    const completedConfirmation = await AiAgentConfirmation.findOrFail(proposal.id)
+    assert.notProperty(completedConfirmation.payload, 'password')
+    assert.exists(
+      await AuditLog.query()
+        .where('action', 'user.created')
+        .where('target_id', createdUser.id)
+        .first()
+    )
+  })
+
+  test('returns direct user credentials only through the secure disclosure callback', async ({
+    assert,
+  }) => {
+    const superAdminRole = await Role.findByOrFail('code', 'super-admin')
+    const memberRole = await Role.create({
+      code: `agent-direct-user-${Date.now()}`,
+      name: 'Agent direct user role',
+    })
+    const actor = await User.create({
+      fullName: 'Direct user creation administrator',
+      email: `direct-user-admin-${Date.now()}@example.com`,
+      password: generateInitialPassword(),
+    })
+    await actor.related('roles').sync([superAdminRole.id])
+    const email = `direct-created-by-agent-${Date.now()}@example.com`
+    let disclosed: { kind: string; value: string; label: string } | undefined
+    const ctx = {
+      auth: { getUserOrFail: () => actor },
+      request: {},
+    } as unknown as import('@adonisjs/core/http').HttpContext
+
+    const result = await executeAiAgentActionImmediately({
+      action: 'create_user',
+      actionInput: { fullName: 'Directly Created by Agent', email, roleIds: [memberRole.id] },
+      ctx,
+      onCredentialDisclosure: (credential) => {
+        disclosed = credential
+      },
+    })
+
+    const createdUser = await User.findBy('email', email)
+    assert.deepEqual(result, {
+      userId: createdUser?.id,
+      credentialCreated: { kind: 'password', label: email },
+    })
+    assert.equal(disclosed?.kind, 'password')
+    assert.equal(disclosed?.label, email)
+    assert.isString(disclosed?.value)
+    assert.notInclude(JSON.stringify(result), disclosed!.value)
+  })
+
+  test('ends the confirmation activity when a streamed proposal has expired', async ({
+    client,
+    assert,
+  }) => {
+    const superAdminRole = await Role.findByOrFail('code', 'super-admin')
+    const user = await User.create({
+      fullName: 'Expired streaming confirmation admin',
+      email: `expired-stream-confirmation-${Date.now()}@example.com`,
+      password: generateInitialPassword(),
+    })
+    await user.related('roles').sync([superAdminRole.id])
+    const token = await User.accessTokens.create(user)
+    const { confirmation, conversation } = await createConfirmation(user)
+    confirmation.expiresAt = DateTime.now().minus({ minutes: 1 })
+    await confirmation.save()
+
+    const response = await client
+      .post(
+        `/api/v1/ai-chat/conversations/${conversation.id}/confirmations/${confirmation.id}/confirm/stream`
+      )
+      .bearerToken(token.value!.release())
+
+    response.assertStatus(200)
+    const body = response.text()
+    assert.include(body, '"state":"running"')
+    assert.include(body, '"state":"error"')
+    assert.include(body, 'event: error')
+    const expiredMessage = await AiChatMessage.findOrFail(confirmation.assistantMessageId)
+    assert.deepInclude(expiredMessage.runtimeDetails[0], {
+      kind: 'tool',
+      state: 'error',
+      phase: 'expired',
+      message: '确认请求已过期，请重新发起',
+    })
+  })
+
+  test('rechecks API Key delete permission when a user confirms', async ({ client, assert }) => {
     const readPermission = await Permission.findByOrFail('code', 'api-keys:read')
     const role = await Role.create({ code: `reader-${Date.now()}`, name: 'Reader' })
     await role.related('permissions').sync([readPermission.id])
@@ -448,11 +1006,11 @@ test.group('AI agent confirmations', (group) => {
       .bearerToken(token.value!.release())
 
     response.assertStatus(403)
-    const activeApiKey = await ApiKey.findOrFail(apiKey.id)
-    const pendingRequest = await AiAgentConfirmation.findOrFail(confirmation.id)
-    assert.isNull(activeApiKey.revokedAt)
-    assert.equal(pendingRequest.status, 'pending')
-    assert.isNull(pendingRequest.executionToken)
+    const revokedApiKey = await ApiKey.findOrFail(apiKey.id)
+    const confirmedRequest = await AiAgentConfirmation.findOrFail(confirmation.id)
+    assert.isNull(revokedApiKey.revokedAt)
+    assert.equal(confirmedRequest.status, 'pending')
+    assert.isNull(confirmedRequest.executionToken)
   })
 
   test('claims a confirmation before execution so concurrent approvals run only once', async ({
@@ -534,7 +1092,7 @@ test.group('AI agent confirmations', (group) => {
       userId: user.id,
       conversationId: 1,
       agentRunId: crypto.randomUUID(),
-    }).find((tool) => tool.name === 'propose_api_key_revocation')
+    }).find((tool) => tool.name === 'revoke_api_key')
 
     const output = await executeTool(proposalTool!, {
       apiKeyId: 999_999_999,
@@ -568,15 +1126,15 @@ test.group('AI agent confirmations', (group) => {
       userId: user.id,
       conversationId: conversation.id,
       agentRunId: crypto.randomUUID(),
-    }).find((tool) => tool.name === 'propose_api_key_revocation')
+    }).find((tool) => tool.name === 'revoke_api_key')
 
     const output = await executeTool(proposalTool!, {
       name: apiKey.name,
     })
 
     const content = JSON.parse(String(output))
-    assert.equal(content.kind, 'confirmation', JSON.stringify(content))
-    assert.equal(content.confirmation.targetId, String(apiKey.id))
+    assert.equal(content.action, 'revoke_api_key', JSON.stringify(content))
+    assert.equal(content.targetId, String(apiKey.id))
   })
 
   test('returns a safe summary without exposing payload or fabricating a target ID', async ({
@@ -632,16 +1190,15 @@ test.group('AI agent confirmations', (group) => {
       userId: user.id,
       conversationId: conversation.id,
       agentRunId: crypto.randomUUID(),
-    }).find((tool) => tool.name === 'propose_api_key_deletion')
+    }).find((tool) => tool.name === 'delete_api_key')
 
     const output = await executeTool(proposalTool!, {
       name: apiKey.name,
     })
 
     const content = JSON.parse(String(output))
-    assert.equal(content.kind, 'confirmation', JSON.stringify(content))
-    assert.equal(content.confirmation.action, 'delete_api_key')
-    assert.equal(content.confirmation.targetId, String(apiKey.id))
+    assert.equal(content.action, 'delete_api_key', JSON.stringify(content))
+    assert.equal(content.targetId, String(apiKey.id))
   })
 
   test('refuses to delete an API Key that is still active', async ({ assert }) => {
@@ -661,7 +1218,7 @@ test.group('AI agent confirmations', (group) => {
       userId: user.id,
       conversationId: 1,
       agentRunId: crypto.randomUUID(),
-    }).find((tool) => tool.name === 'propose_api_key_deletion')
+    }).find((tool) => tool.name === 'delete_api_key')
 
     const output = await executeTool(proposalTool!, {
       apiKeyId: apiKey.id,
@@ -674,46 +1231,41 @@ test.group('AI agent confirmations', (group) => {
     })
   })
 
-  test('denies deleting an API Key proposal without the delete permission', async ({ assert }) => {
+  test('does not create an API Key deletion proposal without the delete permission', async ({
+    assert,
+  }) => {
     const user = await User.create({
       fullName: 'Deletion proposal reader',
       email: `deletion-proposal-reader-${Date.now()}@example.com`,
       password: generateInitialPassword(),
     })
-    const apiKey = await ApiKey.create({
-      name: `Denied deletion key ${Date.now()}`,
-      prefix: `dd${Date.now()}`,
-      keyHash: `hash-${Date.now()}`,
-      revokedAt: DateTime.now(),
-    })
-    const proposalTool = createAiAgentTools({
+    const conversation = await AiChatConversation.create({
       userId: user.id,
-      conversationId: 1,
+      title: 'Delete key without RBAC',
+    })
+    const error = await proposeAiAgentAction({
+      action: 'delete_api_key',
+      actionInput: { apiKeyId: 1 },
+      conversationId: conversation.id,
+      userId: user.id,
       agentRunId: crypto.randomUUID(),
-    }).find((tool) => tool.name === 'propose_api_key_deletion')
+    }).catch((caught: unknown) => caught)
 
-    const output = await executeTool(proposalTool!, {
-      apiKeyId: apiKey.id,
-    })
-
-    assert.deepEqual(JSON.parse(String(output)), {
-      kind: 'action_error',
-      code: 'permission_denied',
-      message: '当前账号没有执行此操作的权限',
-    })
+    assert.instanceOf(error, AiAgentConfirmationError)
+    assert.equal((error as AiAgentConfirmationError).status, 403)
     assert.isNull(await AiAgentConfirmation.query().where('requested_by_user_id', user.id).first())
   })
 
-  test('confirms deleting an already-revoked API Key for an authorized owner', async ({
+  test('confirms deleting a revoked API Key for an authorized conversation owner', async ({
     client,
     assert,
   }) => {
-    const superAdminRole = await Role.findByOrFail('code', 'super-admin')
     const user = await User.create({
       fullName: 'Deletion confirmation admin',
       email: `deletion-confirmation-${Date.now()}@example.com`,
       password: generateInitialPassword(),
     })
+    const superAdminRole = await Role.findByOrFail('code', 'super-admin')
     await user.related('roles').sync([superAdminRole.id])
     const token = await User.accessTokens.create(user)
     const conversation = await AiChatConversation.create({
@@ -744,7 +1296,6 @@ test.group('AI agent confirmations', (group) => {
       status: 'pending',
       expiresAt: DateTime.now().plus({ minutes: 5 }),
     })
-
     const response = await client
       .post(
         `/api/v1/ai-chat/conversations/${conversation.id}/confirmations/${confirmation.id}/confirm`
@@ -763,34 +1314,129 @@ test.group('AI agent confirmations', (group) => {
     )
   })
 
-  test('returns a terminal business result instead of throwing when proposal permission is denied', async ({
+  test('cancels an API Key creation proposal without creating the key', async ({
+    client,
     assert,
   }) => {
+    const user = await User.create({
+      fullName: 'Confirmation cancellation user',
+      email: `confirmation-cancel-${Date.now()}@example.com`,
+      password: generateInitialPassword(),
+    })
+    const token = await User.accessTokens.create(user)
+    const otherUser = await User.create({
+      fullName: 'Other confirmation owner',
+      email: `confirmation-cancel-other-${Date.now()}@example.com`,
+      password: generateInitialPassword(),
+    })
+    const otherToken = await User.accessTokens.create(otherUser)
+    const conversation = await AiChatConversation.create({
+      userId: user.id,
+      title: 'Cancel API Key creation',
+    })
+    const message = await AiChatMessage.create({
+      conversationId: conversation.id,
+      role: 'assistant',
+      content: 'A confirmation is required.',
+      runtimeDetails: [
+        {
+          kind: 'tool',
+          name: 'create_api_key',
+          state: 'done',
+          callId: 'create-api-key-call',
+          phase: 'awaiting_confirmation',
+          detail: { action: 'create_api_key' },
+        },
+      ],
+    })
+    const name = `Browser-qa-cancelled-${Date.now()}`
+    const confirmation = await AiAgentConfirmation.create({
+      conversationId: conversation.id,
+      assistantMessageId: message.id,
+      requestedByUserId: user.id,
+      agentRunId: crypto.randomUUID(),
+      action: 'create_api_key',
+      targetType: 'api_key',
+      targetId: null,
+      targetSummary: { name },
+      payload: { name, expiresAt: null },
+      status: 'pending',
+      expiresAt: DateTime.now().plus({ minutes: 5 }),
+    })
+    message.runtimeDetails = [
+      {
+        kind: 'tool',
+        name: 'create_api_key',
+        state: 'done',
+        callId: 'create-api-key-call',
+        phase: 'awaiting_confirmation',
+        detail: { action: confirmation.action, confirmationId: confirmation.id },
+      },
+    ]
+    await message.save()
+    const path = `/api/v1/ai-chat/conversations/${conversation.id}/confirmations/${confirmation.id}/cancel`
+
+    const denied = await client.post(path).bearerToken(otherToken.value!.release())
+    denied.assertStatus(404)
+    const pendingProposal = await AiAgentConfirmation.findOrFail(confirmation.id)
+    assert.equal(pendingProposal.status, 'pending')
+
+    const response = await client.post(path).bearerToken(token.value!.release())
+    response.assertStatus(200)
+    const responseData = response.body() as {
+      data: { presentation: { summary: string } }
+    }
+    assert.equal(responseData.data.presentation.summary, '操作已取消，未执行。')
+    const cancelledProposal = await AiAgentConfirmation.findOrFail(confirmation.id)
+    assert.equal(cancelledProposal.status, 'cancelled')
+    assert.isNull(await ApiKey.query().where('name', name).first())
+    const cancelledMessage = await AiChatMessage.findOrFail(message.id)
+    assert.lengthOf(cancelledMessage.runtimeDetails, 1)
+    assert.deepInclude(cancelledMessage.runtimeDetails[0], {
+      kind: 'tool',
+      phase: 'cancelled',
+      callId: 'create-api-key-call',
+    })
+    const cancellationAudit = await AuditLog.query()
+      .where('action', 'agent.proposal_cancelled')
+      .where('target_type', 'api_key')
+      .whereRaw("metadata->>'confirmationId' = ?", [String(confirmation.id)])
+      .first()
+    assert.exists(cancellationAudit)
+    assert.deepInclude(cancellationAudit!.metadata, {
+      confirmationId: confirmation.id,
+      source: 'api',
+    })
+
+    const confirmAfterCancel = await client
+      .post(
+        `/api/v1/ai-chat/conversations/${conversation.id}/confirmations/${confirmation.id}/confirm`
+      )
+      .bearerToken(token.value!.release())
+    confirmAfterCancel.assertStatus(409)
+    assert.isNull(await ApiKey.query().where('name', name).first())
+  })
+
+  test('does not create an API Key revocation proposal without RBAC grants', async ({ assert }) => {
     const user = await User.create({
       fullName: 'Proposal reader',
       email: `proposal-reader-${Date.now()}@example.com`,
       password: generateInitialPassword(),
     })
-    const apiKey = await ApiKey.create({
-      name: `Denied proposal key ${Date.now()}`,
-      prefix: 'id_denied_key',
-      keyHash: `hash-${Date.now()}`,
-    })
-    const proposalTool = createAiAgentTools({
+    const conversation = await AiChatConversation.create({
       userId: user.id,
-      conversationId: 1,
+      title: 'Revoke key without RBAC',
+    })
+    const error = await proposeAiAgentAction({
+      action: 'revoke_api_key',
+      actionInput: { apiKeyId: 1 },
+      conversationId: conversation.id,
+      userId: user.id,
       agentRunId: crypto.randomUUID(),
-    }).find((tool) => tool.name === 'propose_api_key_revocation')
+    }).catch((caught: unknown) => caught)
 
-    const output = await executeTool(proposalTool!, {
-      apiKeyId: apiKey.id,
-    })
-
-    assert.deepEqual(JSON.parse(String(output)), {
-      kind: 'action_error',
-      code: 'permission_denied',
-      message: '当前账号没有执行此操作的权限',
-    })
+    assert.instanceOf(error, AiAgentConfirmationError)
+    assert.equal((error as AiAgentConfirmationError).status, 403)
     assert.isNull(await AiAgentConfirmation.query().where('requested_by_user_id', user.id).first())
   })
 
@@ -886,7 +1532,7 @@ test.group('AI agent confirmations', (group) => {
     )
   })
 
-  test('requires send permission and confirmation for WeCom message delivery', async ({
+  test('requires both send permission and confirmation for WeCom message delivery', async ({
     assert,
   }) => {
     const template = await WecomMessageTemplate.create({
@@ -913,20 +1559,22 @@ test.group('AI agent confirmations', (group) => {
       password: generateInitialPassword(),
     })
     await reader.related('roles').sync([readerRole.id])
-    const deniedTool = createAiAgentTools({
+    const readerConversation = await AiChatConversation.create({
       userId: reader.id,
-      conversationId: 1,
+      title: 'WeCom send without permission',
+    })
+    const denied = await proposeAiAgentAction({
+      action: 'send_wecom_message',
+      actionInput: { templateId: template.id, params: { content: '不应发送' } },
+      conversationId: readerConversation.id,
+      userId: reader.id,
       agentRunId: crypto.randomUUID(),
-    }).find((tool) => tool.name === 'propose_wecom_message_send')
-    const denied = await executeTool(deniedTool!, {
-      templateId: template.id,
-      params: { content: '不应发送' },
-    })
-    assert.deepEqual(JSON.parse(String(denied)), {
-      kind: 'action_error',
-      code: 'permission_denied',
-      message: '当前账号没有执行此操作的权限',
-    })
+    }).catch((error: unknown) => error)
+    assert.instanceOf(denied, AiAgentConfirmationError)
+    assert.equal((denied as AiAgentConfirmationError).status, 403)
+    assert.isNull(
+      await AiAgentConfirmation.query().where('requested_by_user_id', reader.id).first()
+    )
 
     const adminRole = await Role.findByOrFail('code', 'super-admin')
     const admin = await User.create({
@@ -940,7 +1588,7 @@ test.group('AI agent confirmations', (group) => {
       userId: admin.id,
       conversationId: conversation.id,
       agentRunId: crypto.randomUUID(),
-    }).find((tool) => tool.name === 'propose_wecom_message_send')
+    }).find((tool) => tool.name === 'send_wecom_message')
     const proposal = JSON.parse(
       String(
         await executeTool(proposalTool!, {
@@ -950,10 +1598,9 @@ test.group('AI agent confirmations', (group) => {
         })
       )
     )
-    assert.equal(proposal.kind, 'confirmation')
     assert.notInclude(JSON.stringify(proposal), '业务内容')
     assert.include(JSON.stringify(proposal), 'content')
-    const stored = await AiAgentConfirmation.findOrFail(proposal.confirmation.id)
+    const stored = await AiAgentConfirmation.findOrFail(proposal.id)
     assert.equal(stored.status, 'pending')
     assert.notInclude(JSON.stringify(stored.payload), '业务内容')
   })

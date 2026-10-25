@@ -33,6 +33,7 @@ FROM node:24.15.0-bookworm-slim AS backend
 ENV NODE_ENV=production
 COPY --from=backend-build /app/apps/backend/build /app
 COPY --from=backend-deps /tmp/backend-runtime/node_modules /app/node_modules
+RUN install -d -m 700 -o node -g node /app/log/backend
 WORKDIR /app
 USER node
 EXPOSE 13333

@@ -6,7 +6,7 @@ export const knowledgeDocumentValidator = vine.compile(
     content: vine.string().trim().minLength(1).maxLength(5_000_000),
     summary: vine.string().trim().maxLength(2_000).optional().nullable(),
     topics: vine.array(vine.string().trim().minLength(1).maxLength(80)).maxLength(20).optional(),
-    roleIds: vine.array(vine.number().positive()).optional(),
+    enabled: vine.boolean().optional(),
   })
 )
 

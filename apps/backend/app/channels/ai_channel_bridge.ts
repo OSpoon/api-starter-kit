@@ -2,6 +2,7 @@ import type { HttpContext } from '@adonisjs/core/http'
 import logger from '@adonisjs/core/services/logger'
 
 import { runAiChatAssistantTurn } from '#ai/chat/ai_chat_turn_service'
+import { summarizeConfirmedToolResult } from '#ai/chat/confirmed_tool_result_summary'
 import {
   AiAgentConfirmationError,
   cancelAiAgentAction,
@@ -19,6 +20,7 @@ import type {
   OutboundMessage,
 } from '#channels/channel_types'
 import type { ReloadableBotRuntime } from '#channels/reloadable_ai_channel_runtime'
+import AiAgentConfirmation from '#models/ai_agent_confirmation'
 import AiChatMessage from '#models/ai_chat_message'
 import User from '#models/user'
 import { createChannelBindingChallenge } from '#services/channel_binding_service'
@@ -81,6 +83,15 @@ function confirmationReply(value: Record<string, unknown>): OutboundMessage | nu
     return null
   }
 
+  const changes = Array.isArray(card.changes)
+    ? card.changes.flatMap((changeValue) => {
+        if (!changeValue || typeof changeValue !== 'object') return []
+        const change = changeValue as Record<string, unknown>
+        if (typeof change.label !== 'string' || typeof change.value !== 'string') return []
+        return [{ label: change.label, value: change.value }]
+      })
+    : []
+
   return {
     kind: 'confirmation',
     title: card.title,
@@ -88,6 +99,9 @@ function confirmationReply(value: Record<string, unknown>): OutboundMessage | nu
     confirmationId: String(candidate.id),
     confirmLabel: card.approveLabel,
     cancelLabel: card.cancelLabel,
+    ...(typeof card.targetLabel === 'string' ? { targetLabel: card.targetLabel } : {}),
+    ...(changes.length ? { changes } : {}),
+    ...(typeof card.impactLabel === 'string' ? { impactLabel: card.impactLabel } : {}),
   }
 }
 
@@ -194,7 +208,7 @@ export class AiChannelBridge implements ReloadableBotRuntime {
         userId: user.id,
         userMessage,
         regeneration: null,
-        capabilityMode: isVisitor ? 'knowledge-only' : 'full',
+        capabilityMode: isVisitor ? 'knowledge-only' : 'channel',
         signal: new AbortController().signal,
         ctx: createChannelHttpContext(user, message.channel),
         onEvent: async (event, data) => {
@@ -243,14 +257,10 @@ export class AiChannelBridge implements ReloadableBotRuntime {
                   conversationKey: message.conversationKey,
                   conversationId: conversation.id,
                   artifactKind: artifact.kind ?? null,
-                  hasConfirmation: Boolean(artifact.confirmation),
                 },
                 'Channel AI tool completed'
               )
-              if (artifact.kind === 'confirmation' && artifact.confirmation) {
-                managedActionResult = 'pending'
-                confirmation = artifact.confirmation as Record<string, unknown>
-              } else if (artifact.kind === 'action_error') {
+              if (artifact.kind === 'action_error') {
                 managedActionResult = 'error'
               }
             }
@@ -371,11 +381,57 @@ export class AiChannelBridge implements ReloadableBotRuntime {
     const ctx = createChannelHttpContext(user, input.channel)
     try {
       if (input.actionKey === `confirm:${input.taskId}`) {
+        const proposal = await AiAgentConfirmation.query()
+          .where('id', confirmationId)
+          .where('conversation_id', conversation.id)
+          .where('requested_by_user_id', user.id)
+          .first()
+        const isToolAction =
+          proposal?.action === 'call_mcp_tool' || proposal?.action === 'call_builtin_tool'
+        const proposalMessage =
+          isToolAction && proposal?.assistantMessageId
+            ? await AiChatMessage.query()
+                .where('id', proposal.assistantMessageId)
+                .where('conversation_id', conversation.id)
+                .where('role', 'assistant')
+                .first()
+            : null
+        if (isToolAction && !proposalMessage) {
+          return textReply('找不到工具提案对应的助手消息，操作未执行。')
+        }
+
         const execution = await confirmAiAgentAction(ctx, {
           confirmationId,
           conversationId: conversation.id,
           userId: user.id,
         })
+        if (isToolAction && proposalMessage) {
+          let reply = ''
+          try {
+            const summary = await summarizeConfirmedToolResult({
+              ctx,
+              conversation,
+              assistantMessage: proposalMessage,
+              userId: user.id,
+              result:
+                execution.result && typeof execution.result === 'object'
+                  ? execution.result
+                  : undefined,
+              onEvent: (event, data) => {
+                if (event !== 'delta' || !data || typeof data !== 'object') return
+                const content = (data as Record<string, unknown>).content
+                if (typeof content === 'string') reply += content
+              },
+            })
+            return textReply(reply.trim() || summary.reply)
+          } catch (error) {
+            logger.error(
+              { err: error, confirmationId, conversationId: conversation.id },
+              'Confirmed channel tool result could not be summarized'
+            )
+            return textReply('工具已执行，但 Agent 未能整理返回结果。请查看会话记录。')
+          }
+        }
         return textReply(
           await getAiAgentActionResultMessage({
             confirmationId,

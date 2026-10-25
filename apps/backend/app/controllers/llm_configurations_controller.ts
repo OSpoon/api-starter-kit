@@ -8,7 +8,10 @@ import {
   updateLlmConfiguration,
 } from '#services/llm_configuration_service'
 import { testLlmConnections } from '#services/llm_connection_test_service'
-import { updateLlmConfigurationValidator } from '#validators/llm_configuration'
+import {
+  testLlmConnectionValidator,
+  updateLlmConfigurationValidator,
+} from '#validators/llm_configuration'
 
 @ApiSecurity('bearerAuth')
 export default class LlmConfigurationsController {
@@ -41,8 +44,12 @@ export default class LlmConfigurationsController {
     return serialize(serializeLlmConfiguration(config))
   }
 
-  @ApiOperation({ summary: '测试 LLM 连接' })
-  async test() {
-    return { data: await testLlmConnections() }
+  @ApiOperation({
+    summary: '测试指定 LLM 连接',
+    description: '省略 service 时测试所有已配置模型。',
+  })
+  async test(ctx: HttpContext) {
+    const { service } = await ctx.request.validateUsing(testLlmConnectionValidator)
+    return { data: await testLlmConnections(service) }
   }
 }
