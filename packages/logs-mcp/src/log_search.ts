@@ -188,6 +188,11 @@ async function listLogFiles(logDirectory: string) {
   return files
 }
 
+export async function listLogServices(logDirectory: string) {
+  const files = await listLogFiles(logDirectory)
+  return [...new Set(files.map(({ service }) => service))].sort()
+}
+
 export async function searchLogs(logDirectory: string, input: LogSearchInput) {
   const limit = input.limit ?? 20
   const offset = input.offset ?? 0

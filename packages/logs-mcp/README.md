@@ -27,7 +27,9 @@ Agent 使用 `npx --no-install` 启动本机链接的包，不会从 npm 下载�
 
 `npm link` 创建本机 symlink；第二条 link 命令必须在 backend 目录执行，供 backend 的 `npx` 找到本地 `logs-mcp` 可执行入口。`--ignore-scripts` 避免 npm 执行 pnpm workspace 依赖的安装脚本。
 
-发现并启用 `search_logs` 后，可按服务名、关键词、请求 ID、级别和时间范围查询。MCP 会递归
+发现并启用 `list_log_services`、`get_latest_log` 和 `search_logs` 后，可按需选择能力：先用
+`list_log_services` 取得准确的服务名；用 `get_latest_log` 取最新一条匹配记录；用 `search_logs`
+按服务名、关键词、请求 ID、级别和时间范围分页查询。MCP 会递归
 扫描配置的日志根目录；每个服务的活动日志和轮转日志需使用 `<service>.log` 和
 `<service>.<rotation>.log` 命名，例如 `backend.log`、`backend.1.log`。目录只有一个服务时可省略
 服务名；有多个服务时，工具会返回可用服务名并要求指定查询目标。服务名不匹配时也会返回可用名称。
