@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import {
   Activity,
+  BrainCircuit,
   Cpu,
   HardDrive,
   MemoryStick,
   RefreshCw,
   Server,
-  Sparkles,
   Terminal,
 } from '@lucide/vue'
 import { useIntervalFn } from '@vueuse/core'
@@ -296,7 +296,7 @@ useIntervalFn(() => void refreshAiOverview(), 60_000, { immediateCallback: true 
     <Card class="order-4">
       <CardHeader class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div class="flex items-start gap-3">
-          <Sparkles class="mt-0.5 size-5 shrink-0 text-primary" />
+          <BrainCircuit class="mt-0.5 size-5 shrink-0 text-primary" />
           <div>
             <CardTitle>{{ t('system_status.ai_overview_title') }}</CardTitle>
             <p class="mt-1 text-sm text-muted-foreground">

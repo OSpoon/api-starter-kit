@@ -2,6 +2,7 @@ import {
   type AiAgentToolMode,
   type BuiltInAiAgentToolName,
   builtInAiAgentToolNames,
+  canConfigureAiAgentToolMode,
   defaultAiAgentToolMode,
   requiresAiAgentToolConfirmation,
 } from '#ai/core/ai_agent_tool_catalog'
@@ -11,6 +12,7 @@ export type AiAgentToolSetting = {
   code: BuiltInAiAgentToolName
   enabled: boolean
   mode: AiAgentToolMode
+  modeConfigurable: boolean
   requiresConfirmation: boolean
 }
 
@@ -23,9 +25,10 @@ export async function getAiAgentToolSettings(): Promise<AiAgentToolSetting[]> {
   return builtInAiAgentToolNames.map((code) => ({
     code,
     enabled: configuredNames.has(code),
-    mode: requiresAiAgentToolConfirmation(code)
-      ? 'confirm'
-      : (modes[code] ?? defaultAiAgentToolMode(code)),
+    mode: canConfigureAiAgentToolMode(code)
+      ? (modes[code] ?? defaultAiAgentToolMode(code))
+      : defaultAiAgentToolMode(code),
+    modeConfigurable: canConfigureAiAgentToolMode(code),
     requiresConfirmation: requiresAiAgentToolConfirmation(code),
   }))
 }
@@ -53,9 +56,9 @@ export async function updateAiAgentToolSettings(settings: AiAgentToolSettingInpu
   const toolModes = Object.fromEntries(
     builtInAiAgentToolNames.map((code) => [
       code,
-      requiresAiAgentToolConfirmation(code)
-        ? 'confirm'
-        : (configured.get(code)?.mode ?? defaultAiAgentToolMode(code)),
+      canConfigureAiAgentToolMode(code)
+        ? (configured.get(code)?.mode ?? defaultAiAgentToolMode(code))
+        : defaultAiAgentToolMode(code),
     ])
   ) as Record<BuiltInAiAgentToolName, AiAgentToolMode>
   const configuration = await AiAgentConfiguration.updateOrCreate(

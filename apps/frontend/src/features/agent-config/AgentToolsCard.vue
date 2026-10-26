@@ -59,7 +59,7 @@ const columns = computed<ColumnDef<AgentToolSetting>[]>(() => [
           Select,
           {
             modelValue: row.original.mode,
-            disabled: !canUpdate.value || saving.value,
+            disabled: !canUpdate.value || saving.value || !row.original.modeConfigurable,
             'aria-label': t('agent_config.set_tool_mode', {
               name: t(`agent_config.tool_names.${row.original.code}`),
             }),
@@ -81,12 +81,16 @@ const columns = computed<ColumnDef<AgentToolSetting>[]>(() => [
             ]),
           ]
         ),
-        ...(row.original.requiresConfirmation
+        ...(!row.original.modeConfigurable
           ? [
               h(
                 'p',
                 { class: 'max-w-48 text-xs text-muted-foreground' },
-                t('agent_config.tool_confirmation_required')
+                t(
+                  row.original.requiresConfirmation
+                    ? 'agent_config.tool_confirmation_required'
+                    : 'agent_config.tool_mode_fixed'
+                )
               ),
             ]
           : []),
@@ -137,6 +141,7 @@ function setMode(code: string, mode: unknown) {
   if (saving.value) return
   if (mode !== 'direct' && mode !== 'confirm') return
   const tool = tools.value.find((item) => item.code === code)
+  if (!tool?.modeConfigurable) return
   if (tool) {
     tool.mode = mode
     void save()

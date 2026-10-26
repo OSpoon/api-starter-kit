@@ -621,7 +621,9 @@ test.group('AI agent confirmations', (group) => {
     assert.lengthOf(await AiAgentConfirmation.query().where('agent_run_id', input.agentRunId), 1)
   })
 
-  test('labels built-in tool and skill confirmations by their actual type', async ({ assert }) => {
+  test('labels configurable built-in tool confirmations by their actual type', async ({
+    assert,
+  }) => {
     const superAdminRole = await Role.findByOrFail('code', 'super-admin')
     const user = await User.create({
       fullName: 'Confirmation type admin',
@@ -636,11 +638,15 @@ test.group('AI agent confirmations', (group) => {
     const settings = await getAiAgentToolSettings()
     await updateAiAgentToolSettings(
       settings.map((setting) =>
-        ['run_registered_query', 'load_agent_skill'].includes(setting.code)
-          ? { ...setting, mode: 'confirm' }
-          : setting
+        setting.code === 'run_registered_query' ? { ...setting, mode: 'confirm' } : setting
       )
     )
+    const configuredSettings = await getAiAgentToolSettings()
+    const lockedSkillSetting = configuredSettings.find(
+      (setting) => setting.code === 'load_agent_skill'
+    )
+    assert.isFalse(lockedSkillSetting!.modeConfigurable)
+    assert.equal(lockedSkillSetting!.mode, 'direct')
 
     const queryConfirmation = await proposeAiAgentAction({
       action: 'call_builtin_tool',
@@ -656,23 +662,6 @@ test.group('AI agent confirmations', (group) => {
     assert.deepInclude(queryConfirmation.presentation.changes, {
       label: '工具',
       value: 'run_registered_query',
-    })
-
-    const skillConfirmation = await proposeAiAgentAction({
-      action: 'call_builtin_tool',
-      actionInput: {
-        toolName: 'load_agent_skill',
-        arguments: { code: 'log_lookup' },
-      },
-      conversationId: conversation.id,
-      userId: user.id,
-      agentRunId: crypto.randomUUID(),
-    })
-    assert.equal(skillConfirmation.presentation.title, '确认加载技能')
-    assert.equal(skillConfirmation.presentation.targetLabel, 'log_lookup')
-    assert.deepInclude(skillConfirmation.presentation.changes, {
-      label: '技能',
-      value: 'log_lookup',
     })
   })
 

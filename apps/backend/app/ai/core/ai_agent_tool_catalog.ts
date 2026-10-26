@@ -22,10 +22,25 @@ export const builtInAiAgentToolsRequiringConfirmation = [
   'send_wecom_message',
 ] as const satisfies readonly BuiltInAiAgentToolName[]
 
+const builtInAiAgentToolsWithFixedPolicy = [
+  'diagnose_my_access',
+  'search_knowledge_catalog',
+  'search_knowledge',
+  'list_agent_skills',
+  'load_agent_skill',
+] as const satisfies readonly BuiltInAiAgentToolName[]
+
 export type AiAgentToolMode = 'direct' | 'confirm'
 
 export function requiresAiAgentToolConfirmation(name: BuiltInAiAgentToolName) {
   return builtInAiAgentToolsRequiringConfirmation.some((tool) => tool === name)
+}
+
+export function canConfigureAiAgentToolMode(name: BuiltInAiAgentToolName) {
+  return (
+    !requiresAiAgentToolConfirmation(name) &&
+    !builtInAiAgentToolsWithFixedPolicy.some((tool) => tool === name)
+  )
 }
 
 export function defaultAiAgentToolMode(name: BuiltInAiAgentToolName): AiAgentToolMode {

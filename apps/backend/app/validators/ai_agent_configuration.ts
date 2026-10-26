@@ -25,7 +25,6 @@ const skillFields = {
     .maxLength(64)
     .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
   name: vine.string().trim().minLength(1).maxLength(128),
-  description: vine.string().trim().minLength(1).maxLength(1024),
   instructions: vine.string().trim().minLength(1).maxLength(50_000),
   enabled: vine.boolean(),
 }
@@ -36,7 +35,6 @@ export const updateAiAgentSkillValidator = vine.compile(
   vine.object({
     code: skillFields.code.optional(),
     name: skillFields.name.optional(),
-    description: skillFields.description.optional(),
     instructions: skillFields.instructions.optional(),
     enabled: skillFields.enabled.optional(),
   })

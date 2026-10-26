@@ -1,20 +1,20 @@
 <script setup lang="ts">
+import { markdown } from '@codemirror/lang-markdown'
+import { placeholder } from '@codemirror/view'
 import { toTypedSchema } from '@vee-validate/zod'
 import { useForm } from 'vee-validate'
 import { toast } from 'vue-sonner'
 import { z } from 'zod'
 
+import CodeEditor from '@/components/common/CodeEditor.vue'
 import FormDialogContent from '@/components/common/FormDialogContent.vue'
 import FormDialogFooter from '@/components/common/FormDialogFooter.vue'
 import { Button } from '@/components/ui/button'
 import { Dialog } from '@/components/ui/dialog'
 import { FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
-import type { AgentSkill } from '@/features/agent-config/api'
+import type { AgentSkill, AgentSkillInput } from '@/features/agent-config/api'
 import { firstFormError } from '@/lib/form-validation'
-
-type AgentSkillInput = Omit<AgentSkill, 'id' | 'updatedAt' | 'enabled'>
 
 const props = defineProps<{
   open: boolean
@@ -26,6 +26,10 @@ const emit = defineEmits<{
   save: [value: AgentSkillInput]
 }>()
 const { t } = useI18n()
+const markdownEditorExtensions = computed(() => [
+  markdown(),
+  placeholder(t('agent_config.skill_content_placeholder')),
+])
 const formSchema = computed(() =>
   toTypedSchema(
     z.object({
@@ -36,12 +40,7 @@ const formSchema = computed(() =>
         .max(64)
         .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, t('agent_config.skill_code_invalid')),
       name: z.string().trim().min(1, t('agent_config.skill_name_required')).max(128),
-      description: z.string().trim().min(1, t('agent_config.skill_description_required')).max(1024),
-      instructions: z
-        .string()
-        .trim()
-        .min(1, t('agent_config.skill_instructions_required'))
-        .max(50000),
+      instructions: z.string().trim().min(1, t('agent_config.skill_content_required')).max(50000),
     })
   )
 )
@@ -50,7 +49,6 @@ const form = useForm<AgentSkillInput>({
   initialValues: {
     code: '',
     name: '',
-    description: '',
     instructions: '',
   },
 })
@@ -64,10 +62,9 @@ watch(
         ? {
             code: skill.code,
             name: skill.name,
-            description: skill.description,
             instructions: skill.instructions,
           }
-        : { code: '', name: '', description: '', instructions: '' },
+        : { code: '', name: '', instructions: '' },
     })
   }
 )
@@ -111,26 +108,16 @@ const submit = form.handleSubmit(
                 <FormMessage />
               </FormItem>
             </FormField>
-            <FormField v-slot="{ componentField }" name="description" :validate-on-blur="false">
-              <FormItem>
-                <FormLabel>{{ t('agent_config.skill_description') }}</FormLabel>
-                <FormControl
-                  ><Textarea
-                    v-bind="componentField"
-                    rows="2"
-                    :placeholder="t('agent_config.skill_description_placeholder')"
-                /></FormControl>
-                <FormMessage />
-              </FormItem>
-            </FormField>
             <FormField v-slot="{ componentField }" name="instructions" :validate-on-blur="false">
               <FormItem>
-                <FormLabel>{{ t('agent_config.skill_instructions') }}</FormLabel>
+                <FormLabel>{{ t('agent_config.skill_content') }}</FormLabel>
                 <FormControl
-                  ><Textarea
+                  ><CodeEditor
                     v-bind="componentField"
-                    rows="8"
-                    :placeholder="t('agent_config.skill_instructions_placeholder')"
+                    :model-value="String(componentField.modelValue ?? '')"
+                    class="h-80 rounded-md border bg-background"
+                    :extensions="markdownEditorExtensions"
+                    :aria-label="t('agent_config.skill_content')"
                 /></FormControl>
                 <FormMessage />
               </FormItem>

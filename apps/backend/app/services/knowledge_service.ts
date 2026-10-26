@@ -1,8 +1,11 @@
 import crypto from 'node:crypto'
 
+import { Bouncer } from '@adonisjs/bouncer'
 import db from '@adonisjs/lucid/services/db'
 
+import { access } from '#abilities/main'
 import KnowledgeDocument from '#models/knowledge_document'
+import User from '#models/user'
 import { getKnowledgeProvider } from '#services/knowledge_provider'
 
 export { buildSemanticKnowledgeChunks, splitKnowledgeContent } from '#services/knowledge_chunking'
@@ -18,6 +21,7 @@ export type CreateKnowledgeDocumentInput = {
   enabled?: boolean
   summary?: string | null
   topics?: string[]
+  roleIds?: number[]
 }
 
 export type KnowledgeDocumentMetadata = Pick<CreateKnowledgeDocumentInput, 'summary' | 'topics'>
@@ -56,6 +60,7 @@ export async function createKnowledgeDocument(input: CreateKnowledgeDocumentInpu
       topics: input.topics ?? [],
     })
     await created.save()
+    if (input.roleIds) await created.related('roles').sync(input.roleIds)
     return created
   })
 
@@ -96,10 +101,26 @@ export async function deleteKnowledgeDocument(document: KnowledgeDocument) {
   await document.delete()
 }
 
+async function knowledgeProviderAccess(user: User, publicOnly: boolean) {
+  const bouncer = new Bouncer(() => user, { access })
+  if (!(await bouncer.allows('access', 'knowledge:read'))) {
+    throw new Error('当前账号没有执行此操作的权限')
+  }
+  if (publicOnly) return { isSuperAdmin: false, roleIds: [] }
+
+  const roles = await user.related('roles').query()
+  return {
+    isSuperAdmin: roles.some((role) => role.code === 'super-admin'),
+    roleIds: roles.map((role) => role.id),
+  }
+}
+
 export async function searchKnowledge(input: {
+  userId: number
   query: string
   documentIds: number[]
   limit?: number
+  publicOnly?: boolean
 }) {
   const query = input.query.trim()
   if (!query) throw new Error('知识库检索内容不能为空')
@@ -110,21 +131,33 @@ export async function searchKnowledge(input: {
     throw new Error('文档精检索必须限定在 1 到 10 个目录结果内')
   }
 
+  const user = await User.findOrFail(input.userId)
+  const providerAccess = await knowledgeProviderAccess(user, input.publicOnly ?? false)
+
   return getKnowledgeProvider().search({
     query,
     documentIds,
+    access: providerAccess,
     limit,
   })
 }
 
-export async function searchKnowledgeCatalog(input: { query: string; limit?: number }) {
+export async function searchKnowledgeCatalog(input: {
+  userId: number
+  query: string
+  limit?: number
+  publicOnly?: boolean
+}) {
   const query = input.query.trim()
   if (!query) throw new Error('知识库目录检索内容不能为空')
 
   const limit = Math.min(Math.max(input.limit ?? 12, 1), 12)
+  const user = await User.findOrFail(input.userId)
+  const providerAccess = await knowledgeProviderAccess(user, input.publicOnly ?? false)
 
   return getKnowledgeProvider().searchCatalog({
     query,
+    access: providerAccess,
     limit,
   })
 }

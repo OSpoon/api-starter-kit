@@ -61,7 +61,12 @@ test.group('Agent configuration', (group) => {
     assert.isAbove(tools.length, 0)
     assert.isTrue(tools.every((tool) => typeof tool.enabled === 'boolean'))
     assert.isTrue(tools.every((tool) => tool.mode === 'direct' || tool.mode === 'confirm'))
+    assert.isTrue(tools.every((tool) => typeof tool.modeConfigurable === 'boolean'))
     assert.isTrue(tools.every((tool) => typeof tool.requiresConfirmation === 'boolean'))
+    assert.deepEqual(
+      tools.filter((tool) => tool.modeConfigurable).map((tool) => tool.code),
+      ['run_registered_query']
+    )
 
     const updatedSettings = tools.map((tool) => ({
       ...tool,
@@ -80,6 +85,7 @@ test.group('Agent configuration', (group) => {
           code: string
           enabled: boolean
           mode: string
+          modeConfigurable: boolean
           requiresConfirmation: boolean
         }>
       }
@@ -121,17 +127,29 @@ test.group('Agent configuration', (group) => {
       agentRunId: crypto.randomUUID(),
     })
     const confirmedSettings = (
-      confirmed.body().data as { tools: Array<{ code: string; mode: string }> }
+      confirmed.body().data as {
+        tools: Array<{
+          code: string
+          mode: string
+          modeConfigurable: boolean
+          requiresConfirmation: boolean
+        }>
+      }
     ).tools
-    assert.isTrue(confirmedSettings.every((tool) => tool.mode === 'confirm'))
-    for (const setting of saved) {
+    assert.isTrue(
+      confirmedSettings.every(
+        (tool) =>
+          tool.mode === (tool.modeConfigurable || tool.requiresConfirmation ? 'confirm' : 'direct')
+      )
+    )
+    for (const setting of confirmedSettings) {
       const runtimeTool = confirmationTools.find(({ name }) => name === setting.code) as
         | ((typeof confirmationTools)[number] & { prepareConfirmation?: unknown })
         | undefined
       assert.exists(runtimeTool, setting.code)
       assert.equal(
         typeof runtimeTool!.prepareConfirmation === 'function',
-        true,
+        setting.mode === 'confirm',
         'confirmation hook should match configured mode for ' + setting.code
       )
     }
@@ -226,8 +244,7 @@ test.group('Agent configuration', (group) => {
       .json({
         code: 'invoice-review',
         name: 'Invoice review',
-        description: 'Review invoice exceptions',
-        instructions: 'Check the invoice data and explain discrepancies.',
+        instructions: '# Invoice review\n\nReview invoice exceptions and explain discrepancies.',
         enabled: true,
       })
     created.assertStatus(200)
@@ -239,6 +256,7 @@ test.group('Agent configuration', (group) => {
     const skillSummary = skillItems.find(({ id }) => id === skillId)
     assert.exists(skillSummary)
     assert.notProperty(skillSummary!, 'instructions')
+    assert.equal(skillSummary!.description, 'Review invoice exceptions and explain discrepancies.')
 
     const detail = await client
       .get(`/api/v1/system/agent-config/skills/${skillId}`)
@@ -246,7 +264,7 @@ test.group('Agent configuration', (group) => {
     detail.assertStatus(200)
     assert.equal(
       detail.body().data.instructions,
-      'Check the invoice data and explain discrepancies.'
+      '# Invoice review\n\nReview invoice exceptions and explain discrepancies.'
     )
 
     const tools = createAiAgentTools({
@@ -256,19 +274,25 @@ test.group('Agent configuration', (group) => {
     })
     const listTool = tools.find(({ name }) => name === 'list_agent_skills')!
     const listed = await listTool.execute('list-skills-test', {})
-    assert.isTrue(
-      (listed.details as { skills: Array<{ code: string }> }).skills.some(
-        ({ code }) => code === 'invoice-review'
-      )
-    )
+    const listedSkill = (
+      listed.details as { skills: Array<{ code: string; description: string }> }
+    ).skills.find(({ code }) => code === 'invoice-review')
+    assert.equal(listedSkill?.description, 'Review invoice exceptions and explain discrepancies.')
 
     const loadTool = tools.find(({ name }) => name === 'load_agent_skill')!
     const loaded = await loadTool.execute('load-skill-test', { code: 'invoice-review' })
     assert.deepInclude(loaded.details, {
       kind: 'agent_skill',
       code: 'invoice-review',
-      instructions: 'Check the invoice data and explain discrepancies.',
+      instructions: '# Invoice review\n\nReview invoice exceptions and explain discrepancies.',
     })
+
+    const updated = await client
+      .put(`/api/v1/system/agent-config/skills/${skillId}`)
+      .bearerToken(token)
+      .json({ instructions: '## Steps\n\n1. Verify the invoice total.' })
+    updated.assertStatus(200)
+    assert.equal(updated.body().data.description, '1. Verify the invoice total.')
   })
 
   test('encrypts MCP environment values and never returns them', async ({ client, assert }) => {

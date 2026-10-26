@@ -123,7 +123,85 @@ test.group('knowledge documents', (group) => {
     deniedResponse.assertStatus(403)
   })
 
-  test('lists disabled documents with their enabled state and no role access data', async ({
+  test('limits document visibility to assigned roles while managers can see all', async ({
+    client,
+    assert,
+  }) => {
+    const readPermission = await Permission.findByOrFail('code', 'knowledge:read')
+    const managePermission = await Permission.findByOrFail('code', 'knowledge:manage')
+    const allowedRole = await Role.create({
+      code: `knowledge-allowed-${Date.now()}`,
+      name: 'Allowed',
+    })
+    const otherRole = await Role.create({ code: `knowledge-other-${Date.now()}`, name: 'Other' })
+    const managerRole = await Role.create({
+      code: `knowledge-manager-${Date.now()}`,
+      name: 'Manager',
+    })
+    await allowedRole.related('permissions').sync([readPermission.id])
+    await managerRole.related('permissions').sync([readPermission.id, managePermission.id])
+
+    const suffix = `${Date.now()}`
+    const publicDocument = await KnowledgeDocument.create({
+      title: `Public ${suffix}`,
+      content: 'Visible to all readers',
+      contentHash: `${suffix}a`.slice(0, 64),
+      topics: [],
+    })
+    const allowedDocument = await KnowledgeDocument.create({
+      title: `Allowed ${suffix}`,
+      content: 'Visible to the matching role',
+      contentHash: `${suffix}b`.slice(0, 64),
+      topics: [],
+    })
+    await allowedDocument.related('roles').sync([allowedRole.id])
+    const hiddenDocument = await KnowledgeDocument.create({
+      title: `Restricted ${suffix}`,
+      content: 'Visible to another role',
+      contentHash: `${suffix}c`.slice(0, 64),
+      topics: [],
+    })
+    await hiddenDocument.related('roles').sync([otherRole.id])
+
+    const reader = await User.create({
+      fullName: 'Role-scoped knowledge reader',
+      email: `knowledge-scoped-${suffix}@example.com`,
+      password: generateInitialPassword(),
+    })
+    await reader.related('roles').sync([allowedRole.id])
+    const readerToken = await User.accessTokens.create(reader)
+    const readerResponse = await client
+      .get(`/api/v1/system/knowledge-documents?search=${suffix}`)
+      .bearerToken(readerToken.value!.release())
+    readerResponse.assertStatus(200)
+    const readerTitles = (
+      readerResponse.body().data as { items: Array<{ title: string }> }
+    ).items.map((document) => document.title)
+    assert.includeMembers(readerTitles, [publicDocument.title, allowedDocument.title])
+    assert.notInclude(readerTitles, hiddenDocument.title)
+
+    const manager = await User.create({
+      fullName: 'Knowledge manager',
+      email: `knowledge-manager-${suffix}@example.com`,
+      password: generateInitialPassword(),
+    })
+    await manager.related('roles').sync([managerRole.id])
+    const managerToken = await User.accessTokens.create(manager)
+    const managerResponse = await client
+      .get(`/api/v1/system/knowledge-documents?search=${suffix}`)
+      .bearerToken(managerToken.value!.release())
+    managerResponse.assertStatus(200)
+    const managerTitles = (
+      managerResponse.body().data as { items: Array<{ title: string }> }
+    ).items.map((document) => document.title)
+    assert.includeMembers(managerTitles, [
+      publicDocument.title,
+      allowedDocument.title,
+      hiddenDocument.title,
+    ])
+  })
+
+  test('lists disabled documents with their enabled state and role access data', async ({
     client,
     assert,
   }) => {
@@ -151,6 +229,6 @@ test.group('knowledge documents', (group) => {
     const listed = items.find((item) => item.id === document.id)
     assert.exists(listed)
     assert.isFalse(listed!.enabled)
-    assert.notProperty(listed!, 'roles')
+    assert.deepEqual(listed!.roles, [])
   })
 })

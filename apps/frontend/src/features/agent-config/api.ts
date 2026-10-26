@@ -75,6 +75,7 @@ export interface AgentToolSetting {
   code: string
   enabled: boolean
   mode: 'direct' | 'confirm'
+  modeConfigurable: boolean
   requiresConfirmation: boolean
 }
 
@@ -90,6 +91,8 @@ export interface AgentSkillSummary {
 export interface AgentSkill extends AgentSkillSummary {
   instructions: string
 }
+
+export type AgentSkillInput = Pick<AgentSkill, 'code' | 'name' | 'instructions'>
 
 export interface AgentMcpTool {
   name: string
@@ -164,7 +167,7 @@ export async function getAgentSkill(token: string | null, id: number) {
 
 export async function createAgentSkill(
   token: string | null,
-  payload: Omit<AgentSkill, 'id' | 'updatedAt'>
+  payload: AgentSkillInput & { enabled: boolean }
 ) {
   return readItem(
     await apiRequest<ApiEnvelope<AgentSkill>>('/api/v1/system/agent-config/skills', {
@@ -178,7 +181,7 @@ export async function createAgentSkill(
 export async function updateAgentSkill(
   token: string | null,
   id: number,
-  payload: Partial<Omit<AgentSkill, 'id' | 'updatedAt'>>
+  payload: Partial<AgentSkillInput> & Partial<Pick<AgentSkill, 'enabled'>>
 ) {
   return readItem(
     await apiRequest<ApiEnvelope<AgentSkill>>(`/api/v1/system/agent-config/skills/${id}`, {

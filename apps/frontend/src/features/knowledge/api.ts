@@ -1,3 +1,4 @@
+import type { SystemRoleOption } from '@/features/access-control/api'
 import { ApiError, apiRequest } from '@/lib/api'
 import { readItem } from '@/lib/api-types'
 import { buildListQuery } from '@/lib/list-query'
@@ -9,6 +10,7 @@ export interface KnowledgeDocument {
   enabled: boolean
   summary: string | null
   topics: string[]
+  roles: SystemRoleOption[]
   contentHash: string
   chunkCount: number
   createdAt: string
@@ -22,6 +24,7 @@ export interface KnowledgeDocumentPage {
 
 export type KnowledgeDocumentInput = {
   file?: File | null
+  roleIds: number[]
   enabled: boolean
   summary?: string | null
   topics?: string[]
@@ -54,6 +57,7 @@ function asFormData(input: KnowledgeDocumentInput, requireFile: boolean) {
   if (requireFile && !input.file) throw new Error('请选择纯文本文件')
   const form = new FormData()
   if (input.file) form.append('file', input.file)
+  form.append('roleIds', JSON.stringify(input.roleIds))
   form.append('enabled', String(input.enabled))
   form.append('summary', input.summary ?? '')
   form.append('topics', JSON.stringify(input.topics ?? []))

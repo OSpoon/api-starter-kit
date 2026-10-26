@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog } from '@/components/ui/dialog'
 import { useRemoteListSearch } from '@/composables/useRemoteListSearch'
+import { listSystemRoleCatalog, type SystemRoleOption } from '@/features/access-control/api'
 import { badgeToneClass } from '@/features/api-keys/api'
 import {
   createKnowledgeDocument,
@@ -40,6 +41,9 @@ const loading = ref(false)
 const saving = ref(false)
 const metadataLoading = ref(false)
 const metadataSuggestion = ref<Awaited<ReturnType<typeof previewKnowledgeMetadata>> | null>(null)
+const roles = ref<SystemRoleOption[]>([])
+const rolesLoaded = ref(false)
+const rolesLoading = ref(false)
 const selectedDocument = ref<KnowledgeDocument | null>(null)
 const pendingDelete = ref<KnowledgeDocument | null>(null)
 const deleteDialogOpen = ref(false)
@@ -100,6 +104,17 @@ const columns = computed<ColumnDef<KnowledgeDocument>[]>(() => [
         Badge,
         { variant: 'outline', class: badgeToneClass(row.original.enabled ? 'success' : 'muted') },
         () => t(row.original.enabled ? 'knowledge.enabled' : 'knowledge.disabled')
+      ),
+  },
+  {
+    id: 'roles',
+    meta: { label: t('knowledge.roles') },
+    header: () => t('knowledge.roles'),
+    cell: ({ row }) =>
+      h(
+        'span',
+        { class: 'text-sm text-muted-foreground' },
+        row.original.roles.map((role) => role.name).join(', ') || t('knowledge.all_readers')
       ),
   },
   {
@@ -179,15 +194,33 @@ async function fetchDocuments(
 
 const { search, debouncedSearch, runLoad } = useRemoteListSearch(page, fetchDocuments)
 
-function openCreateDialog() {
+async function ensureRolesLoaded() {
+  if (rolesLoaded.value) return true
+  if (rolesLoading.value) return false
+  rolesLoading.value = true
+  try {
+    roles.value = await listSystemRoleCatalog(auth.token)
+    rolesLoaded.value = true
+    return true
+  } catch (error) {
+    toast.error(error instanceof Error ? error.message : t('knowledge.roles_load_failed'))
+    return false
+  } finally {
+    rolesLoading.value = false
+  }
+}
+
+async function openCreateDialog() {
   if (mutationBusy.value) return
+  if (!(await ensureRolesLoaded())) return
   selectedDocument.value = null
   metadataSuggestion.value = null
   showDialog()
 }
 
-function openEditDialog(document: KnowledgeDocument) {
+async function openEditDialog(document: KnowledgeDocument) {
   if (mutationBusy.value) return
+  if (!(await ensureRolesLoaded())) return
   selectedDocument.value = document
   metadataSuggestion.value = null
   showDialog()
@@ -364,6 +397,7 @@ async function confirmReindex() {
         <KnowledgeDocumentDialog
           v-model:open="dialogOpen"
           :document="selectedDocument"
+          :roles="roles"
           :saving="saving"
           :metadata-loading="metadataLoading"
           :metadata-suggestion="metadataSuggestion"

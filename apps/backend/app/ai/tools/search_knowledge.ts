@@ -20,7 +20,12 @@ export function createSearchKnowledgeTool(input: AiAgentToolContext, support: Ai
         if (documentIds.some((documentId) => !catalogDocumentIds.has(documentId))) {
           throw new Error('文档精检索只能使用本轮目录检索返回的文档')
         }
-        const sources = await searchKnowledge({ query, documentIds })
+        const sources = await searchKnowledge({
+          userId: input.userId,
+          query,
+          documentIds,
+          publicOnly,
+        })
         await recordKnowledgeSearchAudit({
           ctx: input.auditContext,
           userId: input.userId,

@@ -239,8 +239,8 @@ const toolColumns = computed<ColumnDef<AgentMcpTool>[]>(() => [
   },
   {
     id: 'mode',
-    meta: { label: t('agent_config.mcp_execution_mode') },
-    header: () => t('agent_config.mcp_execution_mode'),
+    meta: { label: t('agent_config.mcp_execution_policy') },
+    header: () => t('agent_config.mcp_execution_policy'),
     cell: ({ row }) => {
       const name = row.original.name
       if (!isToolEnabled(name)) return h('span', { class: 'text-muted-foreground' }, '—')
@@ -249,7 +249,7 @@ const toolColumns = computed<ColumnDef<AgentMcpTool>[]>(() => [
         {
           modelValue: form.values.enabledTools[name]?.mode ?? 'confirm',
           disabled: props.saving || discovering.value,
-          'aria-label': t('agent_config.mcp_execution_mode'),
+          'aria-label': t('agent_config.mcp_execution_policy'),
           'onUpdate:modelValue': (mode: unknown) =>
             setToolMode(name, mode as ToolConfiguration['mode']),
         },

@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Switch } from '@/components/ui/switch'
 import AgentSkillDialog from '@/features/agent-config/AgentSkillDialog.vue'
-import type { AgentSkill, AgentSkillSummary } from '@/features/agent-config/api'
+import type { AgentSkill, AgentSkillInput, AgentSkillSummary } from '@/features/agent-config/api'
 import {
   createAgentSkill,
   deleteAgentSkill,
@@ -159,7 +159,7 @@ function requestDelete(skill: AgentSkillSummary) {
   deleteOpen.value = true
 }
 
-async function save(input: Omit<AgentSkill, 'id' | 'updatedAt' | 'enabled'>) {
+async function save(input: AgentSkillInput) {
   saving.value = true
   try {
     if (selected.value) await updateAgentSkill(auth.token, selected.value.id, input)

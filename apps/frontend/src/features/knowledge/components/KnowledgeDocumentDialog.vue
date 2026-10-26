@@ -8,6 +8,7 @@ import { z } from 'zod'
 import FormDialogContent from '@/components/common/FormDialogContent.vue'
 import FormDialogFooter from '@/components/common/FormDialogFooter.vue'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   FormControl,
   FormDescription,
@@ -20,6 +21,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
+import type { SystemRoleOption } from '@/features/access-control/api'
 import type {
   KnowledgeDocument,
   KnowledgeDocumentInput,
@@ -29,6 +31,7 @@ import { firstFormError } from '@/lib/form-validation'
 
 const props = defineProps<{
   document: KnowledgeDocument | null
+  roles: SystemRoleOption[]
   saving: boolean
   metadataLoading: boolean
   metadataSuggestion: KnowledgeMetadataSuggestion | null
@@ -40,6 +43,7 @@ const emit = defineEmits<{
 }>()
 const { t } = useI18n()
 const file = ref<File | null>(null)
+const roleIds = ref<number[]>([])
 const formSchema = computed(() =>
   toTypedSchema(
     z.object({
@@ -63,6 +67,7 @@ watch(
   ([isOpen, document]) => {
     if (!isOpen) return
     file.value = null
+    roleIds.value = document?.roles.map((role) => role.id) ?? []
     form.resetForm({
       values: {
         summary: document?.summary ?? '',
@@ -89,6 +94,7 @@ function submit(values: typeof form.values) {
   if (!props.document && !file.value) return
   emit('save', {
     file: file.value,
+    roleIds: roleIds.value,
     enabled: values.enabled ?? true,
     summary: values.summary || null,
     topics: values.topics
@@ -98,6 +104,13 @@ function submit(values: typeof form.values) {
           .filter(Boolean)
       : [],
   })
+}
+
+function toggleRole(roleId: number, checked: boolean | 'indeterminate') {
+  roleIds.value =
+    checked === true
+      ? [...new Set([...roleIds.value, roleId])]
+      : roleIds.value.filter((id) => id !== roleId)
 }
 
 function selectFile(event: Event) {
@@ -225,6 +238,17 @@ const onSubmit = form.handleSubmit(submit, invalidSubmit)
                 </FormItem>
               </FormField>
             </div>
+          </div>
+          <div class="grid gap-2">
+            <Label>{{ t('knowledge.roles') }}</Label>
+            <p class="text-sm text-muted-foreground">{{ t('knowledge.roles_hint') }}</p>
+            <label v-for="role in roles" :key="role.id" class="flex items-center gap-2 text-sm">
+              <Checkbox
+                :model-value="roleIds.includes(role.id)"
+                @update:model-value="(checked) => toggleRole(role.id, checked)"
+              />
+              {{ role.name }} <code>{{ role.code }}</code>
+            </label>
           </div>
           <FormField v-slot="{ value, handleChange }" name="enabled" :validate-on-blur="false">
             <FormItem>

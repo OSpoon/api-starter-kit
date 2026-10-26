@@ -16,7 +16,11 @@ export function createSearchKnowledgeCatalogTool(
       const publicOnly = input.capabilityMode === 'knowledge-only'
       try {
         support.throwIfAborted()
-        const sources = await searchKnowledgeCatalog({ query })
+        const sources = await searchKnowledgeCatalog({
+          userId: input.userId,
+          query,
+          publicOnly,
+        })
         await recordKnowledgeSearchAudit({
           ctx: input.auditContext,
           userId: input.userId,

@@ -695,12 +695,12 @@ export interface Registry {
     methods: ["POST"]
     pattern: '/api/v1/system/knowledge-documents/batch'
     types: {
-      body: {}
+      body: ExtractBody<InferInput<(typeof import('#validators/knowledge_document').knowledgeDocumentRoleIdsValidator)>>
       paramsTuple: []
       params: {}
-      query: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/knowledge_document').knowledgeDocumentRoleIdsValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/knowledge_documents_controller').default['storeBatch']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/knowledge_documents_controller').default['storeBatch']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/knowledge_documents_controller').default['storeBatch']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
   'knowledge_documents.update': {

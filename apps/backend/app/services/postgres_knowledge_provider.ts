@@ -11,6 +11,7 @@ import {
 import type {
   KnowledgeCatalogSearchResult,
   KnowledgeProvider,
+  KnowledgeProviderAccess,
   KnowledgeProviderSearchResult,
 } from '#services/knowledge_provider'
 import {
@@ -156,6 +157,7 @@ export default class PostgresKnowledgeProvider implements KnowledgeProvider {
 
   async searchCatalog(input: {
     query: string
+    access: KnowledgeProviderAccess
     limit: number
   }): Promise<KnowledgeCatalogSearchResult[]> {
     const embedding = await embedQuery(input.query)
@@ -175,11 +177,20 @@ export default class PostgresKnowledgeProvider implements KnowledgeProvider {
          ) AS similarity
        FROM knowledge_documents d
        LEFT JOIN knowledge_chunks c ON c.document_id = d.id
-       WHERE d.enabled = TRUE
+       WHERE d.enabled = TRUE AND (
+           ?::boolean
+           OR NOT EXISTS (
+             SELECT 1 FROM knowledge_document_roles restricted WHERE restricted.document_id = d.id
+           )
+           OR EXISTS (
+             SELECT 1 FROM knowledge_document_roles permitted
+             WHERE permitted.document_id = d.id AND permitted.role_id = ANY(?::int[])
+           )
+         )
        GROUP BY d.id
        ORDER BY similarity DESC, d.updated_at DESC
        LIMIT ?`,
-        [embedding, embedding, input.limit]
+        [embedding, embedding, input.access.isSuperAdmin, input.access.roleIds, input.limit]
       )
       .exec()
 
@@ -199,6 +210,7 @@ export default class PostgresKnowledgeProvider implements KnowledgeProvider {
   async search(input: {
     query: string
     documentIds: number[]
+    access: KnowledgeProviderAccess
     limit: number
   }): Promise<KnowledgeProviderSearchResult[]> {
     const embedding = await embedQuery(input.query)
@@ -213,7 +225,16 @@ export default class PostgresKnowledgeProvider implements KnowledgeProvider {
          1 - (c.embedding <=> ?::vector) AS similarity
        FROM knowledge_chunks c
        INNER JOIN knowledge_documents d ON d.id = c.document_id
-       WHERE d.id = ANY(?::bigint[]) AND d.enabled = TRUE
+       WHERE d.id = ANY(?::bigint[]) AND d.enabled = TRUE AND (
+           ?::boolean
+           OR NOT EXISTS (
+             SELECT 1 FROM knowledge_document_roles restricted WHERE restricted.document_id = d.id
+           )
+           OR EXISTS (
+             SELECT 1 FROM knowledge_document_roles permitted
+             WHERE permitted.document_id = d.id AND permitted.role_id = ANY(?::int[])
+           )
+         )
        ORDER BY
          (c.embedding <=> ?::vector) - LEAST( (
            SELECT COUNT(*)::int FROM unnest(?::text[]) AS term
@@ -221,7 +242,16 @@ export default class PostgresKnowledgeProvider implements KnowledgeProvider {
          ), 3) * 0.08,
          c.embedding <=> ?::vector
        LIMIT ?`,
-        [embedding, input.documentIds, embedding, searchTerms, embedding, input.limit]
+        [
+          embedding,
+          input.documentIds,
+          input.access.isSuperAdmin,
+          input.access.roleIds,
+          embedding,
+          searchTerms,
+          embedding,
+          input.limit,
+        ]
       )
       .exec()
 

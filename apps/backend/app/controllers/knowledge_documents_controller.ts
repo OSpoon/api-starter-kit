@@ -1,10 +1,13 @@
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 
+import { Bouncer } from '@adonisjs/bouncer'
 import type { HttpContext } from '@adonisjs/core/http'
 import { ApiOperation, ApiQuery, ApiResponse, ApiSecurity } from '@foadonis/openapi/decorators'
 
+import { access } from '#abilities/main'
 import KnowledgeDocument from '#models/knowledge_document'
+import Role from '#models/role'
 import { recordAuditEvent } from '#services/audit_log'
 import { suggestKnowledgeMetadata } from '#services/knowledge_metadata_service'
 import {
@@ -15,10 +18,31 @@ import {
 import { clampLimit } from '#support/pagination'
 import { serializeKnowledgeDocument } from '#transformers/knowledge_document_transformer'
 import {
+  knowledgeDocumentRoleIdsValidator,
   knowledgeDocumentValidator,
   knowledgeMetadataPreviewValidator,
 } from '#validators/knowledge_document'
 import { paginationSearchQueryValidator } from '#validators/pagination'
+
+function parseRoleIds(value: unknown) {
+  let parsed = value
+  if (typeof value === 'string') {
+    try {
+      parsed = JSON.parse(value)
+    } catch {
+      throw new Error('角色选择无效')
+    }
+  }
+  if (!Array.isArray(parsed)) throw new Error('角色选择无效')
+  return parsed
+}
+
+async function validateRoleIds(roleIds: number[]) {
+  const uniqueRoleIds = [...new Set(roleIds)]
+  const roles = await Role.query().whereIn('id', uniqueRoleIds)
+  if (roles.length !== uniqueRoleIds.length) throw new Error('包含不存在的角色')
+  return uniqueRoleIds
+}
 
 function parseEnabled(value: unknown, defaultValue: boolean) {
   if (value === undefined || value === null || value === '') return defaultValue
@@ -76,7 +100,7 @@ async function readTextFiles(ctx: HttpContext) {
 export default class KnowledgeDocumentsController {
   @ApiOperation({
     summary: '获取知识文档列表',
-    description: '返回知识文档分页列表，支持按标题、摘要或正文搜索。',
+    description: '返回当前用户按角色可见的知识文档分页列表，支持按标题、摘要或正文搜索。',
   })
   @ApiQuery({
     name: 'page',
@@ -96,11 +120,26 @@ export default class KnowledgeDocumentsController {
     description: '搜索文档标题、摘要或正文；去除首尾空格，空值不过滤，最多 200 个字符',
     schema: { type: 'string', maxLength: 200 },
   })
-  @ApiResponse({ status: 200, description: '知识文档分页列表' })
-  async index({ request, serialize }: HttpContext) {
+  @ApiResponse({ status: 200, description: '按角色可见并包含角色范围的知识文档分页列表' })
+  async index({ auth, request, serialize }: HttpContext) {
     const payload = await paginationSearchQueryValidator.validate(request.qs())
     const search = payload.search ?? ''
-    const query = KnowledgeDocument.query().withCount('chunks').orderBy('updated_at', 'desc')
+    const user = auth.getUserOrFail()
+    const bouncer = new Bouncer(() => user, { access })
+    const canManage = await bouncer.allows('access', 'knowledge:manage')
+    const roles = await user.related('roles').query()
+    const query = KnowledgeDocument.query()
+      .preload('roles')
+      .withCount('chunks')
+      .orderBy('updated_at', 'desc')
+    if (!canManage) {
+      const roleIds = roles.map((role) => role.id)
+      query.where((builder) => {
+        builder
+          .whereDoesntHave('roles', () => undefined)
+          .orWhereHas('roles', (roleQuery) => roleQuery.whereIn('roles.id', roleIds))
+      })
+    }
     if (search) {
       query.where((builder) => {
         builder
@@ -146,8 +185,11 @@ export default class KnowledgeDocumentsController {
         summary: request.input('summary') || null,
         topics: parseTopics(request.input('topics', '[]')),
         enabled: parseEnabled(request.input('enabled'), true),
+        roleIds: parseRoleIds(request.input('roleIds', '[]')),
       })
+      payload.roleIds = await validateRoleIds(payload.roleIds ?? [])
       const document = await createKnowledgeDocument(payload)
+      await document.load('roles')
       await recordAuditEvent(ctx, {
         actorUserId: auth.getUserOrFail().id,
         action: 'knowledge_document.created',
@@ -156,11 +198,15 @@ export default class KnowledgeDocumentsController {
         metadata: {
           title: document.title,
           enabled: document.enabled,
+          roleIds: payload.roleIds,
         },
       })
       return serialize(serializeKnowledgeDocument(document))
     } catch (error) {
-      if (error instanceof Error && /启用状态|上传|文本文件|主题|元数据/.test(error.message)) {
+      if (
+        error instanceof Error &&
+        /启用状态|角色选择|不存在的角色|上传|文本文件|主题|元数据/.test(error.message)
+      ) {
         return response.unprocessableEntity({ message: error.message })
       }
       throw error
@@ -175,6 +221,10 @@ export default class KnowledgeDocumentsController {
       const textFiles = await readTextFiles(ctx)
       const actorUserId = ctx.auth.getUserOrFail().id
       const enabled = parseEnabled(request.input('enabled'), true)
+      const { roleIds: requestedRoleIds } = await knowledgeDocumentRoleIdsValidator.validate({
+        roleIds: parseRoleIds(request.input('roleIds', '[]')),
+      })
+      const roleIds = await validateRoleIds(requestedRoleIds)
       const created: KnowledgeDocument[] = []
       const failed: Array<{ fileName: string; message: string }> = []
 
@@ -185,6 +235,7 @@ export default class KnowledgeDocumentsController {
               title: textFile.title,
               content: textFile.content,
               enabled,
+              roleIds,
             })
           )
         } catch (error) {
@@ -210,6 +261,7 @@ export default class KnowledgeDocumentsController {
           metadata: {
             title: document.title,
             enabled: document.enabled,
+            roleIds,
             batch: true,
           },
         })
@@ -220,6 +272,7 @@ export default class KnowledgeDocumentsController {
           'id',
           created.map((document) => document.id)
         )
+        .preload('roles')
         .withCount('chunks')
         .orderBy('created_at', 'asc')
 
@@ -228,7 +281,10 @@ export default class KnowledgeDocumentsController {
         failed,
       })
     } catch (error) {
-      if (error instanceof Error && /启用状态|上传|文件|纯文本/.test(error.message)) {
+      if (
+        error instanceof Error &&
+        /启用状态|角色选择|不存在的角色|上传|文件|纯文本/.test(error.message)
+      ) {
         return response.unprocessableEntity({ message: error.message })
       }
       throw error
@@ -240,6 +296,8 @@ export default class KnowledgeDocumentsController {
   async update(ctx: HttpContext) {
     const { auth, params, request, response, serialize } = ctx
     const document = await KnowledgeDocument.findOrFail(params.id)
+    await document.load('roles')
+    const previousRoleIds = document.roles.map((role) => role.id).sort((a, b) => a - b)
     const textFile = await readTextFile(ctx, false)
     try {
       const payload = await knowledgeDocumentValidator.validate({
@@ -248,7 +306,10 @@ export default class KnowledgeDocumentsController {
         summary: request.input('summary') || null,
         topics: parseTopics(request.input('topics', JSON.stringify(document.topics ?? []))),
         enabled: parseEnabled(request.input('enabled'), document.enabled),
+        roleIds: parseRoleIds(request.input('roleIds', JSON.stringify(previousRoleIds))),
       })
+      payload.roleIds = await validateRoleIds(payload.roleIds ?? [])
+      const nextRoleIds = [...(payload.roleIds ?? [])].sort((a, b) => a - b)
       const shouldReindex =
         document.title !== payload.title ||
         document.content !== payload.content ||
@@ -262,6 +323,7 @@ export default class KnowledgeDocumentsController {
           ? 'topics'
           : null,
         document.enabled !== (payload.enabled ?? document.enabled) ? 'enabled' : null,
+        JSON.stringify(previousRoleIds) !== JSON.stringify(nextRoleIds) ? 'roles' : null,
       ].filter((field): field is string => field !== null)
       document.merge({
         title: payload.title,
@@ -275,6 +337,8 @@ export default class KnowledgeDocumentsController {
       } else {
         await document.save()
       }
+      await document.related('roles').sync(payload.roleIds ?? [])
+      await document.load('roles')
       await recordAuditEvent(ctx, {
         actorUserId: auth.getUserOrFail().id,
         action: 'knowledge_document.updated',
@@ -285,11 +349,15 @@ export default class KnowledgeDocumentsController {
           changedFields,
           reindexed: shouldReindex,
           enabled: document.enabled,
+          roleIds: nextRoleIds,
         },
       })
       return serialize(serializeKnowledgeDocument(document))
     } catch (error) {
-      if (error instanceof Error && /启用状态|上传|文本文件/.test(error.message)) {
+      if (
+        error instanceof Error &&
+        /启用状态|角色选择|不存在的角色|上传|文本文件/.test(error.message)
+      ) {
         return response.unprocessableEntity({ message: error.message })
       }
       throw error
@@ -304,6 +372,7 @@ export default class KnowledgeDocumentsController {
     await indexKnowledgeDocument(document)
     const indexedDocument = await KnowledgeDocument.query()
       .where('id', document.id)
+      .preload('roles')
       .withCount('chunks')
       .firstOrFail()
     await recordAuditEvent(ctx, {
