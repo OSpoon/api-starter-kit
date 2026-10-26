@@ -31,10 +31,15 @@ const logFilters = {
     .min(1)
     .max(120)
     .optional()
-    .describe('Exact service name from list_log_services'),
+    .describe(
+      'Exact service name from list_log_services; omit when exactly one service is available'
+    ),
   query: z.string().trim().max(256).optional().describe('Text to find in a log record'),
   requestId: z.string().trim().max(120).optional().describe('Request ID or trace ID'),
-  level: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal']).optional(),
+  level: z
+    .enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal'])
+    .optional()
+    .describe('Optional severity filter; omit to include all levels'),
   sinceMinutes: z.number().int().min(1).max(10080).optional(),
 }
 const annotations = { readOnlyHint: true, idempotentHint: true, destructiveHint: false }
@@ -44,7 +49,7 @@ server.registerTool(
   {
     title: 'List log services',
     description:
-      'List the exact service names available under the configured log directory. Use one of these names with get_latest_log or search_logs when multiple services exist. This tool takes no arguments and makes no changes.',
+      'List the exact service names available under the configured log directory. Use these exact names with log query tools. This tool does not retrieve log entries.',
     inputSchema: z.object({}),
     annotations,
   },
@@ -63,7 +68,7 @@ server.registerTool(
   {
     title: 'Get latest matching log',
     description:
-      'Return the newest matching log record for an optional exact service, text, request ID, level, or time range. If multiple services exist and service is omitted, the result asks you to choose from servicesAvailable. A null latest means no matching record. Timestamps include UTC and MCP-local forms. Results omit stack traces and bound long values.',
+      'Return the newest matching log record for optional filters. All filters are optional: omit service when exactly one service is available and omit level to include all levels. For the latest entry, call this tool with no filters. If multiple services exist and service is omitted, the result asks you to choose from servicesAvailable. A null latest means no matching record. Timestamps include UTC and MCP-local forms. Results omit stack traces and bound long values.',
     inputSchema: z.object(logFilters),
     annotations,
   },
