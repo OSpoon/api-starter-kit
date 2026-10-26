@@ -47,7 +47,6 @@ const enabledMcpTools = vine.record(
 )
 
 const mcpFields = {
-  name: vine.string().trim().minLength(1).maxLength(128),
   command: vine
     .string()
     .trim()
@@ -61,7 +60,8 @@ const mcpFields = {
         .maxLength(4000)
         .regex(/^[^\0]*$/)
     )
-    .maxLength(100),
+    .maxLength(100)
+    .optional(),
   cwd: vine
     .string()
     .trim()
@@ -69,7 +69,7 @@ const mcpFields = {
     .regex(/^\/.*$/)
     .optional()
     .nullable(),
-  environment: vine
+  env: vine
     .record(
       vine
         .string()
@@ -85,21 +85,23 @@ const mcpFields = {
     .optional(),
 }
 
-export const createAiAgentMcpServerValidator = vine.compile(
+const mcpServerConfiguration = vine.object(mcpFields)
+
+export const updateAiAgentMcpConfigurationValidator = vine.compile(
   vine.object({
-    ...mcpFields,
-    enabled: vine.boolean(),
-    enabledTools: enabledMcpTools,
+    mcpServers: vine
+      .record(mcpServerConfiguration)
+      .maxLength(100)
+      .validateKeys((keys, field) => {
+        if (!keys.every((key) => key.trim().length > 0 && !/[\\/\0]/.test(key))) {
+          field.report('MCP 服务名称无效', 'invalidServerNames', field)
+        }
+      }),
   })
 )
 
 export const updateAiAgentMcpServerValidator = vine.compile(
   vine.object({
-    name: mcpFields.name.optional(),
-    command: mcpFields.command.optional(),
-    args: mcpFields.args.optional(),
-    cwd: mcpFields.cwd,
-    environment: mcpFields.environment,
     enabled: vine.boolean().optional(),
     enabledTools: enabledMcpTools.optional(),
   })
@@ -107,11 +109,22 @@ export const updateAiAgentMcpServerValidator = vine.compile(
 
 export const testAiAgentMcpConnectionValidator = vine.compile(
   vine.object({
-    serverId: vine.number().withoutDecimals().positive().optional(),
+    serverId: vine.string().trim().minLength(1).maxLength(64).optional(),
     command: mcpFields.command,
     args: mcpFields.args,
     cwd: mcpFields.cwd,
-    environment: mcpFields.environment,
+    env: mcpFields.env,
+  })
+)
+
+export const aiAgentMcpServerIdValidator = vine.compile(
+  vine.object({
+    id: vine
+      .string()
+      .trim()
+      .minLength(1)
+      .maxLength(64)
+      .regex(/^[^/\\\0]+$/),
   })
 )
 

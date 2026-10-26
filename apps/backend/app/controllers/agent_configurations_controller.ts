@@ -9,28 +9,29 @@ import {
   decryptAiAgentMcpEnvironment,
   discoverAiAgentMcpServerTools,
   discoverAiAgentMcpTools,
+  getAiAgentMcpConfiguration,
+  getAiAgentMcpServer,
+  listAiAgentMcpServers,
+  replaceAiAgentMcpConfiguration,
   serializeAiAgentMcpServer,
+  updateAiAgentMcpServer,
 } from '#services/ai_agent_mcp_service'
 import {
-  createAiAgentMcpServer,
   createAiAgentSkill,
-  deleteAiAgentMcpServer,
   deleteAiAgentSkill,
-  getAiAgentMcpServer,
   getAiAgentSkill,
-  listAiAgentMcpServers,
   listAiAgentSkills,
-  updateAiAgentMcpServer,
   updateAiAgentSkill,
 } from '#services/ai_agent_module_service'
 import { recordAuditEvent } from '#services/audit_log'
 import { clampLimit } from '#support/pagination'
 import {
+  aiAgentMcpServerIdValidator,
   aiAgentModuleIdValidator,
-  createAiAgentMcpServerValidator,
   createAiAgentSkillValidator,
   testAiAgentMcpConnectionValidator,
   updateAiAgentConfigurationValidator,
+  updateAiAgentMcpConfigurationValidator,
   updateAiAgentMcpServerValidator,
   updateAiAgentSkillValidator,
 } from '#validators/ai_agent_configuration'
@@ -166,32 +167,45 @@ export default class AgentConfigurationsController {
     return serialize({ items: result.items, meta: result.meta })
   }
 
-  @ApiOperation({ summary: '新增本地 stdio MCP 服务' })
-  async createMcpServer(ctx: HttpContext) {
-    const payload = await createAiAgentMcpServerValidator.validate(ctx.request.body())
-    const server = await createAiAgentMcpServer(payload)
-    await recordAuditEvent(ctx, {
-      actorUserId: ctx.auth.getUserOrFail().id,
-      action: 'agent.mcp_server_created',
-      targetType: 'ai_agent_mcp_server',
-      targetId: server.id,
-      metadata: {
-        enabled: server.enabled,
-        enabledToolCount: Object.keys(server.enabledTools).length,
-      },
-    })
-    return ctx.serialize(server)
+  @ApiOperation({ summary: '获取共享 MCP 服务配置' })
+  async mcpConfiguration({ serialize }: HttpContext) {
+    return serialize(await getAiAgentMcpConfiguration())
   }
 
-  @ApiOperation({ summary: '更新本地 stdio MCP 服务' })
+  @ApiOperation({ summary: '替换共享 MCP 服务配置' })
+  async updateMcpConfiguration(ctx: HttpContext) {
+    const payload = await updateAiAgentMcpConfigurationValidator.validate(ctx.request.body())
+    const servers = Object.fromEntries(
+      Object.entries(payload.mcpServers).map(([name, server]) => [
+        name,
+        {
+          command: server.command,
+          args: server.args ?? [],
+          cwd: server.cwd,
+          environment: server.env,
+        },
+      ])
+    )
+    const updated = await replaceAiAgentMcpConfiguration(servers)
+    await recordAuditEvent(ctx, {
+      actorUserId: ctx.auth.getUserOrFail().id,
+      action: 'agent.mcp_configuration_updated',
+      targetType: 'ai_agent_configuration',
+      targetId: 1,
+      metadata: { serverCount: updated.length },
+    })
+    return ctx.serialize({ items: updated })
+  }
+
+  @ApiOperation({ summary: '更新 MCP 服务启用状态和工具执行策略' })
   async updateMcpServer(ctx: HttpContext) {
     const payload = await updateAiAgentMcpServerValidator.validate(ctx.request.body())
-    const { id } = await aiAgentModuleIdValidator.validate({ id: ctx.request.param('id') })
-    const server = await updateAiAgentMcpServer(Number(id), payload)
+    const { id } = await aiAgentMcpServerIdValidator.validate({ id: ctx.request.param('id') })
+    const server = await updateAiAgentMcpServer(id, payload)
     await recordAuditEvent(ctx, {
       actorUserId: ctx.auth.getUserOrFail().id,
-      action: 'agent.mcp_server_updated',
-      targetType: 'ai_agent_mcp_server',
+      action: 'agent.mcp_server_policy_updated',
+      targetType: 'mcp_server',
       targetId: server.id,
       metadata: {
         enabled: server.enabled,
@@ -199,31 +213,22 @@ export default class AgentConfigurationsController {
       },
     })
     return ctx.serialize(server)
-  }
-
-  @ApiOperation({ summary: '删除本地 stdio MCP 服务' })
-  async deleteMcpServer(ctx: HttpContext) {
-    const { id: rawId } = await aiAgentModuleIdValidator.validate({ id: ctx.request.param('id') })
-    const id = Number(rawId)
-    await deleteAiAgentMcpServer(id)
-    await recordAuditEvent(ctx, {
-      actorUserId: ctx.auth.getUserOrFail().id,
-      action: 'agent.mcp_server_deleted',
-      targetType: 'ai_agent_mcp_server',
-      targetId: id,
-    })
-    return ctx.response.noContent()
   }
 
   @ApiOperation({ summary: '启动本地 MCP 进程并发现工具' })
   async testMcpConnection(ctx: HttpContext) {
     const payload = await testAiAgentMcpConnectionValidator.validate(ctx.request.body())
-    let environment = payload.environment
+    let environment = payload.env
     if (environment === undefined && payload.serverId) {
       const server = await getAiAgentMcpServer(payload.serverId)
       environment = decryptAiAgentMcpEnvironment(server.environment)
     }
-    const tools = await discoverAiAgentMcpTools({ ...payload, environment })
+    const tools = await discoverAiAgentMcpTools({
+      command: payload.command,
+      args: payload.args ?? [],
+      cwd: payload.cwd,
+      environment,
+    })
     await recordAuditEvent(ctx, {
       actorUserId: ctx.auth.getUserOrFail().id,
       action: 'agent.mcp_connection_tested',
@@ -235,13 +240,13 @@ export default class AgentConfigurationsController {
 
   @ApiOperation({ summary: '刷新已配置 MCP 服务的工具目录' })
   async discoverMcpTools(ctx: HttpContext) {
-    const { id } = await aiAgentModuleIdValidator.validate({ id: ctx.request.param('id') })
-    const server = await getAiAgentMcpServer(Number(id))
+    const { id } = await aiAgentMcpServerIdValidator.validate({ id: ctx.request.param('id') })
+    const server = await getAiAgentMcpServer(id)
     const tools = await discoverAiAgentMcpServerTools(server)
     await recordAuditEvent(ctx, {
       actorUserId: ctx.auth.getUserOrFail().id,
       action: 'agent.mcp_tools_discovered',
-      targetType: 'ai_agent_mcp_server',
+      targetType: 'mcp_server',
       targetId: server.id,
       metadata: { toolCount: tools.length },
     })

@@ -7,7 +7,6 @@ import {
 } from '#ai/registry/ai_agent_tool_registry'
 import AiAgentConfiguration from '#models/ai_agent_configuration'
 import AiAgentConfirmation from '#models/ai_agent_confirmation'
-import AiAgentMcpServer from '#models/ai_agent_mcp_server'
 import AiChatConversation from '#models/ai_chat_conversation'
 import AiChatMessage from '#models/ai_chat_message'
 import AuditLog from '#models/audit_log'
@@ -15,6 +14,10 @@ import Permission from '#models/permission'
 import Role from '#models/role'
 import User from '#models/user'
 import { generateInitialPassword } from '#security/user_credentials'
+import {
+  replaceAiAgentMcpConfiguration,
+  updateAiAgentMcpServer,
+} from '#services/ai_agent_mcp_service'
 
 async function createActor(permissionCodes: string[]) {
   const permissions = await Promise.all(
@@ -298,25 +301,24 @@ test.group('Agent configuration', (group) => {
   test('encrypts MCP environment values and never returns them', async ({ client, assert }) => {
     const token = await createActor(['agent-config:read', 'agent-config:update'])
     const created = await client
-      .post('/api/v1/system/agent-config/mcp-servers')
+      .put('/api/v1/system/agent-config/mcp-servers/configuration')
       .bearerToken(token)
       .json({
-        name: 'Internal catalog',
-        command: '/usr/local/bin/internal-catalog-mcp',
-        args: ['--readonly'],
-        cwd: '/opt/internal-catalog-mcp',
-        environment: { API_TOKEN: 'do-not-return-this-token' },
-        enabled: true,
-        enabledTools: {
-          lookup: { mode: 'read' },
+        mcpServers: {
+          'Internal catalog': {
+            command: '/usr/local/bin/internal-catalog-mcp',
+            args: ['--readonly'],
+            cwd: '/opt/internal-catalog-mcp',
+            env: { API_TOKEN: 'do-not-return-this-token' },
+          },
         },
       })
     created.assertStatus(200)
-    const createdServer = created.body().data as Record<string, unknown>
-    const serverId = createdServer.id as number
+    const createdServer = (created.body().data as { items: Array<Record<string, unknown>> })
+      .items[0]!
+    const serverId = createdServer.id as string
     assert.isTrue(createdServer.environmentConfigured)
     assert.notProperty(created.body().data, 'environment')
-    assert.deepEqual(createdServer.enabledTools, { lookup: { mode: 'read' } })
 
     const list = await client.get('/api/v1/system/agent-config/mcp-servers').bearerToken(token)
     list.assertStatus(200)
@@ -326,22 +328,48 @@ test.group('Agent configuration', (group) => {
     assert.isTrue(server!.environmentConfigured)
     assert.notProperty(server!, 'environment')
 
-    const saved = await AiAgentMcpServer.findOrFail(serverId)
+    const initialConfiguration = await AiAgentConfiguration.findOrFail(1)
+    const initialServer = initialConfiguration.mcpServers['Internal catalog']!
+    const preserveEnvironment = await client
+      .put('/api/v1/system/agent-config/mcp-servers/configuration')
+      .bearerToken(token)
+      .json({
+        mcpServers: {
+          'Internal catalog': {
+            command: '/usr/local/bin/internal-catalog-mcp',
+            args: ['--readonly'],
+            cwd: '/opt/internal-catalog-mcp',
+          },
+        },
+      })
+    preserveEnvironment.assertStatus(200)
+    const configuration = await AiAgentConfiguration.findOrFail(1)
+    const saved = configuration.mcpServers['Internal catalog']!
     assert.notInclude(saved.environment!, 'do-not-return-this-token')
     assert.deepEqual(saved.args, ['--readonly'])
+    assert.equal(saved.id, initialServer.id)
+    assert.equal(saved.environment, initialServer.environment)
+    const configurationResponse = await client
+      .get('/api/v1/system/agent-config/mcp-servers/configuration')
+      .bearerToken(token)
+    assert.deepEqual(configurationResponse.body().data, {
+      mcpServers: {
+        'Internal catalog': {
+          command: '/usr/local/bin/internal-catalog-mcp',
+          args: ['--readonly'],
+          cwd: '/opt/internal-catalog-mcp',
+        },
+      },
+    })
   })
 
   test('rejects relative MCP executable paths', async ({ client }) => {
     const token = await createActor(['agent-config:update'])
     const response = await client
-      .post('/api/v1/system/agent-config/mcp-servers')
+      .put('/api/v1/system/agent-config/mcp-servers/configuration')
       .bearerToken(token)
       .json({
-        name: 'Invalid MCP',
-        command: './node',
-        args: [],
-        enabled: false,
-        enabledTools: {},
+        mcpServers: { 'Invalid MCP': { command: './node', args: [] } },
       })
     response.assertStatus(422)
   })
@@ -402,12 +430,13 @@ test.group('Agent configuration', (group) => {
       '  }',
       '})',
     ].join(String.fromCharCode(10))
-    const server = await AiAgentMcpServer.create({
-      name: 'Local MCP execution test',
-      command: process.execPath,
-      args: ['-e', mcpProgram],
-      cwd: null,
-      environment: null,
+    const [server] = await replaceAiAgentMcpConfiguration({
+      'Local MCP execution test': {
+        command: process.execPath,
+        args: ['-e', mcpProgram],
+      },
+    })
+    await updateAiAgentMcpServer(server!.id, {
       enabled: true,
       enabledTools: {
         lookup_logs: { mode: 'read' },
@@ -489,7 +518,7 @@ test.group('Agent configuration', (group) => {
     const auditCount = await AuditLog.query()
       .where('action', 'agent.mcp_tool_executed')
       .where('outcome', 'success')
-      .whereIn('target_id', [server.id + ':lookup_logs', server.id + ':confirm_logs'])
+      .whereIn('target_id', [server!.id + ':lookup_logs', server!.id + ':confirm_logs'])
       .count('* as total')
     assert.equal(Number(auditCount[0]!.$extras.total), 2)
   })

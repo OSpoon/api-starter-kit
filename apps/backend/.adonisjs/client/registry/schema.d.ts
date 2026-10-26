@@ -499,40 +499,40 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['mcpServers']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
-  'agent_configurations.create_mcp_server': {
-    methods: ["POST"]
-    pattern: '/api/v1/system/agent-config/mcp-servers'
+  'agent_configurations.mcp_configuration': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/system/agent-config/mcp-servers/configuration'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/ai_agent_configuration').createAiAgentMcpServerValidator)>>
+      body: {}
       paramsTuple: []
       params: {}
-      query: ExtractQuery<InferInput<(typeof import('#validators/ai_agent_configuration').createAiAgentMcpServerValidator)>>
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['createMcpServer']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['createMcpServer']>>> | { status: 422; response: { errors: SimpleError[] } }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['mcpConfiguration']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['mcpConfiguration']>>>
+    }
+  }
+  'agent_configurations.update_mcp_configuration': {
+    methods: ["PUT"]
+    pattern: '/api/v1/system/agent-config/mcp-servers/configuration'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/ai_agent_configuration').updateAiAgentMcpConfigurationValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/ai_agent_configuration').updateAiAgentMcpConfigurationValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['updateMcpConfiguration']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['updateMcpConfiguration']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
   'agent_configurations.update_mcp_server': {
     methods: ["PUT"]
     pattern: '/api/v1/system/agent-config/mcp-servers/:id'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/ai_agent_configuration').updateAiAgentMcpServerValidator)>|InferInput<(typeof import('#validators/ai_agent_configuration').aiAgentModuleIdValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/ai_agent_configuration').updateAiAgentMcpServerValidator)>|InferInput<(typeof import('#validators/ai_agent_configuration').aiAgentMcpServerIdValidator)>>
       paramsTuple: [ParamValue]
       params: { id: ParamValue }
-      query: ExtractQuery<InferInput<(typeof import('#validators/ai_agent_configuration').updateAiAgentMcpServerValidator)>|InferInput<(typeof import('#validators/ai_agent_configuration').aiAgentModuleIdValidator)>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/ai_agent_configuration').updateAiAgentMcpServerValidator)>|InferInput<(typeof import('#validators/ai_agent_configuration').aiAgentMcpServerIdValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['updateMcpServer']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['updateMcpServer']>>> | { status: 422; response: { errors: SimpleError[] } }
-    }
-  }
-  'agent_configurations.delete_mcp_server': {
-    methods: ["DELETE"]
-    pattern: '/api/v1/system/agent-config/mcp-servers/:id'
-    types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/ai_agent_configuration').aiAgentModuleIdValidator)>>
-      paramsTuple: [ParamValue]
-      params: { id: ParamValue }
-      query: ExtractQuery<InferInput<(typeof import('#validators/ai_agent_configuration').aiAgentModuleIdValidator)>>
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['deleteMcpServer']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['deleteMcpServer']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
   'agent_configurations.test_mcp_connection': {
@@ -551,10 +551,10 @@ export interface Registry {
     methods: ["POST"]
     pattern: '/api/v1/system/agent-config/mcp-servers/:id/discover'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/ai_agent_configuration').aiAgentModuleIdValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/ai_agent_configuration').aiAgentMcpServerIdValidator)>>
       paramsTuple: [ParamValue]
       params: { id: ParamValue }
-      query: ExtractQuery<InferInput<(typeof import('#validators/ai_agent_configuration').aiAgentModuleIdValidator)>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/ai_agent_configuration').aiAgentMcpServerIdValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['discoverMcpTools']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['discoverMcpTools']>>> | { status: 422; response: { errors: SimpleError[] } }
     }

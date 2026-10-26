@@ -4,20 +4,15 @@ import encryption from '@adonisjs/core/services/encryption'
 import type { CallToolResult } from '@earendil-works/pi-mcp'
 
 import type { AiAgentActionImplementation } from '#ai/core/ai_agent_action_contracts'
-import {
-  defineAiAgentAction,
-  getAiAgentActor,
-  integer,
-  string,
-} from '#ai/core/ai_agent_action_helpers'
+import { defineAiAgentAction, getAiAgentActor, string } from '#ai/core/ai_agent_action_helpers'
 import { sanitizeAiAgentToolErrorMessage } from '#ai/core/ai_agent_tool_errors'
-import type AiAgentMcpServer from '#models/ai_agent_mcp_server'
 import {
+  type AiAgentMcpServer,
   callConfiguredAiAgentMcpTool,
   discoverAiAgentMcpServerTools,
+  getAiAgentMcpServer,
   validateAiAgentMcpArguments,
 } from '#services/ai_agent_mcp_service'
-import { getAiAgentMcpServer } from '#services/ai_agent_module_service'
 
 const maxMcpResultChars = 20_000
 
@@ -57,7 +52,7 @@ async function findTool(server: AiAgentMcpServer, name: string) {
 const callMcpToolAction: AiAgentActionImplementation = {
   permission: 'agent-config:update',
   async prepare(input) {
-    const serverId = integer(input, 'serverId')
+    const serverId = string(input, 'serverId', 64)
     const server = await getAiAgentMcpServer(serverId)
     const toolName = string(input, 'toolName', 128)
     if (!server.enabled || server.enabledTools?.[toolName]?.mode !== 'confirm') {
@@ -94,7 +89,7 @@ const callMcpToolAction: AiAgentActionImplementation = {
       throw new Error('MCP 工具参数已失效，请重新发起')
     }
     const { result } = await callConfiguredAiAgentMcpTool({
-      serverId: integer(confirmation.payload, 'serverId'),
+      serverId: string(confirmation.payload, 'serverId', 64),
       toolName: string(confirmation.payload, 'toolName', 128),
       args,
       mode: 'confirm',

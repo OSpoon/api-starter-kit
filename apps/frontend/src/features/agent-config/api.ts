@@ -102,7 +102,7 @@ export interface AgentMcpTool {
 }
 
 export interface AgentMcpServer {
-  id: number
+  id: string
   name: string
   command: string
   args: string[]
@@ -117,7 +117,11 @@ export interface AgentMcpProcessConfiguration {
   command: string
   args: string[]
   cwd?: string | null
-  environment?: Record<string, string>
+  env?: Record<string, string>
+}
+
+export interface AgentMcpConfigurationDocument {
+  mcpServers: Record<string, AgentMcpProcessConfiguration>
 }
 
 export interface AgentModulePage<T> {
@@ -200,9 +204,30 @@ export function listAgentMcpServers(token: string | null, page: number) {
   return getModulePage<AgentMcpServer>(token, 'mcp-servers', page)
 }
 
+export async function getAgentMcpConfiguration(token: string | null) {
+  return readItem(
+    await apiRequest<ApiEnvelope<AgentMcpConfigurationDocument>>(
+      '/api/v1/system/agent-config/mcp-servers/configuration',
+      { token }
+    )
+  )
+}
+
+export async function saveAgentMcpConfiguration(
+  token: string | null,
+  configuration: AgentMcpConfigurationDocument
+) {
+  return readItem(
+    await apiRequest<ApiEnvelope<{ items: AgentMcpServer[] }>>(
+      '/api/v1/system/agent-config/mcp-servers/configuration',
+      { method: 'PUT', token, body: JSON.stringify(configuration) }
+    )
+  )
+}
+
 export async function testAgentMcpConnection(
   token: string | null,
-  payload: AgentMcpProcessConfiguration & { serverId?: number }
+  payload: AgentMcpProcessConfiguration & { serverId?: string }
 ) {
   return readItem(
     await apiRequest<ApiEnvelope<{ tools: AgentMcpTool[] }>>(
@@ -212,26 +237,16 @@ export async function testAgentMcpConnection(
   )
 }
 
-export async function saveAgentMcpServer(
+export async function updateAgentMcpServer(
   token: string | null,
-  id: number | null,
-  payload: {
-    name: string
-    command: string
-    args: string[]
-    cwd?: string | null
-    environment?: Record<string, string>
-    enabled: boolean
-    enabledTools: AgentMcpServer['enabledTools']
-  }
+  id: string,
+  payload: Partial<Pick<AgentMcpServer, 'enabled' | 'enabledTools'>>
 ) {
   return readItem(
     await apiRequest<ApiEnvelope<AgentMcpServer>>(
-      id
-        ? `/api/v1/system/agent-config/mcp-servers/${id}`
-        : '/api/v1/system/agent-config/mcp-servers',
+      `/api/v1/system/agent-config/mcp-servers/${encodeURIComponent(id)}`,
       {
-        method: id ? 'PUT' : 'POST',
+        method: 'PUT',
         token,
         body: JSON.stringify(payload),
       }
@@ -239,14 +254,10 @@ export async function saveAgentMcpServer(
   )
 }
 
-export async function deleteAgentMcpServer(token: string | null, id: number) {
-  await apiRequest(`/api/v1/system/agent-config/mcp-servers/${id}`, { method: 'DELETE', token })
-}
-
-export async function discoverAgentMcpTools(token: string | null, id: number) {
+export async function discoverAgentMcpTools(token: string | null, id: string) {
   return readItem(
     await apiRequest<ApiEnvelope<{ tools: AgentMcpTool[]; server: AgentMcpServer }>>(
-      `/api/v1/system/agent-config/mcp-servers/${id}/discover`,
+      `/api/v1/system/agent-config/mcp-servers/${encodeURIComponent(id)}/discover`,
       { method: 'POST', token }
     )
   )

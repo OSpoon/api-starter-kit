@@ -1,17 +1,24 @@
-import { createHash } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { isAbsolute } from 'node:path'
 
 import encryption from '@adonisjs/core/services/encryption'
 import logger from '@adonisjs/core/services/logger'
+import db from '@adonisjs/lucid/services/db'
 import type { AgentTool } from '@earendil-works/pi-agent-core'
 import type { TSchema } from '@earendil-works/pi-ai'
 import { type ToolCall, Type, validateToolArguments } from '@earendil-works/pi-ai'
 import { McpClient, StdioTransport, toLlmContent } from '@earendil-works/pi-mcp'
 
+import { builtInAiAgentToolNames } from '#ai/core/ai_agent_tool_catalog'
 import type { AiAgentToolContext } from '#ai/core/ai_agent_tool_context'
 import { sanitizeAiAgentToolErrorMessage } from '#ai/core/ai_agent_tool_errors'
-import AiAgentMcpServer, { type AiAgentMcpToolConfiguration } from '#models/ai_agent_mcp_server'
+import AiAgentConfiguration, {
+  type AiAgentMcpServerConfiguration,
+  type AiAgentMcpToolConfiguration,
+} from '#models/ai_agent_configuration'
 import { recordAuditEvent } from '#services/audit_log'
+
+export type AiAgentMcpServer = AiAgentMcpServerConfiguration & { name: string }
 
 export type AiAgentMcpToolInfo = {
   name: string
@@ -25,6 +32,16 @@ export type AiAgentMcpProcessConfiguration = {
   args: string[]
   cwd?: string | null
   environment?: Record<string, string>
+}
+
+export class AiAgentMcpServerNotFoundError extends Error {
+  code = 'E_ROW_NOT_FOUND'
+  status = 404
+
+  constructor() {
+    super('MCP 服务不存在')
+    this.name = 'AiAgentMcpServerNotFoundError'
+  }
 }
 
 export function assertAiAgentMcpConfiguration(input: AiAgentMcpProcessConfiguration) {
@@ -143,8 +160,141 @@ export function serializeAiAgentMcpServer(server: AiAgentMcpServer) {
       ])
     ),
     environmentConfigured: Boolean(server.environment),
-    updatedAt: server.updatedAt.toISO(),
+    updatedAt: server.updatedAt,
   }
+}
+
+async function mutateMcpServers<T>(
+  mutate: (servers: Record<string, AiAgentMcpServerConfiguration>) => T
+) {
+  return db.transaction(async (trx) => {
+    const now = new Date()
+    await trx
+      .table('ai_agent_configurations')
+      .insert({
+        id: 1,
+        enabled_tools: JSON.stringify(builtInAiAgentToolNames),
+        tool_modes: JSON.stringify({}),
+        mcp_servers: JSON.stringify({}),
+        created_at: now,
+        updated_at: now,
+      })
+      .onConflict('id')
+      .ignore()
+    const configuration = await AiAgentConfiguration.query({ client: trx })
+      .where('id', 1)
+      .forUpdate()
+      .firstOrFail()
+    const servers = structuredClone(configuration.mcpServers ?? {})
+    const result = mutate(servers)
+    configuration.mcpServers = servers
+    await configuration.save()
+    return result
+  })
+}
+
+function serverFromConfiguration(
+  servers: Record<string, AiAgentMcpServerConfiguration>,
+  id: string
+): AiAgentMcpServer {
+  const entry = Object.entries(servers).find(([, server]) => server.id === id)
+  if (!entry) throw new AiAgentMcpServerNotFoundError()
+  return { name: entry[0], ...entry[1] }
+}
+
+async function readMcpServers() {
+  const configuration = await AiAgentConfiguration.find(1)
+  return configuration?.mcpServers ?? {}
+}
+
+export async function listAiAgentMcpServers(page: number, limit: number) {
+  const servers = Object.entries(await readMcpServers())
+    .map(([name, configuration]) => ({ name, ...configuration }))
+    .sort(
+      (left, right) =>
+        right.updatedAt.localeCompare(left.updatedAt) || left.name.localeCompare(right.name)
+    )
+  const total = servers.length
+  const lastPage = Math.max(1, Math.ceil(total / limit))
+  return {
+    items: servers.slice((page - 1) * limit, page * limit).map(serializeAiAgentMcpServer),
+    meta: { total, perPage: limit, currentPage: page, lastPage },
+  }
+}
+
+export async function listEnabledAiAgentMcpServers() {
+  return Object.entries(await readMcpServers())
+    .filter(([, server]) => server.enabled)
+    .map(([name, server]) => ({ name, ...server }))
+    .sort((left, right) => left.id.localeCompare(right.id))
+}
+
+export async function getAiAgentMcpConfiguration() {
+  const servers = await readMcpServers()
+  return {
+    mcpServers: Object.fromEntries(
+      Object.entries(servers).map(([name, server]) => [
+        name,
+        { command: server.command, args: server.args, cwd: server.cwd },
+      ])
+    ),
+  }
+}
+
+export async function replaceAiAgentMcpConfiguration(
+  entries: Record<string, AiAgentMcpProcessConfiguration>
+) {
+  return mutateMcpServers((servers) => {
+    const now = new Date().toISOString()
+    const next: Record<string, AiAgentMcpServerConfiguration> = {}
+    for (const [name, input] of Object.entries(entries)) {
+      if (!name.trim() || name.length > 128) throw new Error('MCP 服务名称无效')
+      const processConfiguration = assertAiAgentMcpConfiguration(input)
+      const existing = servers[name]
+      const launchChanged =
+        !existing ||
+        input.environment !== undefined ||
+        existing.command !== processConfiguration.command ||
+        existing.cwd !== (processConfiguration.cwd ?? null) ||
+        JSON.stringify(existing.args) !== JSON.stringify(processConfiguration.args)
+      next[name] = {
+        id: launchChanged ? randomUUID() : existing.id,
+        command: processConfiguration.command,
+        args: processConfiguration.args,
+        cwd: processConfiguration.cwd ?? null,
+        environment:
+          input.environment === undefined
+            ? (existing?.environment ?? null)
+            : encryptAiAgentMcpEnvironment(input.environment),
+        enabled: existing?.enabled ?? false,
+        enabledTools: existing?.enabledTools ?? {},
+        updatedAt: now,
+      }
+    }
+    for (const name of Object.keys(servers)) delete servers[name]
+    Object.assign(servers, next)
+    return Object.keys(next)
+      .map((name) => ({ name, ...next[name]! }))
+      .map(serializeAiAgentMcpServer)
+  })
+}
+
+export async function updateAiAgentMcpServer(
+  id: string,
+  input: { enabled?: boolean; enabledTools?: Record<string, AiAgentMcpToolConfiguration> }
+) {
+  return mutateMcpServers((servers) => {
+    const server = serverFromConfiguration(servers, id)
+    const configuration = servers[server.name]!
+    if (input.enabled !== undefined) configuration.enabled = input.enabled
+    if (input.enabledTools !== undefined) configuration.enabledTools = input.enabledTools
+    configuration.updatedAt = new Date().toISOString()
+    return serializeAiAgentMcpServer(serverFromConfiguration(servers, id))
+  })
+}
+
+export async function getAiAgentMcpServer(id: string) {
+  return serverFromConfiguration(await readMcpServers(), id)
 }
 
 function parametersFor(tool: AiAgentMcpToolInfo) {
@@ -201,7 +351,7 @@ async function invokeMcpTool(input: {
 }
 
 export async function callConfiguredAiAgentMcpTool(input: {
-  serverId: number
+  serverId: string
   toolName: string
   args: Record<string, unknown>
   mode: AiAgentMcpToolConfiguration['mode']
@@ -212,7 +362,7 @@ export async function callConfiguredAiAgentMcpTool(input: {
   const startedAt = performance.now()
   let server: AiAgentMcpServer | undefined
   try {
-    server = await AiAgentMcpServer.findOrFail(input.serverId)
+    server = await getAiAgentMcpServer(input.serverId)
     const configuration = server.enabledTools?.[input.toolName]
     if (!server.enabled || configuration?.mode !== input.mode) {
       throw new Error('MCP 工具已停用或配置已变更')
@@ -266,7 +416,7 @@ export async function callConfiguredAiAgentMcpTool(input: {
   }
 }
 
-function getAiToolName(serverId: number, toolName: string, mode: string) {
+function getAiToolName(serverId: string, toolName: string, mode: string) {
   const readableName = toolName.replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 40)
   const suffix = createHash('sha256').update(toolName).digest('hex').slice(0, 8)
   return `mcp_${mode}_${serverId}_${readableName}_${suffix}`
