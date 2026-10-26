@@ -1,3 +1,5 @@
+import crypto from 'node:crypto'
+
 import type { HttpContext } from '@adonisjs/core/http'
 import logger from '@adonisjs/core/services/logger'
 
@@ -19,7 +21,6 @@ import {
   maxConsecutiveAiAgentReadToolFailures,
   sanitizeAiAgentToolErrorMessage,
 } from '#ai/core/ai_agent_tool_errors'
-import { aiAgentConfirmationNarrationPrompt } from '#ai/policy/ai_agent_prompt_policy'
 import { releaseAiAgentRun } from '#ai/runtime/ai_agent_run_registry'
 import type AiChatConversation from '#models/ai_chat_conversation'
 import AiChatMessage, {
@@ -57,18 +58,6 @@ export function getTerminalToolAssistantContent(
     return typeof payload.message === 'string' ? `${label}：${payload.message}` : `${label}。`
   }
   return null
-}
-
-export function markConfirmationNarrationFailure(runtimeDetails: AiChatRuntimeDetail[]) {
-  const pendingTool = [...runtimeDetails]
-    .reverse()
-    .find((detail) => detail.kind === 'tool' && detail.phase === 'awaiting_confirmation')
-  if (pendingTool?.kind === 'tool') {
-    pendingTool.state = 'error'
-    pendingTool.phase = 'failed'
-    pendingTool.message = '无法生成操作说明，待确认操作未创建。'
-  }
-  return '我暂时无法生成清晰的操作说明，因此没有创建待确认操作。请稍后重试。'
 }
 
 export function shouldPreserveInterruptedRun(error: unknown) {
@@ -121,6 +110,7 @@ export async function runAiChatAssistantTurn(input: {
   onEvent?: (event: string, data: unknown) => void | Promise<void>
 }) {
   const { conversation, userId, userMessage, regeneration, response } = input
+  const runtimePhaseId = crypto.randomBytes(6).toString('hex')
   const emit = (event: string, data: unknown) => {
     if (response) writeAiChatSse(response, event, data)
     return input.onEvent?.(event, data)
@@ -134,11 +124,57 @@ export async function runAiChatAssistantTurn(input: {
     knowledgeCitations.set(`${citation.documentId}:${citation.chunkId}`, citation)
   }
   const runtimeDetails: AiChatRuntimeDetail[] = [...(input.assistantMessage?.runtimeDetails ?? [])]
+  const runtimeTurn =
+    runtimeDetails.filter((item) => item.kind === 'phase' && item.name === 'preparing_agent')
+      .length + 1
   let consecutiveReadToolFailures = 0
+  let modelResponseIndex = 0
+  let mcpDiscoveryErrorIndex = 0
+  let activeModelResponse: { callId: string; startedAt: number } | undefined
   const attachedConfirmations: Array<
     Awaited<ReturnType<typeof attachAgentRunConfirmations>>[number] & { messageId: number }
   > = []
   let aiFailureStage = 'initialization'
+
+  const emitRuntimePhase = async (phase: {
+    name: 'preparing_agent' | 'mcp_discovery' | 'model_response'
+    state: 'running' | 'done' | 'error'
+    callId: string
+    startedAt: number
+    durationMs?: number
+    serverName?: string
+    toolCount?: number
+    tools?: Array<{ name: string; mode?: 'read' | 'confirm' }>
+  }) => {
+    const detail: AiChatRuntimeDetail = { kind: 'phase', ...phase }
+    const existingIndex = runtimeDetails.findIndex(
+      (item) => item.kind === 'phase' && item.callId === phase.callId
+    )
+    if (existingIndex >= 0) runtimeDetails[existingIndex] = detail
+    else runtimeDetails.push(detail)
+    await emit('agent_phase', phase)
+  }
+
+  const startModelResponse = async () => {
+    modelResponseIndex += 1
+    activeModelResponse = {
+      callId: `${runtimePhaseId}:r${modelResponseIndex}`,
+      startedAt: Date.now(),
+    }
+    await emitRuntimePhase({ name: 'model_response', ...activeModelResponse, state: 'running' })
+  }
+
+  const finishModelResponse = async (state: 'done' | 'error') => {
+    if (!activeModelResponse) return
+    const finishedAt = Date.now()
+    await emitRuntimePhase({
+      name: 'model_response',
+      ...activeModelResponse,
+      state,
+      durationMs: finishedAt - activeModelResponse.startedAt,
+    })
+    activeModelResponse = undefined
+  }
 
   const persistAssistantMessage = async (allowEmpty = false) => {
     if (!assistantContent.trim() && !persistedAssistantMessage && !allowEmpty) return null
@@ -211,35 +247,69 @@ export async function runAiChatAssistantTurn(input: {
       modelCalls: 0,
     }
     aiFailureStage = 'agent_stream'
-    const run = await createAiAgentStream({
-      conversationId: conversation.id,
-      userId,
-      auditContext: input.ctx,
-      messages: history,
-      capabilityMode: input.capabilityMode,
-      enabledToolNames: input.enabledToolNames,
-      context: input.context,
-      signal: input.signal,
-      onKnowledgeSources: (sources) => {
-        for (const source of sources) {
-          knowledgeCitations.set(`${source.documentId}:${source.chunkId}`, source)
-        }
-        void emit('agent_citations', {
-          citations: [...knowledgeCitations.values()],
-        })
-      },
-      onCredentialDisclosure: (credential) => emit('credential_disclosure', { credential }),
-      onCompactionUsage: ({ usage: compactionUsage }) => {
-        usage.modelCalls += 1
-        usage.inputTokens += compactionUsage.input
-        usage.outputTokens += compactionUsage.output
-        usage.cacheReadTokens += compactionUsage.cacheRead
-        usage.cacheWriteTokens += compactionUsage.cacheWrite
-        usage.totalTokens += compactionUsage.totalTokens
-      },
+    const streamStartedAt = Date.now()
+    const preparationStartedAt = Date.now()
+    await emitRuntimePhase({
+      name: 'preparing_agent',
+      callId: `${runtimePhaseId}:p`,
+      state: 'running',
+      startedAt: preparationStartedAt,
+    })
+    let run: Awaited<ReturnType<typeof createAiAgentStream>>
+    try {
+      run = await createAiAgentStream({
+        conversationId: conversation.id,
+        userId,
+        auditContext: input.ctx,
+        messages: history,
+        capabilityMode: input.capabilityMode,
+        enabledToolNames: input.enabledToolNames,
+        context: input.context,
+        signal: input.signal,
+        onKnowledgeSources: (sources) => {
+          for (const source of sources) {
+            knowledgeCitations.set(`${source.documentId}:${source.chunkId}`, source)
+          }
+          void emit('agent_citations', {
+            citations: [...knowledgeCitations.values()],
+          })
+        },
+        onCredentialDisclosure: (credential) => emit('credential_disclosure', { credential }),
+        onMcpDiscovery: (status) =>
+          status.state === 'error'
+            ? emitRuntimePhase({
+                name: 'mcp_discovery',
+                ...status,
+                callId: `${runtimePhaseId}:d${mcpDiscoveryErrorIndex++}`,
+              })
+            : undefined,
+        onCompactionUsage: ({ usage: compactionUsage }) => {
+          usage.modelCalls += 1
+          usage.inputTokens += compactionUsage.input
+          usage.outputTokens += compactionUsage.output
+          usage.cacheReadTokens += compactionUsage.cacheRead
+          usage.cacheWriteTokens += compactionUsage.cacheWrite
+          usage.totalTokens += compactionUsage.totalTokens
+        },
+      })
+    } catch (error) {
+      await emitRuntimePhase({
+        name: 'preparing_agent',
+        callId: `${runtimePhaseId}:p`,
+        state: 'error',
+        startedAt: preparationStartedAt,
+        durationMs: Date.now() - preparationStartedAt,
+      })
+      throw error
+    }
+    await emitRuntimePhase({
+      name: 'preparing_agent',
+      callId: `${runtimePhaseId}:p`,
+      state: 'done',
+      startedAt: preparationStartedAt,
+      durationMs: Date.now() - preparationStartedAt,
     })
     agentRunId = run.agentRunId
-    const streamStartedAt = Date.now()
     aiFailureStage = 'message_stream'
     for await (const event of streamAiAgentTurnEvents(run, input.signal)) {
       if (input.signal.aborted) {
@@ -264,6 +334,8 @@ export async function runAiChatAssistantTurn(input: {
             name: status.name,
             state: status.state,
             ...(status.callId ? { callId: status.callId } : {}),
+            ...(status.startedAt !== undefined ? { startedAt: status.startedAt } : {}),
+            ...(status.displayName ? { displayName: status.displayName } : {}),
             ...(status.durationMs !== undefined ? { durationMs: status.durationMs } : {}),
             ...(status.message ? { message: status.message } : {}),
             ...(status.phase ? { phase: status.phase } : {}),
@@ -279,9 +351,14 @@ export async function runAiChatAssistantTurn(input: {
         if (event.value.event === 'agent_plan') {
           const planDetail: AiChatRuntimeDetail = {
             kind: 'plan',
+            turn: runtimeTurn,
             steps: event.value.data.steps.map((step) => ({ ...step })),
           }
-          const existingIndex = runtimeDetails.findIndex((item) => item.kind === 'plan')
+          const existingIndex = runtimeDetails.findIndex(
+            (item) =>
+              item.kind === 'plan' &&
+              (item.turn === runtimeTurn || (runtimeTurn === 1 && item.turn === undefined))
+          )
           if (existingIndex >= 0) runtimeDetails[existingIndex] = planDetail
           else runtimeDetails.push(planDetail)
         }
@@ -318,91 +395,6 @@ export async function runAiChatAssistantTurn(input: {
           continue
         }
         if (event.value.event === 'agent_confirmation') {
-          if (!assistantContent.trim()) {
-            usage.modelCalls += 1
-            let narrationContent = ''
-            try {
-              const narration = await run.models.completeSimple(
-                run.model,
-                {
-                  systemPrompt: aiAgentConfirmationNarrationPrompt,
-                  messages: [
-                    {
-                      role: 'user',
-                      content: `<user-request>${JSON.stringify(userMessage.content)}</user-request>`,
-                      timestamp: Date.now(),
-                    },
-                  ],
-                },
-                { signal: input.signal }
-              )
-              usage.inputTokens += narration.usage.input
-              usage.outputTokens += narration.usage.output
-              usage.cacheReadTokens += narration.usage.cacheRead
-              usage.cacheWriteTokens += narration.usage.cacheWrite
-              usage.totalTokens += narration.usage.totalTokens
-              try {
-                await recordAiUsageEvent({
-                  userId,
-                  conversationId: conversation.id,
-                  agentRunId: run.agentRunId,
-                  callSequence: run.nextModelCallSequence(),
-                  providerId: run.model.provider,
-                  modelId: run.model.id,
-                  baseUrl: run.model.baseUrl,
-                  usage: {
-                    input: narration.usage.input,
-                    output: narration.usage.output,
-                    cacheRead: narration.usage.cacheRead,
-                    cacheWrite: narration.usage.cacheWrite,
-                    totalTokens: narration.usage.totalTokens,
-                  },
-                  status: narration.stopReason === 'stop' ? 'completed' : 'failed',
-                })
-              } catch (error) {
-                logger.warn(
-                  { err: error, conversationId: conversation.id, agentRunId: run.agentRunId },
-                  'AI confirmation narration usage event could not be recorded'
-                )
-              }
-              narrationContent =
-                narration.stopReason === 'stop'
-                  ? narration.content
-                      .filter((part) => part.type === 'text')
-                      .map((part) => part.text)
-                      .join(' ')
-                      .replace(/\s+/g, ' ')
-                      .trim()
-                      .slice(0, 240)
-                  : ''
-              if (narrationContent) {
-                assistantContent = narrationContent
-                await emit('delta', { content: narrationContent })
-                await persistAssistantMessage()
-              }
-            } catch (error) {
-              if (input.signal.aborted) throw error
-              logger.warn(
-                { err: error, conversationId: conversation.id, agentRunId: run.agentRunId },
-                'AI confirmation narration could not be generated'
-              )
-            }
-            if (!narrationContent) {
-              const message = markConfirmationNarrationFailure(runtimeDetails)
-              assistantContent = message
-              if (run.agentRunId) {
-                await failUnattachedConfirmationsWithRetry({
-                  conversationId: conversation.id,
-                  userId,
-                  agentRunId: run.agentRunId,
-                  ctx: input.ctx,
-                })
-              }
-              await emit('delta', { content: message })
-              await persistAssistantMessage()
-              continue
-            }
-          }
           await persistAssistantMessage(true)
         }
         await emit(event.value.event, event.value.data)
@@ -441,6 +433,7 @@ export async function runAiChatAssistantTurn(input: {
       }
       if (event.source === 'message_start') {
         usage.modelCalls += 1
+        await startModelResponse()
         continue
       }
       if (event.source === 'message_delta') {
@@ -456,6 +449,7 @@ export async function runAiChatAssistantTurn(input: {
         continue
       }
       if (event.source === 'message_end') {
+        await finishModelResponse(event.value.error ? 'error' : 'done')
         usage.inputTokens += event.value.inputTokens
         usage.outputTokens += event.value.outputTokens
         usage.cacheReadTokens += event.value.cacheReadTokens
@@ -558,6 +552,7 @@ export async function runAiChatAssistantTurn(input: {
     })
     return assistantMessage
   } catch (error) {
+    await finishModelResponse('error')
     logger.error(
       { err: error, conversationId: conversation.id, agentRunId, aiFailureStage },
       'AI chat stream failed'

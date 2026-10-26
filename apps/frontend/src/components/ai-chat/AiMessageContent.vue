@@ -10,6 +10,7 @@ const props = withDefaults(
     content: string
     status?: AiMessageContentStatus
     streaming?: boolean
+    waitingLabel?: string
   }>(),
   {
     status: 'done',
@@ -19,14 +20,18 @@ const props = withDefaults(
 
 const { t } = useI18n()
 
-const isPending = computed(() => props.status === 'pending' && props.content.trim().length === 0)
+const isWaiting = computed(
+  () =>
+    props.content.trim().length === 0 &&
+    (['pending', 'streaming'].includes(props.status) || Boolean(props.waitingLabel))
+)
 const isStreaming = computed(() => props.streaming || props.status === 'streaming')
 const isError = computed(() => props.status === 'error')
 </script>
 
 <template>
-  <div v-if="isPending" class="ai-message-content-waiting">
-    <span>{{ t('ai_chat.waiting') }}</span>
+  <div v-if="isWaiting" class="ai-message-content-waiting">
+    <span>{{ waitingLabel || t('ai_chat.waiting') }}</span>
   </div>
   <div v-else class="ai-message-content-markdown" :class="{ 'ai-message-content-error': isError }">
     <MarkdownRender

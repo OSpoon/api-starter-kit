@@ -6,11 +6,13 @@ import type { CallToolResult } from '@earendil-works/pi-mcp'
 import type { AiAgentActionImplementation } from '#ai/core/ai_agent_action_contracts'
 import { defineAiAgentAction, getAiAgentActor, string } from '#ai/core/ai_agent_action_helpers'
 import { sanitizeAiAgentToolErrorMessage } from '#ai/core/ai_agent_tool_errors'
+import { summarizeAiAgentToolParameters } from '#ai/core/ai_agent_tool_summary'
 import {
   type AiAgentMcpServer,
   callConfiguredAiAgentMcpTool,
   discoverAiAgentMcpServerTools,
   getAiAgentMcpServer,
+  summarizeAiAgentMcpResult,
   validateAiAgentMcpArguments,
 } from '#services/ai_agent_mcp_service'
 
@@ -62,7 +64,7 @@ const callMcpToolAction: AiAgentActionImplementation = {
       await findTool(server, toolName),
       record(input, 'arguments')
     )
-    const parameterNames = Object.keys(args)
+    const parameterSummary = summarizeAiAgentToolParameters(args)
     return {
       targetType: 'mcp_server_tool',
       targetId: `mcp-confirmation:${crypto.randomUUID()}`,
@@ -70,7 +72,7 @@ const callMcpToolAction: AiAgentActionImplementation = {
       payload: {
         serverId: server.id,
         toolName,
-        parameterNames,
+        parameterSummary,
         encryptedArguments: encryption.encrypt(JSON.stringify(args)),
       },
     }
@@ -104,6 +106,7 @@ const callMcpToolAction: AiAgentActionImplementation = {
     return {
       mcpToolName: string(confirmation.payload, 'toolName', 128),
       mcpToolResult: getAiAgentMcpResultText(result),
+      mcpToolResultSummary: summarizeAiAgentMcpResult(result),
     }
   },
 }
@@ -118,9 +121,20 @@ export const aiAgentMcpActions = {
       },
       {
         field: 'parameter_names',
-        value: Array.isArray(payload.parameterNames)
-          ? payload.parameterNames.join(', ')
-          : 'not_set',
+        value: Array.isArray(payload.parameterSummary)
+          ? payload.parameterSummary
+              .filter(
+                (item): item is { name: string; type: string } =>
+                  item !== null &&
+                  typeof item === 'object' &&
+                  typeof item.name === 'string' &&
+                  typeof item.type === 'string'
+              )
+              .map(({ name, type }) => `${name} (${type})`)
+              .join(', ') || '无参数'
+          : Array.isArray(payload.parameterNames)
+            ? payload.parameterNames.join(', ')
+            : 'not_set',
       },
     ],
   }),

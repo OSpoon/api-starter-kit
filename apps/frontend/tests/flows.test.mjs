@@ -16,6 +16,10 @@ const { validatePasswordChange } = await jiti.import(
 const { streamAiAgentActionConfirmation, streamAiChatMessage } = await jiti.import(
   `${root}/src/features/ai/api.ts`
 )
+const { useAiChatStream } = await jiti.import(
+  `${root}/src/features/ai/composables/useAiChatStream.ts`
+)
+const { ref } = await jiti.import('vue')
 const { formatAiChatMessagesAsMarkdown } = await jiti.import(`${root}/src/features/ai/markdown.ts`)
 const { hasAiChatConversationContent } = await jiti.import(
   `${root}/src/features/ai/conversation-state.ts`
@@ -96,6 +100,42 @@ test('AI stream accepts a terminal done event', async () => {
   }
 })
 
+test('AI stream delivers MCP discovery and safe tool details', async () => {
+  const originalFetch = globalThis.fetch
+  globalThis.fetch = async () =>
+    new Response(
+      'event: agent_phase\ndata: {"name":"mcp_discovery","state":"running","callId":"mcp-discovery-1","startedAt":1000,"serverName":"Directory"}\n\n' +
+        'event: agent_phase\ndata: {"name":"mcp_discovery","state":"done","callId":"mcp-discovery-1","startedAt":1000,"durationMs":350,"serverName":"Directory","toolCount":2,"tools":[{"name":"list_log_services","mode":"read"},{"name":"search_logs"}]}\n\n' +
+        'event: agent_phase\ndata: {"name":"model_response","state":"running","callId":"model-response-1","startedAt":1050}\n\n' +
+        'event: agent_phase\ndata: {"name":"model_response","state":"done","callId":"model-response-1","startedAt":1050,"durationMs":8400}\n\n' +
+        'event: agent_status\ndata: {"name":"mcp_read_1_lookup_12345678","state":"running","callId":"mcp-call-1","startedAt":1100,"displayName":"Directory: lookup","detail":{"parameterSummary":[{"name":"query","type":"string"}]}}\n\n' +
+        'event: agent_status\ndata: {"name":"mcp_read_1_lookup_12345678","state":"done","callId":"mcp-call-1","displayName":"Directory: lookup","detail":{"resultSummary":{"contentTypes":["text"],"textCharacters":18}}}\n\n' +
+        'event: done\ndata: {"conversation":{"id":1},"message":{"id":2},"confirmations":[]}\n\n',
+      { status: 200 }
+    )
+  const events = []
+
+  try {
+    await streamAiChatMessage(null, 1, 'Find a user', (event) => events.push(event))
+    assert.deepEqual(
+      events.map(({ type }) => type),
+      ['agent_phase', 'agent_phase', 'agent_phase', 'agent_phase', 'agent_status', 'agent_status', 'done']
+    )
+    assert.equal(events[0].serverName, 'Directory')
+    assert.equal(events[1].toolCount, 2)
+    assert.deepEqual(events[1].tools, [
+      { name: 'list_log_services', mode: 'read' },
+      { name: 'search_logs' },
+    ])
+    assert.equal(events[3].durationMs, 8400)
+    assert.equal(events[4].displayName, 'Directory: lookup')
+    assert.deepEqual(events[4].detail.parameterSummary, [{ name: 'query', type: 'string' }])
+    assert.equal(events[5].detail.resultSummary.textCharacters, 18)
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})
+
 test('confirmation stream delivers status and assistant text before completion', async () => {
   const originalFetch = globalThis.fetch
   globalThis.fetch = async (_url, options) => {
@@ -121,6 +161,125 @@ test('confirmation stream delivers status and assistant text before completion',
     assert.equal(events[1].callId, events[0].callId)
     assert.equal(events[1].detail.toolName, 'search_logs')
     assert.equal(events[2].content, '操作完成')
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})
+
+test('confirmation continuation keeps one assistant message and presents the next approval', async () => {
+  const originalFetch = globalThis.fetch
+  const now = '2026-10-26T00:00:00.000Z'
+  const presentation = {
+    title: 'Approve log query',
+    summary: 'Read the latest backend log',
+    targetLabel: 'backend',
+    changes: [],
+    impactLabel: 'Read only',
+    approveLabel: 'Approve',
+    cancelLabel: 'Cancel',
+  }
+  const previousConfirmation = {
+    id: 1,
+    messageId: 20,
+    action: 'call_mcp_tool',
+    status: 'confirmed',
+    impact: 'standard',
+    targetType: 'mcp_tool',
+    targetId: 'logs:list_log_services',
+    targetSummary: { serverName: 'logs', toolName: 'list_log_services' },
+    changeSummary: [],
+    expiresAt: null,
+    presentation,
+  }
+  const nextConfirmation = {
+    id: 2,
+    messageId: 20,
+    action: 'call_mcp_tool',
+    status: 'pending',
+    impact: 'standard',
+    targetType: 'mcp_tool',
+    targetId: 'logs:get_latest_log',
+    targetSummary: { serverName: 'logs', toolName: 'get_latest_log' },
+    changeSummary: [],
+    expiresAt: '2026-10-26T00:10:00.000Z',
+    presentation,
+  }
+  const assistantMessage = {
+    id: 20,
+    conversationId: 1,
+    role: 'assistant',
+    content: '我来查询最新日志。',
+    citations: [],
+    createdAt: now,
+    updatedAt: now,
+    timeline: [],
+  }
+  const conversation = {
+    id: 1,
+    title: '日志查询',
+    createdAt: now,
+    updatedAt: now,
+    messages: [assistantMessage],
+    confirmations: [previousConfirmation],
+  }
+  const state = {
+    loading: ref(false),
+    conversation: ref(conversation),
+    conversations: ref([]),
+    conversationPage: ref(1),
+    conversationLastPage: ref(1),
+    loadingConversations: ref(false),
+    loadingOlderMessages: ref(false),
+    streamingMessages: ref([]),
+    streamingMessageId: ref(null),
+    abortController: ref(null),
+    confirmations: ref([previousConfirmation]),
+    pendingConfirmation: ref(previousConfirmation),
+    approvalDismissed: ref(false),
+    runMeta: ref(null),
+  }
+  const presented = []
+  const visibleMessageIdsAtApproval = []
+
+  globalThis.fetch = async (url) => {
+    if (String(url).includes('/confirm/stream')) {
+      return new Response(
+        'event: assistant_segment_start\ndata: {}\n\n' +
+          `event: agent_confirmation\ndata: ${JSON.stringify({ ...nextConfirmation, messageId: undefined })}\n\n` +
+          'event: delta\ndata: {"content":"等待第二次确认。"}\n\n' +
+          `event: done\ndata: ${JSON.stringify({
+            conversation: { id: 1, title: '日志查询', createdAt: now, updatedAt: now },
+            message: assistantMessage,
+            confirmations: [nextConfirmation],
+          })}\n\n`,
+        { status: 200 }
+      )
+    }
+
+    return Response.json({ data: { ...conversation, confirmations: [nextConfirmation] } })
+  }
+
+  try {
+    const chat = useAiChatStream(
+      () => null,
+      (key) => key,
+      ref({ route: '/', title: 'AI Assistant' }),
+      state,
+      async () => conversation,
+      async () => undefined,
+      (confirmations) => {
+        const latestConfirmation = confirmations.at(-1) ?? null
+        presented.push(latestConfirmation)
+        state.pendingConfirmation.value = latestConfirmation
+        visibleMessageIdsAtApproval.push(state.streamingMessages.value.map((item) => item.id))
+      }
+    )
+
+    assert.equal(await chat.confirmAction(1, 1), true)
+    assert.deepEqual(visibleMessageIdsAtApproval[0], [20])
+    assert.equal(presented[0].id, 2)
+    assert.equal(presented[0].messageId, 20)
+    assert.equal(state.pendingConfirmation.value.id, 2)
   } finally {
     globalThis.fetch = originalFetch
   }

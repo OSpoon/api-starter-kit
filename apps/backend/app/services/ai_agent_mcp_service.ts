@@ -7,7 +7,12 @@ import db from '@adonisjs/lucid/services/db'
 import type { AgentTool } from '@earendil-works/pi-agent-core'
 import type { TSchema } from '@earendil-works/pi-ai'
 import { type ToolCall, Type, validateToolArguments } from '@earendil-works/pi-ai'
-import { McpClient, StdioTransport, toLlmContent } from '@earendil-works/pi-mcp'
+import {
+  type CallToolResult,
+  McpClient,
+  StdioTransport,
+  toLlmContent,
+} from '@earendil-works/pi-mcp'
 
 import { builtInAiAgentToolNames } from '#ai/core/ai_agent_tool_catalog'
 import type { AiAgentToolContext } from '#ai/core/ai_agent_tool_context'
@@ -25,6 +30,50 @@ export type AiAgentMcpToolInfo = {
   description: string
   inputSchema: Record<string, unknown>
   readOnlyHint: boolean
+}
+
+export type AiAgentMcpResultSummary = {
+  contentTypes: string[]
+  textCharacters: number
+  structuredType?: 'array' | 'object' | 'string' | 'number' | 'boolean' | 'null'
+  structuredCount?: number
+}
+
+export function summarizeAiAgentMcpResult(result: CallToolResult): AiAgentMcpResultSummary {
+  const contentTypes = [...new Set(result.content.map(({ type }) => type))].slice(0, 8)
+  const textCharacters = result.content.reduce(
+    (total, block) => total + (block.type === 'text' ? block.text.length : 0),
+    0
+  )
+  const structured = result.structuredContent
+  if (structured === undefined) return { contentTypes, textCharacters }
+  if (Array.isArray(structured)) {
+    return {
+      contentTypes,
+      textCharacters,
+      structuredType: 'array',
+      structuredCount: structured.length,
+    }
+  }
+  if (structured === null) return { contentTypes, textCharacters, structuredType: 'null' }
+  if (typeof structured === 'object') {
+    return {
+      contentTypes,
+      textCharacters,
+      structuredType: 'object',
+      structuredCount: Object.keys(structured).length,
+    }
+  }
+  if (typeof structured === 'string') {
+    return { contentTypes, textCharacters, structuredType: 'string' }
+  }
+  if (typeof structured === 'number') {
+    return { contentTypes, textCharacters, structuredType: 'number' }
+  }
+  if (typeof structured === 'boolean') {
+    return { contentTypes, textCharacters, structuredType: 'boolean' }
+  }
+  return { contentTypes, textCharacters }
 }
 
 export type AiAgentMcpProcessConfiguration = {
@@ -417,9 +466,9 @@ export async function callConfiguredAiAgentMcpTool(input: {
 }
 
 function getAiToolName(serverId: string, toolName: string, mode: string) {
-  const readableName = toolName.replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 40)
-  const suffix = createHash('sha256').update(toolName).digest('hex').slice(0, 8)
-  return `mcp_${mode}_${serverId}_${readableName}_${suffix}`
+  const readableName = toolName.replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 32)
+  const suffix = createHash('sha256').update(`${serverId}:${toolName}`).digest('hex').slice(0, 16)
+  return `mcp_${mode}_${readableName}_${suffix}`
 }
 
 export async function createConfiguredMcpAgentTools(
@@ -427,12 +476,34 @@ export async function createConfiguredMcpAgentTools(
   context: AiAgentToolContext
 ): Promise<AgentTool[]> {
   const tools: AgentTool[] = []
-  for (const server of servers) {
+  for (const [serverIndex, server] of servers.entries()) {
     if (!server.enabled || !Object.keys(server.enabledTools ?? {}).length) continue
     let discoveredTools: AiAgentMcpToolInfo[]
+    const startedAt = Date.now()
+    const discoveryStatus = {
+      callId: `d${serverIndex}`,
+      serverName: server.name,
+      startedAt,
+    }
+    await context.onMcpDiscovery?.({ ...discoveryStatus, state: 'running' })
     try {
       discoveredTools = await discoverAiAgentMcpServerTools(server)
+      await context.onMcpDiscovery?.({
+        ...discoveryStatus,
+        state: 'done',
+        durationMs: Date.now() - startedAt,
+        toolCount: discoveredTools.length,
+        tools: discoveredTools.slice(0, 20).map(({ name }) => ({
+          name: name.slice(0, 128),
+          ...(server.enabledTools?.[name]?.mode ? { mode: server.enabledTools[name]!.mode } : {}),
+        })),
+      })
     } catch (error) {
+      await context.onMcpDiscovery?.({
+        ...discoveryStatus,
+        state: 'error',
+        durationMs: Date.now() - startedAt,
+      })
       logger.warn(
         { serverId: server.id, errorName: error instanceof Error ? error.name : 'UnknownError' },
         'Unable to load configured MCP tools'
@@ -537,7 +608,12 @@ export async function createConfiguredMcpAgentTools(
                     ) ?? 'MCP 工具执行失败',
                   toolName: tool.name,
                 }
-              : { kind: 'mcp_tool_result', serverId: server.id, toolName: tool.name }
+              : {
+                  kind: 'mcp_tool_result',
+                  serverId: server.id,
+                  toolName: tool.name,
+                  resultSummary: summarizeAiAgentMcpResult(result),
+                }
             return {
               content: toLlmContent(result),
               details,

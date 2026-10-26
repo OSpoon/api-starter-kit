@@ -4,10 +4,13 @@ import type { AssistantMessage } from '@earendil-works/pi-ai'
 import type { createAiAgentStream } from '#ai/chat/ai_agent_service'
 import type { AiAgentConfirmationSummary } from '#ai/core/ai_agent_confirmation'
 import { sanitizeAiAgentToolErrorMessage } from '#ai/core/ai_agent_tool_errors'
+import { summarizeAiAgentToolParameters } from '#ai/core/ai_agent_tool_summary'
 
 type AiAgentPlanStep = {
   key: 'identify_target' | 'prepare_action' | 'await_confirmation'
   state: 'pending' | 'running' | 'done'
+  startedAt?: number
+  durationMs?: number
 }
 
 export type AiAgentToolFrame =
@@ -18,7 +21,9 @@ export type AiAgentToolFrame =
         name: string
         callId: string
         state: 'running' | 'done' | 'error'
+        startedAt?: number
         durationMs?: number
+        displayName?: string
         detail?: Record<string, unknown>
         phase?: string
         message?: string
@@ -83,6 +88,10 @@ function isManagedActionTool(name: string) {
   )
 }
 
+function isActionPreparationTool(name: string) {
+  return isManagedActionTool(name) || name.startsWith('mcp_confirm_')
+}
+
 function getManagedAction(name: string, input: unknown) {
   if (name === 'system_management_change') {
     if (input && typeof input === 'object') {
@@ -107,9 +116,47 @@ function getAgentStatusDetail(
   if (name === 'run_registered_query' && typeof values.templateCode === 'string') {
     return {
       templateCode: values.templateCode,
+      parameterSummary: summarizeAiAgentToolParameters(values),
       ...(outputRecord?.kind === 'query_result' && Array.isArray(outputRecord.rows)
         ? { resultCount: outputRecord.rows.length }
         : {}),
+    }
+  }
+  if (name === 'load_agent_skill') {
+    const skillCode =
+      typeof outputRecord?.code === 'string'
+        ? outputRecord.code
+        : typeof values.code === 'string'
+          ? values.code
+          : undefined
+    return {
+      ...(skillCode ? { skillCode: skillCode.slice(0, 64) } : {}),
+      ...(typeof outputRecord?.name === 'string'
+        ? { skillName: outputRecord.name.slice(0, 120) }
+        : {}),
+      ...(typeof outputRecord?.instructions === 'string'
+        ? { skillInstructionCharacters: outputRecord.instructions.length }
+        : {}),
+      parameterSummary: summarizeAiAgentToolParameters(values),
+    }
+  }
+  if (name === 'list_agent_skills' && Array.isArray(outputRecord?.skills)) {
+    const skills = outputRecord.skills.filter(
+      (skill): skill is Record<string, unknown> =>
+        skill !== null && typeof skill === 'object' && !Array.isArray(skill)
+    )
+    return {
+      skillCount: skills.length,
+      skillNames: skills
+        .map((skill) =>
+          typeof skill.name === 'string'
+            ? skill.name.slice(0, 120)
+            : typeof skill.code === 'string'
+              ? skill.code.slice(0, 64)
+              : null
+        )
+        .filter((skillName): skillName is string => skillName !== null)
+        .slice(0, 8),
     }
   }
   const action = getManagedAction(name, input)
@@ -125,6 +172,7 @@ function getAgentStatusDetail(
       (typeof targetSummary?.code === 'string' && targetSummary.code)
     return {
       action,
+      parameterSummary: summarizeAiAgentToolParameters(values),
       ...(confirmation ? { confirmationId: confirmation.id } : {}),
       ...(confirmation?.targetType ? { targetType: confirmation.targetType } : {}),
       ...(confirmation?.targetId ? { targetId: confirmation.targetId } : {}),
@@ -139,6 +187,7 @@ function getAgentStatusDetail(
       (typeof targetSummary.toolName === 'string' && targetSummary.toolName)
     return {
       action: confirmation.action,
+      parameterSummary: summarizeAiAgentToolParameters(values),
       targetType: confirmation.targetType,
       targetId: confirmation.targetId,
       confirmationId: confirmation.id,
@@ -146,11 +195,27 @@ function getAgentStatusDetail(
       ...(typeof targetSummary.toolName === 'string' ? { toolName: targetSummary.toolName } : {}),
     }
   }
-  if (typeof outputRecord?.toolName === 'string') return { toolName: outputRecord.toolName }
-  if (name === 'diagnose_my_access' && typeof values.permissionCode === 'string') {
-    return { permissionCode: values.permissionCode }
+  if (typeof outputRecord?.toolName === 'string') {
+    return {
+      toolName: outputRecord.toolName.slice(0, 128),
+      parameterSummary: summarizeAiAgentToolParameters(values),
+      ...(isJsonRecord(outputRecord.resultSummary)
+        ? { resultSummary: outputRecord.resultSummary }
+        : {}),
+    }
   }
-  return undefined
+  if (name === 'diagnose_my_access' && typeof values.permissionCode === 'string') {
+    return {
+      permissionCode: values.permissionCode,
+      parameterSummary: summarizeAiAgentToolParameters(values),
+    }
+  }
+  const parameterSummary = summarizeAiAgentToolParameters(values)
+  return parameterSummary.length ? { parameterSummary } : undefined
+}
+
+function isJsonRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
 }
 
 function getAgentStatusPhase(
@@ -159,7 +224,7 @@ function getAgentStatusPhase(
   awaitingConfirmation = false
 ) {
   if (awaitingConfirmation) return 'awaiting_confirmation'
-  if (isManagedActionTool(name)) {
+  if (isActionPreparationTool(name)) {
     if (state === 'running') return 'preparing_action'
     return undefined
   }
@@ -224,6 +289,15 @@ function getToolErrorMessage(result: unknown, output: unknown) {
   return sanitizeAiAgentToolErrorMessage(artifact?.message || resultContent)
 }
 
+function getMcpToolNameFromAlias(name: string) {
+  const match = /^mcp_(?:read|confirm)_(.+)_([a-f\d]{8,16})$/i.exec(name)
+  return match?.[1]?.replace(/^[a-f\d-]{36}_/i, '')
+}
+
+function getToolDisplayName(run: Awaited<ReturnType<typeof createAiAgentStream>>, name: string) {
+  return run.toolLabels?.get(name) ?? getMcpToolNameFromAlias(name)
+}
+
 function assistantText(message: AssistantMessage) {
   return message.content
     .filter((part): part is { type: 'text'; text: string } => part.type === 'text')
@@ -236,10 +310,25 @@ export async function* streamAiAgentTurnEvents(
   signal: AbortSignal
 ): AsyncGenerator<AiAgentTurnEvent> {
   const plan: AiAgentPlanStep[] = [
-    { key: 'identify_target', state: 'pending' },
+    { key: 'identify_target', state: 'running', startedAt: Date.now() },
     { key: 'prepare_action', state: 'pending' },
     { key: 'await_confirmation', state: 'pending' },
   ]
+  const finishPlanStep = (index: number, finishedAt = Date.now()) => {
+    const step = plan[index]
+    if (!step) return
+    if (step.startedAt !== undefined) {
+      step.durationMs = Math.max(0, finishedAt - step.startedAt)
+    }
+    step.state = 'done'
+  }
+  const startPlanStep = (index: number, startedAt = Date.now()) => {
+    const step = plan[index]
+    if (!step) return
+    step.state = 'running'
+    step.startedAt = startedAt
+    delete step.durationMs
+  }
   const planFrame = (): AiAgentToolFrame => ({
     event: 'agent_plan',
     data: { steps: plan.map((step) => ({ ...step })) },
@@ -253,9 +342,10 @@ export async function* streamAiAgentTurnEvents(
     if (signal.aborted) throw new DOMException('AI request was cancelled', 'AbortError')
     if (event.type === 'app_confirmation_requested') {
       pendingConfirmations.set(event.toolCallId, event.confirmation)
-      plan[0].state = 'done'
-      plan[1].state = 'done'
-      plan[2].state = 'running'
+      const requestedAt = Date.now()
+      finishPlanStep(0, requestedAt)
+      finishPlanStep(1, requestedAt)
+      startPlanStep(2, requestedAt)
       yield { source: 'frame', value: planFrame() }
       yield {
         source: 'frame',
@@ -309,15 +399,17 @@ export async function* streamAiAgentTurnEvents(
       continue
     }
     if (event.type === 'tool_execution_start') {
-      toolStartedAt.set(event.toolCallId, Date.now())
+      const startedAt = Date.now()
+      toolStartedAt.set(event.toolCallId, startedAt)
       toolInputs.set(event.toolCallId, event.args)
-      if (isManagedActionTool(event.toolName)) {
-        plan[0].state = 'done'
-        plan[1].state = 'running'
+      if (isActionPreparationTool(event.toolName)) {
+        finishPlanStep(0, startedAt)
+        startPlanStep(1, startedAt)
         yield { source: 'frame', value: planFrame() }
       }
       const runningDetail = getAgentStatusDetail(event.toolName, event.args)
       const runningPhase = getAgentStatusPhase(event.toolName, 'running')
+      const displayName = getToolDisplayName(run, event.toolName)
       yield {
         source: 'frame',
         value: {
@@ -326,6 +418,8 @@ export async function* streamAiAgentTurnEvents(
             name: event.toolName,
             callId: event.toolCallId,
             state: 'running',
+            startedAt,
+            ...(displayName ? { displayName } : {}),
             ...(runningDetail ? { detail: runningDetail } : {}),
             ...(runningPhase ? { phase: runningPhase } : {}),
           },
@@ -335,6 +429,8 @@ export async function* streamAiAgentTurnEvents(
     }
     if (event.type === 'tool_execution_update') {
       const progressDetail = getToolProgressDetail(event.partialResult)
+      const runningDetail = getAgentStatusDetail(event.toolName, event.args)
+      const displayName = getToolDisplayName(run, event.toolName)
       yield {
         source: 'frame',
         value: {
@@ -343,7 +439,11 @@ export async function* streamAiAgentTurnEvents(
             name: event.toolName,
             callId: event.toolCallId,
             state: 'running',
-            ...(progressDetail ? { detail: progressDetail } : {}),
+            startedAt: toolStartedAt.get(event.toolCallId),
+            ...(displayName ? { displayName } : {}),
+            ...(runningDetail || progressDetail
+              ? { detail: { ...runningDetail, ...progressDetail } }
+              : {}),
             phase: getAgentStatusPhase(event.toolName, 'running') ?? 'executing',
           },
         },
@@ -356,6 +456,10 @@ export async function* streamAiAgentTurnEvents(
       const toolArtifact = readAgentToolArtifact(output)
       const toolErrorCode = toolArtifact?.kind === 'action_error' ? toolArtifact.code : undefined
       const visibleToolError = getToolErrorMessage(event.result, output)
+      const mcpToolName = getMcpToolNameFromAlias(event.toolName)
+      const toolNotRegistered =
+        Boolean(mcpToolName) && visibleToolError === `Tool ${event.toolName} not found`
+      const displayName = getToolDisplayName(run, event.toolName)
       const completedDetail = getAgentStatusDetail(
         event.toolName,
         toolInputs.get(event.toolCallId),
@@ -374,24 +478,28 @@ export async function* streamAiAgentTurnEvents(
             name: event.toolName,
             callId: event.toolCallId,
             state: completedState,
+            startedAt: toolStartedAt.get(event.toolCallId),
             durationMs: Date.now() - (toolStartedAt.get(event.toolCallId) ?? Date.now()),
+            ...(displayName ? { displayName } : {}),
             ...(completedDetail ? { detail: completedDetail } : {}),
             ...(getAgentStatusPhase(event.toolName, completedState, Boolean(confirmation))
               ? {
                   phase: getAgentStatusPhase(event.toolName, completedState, Boolean(confirmation)),
                 }
               : {}),
-            ...(visibleToolError ? { message: visibleToolError } : {}),
-            ...(toolErrorCode ? { errorCode: toolErrorCode } : {}),
+            ...(visibleToolError && !toolNotRegistered ? { message: visibleToolError } : {}),
+            ...(toolErrorCode || toolNotRegistered
+              ? { errorCode: toolErrorCode ?? 'tool_not_registered' }
+              : {}),
           },
         },
       }
       if (confirmation) {
-        plan[2].state = 'running'
+        if (plan[2].state !== 'running') startPlanStep(2)
         yield { source: 'frame', value: planFrame() }
       } else if (!event.isError) {
-        if (isManagedActionTool(event.toolName)) {
-          plan[1].state = 'done'
+        if (isActionPreparationTool(event.toolName)) {
+          finishPlanStep(1)
           yield { source: 'frame', value: planFrame() }
         }
         yield {

@@ -751,7 +751,7 @@ test.group('AI agent confirmations', (group) => {
       steps: [
         { key: 'identify_target', state: 'done' },
         { key: 'prepare_action', state: 'done' },
-        { key: 'await_confirmation', state: 'running' },
+        { key: 'await_confirmation', state: 'running', startedAt: Date.now() - 10 },
       ],
     })
     await pendingMessage.save()
@@ -774,6 +774,7 @@ test.group('AI agent confirmations', (group) => {
     assert.notInclude(body, 'event: assistant_segment_start')
     assert.include(body, 'event: delta')
     assert.include(body, 'event: done')
+    assert.include(body, 'event: agent_plan')
     assert.include(body, 'API Key「')
     assert.include(body, '已吊销')
     assert.include(body, '"state":"running"')
@@ -799,6 +800,7 @@ test.group('AI agent confirmations', (group) => {
     assert.isDefined(completedPlan)
     if (completedPlan?.kind === 'plan') {
       assert.equal(completedPlan.steps[2]?.state, 'done')
+      assert.isNumber(completedPlan.steps[2]?.durationMs)
     }
     assert.notInclude(
       completedMessage.runtimeDetails.map((item) => item.kind),

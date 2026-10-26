@@ -150,7 +150,11 @@ async function appendConfirmationRuntimeDetail(
     for (const item of message.runtimeDetails) {
       if (item.kind !== 'plan') continue
       for (const step of item.steps) {
-        if (step.key === 'await_confirmation') step.state = 'done'
+        if (step.key !== 'await_confirmation') continue
+        if (step.state === 'running' && typeof step.startedAt === 'number') {
+          step.durationMs = Math.max(0, Date.now() - step.startedAt)
+        }
+        step.state = 'done'
       }
     }
     await message.save()
@@ -217,7 +221,7 @@ function getChangeLabel(field: string, action: string) {
         permission_ids: '权限',
         group: '分组',
         skill: '技能',
-        parameter_names: '参数',
+        parameter_names: '参数字段与类型',
       } as Record<string, string>
     )[field] ?? field
   )

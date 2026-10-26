@@ -16,13 +16,26 @@ export type AiChatRuntimeDetail =
       name: string
       state: 'running' | 'done' | 'error'
       callId?: string
+      startedAt?: number
+      displayName?: string
       durationMs?: number
       message?: string
       phase?: string
       errorCode?: string
       detail?: Record<string, unknown>
     }
-  | { kind: 'plan'; steps: Array<Record<string, unknown>> }
+  | {
+      kind: 'phase'
+      name: 'preparing_agent' | 'mcp_discovery' | 'model_response'
+      state: 'running' | 'done' | 'error'
+      callId: string
+      startedAt: number
+      durationMs?: number
+      serverName?: string
+      toolCount?: number
+      tools?: Array<{ name: string; mode?: 'read' | 'confirm' }>
+    }
+  | { kind: 'plan'; turn?: number; steps: Array<Record<string, unknown>> }
   | {
       kind: 'run'
       durationMs: number
@@ -57,6 +70,8 @@ function isRuntimeDetail(value: unknown): value is AiChatRuntimeDetail {
       typeof value.name === 'string' &&
       ['running', 'done', 'error'].includes(value.state as string) &&
       (value.callId === undefined || typeof value.callId === 'string') &&
+      (value.startedAt === undefined || typeof value.startedAt === 'number') &&
+      (value.displayName === undefined || typeof value.displayName === 'string') &&
       (value.durationMs === undefined || typeof value.durationMs === 'number') &&
       (value.message === undefined || typeof value.message === 'string') &&
       (value.phase === undefined || typeof value.phase === 'string') &&
@@ -65,7 +80,31 @@ function isRuntimeDetail(value: unknown): value is AiChatRuntimeDetail {
     )
   }
   if (value.kind === 'plan') {
-    return Array.isArray(value.steps) && value.steps.every(isJsonRecord)
+    return (
+      (value.turn === undefined || (Number.isInteger(value.turn) && (value.turn as number) > 0)) &&
+      Array.isArray(value.steps) &&
+      value.steps.every(isJsonRecord)
+    )
+  }
+  if (value.kind === 'phase') {
+    return (
+      ['preparing_agent', 'mcp_discovery', 'model_response'].includes(value.name as string) &&
+      ['running', 'done', 'error'].includes(value.state as string) &&
+      typeof value.callId === 'string' &&
+      typeof value.startedAt === 'number' &&
+      (value.durationMs === undefined || typeof value.durationMs === 'number') &&
+      (value.serverName === undefined || typeof value.serverName === 'string') &&
+      (value.toolCount === undefined ||
+        (typeof value.toolCount === 'number' && value.toolCount >= 0)) &&
+      (value.tools === undefined ||
+        (Array.isArray(value.tools) &&
+          value.tools.every(
+            (tool) =>
+              isJsonRecord(tool) &&
+              typeof tool.name === 'string' &&
+              (tool.mode === undefined || ['read', 'confirm'].includes(tool.mode as string))
+          )))
+    )
   }
   if (value.kind === 'run') {
     return typeof value.durationMs === 'number' && isJsonRecord(value.usage)

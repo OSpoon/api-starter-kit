@@ -8,7 +8,14 @@ import { BaseModel, column } from '@adonisjs/lucid/orm'
 import { DateTime } from 'luxon'
 
 export class AiAgentConfigurationSchema extends BaseModel {
-  static $columns = ['createdAt', 'enabledTools', 'id', 'toolModes', 'updatedAt'] as const
+  static $columns = [
+    'createdAt',
+    'enabledTools',
+    'id',
+    'mcpServers',
+    'toolModes',
+    'updatedAt',
+  ] as const
   $columns = AiAgentConfigurationSchema.$columns
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
@@ -16,6 +23,8 @@ export class AiAgentConfigurationSchema extends BaseModel {
   declare enabledTools: any
   @column({ isPrimary: true })
   declare id: number
+  @column()
+  declare mcpServers: any
   @column()
   declare toolModes: any
   @column.dateTime({ autoCreate: true, autoUpdate: true })
@@ -78,42 +87,6 @@ export class AiAgentConfirmationSchema extends BaseModel {
   declare targetSummary: any | null
   @column()
   declare targetType: string | null
-  @column.dateTime({ autoCreate: true, autoUpdate: true })
-  declare updatedAt: DateTime
-}
-
-export class AiAgentMcpServerSchema extends BaseModel {
-  static $columns = [
-    'args',
-    'command',
-    'createdAt',
-    'cwd',
-    'enabled',
-    'enabledTools',
-    'environment',
-    'id',
-    'name',
-    'updatedAt',
-  ] as const
-  $columns = AiAgentMcpServerSchema.$columns
-  @column()
-  declare args: any
-  @column()
-  declare command: string
-  @column.dateTime({ autoCreate: true })
-  declare createdAt: DateTime
-  @column()
-  declare cwd: string | null
-  @column()
-  declare enabled: boolean
-  @column()
-  declare enabledTools: any
-  @column()
-  declare environment: string | null
-  @column({ isPrimary: true })
-  declare id: bigint | number
-  @column()
-  declare name: string
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime
 }
@@ -632,6 +605,17 @@ export class KnowledgeChunkSchema extends BaseModel {
   declare embeddingModel: string
   @column({ isPrimary: true })
   declare id: bigint | number
+}
+
+export class KnowledgeDocumentRoleSchema extends BaseModel {
+  static $columns = ['createdAt', 'documentId', 'roleId'] as const
+  $columns = KnowledgeDocumentRoleSchema.$columns
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column({ isPrimary: true })
+  declare documentId: bigint | number
+  @column()
+  declare roleId: number
 }
 
 export class KnowledgeDocumentSchema extends BaseModel {

@@ -101,9 +101,11 @@ export interface AiChatAgentActivity {
   name: string
   state: 'running' | 'done' | 'error'
   callId?: string
+  startedAt?: number
+  displayName?: string
   durationMs?: number
   message?: string
-  errorCode?: 'permission_denied' | 'invalid_input' | 'conflict' | 'failed'
+  errorCode?: 'permission_denied' | 'invalid_input' | 'conflict' | 'failed' | 'tool_not_registered'
   phase?: string
   detail?: {
     templateCode?: string
@@ -119,7 +121,33 @@ export interface AiChatAgentActivity {
     progress?: number
     completed?: number
     total?: number
+    parameterSummary?: Array<{ name: string; type: string }>
+    skillCode?: string
+    skillName?: string
+    skillInstructionCharacters?: number
+    skillCount?: number
+    skillNames?: string[]
+    resultSummary?: AiChatMcpResultSummary
   }
+}
+
+export interface AiChatMcpResultSummary {
+  contentTypes: string[]
+  textCharacters: number
+  structuredType?: 'array' | 'object' | 'string' | 'number' | 'boolean' | 'null'
+  structuredCount?: number
+}
+
+export interface AiChatRunPhase {
+  kind: 'phase'
+  name: 'preparing_agent' | 'mcp_discovery' | 'model_response'
+  state: 'running' | 'done' | 'error'
+  callId: string
+  startedAt: number
+  durationMs?: number
+  serverName?: string
+  toolCount?: number
+  tools?: Array<{ name: string; mode?: 'read' | 'confirm' }>
 }
 
 export interface AiChatRunUsage {
@@ -167,7 +195,8 @@ export interface AiChatRunMeta {
 }
 
 export type AiChatTimelineItem =
-  | { kind: 'plan'; steps: AiChatPlanStep[] }
+  | { kind: 'plan'; turn?: number; steps: AiChatPlanStep[] }
+  | AiChatRunPhase
   | ({ kind: 'tool' } & AiChatAgentActivity)
   | {
       kind: 'run'
@@ -185,6 +214,8 @@ export type AiChatTimelineItem =
 export interface AiChatPlanStep {
   key: 'identify_target' | 'prepare_action' | 'await_confirmation'
   state: 'pending' | 'running' | 'done'
+  startedAt?: number
+  durationMs?: number
 }
 
 export class AiChatStreamIncompleteError extends Error {
@@ -248,12 +279,15 @@ type AiChatStreamEvent =
       name: string
       state: AiChatAgentActivity['state']
       callId?: string
+      startedAt?: number
+      displayName?: string
       durationMs?: number
       message?: string
       errorCode?: AiChatAgentActivity['errorCode']
       phase?: string
       detail?: AiChatAgentActivity['detail']
     }
+  | ({ type: 'agent_phase' } & Omit<AiChatRunPhase, 'kind'>)
   | { type: 'agent_plan'; steps: AiChatPlanStep[] }
   | { type: 'agent_citations'; citations: AiChatCitation[] }
   | ({ type: 'agent_confirmation' } & AiChatPendingConfirmation)

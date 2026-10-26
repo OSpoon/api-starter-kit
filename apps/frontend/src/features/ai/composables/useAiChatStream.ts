@@ -137,6 +137,8 @@ export function useAiChatStream(
               name: event.name,
               state: event.state,
               callId: event.callId,
+              startedAt: event.startedAt,
+              displayName: event.displayName,
               durationMs: event.durationMs,
               message: event.message,
               errorCode: event.errorCode,
@@ -157,10 +159,43 @@ export function useAiChatStream(
 
           if (event.type === 'agent_plan') {
             assistantMessage.plan = event.steps
-            assistantMessage.timeline = [
-              ...(assistantMessage.timeline ?? []).filter((item) => item.kind !== 'plan'),
-              { kind: 'plan', steps: event.steps },
-            ]
+            const timeline = assistantMessage.timeline ?? []
+            const turn = Math.max(
+              1,
+              timeline.filter((item) => item.kind === 'phase' && item.name === 'preparing_agent')
+                .length
+            )
+            const planIndex = timeline.findIndex(
+              (item) =>
+                item.kind === 'plan' &&
+                (item.turn === turn || (turn === 1 && item.turn === undefined))
+            )
+            const plan = { kind: 'plan' as const, turn, steps: event.steps }
+            if (planIndex >= 0) timeline[planIndex] = plan
+            else timeline.push(plan)
+            assistantMessage.timeline = [...timeline]
+            updateAssistantMessage()
+          }
+
+          if (event.type === 'agent_phase') {
+            const timeline = assistantMessage.timeline ?? []
+            const phaseIndex = timeline.findIndex(
+              (item) => item.kind === 'phase' && item.callId === event.callId
+            )
+            const phase = {
+              kind: 'phase' as const,
+              name: event.name,
+              state: event.state,
+              callId: event.callId,
+              startedAt: event.startedAt,
+              durationMs: event.durationMs,
+              serverName: event.serverName,
+              toolCount: event.toolCount,
+              tools: event.tools,
+            }
+            if (phaseIndex >= 0) timeline[phaseIndex] = phase
+            else timeline.push(phase)
+            assistantMessage.timeline = [...timeline]
             updateAssistantMessage()
           }
 
@@ -406,6 +441,7 @@ export function useAiChatStream(
         item.id === assistantMessage.id ? { ...assistantMessage } : item
       )
     }
+    let streamedConfirmation: AiChatPendingConfirmation | null = null
 
     try {
       await streamAiAgentActionConfirmation(
@@ -414,11 +450,18 @@ export function useAiChatStream(
         confirmationId,
         (event) => {
           if (event.type === 'assistant_segment_start') {
-            assistantMessage.status = 'done'
-            updateAssistantMessage()
-            assistantMessage = createStreamingAssistantMessage()
-            state.streamingMessageId.value = assistantMessage.id
-            state.streamingMessages.value = [...state.streamingMessages.value, assistantMessage]
+            const hasQueuedUserMessage = state.streamingMessages.value.some(
+              (item) =>
+                item.role === 'user' &&
+                !conversation.messages.some((message) => String(message.id) === String(item.id))
+            )
+            if (hasQueuedUserMessage) {
+              assistantMessage.status = 'done'
+              updateAssistantMessage()
+              assistantMessage = createStreamingAssistantMessage()
+              state.streamingMessageId.value = assistantMessage.id
+              state.streamingMessages.value = [...state.streamingMessages.value, assistantMessage]
+            }
           }
 
           if (event.type === 'delta') {
@@ -432,6 +475,8 @@ export function useAiChatStream(
               name: event.name,
               state: event.state,
               callId: event.callId,
+              startedAt: event.startedAt,
+              displayName: event.displayName,
               durationMs: event.durationMs,
               message: event.message,
               errorCode: event.errorCode,
@@ -447,12 +492,45 @@ export function useAiChatStream(
             updateAssistantMessage()
           }
 
+          if (event.type === 'agent_phase') {
+            const timeline = assistantMessage.timeline ?? []
+            const phaseIndex = timeline.findIndex(
+              (item) => item.kind === 'phase' && item.callId === event.callId
+            )
+            const phase = {
+              kind: 'phase' as const,
+              name: event.name,
+              state: event.state,
+              callId: event.callId,
+              startedAt: event.startedAt,
+              durationMs: event.durationMs,
+              serverName: event.serverName,
+              toolCount: event.toolCount,
+              tools: event.tools,
+            }
+            if (phaseIndex >= 0) timeline[phaseIndex] = phase
+            else timeline.push(phase)
+            assistantMessage.timeline = [...timeline]
+            updateAssistantMessage()
+          }
+
           if (event.type === 'agent_plan') {
             assistantMessage.plan = event.steps
-            assistantMessage.timeline = [
-              ...(assistantMessage.timeline ?? []).filter((item) => item.kind !== 'plan'),
-              { kind: 'plan', steps: event.steps },
-            ]
+            const timeline = assistantMessage.timeline ?? []
+            const turn = Math.max(
+              1,
+              timeline.filter((item) => item.kind === 'phase' && item.name === 'preparing_agent')
+                .length
+            )
+            const planIndex = timeline.findIndex(
+              (item) =>
+                item.kind === 'plan' &&
+                (item.turn === turn || (turn === 1 && item.turn === undefined))
+            )
+            const plan = { kind: 'plan' as const, turn, steps: event.steps }
+            if (planIndex >= 0) timeline[planIndex] = plan
+            else timeline.push(plan)
+            assistantMessage.timeline = [...timeline]
             updateAssistantMessage()
           }
 
@@ -478,6 +556,20 @@ export function useAiChatStream(
             updateAssistantMessage()
           }
 
+          if (event.type === 'agent_confirmation') {
+            streamedConfirmation = {
+              id: event.id,
+              action: event.action,
+              impact: event.impact,
+              targetType: event.targetType,
+              targetId: event.targetId,
+              targetSummary: event.targetSummary,
+              changeSummary: event.changeSummary,
+              expiresAt: event.expiresAt,
+              presentation: event.presentation,
+            }
+          }
+
           if (event.type === 'done') {
             state.conversation.value = {
               ...(state.conversation.value ?? conversation),
@@ -486,6 +578,15 @@ export function useAiChatStream(
               confirmations: [...state.confirmations.value, ...event.confirmations],
             }
             state.confirmations.value = state.conversation.value.confirmations ?? []
+            const latestConfirmation = event.confirmations.at(-1) ?? streamedConfirmation
+            if (latestConfirmation) {
+              const attachedConfirmation =
+                'messageId' in latestConfirmation &&
+                typeof latestConfirmation.messageId === 'number'
+                  ? (latestConfirmation as AiChatConfirmation)
+                  : { ...latestConfirmation, messageId: event.message.id }
+              presentLatestConfirmation([attachedConfirmation])
+            }
           }
 
           if (event.type === 'error') {
@@ -509,6 +610,7 @@ export function useAiChatStream(
       }
       state.streamingMessages.value = []
       state.confirmations.value = persistedConversation.confirmations ?? []
+      presentLatestConfirmation(state.confirmations.value)
       await refreshConversations()
       return true
     } catch (error) {

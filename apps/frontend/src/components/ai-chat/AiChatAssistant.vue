@@ -17,7 +17,7 @@ import {
   Trash2,
   X,
 } from '@lucide/vue'
-import { useRafFn, useTimeoutFn } from '@vueuse/core'
+import { useIntervalFn, useRafFn, useTimeoutFn } from '@vueuse/core'
 import { toast } from 'vue-sonner'
 
 import AiChatApprovalCard from '@/components/ai-chat/AiChatApprovalCard.vue'
@@ -156,6 +156,19 @@ let audioSource: MediaStreamAudioSourceNode | null = null
 let lastWaveformSampleAt = 0
 
 const waveformHeights = ref<number[]>(Array.from({ length: 56 }, () => 8))
+const currentTime = ref(Date.now())
+const runClock = useIntervalFn(
+  () => {
+    currentTime.value = Date.now()
+  },
+  1000,
+  { immediate: false }
+)
+watch(
+  () => props.loading,
+  (loading) => (loading ? runClock.resume() : runClock.pause()),
+  { immediate: true }
+)
 
 const MAX_RECORDING_DURATION_MS = 60_000
 
@@ -940,6 +953,11 @@ watch(
                           :message="message"
                           :all-messages="displayMessages"
                           :streaming-message-id="streamingMessageId"
+                          :current-time="
+                            message.status === 'pending' || message.status === 'streaming'
+                              ? currentTime
+                              : undefined
+                          "
                           :loading="loading"
                           :show-message-actions="showMessageActions && !isSelectingMessages"
                           :selectable="isSelectingMessages && !isGeneratingImage"

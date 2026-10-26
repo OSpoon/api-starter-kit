@@ -420,7 +420,7 @@ test.group('Agent configuration', (group) => {
       "    } else if (request.method === 'tools/list') {",
       '      result = { tools: [',
       "        { name: 'lookup_logs', description: 'Look up the latest log ID', inputSchema: { type: 'object', properties: {}, additionalProperties: false }, annotations: { readOnlyHint: true } },",
-      "        { name: 'confirm_logs', description: 'Look up a protected log result', inputSchema: { type: 'object', properties: {}, additionalProperties: false }, annotations: { readOnlyHint: true } },",
+      "        { name: 'confirm_logs', description: 'Look up a protected log result', inputSchema: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'], additionalProperties: false }, annotations: { readOnlyHint: true } },",
       "        { name: 'write_entry', description: 'Write an entry', inputSchema: { type: 'object', properties: {}, additionalProperties: false }, annotations: { readOnlyHint: false } },",
       '      ] }',
       "    } else if (request.method === 'tools/call') {",
@@ -487,12 +487,16 @@ test.group('Agent configuration', (group) => {
       '必须改为确认后执行'
     )
 
-    const proposal = await confirmTool!.prepareConfirmation!({})
+    const proposal = await confirmTool!.prepareConfirmation!({ query: 'private search phrase' })
     assert.equal(proposal.action, 'call_mcp_tool')
     assert.equal(proposal.presentation.title, '确认调用 MCP 工具')
     assert.deepInclude(proposal.presentation.changes, {
       label: 'MCP 工具',
       value: 'confirm_logs',
+    })
+    assert.deepInclude(proposal.presentation.changes, {
+      label: '参数字段与类型',
+      value: 'query (string)',
     })
     const confirmation = await AiAgentConfirmation.findOrFail(proposal.id)
     confirmation.assistantMessageId = assistantMessage.id
@@ -512,6 +516,8 @@ test.group('Agent configuration', (group) => {
     assert.include(body, '"state":"running"')
     assert.include(body, '"state":"done"')
     assert.include(body, '"toolName":"confirm_logs"')
+    assert.include(body, '"resultSummary":{"contentTypes":[],"textCharacters":0}')
+    assert.notInclude(body, 'private search phrase')
     assert.include(body, 'event: done')
     const confirmedProposal = await AiAgentConfirmation.findOrFail(proposal.id)
     assert.equal(confirmedProposal.status, 'confirmed')

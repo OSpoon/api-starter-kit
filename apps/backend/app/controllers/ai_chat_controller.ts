@@ -107,10 +107,21 @@ async function executeConfirmationAndCreateMessage(input: {
     confirmationId,
     ...(pendingTool?.kind === 'tool' && typeof pendingTool.detail?.toolName === 'string'
       ? { toolName: pendingTool.detail.toolName }
-      : isToolAction && typeof confirmationRecord.targetSummary?.name === 'string'
-        ? { toolName: confirmationRecord.targetSummary.name }
-        : {}),
+      : isToolAction && typeof confirmationRecord.targetSummary?.toolName === 'string'
+        ? { toolName: confirmationRecord.targetSummary.toolName }
+        : isToolAction && typeof confirmationRecord.targetSummary?.name === 'string'
+          ? { toolName: confirmationRecord.targetSummary.name }
+          : {}),
   }
+  const targetToolName = confirmationRecord.targetSummary?.toolName
+  const displayName =
+    confirmationRecord.action === 'call_mcp_tool' &&
+    typeof confirmationRecord.targetSummary?.name === 'string' &&
+    typeof targetToolName === 'string'
+      ? `${confirmationRecord.targetSummary.name}: ${targetToolName}`
+      : pendingTool?.kind === 'tool'
+        ? pendingTool.displayName
+        : undefined
   const activityCallId = callId ?? `confirmation-${confirmationId}`
   const actionStartedAt = Date.now()
   if (response) {
@@ -118,6 +129,8 @@ async function executeConfirmationAndCreateMessage(input: {
       name: executionName,
       state: 'running',
       callId: activityCallId,
+      ...(displayName ? { displayName } : {}),
+      startedAt: actionStartedAt,
       phase: 'executing_confirmation',
       detail: executionDetail,
     })
@@ -138,6 +151,8 @@ async function executeConfirmationAndCreateMessage(input: {
         name: executionName,
         state: 'error',
         callId: activityCallId,
+        ...(displayName ? { displayName } : {}),
+        startedAt: actionStartedAt,
         durationMs: Date.now() - actionStartedAt,
         phase: 'failed',
         detail: executionDetail,
@@ -150,18 +165,51 @@ async function executeConfirmationAndCreateMessage(input: {
   const actionResult =
     confirmation.result && typeof confirmation.result === 'object' ? confirmation.result : undefined
   const toolName = actionResult?.mcpToolName ?? actionResult?.agentToolName
+  const runtimeSummary: Record<string, unknown> = {}
+  if (actionResult?.mcpToolResultSummary && typeof actionResult.mcpToolResultSummary === 'object') {
+    runtimeSummary.resultSummary = actionResult.mcpToolResultSummary
+  }
+  if (typeof actionResult?.agentSkillCode === 'string') {
+    runtimeSummary.skillCode = actionResult.agentSkillCode
+  }
+  if (typeof actionResult?.agentSkillName === 'string') {
+    runtimeSummary.skillName = actionResult.agentSkillName
+  }
+  if (typeof actionResult?.agentSkillInstructionCharacters === 'number') {
+    runtimeSummary.skillInstructionCharacters = actionResult.agentSkillInstructionCharacters
+  }
+  const completedDetail = {
+    ...executionDetail,
+    ...runtimeSummary,
+    ...(typeof toolName === 'string' ? { toolName } : {}),
+  }
+  const completedTool = assistantMessage.runtimeDetails.find(
+    (item) => item.kind === 'tool' && item.callId === activityCallId
+  )
+  if (completedTool?.kind === 'tool') {
+    completedTool.state = 'done'
+    completedTool.phase = 'confirmed'
+    completedTool.durationMs = Date.now() - actionStartedAt
+    if (displayName) completedTool.displayName = displayName
+    completedTool.detail = { ...completedTool.detail, ...runtimeSummary }
+    await assistantMessage.save()
+  }
+
+  const completedPlan = assistantMessage.runtimeDetails.find((item) => item.kind === 'plan')
+  if (response && completedPlan?.kind === 'plan') {
+    writeAiChatSse(response, 'agent_plan', { steps: completedPlan.steps })
+  }
 
   if (response) {
     writeAiChatSse(response, 'agent_status', {
       name: executionName,
       state: 'done',
       callId: activityCallId,
+      ...(displayName ? { displayName } : {}),
+      startedAt: actionStartedAt,
       durationMs: Date.now() - actionStartedAt,
       phase: 'confirmed',
-      detail: {
-        ...executionDetail,
-        ...(typeof toolName === 'string' ? { toolName } : {}),
-      },
+      detail: completedDetail,
     })
   }
 
@@ -176,6 +224,7 @@ async function executeConfirmationAndCreateMessage(input: {
       userId,
       result: actionResult,
       response,
+      continueWithConfiguredTools: true,
     })
     return { confirmation, actionResult, message, isToolAction }
   }
@@ -344,7 +393,10 @@ export default class AiChatController {
     summary: '发送 AI 聊天消息',
     description: '保存用户消息，调用 OpenAI 兼容接口，并保存助手回复。',
   })
-  @ApiResponse({ status: 200, description: '流式 AI 会话响应' })
+  @ApiResponse({
+    status: 200,
+    description: 'SSE 流包含 Agent 准备阶段、工具状态和不含参数值的调用摘要。',
+  })
   @ApiResponse({ status: 409, description: '当前会话已有 AI 请求正在运行' })
   async sendMessage(ctx: HttpContext) {
     const { params, request, response } = ctx
@@ -550,7 +602,10 @@ export default class AiChatController {
     summary: '流式确认 AI 代理受控操作',
     description: '执行当前用户创建且尚未过期的受控操作，并通过 SSE 流式返回助手结果。',
   })
-  @ApiResponse({ status: 200, description: 'SSE 流返回助手文本和执行状态' })
+  @ApiResponse({
+    status: 200,
+    description: 'SSE 流返回助手文本、工具执行状态和安全摘要。',
+  })
   async confirmAiAgentActionStream(ctx: HttpContext) {
     const { params, response } = ctx
     const user = currentUser(ctx)

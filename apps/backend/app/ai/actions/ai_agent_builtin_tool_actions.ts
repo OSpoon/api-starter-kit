@@ -105,10 +105,19 @@ const callBuiltInToolAction: AiAgentActionImplementation = {
       .filter((item) => item.type === 'text')
       .map((item) => item.text)
       .join('\n')
+    const skill = details?.kind === 'agent_skill' ? (details as Record<string, unknown>) : null
     return {
       agentToolName: toolName,
       agentToolResult: text.length > 20_000 ? `${text.slice(0, 20_000)}\n[结果已截断]` : text,
-      ...(toolName === 'load_agent_skill' ? { agentSkillCode: args.code } : {}),
+      ...(toolName === 'load_agent_skill'
+        ? {
+            agentSkillCode: args.code,
+            ...(typeof skill?.name === 'string' ? { agentSkillName: skill.name } : {}),
+            ...(typeof skill?.instructions === 'string'
+              ? { agentSkillInstructionCharacters: skill.instructions.length }
+              : {}),
+          }
+        : {}),
       ...(sources.length ? { agentToolSources: sources } : {}),
     }
   },

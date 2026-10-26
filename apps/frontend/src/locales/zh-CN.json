@@ -216,7 +216,7 @@
   },
   "agent_config": {
     "title": "Agent 配置",
-    "description": "配置助手模型、可用工具、技能、MCP 和 IM 渠道。修改后对下一次对话生效。",
+    "description": "配置模型、工具、技能、MCP 与 IM 渠道。修改对新对话生效。",
     "sections_label": "Agent 配置分区",
     "module_models": "模型",
     "module_tools": "工具",
@@ -224,7 +224,7 @@
     "module_mcp": "MCP",
     "module_im": "IMBot",
     "tools_title": "内置工具",
-    "tools_description": "管理内置工具的启用状态和执行策略。确认策略由此处配置决定。",
+    "tools_description": "设置内置工具及执行策略。",
     "tools_empty": "暂无内置工具。",
     "tool_name": "工具",
     "tool_mode": "执行策略",
@@ -257,20 +257,20 @@
       "search_knowledge": "检索所选知识文档中的内容。",
       "list_agent_skills": "列出管理员配置的技能说明。",
       "load_agent_skill": "按技能编码读取完整的任务指引。",
-      "revoke_api_key": "吊销指定的 API Key，执行策略按上方配置。",
-      "delete_api_key": "删除已吊销的 API Key，执行策略按上方配置。",
-      "system_management_change": "执行受支持的用户或角色管理变更，执行策略按上方配置。",
-      "create_api_key": "创建 API Key，执行策略按上方配置。",
-      "send_wecom_message": "发送已启用的企业微信消息模板，执行策略按上方配置。"
+      "revoke_api_key": "吊销指定的 API Key。",
+      "delete_api_key": "删除已吊销的 API Key。",
+      "system_management_change": "执行受支持的用户或角色变更。",
+      "create_api_key": "创建 API Key。",
+      "send_wecom_message": "发送已启用的企业微信模板。"
     },
     "skills_title": "技能",
-    "skills_description": "配置可复用的 Agent 工作方式。Agent 会通过摘要发现技能，并按需加载完整的 Markdown 说明。",
+    "skills_description": "配置可复用技能；Agent 根据摘要发现并按需加载全文。",
     "skills_load_failed": "加载技能失败",
     "skill_load_failed": "加载技能详情失败",
     "skills_empty": "尚未配置技能。",
     "create_skill": "新增技能",
     "edit_skill": "编辑技能",
-    "skill_dialog_description": "用 Markdown 编写完整技能说明；Agent 会按需加载。技能不能覆盖系统策略、权限或确认要求。",
+    "skill_dialog_description": "用 Markdown 编写技能说明。Agent 按需加载；技能不能覆盖系统策略、权限或确认规则。",
     "skill_code": "技能编码",
     "skill_code_placeholder": "例如：invoice-review",
     "skill_code_required": "请输入技能编码。",
@@ -279,7 +279,7 @@
     "skill_name_placeholder": "例如：发票审核",
     "skill_name_required": "请输入技能名称。",
     "skill_content": "技能说明（Markdown）",
-    "skill_content_placeholder": "使用 Markdown 编写适用场景、步骤、约束和预期结果。",
+    "skill_content_placeholder": "用 Markdown 描述适用场景、步骤、约束和预期结果。",
     "skill_content_required": "请输入技能说明。",
     "enabled": "启用",
     "toggle_enabled": "切换 {name} 的启用状态",
@@ -289,9 +289,9 @@
     "skill_deleted": "技能已删除",
     "skill_delete_failed": "删除技能失败",
     "delete_skill_title": "删除技能",
-    "delete_skill_description": "确定删除技能“{name}”吗？已开始的对话会在下一轮应用最新配置。",
+    "delete_skill_description": "删除技能“{name}”？下一轮使用新配置。",
     "mcp_title": "MCP",
-    "mcp_description": "配置 MCP 服务、连接状态、工具启用状态与执行策略。",
+    "mcp_description": "配置 MCP 服务、连接和工具策略。",
     "mcp_load_failed": "加载 MCP 失败",
     "mcp_empty": "尚未配置 MCP。",
     "create_mcp": "添加 MCP",
@@ -299,14 +299,13 @@
     "mcp_dialog_description": "MCP 程序会以当前后端进程用户启动；请仅配置可信程序。",
     "mcp_name": "名称",
     "mcp_command": "启动命令",
-    "mcp_configuration": "MCP 配置（JSON）",
     "mcp_configuration_title": "MCP 配置",
-    "mcp_shared_configuration_hint": "环境变量（env）会加密保存且不会回显；省略 env 保留已保存值，填写对象替换，空对象清除。",
-    "mcp_configuration_hint": "配置标准 stdio 服务。command 可填后端 PATH 中的命令名（如 npx）或绝对路径；程序以无 shell 方式直接启动，请仅配置可信程序。",
-    "mcp_configuration_invalid": "请输入包含有效 mcpServers 对象的 JSON 配置，并检查 command、args、cwd 和 env。",
-    "mcp_tools": "MCP 工具",
-    "mcp_tools_description": "连接状态正常后显示服务提供的工具。逐项启用并选择执行策略；确认模式会使用现有 Agent 确认卡片。",
-    "mcp_tools_empty": "尚未发现工具；刷新状态以检查 MCP 服务。",
+    "mcp_shared_configuration_hint": "env 加密保存且不会回显；省略则保留，填写对象则替换，空对象则清除。",
+    "mcp_configuration_hint": "配置 stdio 服务。command 可填后端 PATH 命令或绝对路径；进程不经 shell 启动。仅配置可信程序。",
+    "mcp_configuration_invalid": "请输入有效的 mcpServers JSON，并检查 command、args、cwd 和 env。",
+    "mcp_tools": "工具",
+    "mcp_tools_description": "确认模式使用 Agent 确认卡片。",
+    "mcp_tools_empty": "未发现工具；刷新服务状态重试。",
     "mcp_servers": "MCP 服务",
     "mcp_health": "连接状态",
     "mcp_health_healthy": "正常",
@@ -318,7 +317,7 @@
     "mcp_edit_tools": "编辑工具和执行策略",
     "mcp_tool_disabled": "未启用",
     "mcp_enable_tool": "启用工具 {name}",
-    "mcp_readonly_hint": "服务声明该工具为只读；仍需管理员选择执行方式。",
+    "mcp_readonly_hint": "服务标记此工具为只读，仍需设置执行策略。",
     "mcp_execution_policy": "执行策略",
     "mcp_mode_read": "直接执行（只读）",
     "mcp_mode_confirm": "用户确认后执行",
@@ -327,9 +326,9 @@
     "mcp_deleted": "MCP 已删除",
     "mcp_delete_failed": "删除 MCP 失败",
     "delete_mcp_title": "删除 MCP",
-    "delete_mcp_description": "确定删除 MCP“{name}”吗？该 MCP 的工具将立即从后续对话中移除。",
+    "delete_mcp_description": "删除 MCP“{name}”？其工具将从后续对话移除。",
     "mcp_remove_servers_title": "移除 MCP 服务",
-    "mcp_remove_servers_description": "保存这份配置会删除以下服务及其工具策略：{names}。确认继续吗？"
+    "mcp_remove_servers_description": "保存后移除服务及其工具策略：{names}。继续？"
   },
   "im_config": {
     "secret_placeholder": "输入新密钥；留空则保留现有密钥",
@@ -359,11 +358,11 @@
   "ai_chat": {
     "resize_both": "调整助手大小",
     "title": "AI 助手",
-    "welcome": "你好，我是 AI 助手。你可以询问当前系统的功能、API 接入或配置方式。",
+    "welcome": "你好，我是 AI 助手。可询问系统功能、API 或配置。",
     "welcome_title": "你好，我是 AI 助手",
-    "welcome_subtitle": "你可以询问当前系统的功能、API 接入或配置方式。",
-    "input_placeholder": "输入问题，Enter 发送，Shift + Enter 换行",
-    "input_placeholder_while_generating": "生成中也可输入，Enter 或点击发送箭头立即调整当前任务",
+    "welcome_subtitle": "可询问系统功能、API 或配置。",
+    "input_placeholder": "输入问题（Enter 发送，Shift + Enter 换行）",
+    "input_placeholder_while_generating": "生成中可输入；按 Enter 或点发送调整任务",
     "adjust_current": "立即调整当前任务",
     "usage": {
       "open": "查看本月用量",
@@ -391,9 +390,10 @@
       "too_large": "录音文件不能超过 10 MB",
       "transcribe_failed": "语音转写失败，请稍后重试"
     },
-    "response_disclaimer": "AI 回复仅供参考，重要信息请以系统实际数据和项目文档为准。",
+    "response_disclaimer": "AI 回复仅供参考；重要信息请核对系统数据和项目文档。",
     "thinking": "正在思考...",
     "waiting": "正在输入...",
+    "waiting_for_confirmation": "等待您确认此操作",
     "new_chat": "新对话",
     "history": "历史会话",
     "no_history": "暂无历史会话",
@@ -418,61 +418,61 @@
     "scroll_to_latest": "回到最新消息",
     "activities": {
       "diagnose_my_access": {
-        "running": "正在检查我的权限…",
-        "done": "已完成权限检查",
-        "error": "权限检查未完成"
+        "running": "正在检查权限…",
+        "done": "权限已检查",
+        "error": "权限检查失败"
       },
       "run_registered_query": {
-        "running": "正在执行注册查询…",
-        "done": "已完成注册查询",
-        "error": "注册查询未完成"
+        "running": "正在查询数据…",
+        "done": "查询完成",
+        "error": "查询失败"
       },
       "search_knowledge": {
-        "running": "正在检索知识文档…",
-        "done": "已完成知识文档检索",
-        "error": "知识文档检索未完成"
+        "running": "正在检索知识…",
+        "done": "检索完成",
+        "error": "检索失败"
       },
       "search_knowledge_catalog": {
         "running": "正在检索知识目录…",
-        "done": "已完成知识目录检索",
-        "error": "知识目录检索未完成"
+        "done": "检索完成",
+        "error": "检索失败"
       },
       "revoke_api_key": {
         "running": "正在准备吊销确认…",
-        "done": "已生成吊销确认",
-        "error": "未能生成吊销确认"
+        "done": "吊销确认已生成",
+        "error": "吊销确认失败"
       },
       "delete_api_key": {
         "running": "正在准备删除确认…",
-        "done": "已生成删除确认",
-        "error": "未能生成删除确认"
+        "done": "删除确认已生成",
+        "error": "删除确认失败"
       },
       "system_management_change": {
-        "running": "正在准备系统管理变更…",
-        "done": "已完成变更检查",
-        "error": "系统管理变更未完成"
+        "running": "正在准备变更…",
+        "done": "变更检查完成",
+        "error": "变更检查失败"
       },
       "generic": {
-        "running": "正在执行操作…",
-        "done": "操作已完成",
-        "error": "操作未完成"
+        "running": "正在执行…",
+        "done": "操作完成",
+        "error": "操作失败"
       }
     },
     "plan": {
       "identify_target": {
-        "pending": "正在确定需要处理的系统对象",
-        "running": "正在定位需要处理的系统对象",
-        "done": "已定位需要处理的系统对象"
+        "pending": "确定目标",
+        "running": "定位目标",
+        "done": "目标已定位"
       },
       "prepare_action": {
-        "pending": "正在准备系统管理操作",
-        "running": "正在准备系统管理操作",
-        "done": "操作准备已完成"
+        "pending": "准备操作",
+        "running": "正在准备操作",
+        "done": "操作已准备"
       },
       "await_confirmation": {
-        "pending": "等待您确认此操作",
-        "running": "等待您确认此操作",
-        "done": "此操作已确认"
+        "pending": "等待确认...",
+        "running": "等待确认...",
+        "done": "已确认"
       }
     },
     "errors": {
@@ -505,12 +505,30 @@
     },
     "timeline": {
       "title": "运行详情",
-      "tools_section": "工具调用",
-      "plan_section": "执行计划",
-      "run_section": "运行摘要",
+      "turn_section": "第 {turn} 轮",
       "plan": "执行计划",
       "run": "运行完成 · {duration} 秒",
-      "run_waiting_confirmation": "本轮已暂停，等待确认 · {duration} 秒",
+      "run_waiting_confirmation": "本轮已暂停 · {duration} 秒",
+      "elapsed": "已运行 {duration} 秒",
+      "duration_seconds": "{duration} 秒",
+      "tool_not_registered": "当前运行中未注册此工具",
+      "phases": {
+        "unknown_server": "MCP 服务",
+        "preparing_agent": {
+          "running": "正在准备工具",
+          "done": "工具已就绪",
+          "error": "工具准备失败"
+        },
+        "mcp_discovery": {
+          "running": "正在发现 MCP 工具：{serverName}",
+          "error": "MCP 工具发现失败：{serverName}"
+        },
+        "model_response": {
+          "running": "正在等待模型响应",
+          "done": "模型响应完成",
+          "error": "模型响应失败"
+        }
+      },
       "states": {
         "running": "正在",
         "done": "已完成",
@@ -520,9 +538,14 @@
       "tools": {
         "confirmation_execution": "执行已确认操作",
         "confirmation_execution_with_tool": "执行工具：{toolName}",
-        "mcp_tool_awaiting_confirmation": "等待确认 MCP 工具：{toolName}",
-        "action_awaiting_confirmation": "等待确认：{action}",
+        "mcp_tool_named": "{name}",
+        "mcp_tool_awaiting_confirmation": "等待确认...：{toolName}",
+        "unregistered_mcp": "未注册的 MCP 工具",
+        "skill_named": "加载技能：{name}",
+        "action_awaiting_confirmation": "等待确认...：{action}",
         "action_cancelled": "已取消：{action}",
+        "list_agent_skills": "发现技能",
+        "load_agent_skill": "加载技能",
         "run_registered_query": "查询数据",
         "search_knowledge": "检索知识",
         "search_knowledge_catalog": "检索知识目录",
@@ -534,7 +557,10 @@
         "send_wecom_message": "发送企业微信消息",
         "generic": "执行工具"
       },
-      "returned": "返回 {count} 条",
+      "merged_tool": {
+        "executing": "正在执行...",
+        "cancelled": "已取消"
+      },
       "tools_count": "{count} 个工具",
       "steps_count": "{count} 个步骤",
       "results_count": "返回 {count} 条"
@@ -579,8 +605,8 @@
       "generic": "目标对象"
     },
     "knowledge_status": {
-      "running": "正在分步检索知识",
-      "done": "已完成分步知识检索",
+      "running": "正在检索知识…",
+      "done": "知识检索完成",
       "error": "知识检索失败"
     },
     "actions": {
@@ -602,10 +628,10 @@
       "generic": "系统管理操作"
     },
     "confirmations": {
-      "revoke_api_key": "准备吊销 API Key「{name}」（{prefix}）。确认后，所有使用此密钥的脚本将立即失效。",
+      "revoke_api_key": "确认吊销 API Key「{name}」（{prefix}）？相关脚本将立即失效。",
       "confirm": "确认吊销",
       "dialog_title": "确认吊销 API Key",
-      "dialog_description": "确定要吊销「{name}」吗？此操作会立即使该密钥失效。",
+      "dialog_description": "吊销「{name}」后密钥立即失效，确定继续？",
       "success": "操作已确认并执行"
     },
     "approval": {
@@ -613,8 +639,8 @@
       "approve": "批准",
       "cancel": "取消",
       "target": "影响对象：{target}",
-      "destructive_impact": "此操作可能立即生效且无法撤销；执行前会再次验证权限和对象状态。",
-      "standard_impact": "执行前会再次验证权限和对象状态。",
+      "destructive_impact": "操作可能立即生效且无法撤销；执行前会复核权限和对象状态。",
+      "standard_impact": "执行前会复核权限和对象状态。",
       "expires_at": "此确认将在 {time} 过期。",
       "change_fields": {
         "result": "执行结果",

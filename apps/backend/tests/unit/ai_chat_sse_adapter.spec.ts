@@ -15,7 +15,7 @@ type FakeToolCall = {
   updates?: unknown[]
 }
 
-function createFakeRun(toolCalls: FakeToolCall[]) {
+function createFakeRun(toolCalls: FakeToolCall[], toolLabels = new Map<string, string>()) {
   async function* generate() {
     for (const toolCall of toolCalls) {
       yield {
@@ -58,6 +58,7 @@ function createFakeRun(toolCalls: FakeToolCall[]) {
   return {
     agentRunId: 'agent-run-1',
     stream: { events: generate() },
+    toolLabels,
   } as unknown as Awaited<ReturnType<typeof createAiAgentStream>>
 }
 
@@ -123,7 +124,10 @@ test.group('AI chat SSE adapter', () => {
     assert.equal(failed.state, 'error')
     assert.equal(failed.callId, 'mcp-failure')
     assert.equal(failed.message, 'Connection refused')
-    assert.deepEqual(failed.detail, { toolName: 'search_logs' })
+    assert.deepEqual(failed.detail, {
+      toolName: 'search_logs',
+      parameterSummary: [{ name: 'limit', type: 'number' }],
+    })
   })
 
   test('emits running then done agent_status with callId and durationMs', async ({ assert }) => {
@@ -199,7 +203,79 @@ test.group('AI chat SSE adapter', () => {
     assert.deepEqual((frames[1].data as Record<string, unknown>).detail, {
       message: 'reading documents',
       progress: 42,
+      parameterSummary: [{ name: 'query', type: 'string' }],
     })
+  })
+
+  test('shows MCP identity and safe parameter and result summaries', async ({ assert }) => {
+    const { writes, response } = createFakeResponse()
+    const name = 'mcp_read_server_lookup_12345678'
+    const run = createFakeRun(
+      [
+        {
+          name,
+          callId: 'mcp-safe-summary',
+          input: { filter: { email: 'person@example.com' }, api_token: 'secret-value', limit: 5 },
+          status: Promise.resolve('finished'),
+          output: Promise.resolve({
+            kind: 'mcp_tool_result',
+            toolName: 'lookup',
+            resultSummary: { contentTypes: ['text'], textCharacters: 42 },
+          }),
+        },
+      ],
+      new Map([[name, 'Customer directory: lookup']])
+    )
+
+    await streamAiAgentToolStatuses(run, response, new AbortController().signal)
+    const frames = parseSse(writes)
+    const running = frames[0].data as Record<string, unknown>
+    const completed = frames[1].data as Record<string, unknown>
+    const runningDetail = running.detail as Record<string, unknown>
+    const completedDetail = completed.detail as Record<string, unknown>
+
+    assert.equal(running.displayName, 'Customer directory: lookup')
+    assert.deepEqual(runningDetail.parameterSummary, [
+      { name: 'filter', type: 'object' },
+      { name: 'api_token', type: 'string' },
+      { name: 'limit', type: 'number' },
+    ])
+    assert.deepEqual(completedDetail.resultSummary, {
+      contentTypes: ['text'],
+      textCharacters: 42,
+    })
+    assert.notInclude(writes.join(''), 'person@example.com')
+    assert.notInclude(writes.join(''), 'secret-value')
+  })
+
+  test('shows loaded skill identity without exposing its instructions', async ({ assert }) => {
+    const { writes, response } = createFakeResponse()
+    const instructions = 'Private skill instructions'
+    const run = createFakeRun([
+      {
+        name: 'load_agent_skill',
+        callId: 'load-skill',
+        input: { code: 'invoice-review' },
+        status: Promise.resolve('finished'),
+        output: Promise.resolve({
+          kind: 'agent_skill',
+          code: 'invoice-review',
+          name: 'Invoice review',
+          instructions,
+        }),
+      },
+    ])
+
+    await streamAiAgentToolStatuses(run, response, new AbortController().signal)
+    const completed = parseSse(writes)[1].data as Record<string, unknown>
+    const detail = completed.detail as Record<string, unknown>
+
+    assert.deepInclude(detail, {
+      skillCode: 'invoice-review',
+      skillName: 'Invoice review',
+      skillInstructionCharacters: instructions.length,
+    })
+    assert.notInclude(writes.join(''), instructions)
   })
 
   test('emits confirmation from the tool preflight and completes the plan', async ({ assert }) => {
@@ -251,10 +327,15 @@ test.group('AI chat SSE adapter', () => {
     assert.equal((done.detail as Record<string, unknown>).targetId, '42')
     assert.equal((done.detail as Record<string, unknown>).targetLabel, 'Ada Lovelace')
 
-    const lastPlan = frames[5].data as { steps: Array<{ key: string; state: string }> }
+    const lastPlan = frames[5].data as {
+      steps: Array<{ key: string; state: string; startedAt?: number; durationMs?: number }>
+    }
     assert.equal(lastPlan.steps[0].state, 'done')
+    assert.isNumber(lastPlan.steps[0].durationMs)
     assert.equal(lastPlan.steps[1].state, 'done')
+    assert.isNumber(lastPlan.steps[1].durationMs)
     assert.equal(lastPlan.steps[2].state, 'running')
+    assert.isNumber(lastPlan.steps[2].startedAt)
 
     assert.deepEqual(frames[3].data, confirmation)
   })
@@ -342,9 +423,12 @@ test.group('AI chat SSE adapter', () => {
     assert.equal((done.detail as Record<string, unknown>).targetId, '19')
     assert.equal((done.detail as Record<string, unknown>).targetLabel, '测试密钥')
 
-    const lastPlan = frames[5].data as { steps: Array<{ key: string; state: string }> }
+    const lastPlan = frames[5].data as {
+      steps: Array<{ key: string; state: string; durationMs?: number }>
+    }
     assert.equal(lastPlan.steps[0].state, 'done')
     assert.equal(lastPlan.steps[1].state, 'done')
+    assert.isNumber(lastPlan.steps[1].durationMs)
     assert.equal(lastPlan.steps[2].state, 'running')
 
     assert.deepEqual(frames[3].data, confirmation)

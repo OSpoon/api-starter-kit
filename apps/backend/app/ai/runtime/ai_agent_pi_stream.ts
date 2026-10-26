@@ -117,9 +117,15 @@ export async function createAiAgentPiStream(
   const initialMessages =
     lastMessage?.role === 'user' ? input.messages.slice(0, -1) : input.messages
 
+  const tools = await createConfiguredAiAgentTools({ ...input, agentRunId: input.agentRunId })
+  const toolLabels = new Map(
+    tools
+      .filter((tool) => typeof tool.label === 'string' && tool.label !== tool.name)
+      .map((tool) => [tool.name, tool.label as string])
+  )
   const { agent, models } = await createPiAgent({
     systemPrompt: createAiAgentSystemPrompt(input.context, '', input.capabilityMode),
-    tools: await createConfiguredAiAgentTools({ ...input, agentRunId: input.agentRunId }),
+    tools,
     messages: toPiMessages(initialMessages),
     sessionId: `ai-chat:${input.conversationId}`,
     signal: input.signal,
@@ -194,5 +200,6 @@ export async function createAiAgentPiStream(
     telemetry,
     telemetryStore,
     completion,
+    toolLabels,
   }
 }

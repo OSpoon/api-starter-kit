@@ -216,7 +216,7 @@
   },
   "agent_config": {
     "title": "Agent configuration",
-    "description": "Configure the assistant model, tools, skills, MCP, and IM channels. Changes apply to new conversations.",
+    "description": "Configure the model, tools, skills, MCP, and IM channels. Changes apply to new chats.",
     "sections_label": "Agent configuration sections",
     "module_models": "Models",
     "module_tools": "Tools",
@@ -224,7 +224,7 @@
     "module_mcp": "MCP",
     "module_im": "IMBot",
     "tools_title": "Built-in tools",
-    "tools_description": "Manage built-in tool availability and execution policy. Confirmation behavior follows this configuration.",
+    "tools_description": "Set built-in tool availability and execution policies.",
     "tools_empty": "No built-in tools are available.",
     "tool_name": "Tool",
     "tool_mode": "Execution policy",
@@ -257,20 +257,20 @@
       "search_knowledge": "Search content in selected knowledge documents.",
       "list_agent_skills": "List administrator-configured skill summaries.",
       "load_agent_skill": "Load full task instructions by exact skill code.",
-      "revoke_api_key": "Revoke an API key. Execution follows the policy configured above.",
-      "delete_api_key": "Delete a revoked API key. Execution follows the policy configured above.",
-      "system_management_change": "Perform a supported user or role change. Execution follows the policy configured above.",
-      "create_api_key": "Create an API key. Execution follows the policy configured above.",
-      "send_wecom_message": "Send an enabled WeCom message template. Execution follows the policy configured above."
+      "revoke_api_key": "Revoke an API key.",
+      "delete_api_key": "Delete a revoked API key.",
+      "system_management_change": "Make supported user or role changes.",
+      "create_api_key": "Create an API key.",
+      "send_wecom_message": "Send an enabled WeCom template."
     },
     "skills_title": "Skills",
-    "skills_description": "Configure reusable Agent workflows. The Agent discovers skills from their summaries and loads the full Markdown content on demand.",
+    "skills_description": "Configure reusable skills. Agent finds them by summary and loads full instructions as needed.",
     "skills_load_failed": "Failed to load skills",
     "skill_load_failed": "Failed to load skill details",
     "skills_empty": "No skills are configured.",
     "create_skill": "Add skill",
     "edit_skill": "Edit skill",
-    "skill_dialog_description": "Write the full skill in Markdown. The Agent loads it on demand. Skills cannot override system policy, permissions, or confirmation requirements.",
+    "skill_dialog_description": "Write skills in Markdown. Loaded on demand; skills cannot override system policy, permissions, or confirmation rules.",
     "skill_code": "Skill code",
     "skill_code_placeholder": "e.g. invoice-review",
     "skill_code_required": "Enter a skill code.",
@@ -279,7 +279,7 @@
     "skill_name_placeholder": "e.g. Invoice review",
     "skill_name_required": "Enter a skill name.",
     "skill_content": "Skill description (Markdown)",
-    "skill_content_placeholder": "Use Markdown to describe when to use the skill, its steps, constraints, and expected result.",
+    "skill_content_placeholder": "Describe when to use it, steps, constraints, and expected results in Markdown.",
     "skill_content_required": "Enter a skill description.",
     "enabled": "Enabled",
     "toggle_enabled": "Toggle enabled state for {name}",
@@ -289,23 +289,22 @@
     "skill_deleted": "Skill deleted",
     "skill_delete_failed": "Failed to delete skill",
     "delete_skill_title": "Delete skill",
-    "delete_skill_description": "Delete skill “{name}”? New Agent turns will use the updated configuration.",
+    "delete_skill_description": "Delete skill “{name}”? New turns use the updated configuration.",
     "mcp_title": "MCP",
-    "mcp_description": "Configure MCP servers, connection status, and available tools.",
+    "mcp_description": "Configure MCP servers, connections, and tool policies.",
     "mcp_load_failed": "Failed to load MCP",
     "mcp_empty": "No MCP configurations yet.",
     "create_mcp": "Add MCP",
     "edit_mcp": "Edit MCP",
-    "mcp_dialog_description": "MCP programs run as the backend process user. Configure trusted programs only.",
+    "mcp_dialog_description": "MCP runs as the backend user. Use trusted programs only.",
     "mcp_name": "Name",
     "mcp_command": "Launch command",
-    "mcp_configuration": "MCP configuration（JSON）",
     "mcp_configuration_title": "MCP configuration",
-    "mcp_shared_configuration_hint": "Environment variables (env) are encrypted and never shown again. Omit env to keep saved values, provide an object to replace them, or use an empty object to clear them.",
-    "mcp_configuration_hint": "Configure standard stdio servers. command may be a name on the backend PATH (such as npx) or an absolute path. Programs start directly without a shell; configure trusted programs only.",
-    "mcp_configuration_invalid": "Enter a valid JSON configuration with an mcpServers object. Check command, args, cwd, and env.",
-    "mcp_tools": "MCP tools",
-    "mcp_tools_description": "This list shows the tools found during the last refresh on the MCP server list. Close this dialog and refresh that list to update the tools. Enable tools individually and choose an execution policy; confirmation mode uses the Agent confirmation card.",
+    "mcp_shared_configuration_hint": "env is encrypted and never shown. Omit to keep; provide an object to replace; use {} to clear.",
+    "mcp_configuration_hint": "Use stdio. command can be on the backend PATH or an absolute path. Programs run without a shell. Use trusted commands only.",
+    "mcp_configuration_invalid": "Enter valid JSON with mcpServers. Check command, args, cwd, and env.",
+    "mcp_tools": "Tools",
+    "mcp_tools_description": "Confirm mode uses the Agent card.",
     "mcp_servers": "MCP servers",
     "mcp_health": "Connection status",
     "mcp_health_healthy": "Connected",
@@ -317,10 +316,10 @@
     "mcp_edit_tools": "Edit tools and execution policies",
     "mcp_tool_disabled": "Disabled",
     "mcp_remove_servers_title": "Remove MCP servers",
-    "mcp_remove_servers_description": "Saving this configuration removes these servers and their tool policies: {names}. Continue?",
+    "mcp_remove_servers_description": "Saving removes these servers and tool policies: {names}. Continue?",
     "mcp_enable_tool": "Enable tool {name}",
-    "mcp_tools_empty": "No tools were found during the last check.",
-    "mcp_readonly_hint": "The server marks this tool read-only; an administrator still chooses its execution mode.",
+    "mcp_tools_empty": "No tools found. Refresh server status to retry.",
+    "mcp_readonly_hint": "Server marks this tool read-only; still choose an execution policy.",
     "mcp_execution_policy": "Execution policy",
     "mcp_mode_read": "Run directly (read)",
     "mcp_mode_confirm": "Require user confirmation",
@@ -329,7 +328,7 @@
     "mcp_deleted": "MCP deleted",
     "mcp_delete_failed": "Failed to delete MCP",
     "delete_mcp_title": "Delete MCP",
-    "delete_mcp_description": "Delete MCP “{name}”? Its tools will be removed from new Agent turns."
+    "delete_mcp_description": "Delete MCP “{name}”? Its tools will be removed from future turns."
   },
   "im_config": {
     "secret_placeholder": "Enter a new secret; leave blank to keep the current one",
@@ -359,11 +358,11 @@
   "ai_chat": {
     "resize_both": "Resize assistant",
     "title": "AI Assistant",
-    "welcome": "Hi, I am the AI assistant. Ask about system features, API integration, or configuration.",
+    "welcome": "Hi, I’m your AI assistant. Ask about system features, APIs, or setup.",
     "welcome_title": "Hi, I am the AI Assistant",
-    "welcome_subtitle": "Ask about system features, API integration, or configuration.",
-    "input_placeholder": "Type a question. Enter to send, Shift + Enter for a new line",
-    "input_placeholder_while_generating": "You can still type while generating; press Enter or click send to adjust the current task",
+    "welcome_subtitle": "Ask about system features, APIs, or setup.",
+    "input_placeholder": "Ask a question. Enter to send; Shift+Enter for a new line.",
+    "input_placeholder_while_generating": "Type while generating; press Enter or Send to update the task.",
     "adjust_current": "Adjust the current task now",
     "usage": {
       "open": "View this month's usage",
@@ -391,9 +390,10 @@
       "too_large": "The recording cannot exceed 10 MB",
       "transcribe_failed": "Voice transcription failed. Please try again."
     },
-    "response_disclaimer": "AI responses are for reference only. Verify important information against current system data and project documentation.",
+    "response_disclaimer": "For reference only. Verify important details with system data and project docs.",
     "thinking": "Thinking...",
     "waiting": "Waiting for response...",
+    "waiting_for_confirmation": "Waiting for your confirmation",
     "new_chat": "New chat",
     "history": "History",
     "no_history": "No history yet",
@@ -418,61 +418,61 @@
     "scroll_to_latest": "Jump to latest",
     "activities": {
       "diagnose_my_access": {
-        "running": "Checking your permissions…",
-        "done": "Permission check completed",
-        "error": "Permission check did not complete"
+        "running": "Checking permissions…",
+        "done": "Permissions checked",
+        "error": "Permission check failed"
       },
       "run_registered_query": {
-        "running": "Running registered query…",
-        "done": "Registered query completed",
-        "error": "Registered query did not complete"
+        "running": "Querying data…",
+        "done": "Query completed",
+        "error": "Query failed"
       },
       "search_knowledge": {
-        "running": "Searching knowledge documents…",
-        "done": "Knowledge-document search completed",
-        "error": "Knowledge-document search did not complete"
+        "running": "Searching knowledge…",
+        "done": "Search completed",
+        "error": "Search failed"
       },
       "search_knowledge_catalog": {
-        "running": "Searching the knowledge catalog…",
-        "done": "Knowledge-catalog search completed",
-        "error": "Knowledge-catalog search did not complete"
+        "running": "Searching catalog…",
+        "done": "Search completed",
+        "error": "Search failed"
       },
       "revoke_api_key": {
         "running": "Preparing revocation confirmation…",
-        "done": "Revocation confirmation created",
-        "error": "Could not create revocation confirmation"
+        "done": "Revocation ready",
+        "error": "Revocation failed"
       },
       "delete_api_key": {
         "running": "Preparing deletion confirmation…",
-        "done": "Deletion confirmation created",
-        "error": "Could not create deletion confirmation"
+        "done": "Deletion ready",
+        "error": "Deletion failed"
       },
       "system_management_change": {
-        "running": "Preparing a system-management change…",
-        "done": "Change check completed",
-        "error": "System-management change did not complete"
+        "running": "Preparing change…",
+        "done": "Change checked",
+        "error": "Change check failed"
       },
       "generic": {
-        "running": "Running operation…",
-        "done": "Operation completed",
-        "error": "Operation did not complete"
+        "running": "Running…",
+        "done": "Operation complete",
+        "error": "Operation failed"
       }
     },
     "plan": {
       "identify_target": {
-        "pending": "Determining the system item to handle",
-        "running": "Locating the system item to handle",
-        "done": "Located the system item to handle"
+        "pending": "Identify target",
+        "running": "Locating target",
+        "done": "Target located"
       },
       "prepare_action": {
-        "pending": "Preparing the system-management operation",
-        "running": "Preparing the system-management operation",
-        "done": "Operation preparation completed"
+        "pending": "Prepare action",
+        "running": "Preparing action",
+        "done": "Action ready"
       },
       "await_confirmation": {
-        "pending": "Waiting for your confirmation of this operation",
-        "running": "Waiting for your confirmation of this operation",
-        "done": "This operation has been confirmed"
+        "pending": "Awaiting confirmation...",
+        "running": "Awaiting confirmation...",
+        "done": "Confirmed"
       }
     },
     "errors": {
@@ -505,12 +505,30 @@
     },
     "timeline": {
       "title": "Run details",
-      "tools_section": "Tool calls",
-      "plan_section": "Execution plan",
-      "run_section": "Run summary",
+      "turn_section": "Turn {turn}",
       "plan": "Execution plan",
       "run": "Run completed · {duration}s",
-      "run_waiting_confirmation": "Paused for confirmation · {duration}s",
+      "run_waiting_confirmation": "Turn paused · {duration}s",
+      "elapsed": "running {duration}s",
+      "duration_seconds": "{duration}s",
+      "tool_not_registered": "This tool was not registered in the current run.",
+      "phases": {
+        "unknown_server": "MCP server",
+        "preparing_agent": {
+          "running": "Preparing tools",
+          "done": "Tools ready",
+          "error": "Assistant tool preparation failed"
+        },
+        "mcp_discovery": {
+          "running": "Discovering MCP tools: {serverName}",
+          "error": "MCP tool discovery failed: {serverName}"
+        },
+        "model_response": {
+          "running": "Waiting for model response",
+          "done": "Model response completed",
+          "error": "Model response failed"
+        }
+      },
       "states": {
         "running": "Running ",
         "done": "Completed ",
@@ -520,9 +538,14 @@
       "tools": {
         "confirmation_execution": "Execute confirmed action",
         "confirmation_execution_with_tool": "Execute tool: {toolName}",
-        "mcp_tool_awaiting_confirmation": "Waiting to confirm MCP tool: {toolName}",
-        "action_awaiting_confirmation": "Waiting for confirmation: {action}",
+        "mcp_tool_named": "{name}",
+        "mcp_tool_awaiting_confirmation": "Awaiting confirmation...: {toolName}",
+        "unregistered_mcp": "Unregistered MCP tool",
+        "skill_named": "Load skill: {name}",
+        "action_awaiting_confirmation": "Awaiting confirmation...: {action}",
         "action_cancelled": "Cancelled: {action}",
+        "list_agent_skills": "Discover skills",
+        "load_agent_skill": "Load skill",
         "run_registered_query": "Query data",
         "search_knowledge": "Search knowledge",
         "search_knowledge_catalog": "Search knowledge catalog",
@@ -534,7 +557,10 @@
         "send_wecom_message": "Send WeCom message",
         "generic": "Run tool"
       },
-      "returned": "returned {count}",
+      "merged_tool": {
+        "executing": "Executing...",
+        "cancelled": "Cancelled"
+      },
       "tools_count": "{count} tools",
       "steps_count": "{count} steps",
       "results_count": "returned {count}"
@@ -579,8 +605,8 @@
       "generic": "target"
     },
     "knowledge_status": {
-      "running": "Running staged knowledge search",
-      "done": "Staged knowledge search completed",
+      "running": "Searching knowledge…",
+      "done": "Knowledge search complete",
       "error": "Knowledge search failed"
     },
     "actions": {
@@ -602,10 +628,10 @@
       "generic": "system management operation"
     },
     "confirmations": {
-      "revoke_api_key": "Ready to revoke API key “{name}” ({prefix}). Once confirmed, any script using this key will stop immediately.",
+      "revoke_api_key": "Revoke API key “{name}” ({prefix})? Scripts using it will stop immediately.",
       "confirm": "Confirm revocation",
       "dialog_title": "Confirm API key revocation",
-      "dialog_description": "Revoke “{name}”? This will invalidate the key immediately.",
+      "dialog_description": "Revoke “{name}”? The key will stop working immediately.",
       "success": "Operation confirmed and executed"
     },
     "approval": {
@@ -613,8 +639,8 @@
       "approve": "Approve",
       "cancel": "Cancel",
       "target": "Affected item: {target}",
-      "destructive_impact": "This may take effect immediately and cannot be undone. Permission and target state will be checked again before execution.",
-      "standard_impact": "Permission and target state will be checked again before execution.",
+      "destructive_impact": "May take effect immediately and cannot be undone. Permissions and target state are rechecked before execution.",
+      "standard_impact": "Permissions and target state are rechecked before execution.",
       "expires_at": "This confirmation expires at {time}.",
       "change_fields": {
         "result": "Result",

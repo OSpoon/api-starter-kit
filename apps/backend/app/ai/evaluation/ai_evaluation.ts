@@ -33,6 +33,59 @@ export const aiAssistantEvaluationCases: readonly AiEvaluationCase[] = [
     ],
   },
   {
+    name: 'latest log anomaly review uses the enabled skill',
+    turns: [
+      {
+        question: '查一下最近日志有没有异常。',
+        expectedTools: [
+          'list_agent_skills',
+          'load_agent_skill',
+          'list_log_services',
+          'search_logs',
+        ],
+        expectedToolSequence: [
+          'list_agent_skills',
+          'load_agent_skill',
+          'list_log_services',
+          'search_logs',
+        ],
+        expectedAnswerIncludes: ['backend', 'warn'],
+        toolOutputs: {
+          list_agent_skills: {
+            kind: 'agent_skills',
+            skills: [
+              {
+                code: 'latest-log-review',
+                name: '日志查询与异常检查',
+                description: '适用于用户询问最新、最近日志，或判断日志是否异常的请求。',
+              },
+            ],
+          },
+          load_agent_skill: {
+            kind: 'agent_skill',
+            code: 'latest-log-review',
+            name: '日志查询与异常检查',
+            instructions:
+              '发现服务后自动查询。检查异常时读取每个服务最新 20 条，省略级别和时间筛选，并按实际返回结果说明范围。',
+          },
+          list_log_services: { servicesAvailable: ['backend'] },
+          search_logs: {
+            service: 'backend',
+            totalMatches: 1,
+            items: [
+              {
+                service: 'backend',
+                timestampLocal: '2026-10-26 09:32:42 (Asia/Shanghai)',
+                level: 'warn',
+                message: 'Slow request',
+              },
+            ],
+          },
+        },
+      },
+    ],
+  },
+  {
     name: 'current system fact',
     turns: [
       {

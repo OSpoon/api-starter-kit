@@ -4,6 +4,7 @@ import {
   BookOpen,
   Check,
   ChevronRight,
+  Circle,
   CircleAlert,
   CircleCheck,
   Copy,
@@ -40,6 +41,7 @@ const props = withDefaults(
     message: AiChatMessageItemData
     allMessages?: AiChatMessageItemData[]
     streamingMessageId?: string | number | null
+    currentTime?: number
     loading?: boolean
     showMessageActions?: boolean
     selectable?: boolean
@@ -48,6 +50,7 @@ const props = withDefaults(
   {
     allMessages: undefined,
     streamingMessageId: null,
+    currentTime: undefined,
     loading: false,
     showMessageActions: true,
     selectable: false,
@@ -68,6 +71,11 @@ const legacyConfirmationNotice = '此操作需要确认，请在确认卡片中�
 
 const isWelcomeMessage = computed(() => props.message.id === 'welcome')
 
+function formatDurationSeconds(durationMs: number) {
+  if (durationMs > 0 && durationMs < 100) return '<0.1'
+  return String(Math.round(durationMs / 100) / 10)
+}
+
 function localizedOrFallback(key: string, fallback: string) {
   return te(key) ? t(key) : fallback
 }
@@ -82,6 +90,12 @@ function hasConfirmation(message: AiChatMessageItemData) {
             item.phase ?? ''
           ))
     )
+  )
+}
+
+function isAwaitingConfirmation(message: AiChatMessageItemData) {
+  return message.timeline?.some(
+    (item) => item.kind === 'tool' && item.phase === 'awaiting_confirmation'
   )
 }
 
@@ -107,37 +121,20 @@ function canRetryMessage(message: AiChatMessageItemData) {
   )
 }
 
-function getActivityTarget(activity?: AiChatAgentActivity) {
-  if (!activity?.detail) return ''
-  if (activity.detail.templateCode) {
-    const key = `ai_chat.query_templates.${activity.detail.templateCode}`
-    return localizedOrFallback(key, t('ai_chat.query_templates.generic'))
-  }
-  if (activity.detail.action) {
-    const key = `ai_chat.actions.${activity.detail.action}`
-    const action = localizedOrFallback(key, t('ai_chat.actions.generic'))
-    const target =
-      activity.detail.targetLabel ??
-      (activity.detail.targetType && activity.detail.targetId
-        ? `${localizedOrFallback(
-            `ai_chat.target_types.${activity.detail.targetType}`,
-            t('ai_chat.target_types.generic')
-          )} ${activity.detail.targetId}`
-        : '')
-    return target ? `${action}：${target}` : action
-  }
-  if (activity.detail.permissionCode) {
-    const key = `ai_chat.permissions.${activity.detail.permissionCode}`
-    return localizedOrFallback(key, t('ai_chat.permissions.generic'))
-  }
-  if (activity.detail.targetType && activity.detail.targetId) {
-    const key = `ai_chat.target_types.${activity.detail.targetType}`
-    return `${localizedOrFallback(key, t('ai_chat.target_types.generic'))} ${activity.detail.targetId}`
-  }
-  return ''
-}
-
 function getTimelineLabel(item: AiChatTimelineItem, timeline: AiChatTimelineItem[] = []) {
+  if (item.kind === 'phase') {
+    if (item.name === 'mcp_discovery') {
+      return t(`ai_chat.timeline.phases.mcp_discovery.${item.state}`, {
+        serverName: item.serverName ?? t('ai_chat.timeline.phases.unknown_server'),
+        toolCount: item.toolCount ?? item.tools?.length ?? 0,
+        enabledToolCount: item.tools?.filter((tool) => tool.mode).length ?? 0,
+      })
+    }
+    if (item.name === 'model_response') {
+      return t(`ai_chat.timeline.phases.model_response.${item.state}`)
+    }
+    return t(`ai_chat.timeline.phases.preparing_agent.${item.state}`)
+  }
   if (item.kind === 'plan') {
     return item.steps.map((step) => t(`ai_chat.plan.${step.key}.${step.state}`)).join(' · ')
   }
@@ -148,7 +145,7 @@ function getTimelineLabel(item: AiChatTimelineItem, timeline: AiChatTimelineItem
     )
     return t(
       awaitingConfirmation ? 'ai_chat.timeline.run_waiting_confirmation' : 'ai_chat.timeline.run',
-      { duration: Math.round(item.durationMs / 1000) }
+      { duration: formatDurationSeconds(item.durationMs) }
     )
   }
   const activity = item
@@ -165,37 +162,57 @@ function getTimelineLabel(item: AiChatTimelineItem, timeline: AiChatTimelineItem
     (activity.name === 'confirmation_execution' || activity.name.startsWith('mcp_'))
       ? activity.detail.toolName
       : undefined
-  const toolLabel = cancelledConfirmation
-    ? t('ai_chat.timeline.tools.action_cancelled', { action: actionLabel })
-    : confirmedToolName
-      ? t('ai_chat.timeline.tools.confirmation_execution_with_tool', {
-          toolName: confirmedToolName,
-        })
-      : awaitingMcpTool
-        ? t('ai_chat.timeline.tools.mcp_tool_awaiting_confirmation', {
-            toolName: activity.detail?.toolName,
-          })
-        : awaitingConfirmation
-          ? t('ai_chat.timeline.tools.action_awaiting_confirmation', { action: actionLabel })
-          : localizedOrFallback(toolKey, activity.name || t('ai_chat.timeline.tools.generic'))
+  const toolNotRegistered =
+    activity.errorCode === 'tool_not_registered' ||
+    (activity.name.startsWith('mcp_') && activity.message === `Tool ${activity.name} not found`)
+  const toolLabel =
+    toolNotRegistered && !activity.displayName
+      ? t('ai_chat.timeline.tools.unregistered_mcp')
+      : cancelledConfirmation
+        ? t('ai_chat.timeline.tools.action_cancelled', { action: actionLabel })
+        : activity.displayName
+          ? t('ai_chat.timeline.tools.mcp_tool_named', { name: activity.displayName })
+          : activity.detail?.skillCode
+            ? t('ai_chat.timeline.tools.skill_named', {
+                name: activity.detail.skillName ?? activity.detail.skillCode,
+              })
+            : confirmedToolName
+              ? t('ai_chat.timeline.tools.confirmation_execution_with_tool', {
+                  toolName: confirmedToolName,
+                })
+              : awaitingMcpTool
+                ? t('ai_chat.timeline.tools.mcp_tool_named', {
+                    name: activity.displayName ?? activity.detail?.toolName,
+                  })
+                : awaitingConfirmation
+                  ? actionLabel
+                  : localizedOrFallback(
+                      toolKey,
+                      activity.name || t('ai_chat.timeline.tools.generic')
+                    )
   const stateKey = `ai_chat.timeline.states.${activity.state}`
   const stateLabel =
     awaitingConfirmation || cancelledConfirmation
       ? ''
       : t(activity.errorCode ? 'ai_chat.timeline.states.error' : stateKey)
-  const target = activity.name === 'run_registered_query' ? getActivityTarget(activity) : ''
-  const resultCount =
-    typeof activity.detail?.resultCount === 'number'
-      ? t('ai_chat.timeline.returned', { count: activity.detail.resultCount })
+  const errorMessage = toolNotRegistered
+    ? t('ai_chat.timeline.error_reason_separator', {
+        message: t('ai_chat.timeline.tool_not_registered'),
+      })
+    : activity.message && !awaitingConfirmation
+      ? t('ai_chat.timeline.error_reason_separator', { message: activity.message })
       : ''
-  const detail = target ? `：${target}` : resultCount ? ` · ${resultCount}` : ''
-  const errorMessage = activity.message
-    ? t('ai_chat.timeline.error_reason_separator', { message: activity.message })
-    : ''
-  return `${stateLabel}${toolLabel}${errorMessage}${detail}`
+  if (activity.displayName && !awaitingConfirmation && !cancelledConfirmation) {
+    return `${stateLabel.trim()} ${activity.displayName}${errorMessage}`.trim()
+  }
+  return `${stateLabel}${toolLabel}${errorMessage}`
 }
 
 function getTimelineIcon(item: AiChatTimelineItem) {
+  if (item.kind === 'phase') {
+    if (item.state === 'error') return CircleAlert
+    return item.state === 'running' ? LoaderCircle : Check
+  }
   if (item.kind === 'plan') return ListChecks
   if (item.kind === 'confirmation') return CircleCheck
   if (item.kind === 'run') return Gauge
@@ -208,9 +225,142 @@ function getTimelineIcon(item: AiChatTimelineItem) {
   return Check
 }
 
-function isTimelineActive(item: AiChatTimelineItem) {
-  return item.kind === 'tool' && item.state === 'running'
+function getPlanStepIcon(step: AiChatPlanStep) {
+  if (step.state === 'running') return LoaderCircle
+  if (step.state === 'done') return Check
+  return Circle
 }
+
+function getPlanStepDurationMs(step: AiChatPlanStep) {
+  if (step.state === 'running' && step.startedAt !== undefined) {
+    return Math.max(0, (props.currentTime ?? Date.now()) - step.startedAt)
+  }
+  return step.durationMs
+}
+
+function getPlanStepDurationLabel(step: AiChatPlanStep) {
+  const durationMs = getPlanStepDurationMs(step)
+  if (durationMs === undefined) return ''
+  if (step.state === 'running') {
+    return t('ai_chat.timeline.elapsed', { duration: formatDurationSeconds(durationMs) })
+  }
+  return t('ai_chat.timeline.duration_seconds', { duration: formatDurationSeconds(durationMs) })
+}
+
+function getPlanStepLabel(step: AiChatPlanStep) {
+  return t(`ai_chat.plan.${step.key}.${step.state}`)
+}
+
+function getConfirmationPlanForTool(
+  tool: AiChatTimelineItem,
+  items: AiChatTimelineItem[]
+): Extract<AiChatTimelineItem, { kind: 'plan' }> | undefined {
+  if (
+    tool.kind !== 'tool' ||
+    !tool.displayName ||
+    !['preparing_action', 'awaiting_confirmation', 'executing_confirmation', 'confirmed'].includes(
+      tool.phase ?? ''
+    )
+  ) {
+    return undefined
+  }
+  return items.find(
+    (item): item is Extract<AiChatTimelineItem, { kind: 'plan' }> =>
+      item.kind === 'plan' && item.steps.some((step) => step.key === 'await_confirmation')
+  )
+}
+
+function isPlanMergedWithTool(plan: AiChatTimelineItem, items: AiChatTimelineItem[]) {
+  return (
+    plan.kind === 'plan' && items.some((item) => getConfirmationPlanForTool(item, items) === plan)
+  )
+}
+
+function getMergedToolStatusLabel(
+  tool: Extract<AiChatTimelineItem, { kind: 'tool' }>,
+  plan: Extract<AiChatTimelineItem, { kind: 'plan' }>
+) {
+  if (tool.phase === 'awaiting_confirmation') {
+    return t('ai_chat.plan.await_confirmation.running')
+  }
+  if (tool.phase === 'executing_confirmation') {
+    return t('ai_chat.timeline.merged_tool.executing')
+  }
+  if (tool.phase === 'cancelled') return t('ai_chat.timeline.merged_tool.cancelled')
+  if (tool.state === 'error') {
+    return `${t('ai_chat.timeline.states.error')}${tool.message ? t('ai_chat.timeline.error_reason_separator', { message: tool.message }) : ''}`
+  }
+  if (tool.phase === 'confirmed') return t('ai_chat.timeline.states.done').trim()
+  const runningStep = plan.steps.find((step) => step.state === 'running')
+  return runningStep
+    ? getPlanStepLabel(runningStep)
+    : t(`ai_chat.timeline.states.${tool.state}`).trim()
+}
+
+function getMergedToolIcon(tool: Extract<AiChatTimelineItem, { kind: 'tool' }>) {
+  if (tool.state === 'error') return CircleAlert
+  if (tool.phase === 'awaiting_confirmation' || tool.phase === 'executing_confirmation') {
+    return LoaderCircle
+  }
+  if (tool.phase === 'cancelled') return Circle
+  return tool.state === 'running' ? LoaderCircle : Check
+}
+
+function getMergedToolDurationLabel(
+  tool: Extract<AiChatTimelineItem, { kind: 'tool' }>,
+  plan: Extract<AiChatTimelineItem, { kind: 'plan' }>
+) {
+  if (tool.phase === 'awaiting_confirmation') {
+    const step = plan.steps.find(
+      (item) => item.key === 'await_confirmation' && item.state === 'running'
+    )
+    return step ? getPlanStepDurationLabel(step) : getTimelineDurationLabel(tool)
+  }
+  return getTimelineDurationLabel(tool)
+}
+
+function isMergedToolActive(tool: Extract<AiChatTimelineItem, { kind: 'tool' }>) {
+  return (
+    tool.state === 'running' ||
+    tool.phase === 'awaiting_confirmation' ||
+    tool.phase === 'executing_confirmation'
+  )
+}
+
+function isTimelineActive(item: AiChatTimelineItem) {
+  return (item.kind === 'tool' || item.kind === 'phase') && item.state === 'running'
+}
+
+function getTimelineDurationMs(item: AiChatTimelineItem) {
+  if (item.kind !== 'tool' && item.kind !== 'phase') return undefined
+  if (item.state === 'running' && item.startedAt !== undefined) {
+    return Math.max(0, (props.currentTime ?? Date.now()) - item.startedAt)
+  }
+  return item.durationMs
+}
+
+function getTimelineDurationLabel(item: AiChatTimelineItem) {
+  const durationMs = getTimelineDurationMs(item)
+  if (durationMs === undefined) return ''
+  if ((item.kind === 'tool' || item.kind === 'phase') && item.state === 'running') {
+    return t('ai_chat.timeline.elapsed', { duration: formatDurationSeconds(durationMs) })
+  }
+  return t('ai_chat.timeline.duration_seconds', { duration: formatDurationSeconds(durationMs) })
+}
+
+const timelineScrollArea = ref<HTMLDivElement>()
+
+watch(
+  () => [props.message.status, props.message.timeline] as const,
+  ([status, timeline]) => {
+    if (status !== 'streaming' && !timeline?.some(isTimelineActive)) return
+    nextTick(() => {
+      const element = timelineScrollArea.value
+      if (element) element.scrollTop = element.scrollHeight
+    })
+  },
+  { deep: true, flush: 'post', immediate: true }
+)
 
 function getTimelineSummary(timeline: AiChatTimelineItem[]) {
   const toolCount = timeline.filter((item) => item.kind === 'tool').length
@@ -235,33 +385,37 @@ function getTimelineSummary(timeline: AiChatTimelineItem[]) {
 
 function shouldOpenTimeline(message: AiChatMessageItemData) {
   if (message.status === 'streaming') return true
+  if (message.status === 'pending' && message.timeline?.some((item) => item.kind === 'phase')) {
+    return true
+  }
   return Boolean(
     message.timeline?.some(
       (item) =>
         (item.kind === 'tool' && (item.state === 'running' || item.state === 'error')) ||
+        (item.kind === 'phase' && item.state === 'running') ||
         (item.kind === 'tool' && item.name.startsWith('propose_'))
     )
   )
 }
 
 function getTimelineSections(timeline: AiChatTimelineItem[]) {
-  return [
-    {
-      key: 'tools',
-      label: t('ai_chat.timeline.tools_section'),
-      items: timeline.filter((item) => item.kind === 'tool'),
-    },
-    {
-      key: 'plan',
-      label: t('ai_chat.timeline.plan_section'),
-      items: timeline.filter((item) => item.kind === 'plan'),
-    },
-    {
-      key: 'run',
-      label: t('ai_chat.timeline.run_section'),
-      items: timeline.filter((item) => item.kind === 'run'),
-    },
-  ].filter((section) => section.items.length > 0)
+  const turns = new Map<number, AiChatTimelineItem[]>()
+  let currentTurn = 0
+  for (const item of timeline) {
+    if (item.kind === 'phase' && item.name === 'preparing_agent') currentTurn += 1
+    if (item.kind === 'confirmation') continue
+    if (item.kind === 'run' && props.message.status === 'streaming') continue
+    if (item.kind === 'phase' && item.name === 'mcp_discovery' && item.state !== 'error') continue
+    const turn = item.kind === 'plan' && item.turn ? item.turn : Math.max(currentTurn, 1)
+    const items = turns.get(turn) ?? []
+    items.push(item)
+    turns.set(turn, items)
+  }
+  return [...turns].map(([turn, items]) => ({
+    key: `turn-${turn}`,
+    label: t('ai_chat.timeline.turn_section', { turn }),
+    items,
+  }))
 }
 </script>
 
@@ -289,8 +443,9 @@ function getTimelineSections(timeline: AiChatTimelineItem[]) {
           isWelcomeMessage ||
           message.role === 'user' ||
           getMessageContent(message) ||
-          (message.status === 'pending' && !hasConfirmation(message)) ||
-          (message.status === 'streaming' && !message.content)
+          ((message.status === 'pending' || message.status === 'streaming') &&
+            !getMessageContent(message)) ||
+          (isAwaitingConfirmation(message) && !getMessageContent(message))
         "
         class="rounded-lg px-3 py-2 text-sm/5 whitespace-pre-wrap"
         :class="
@@ -316,6 +471,9 @@ function getTimelineSections(timeline: AiChatTimelineItem[]) {
           :content="getMessageContent(message)"
           :status="message.status ?? 'done'"
           :streaming="message.status === 'streaming' || message.id === streamingMessageId"
+          :waiting-label="
+            isAwaitingConfirmation(message) ? t('ai_chat.waiting_for_confirmation') : undefined
+          "
         />
         <template v-else>
           {{ message.content }}
@@ -334,35 +492,100 @@ function getTimelineSections(timeline: AiChatTimelineItem[]) {
           <span class="font-medium">{{ t('ai_chat.timeline.title') }}</span>
           <span class="ml-auto">{{ getTimelineSummary(message.timeline) }}</span>
         </summary>
-        <div class="space-y-3 border-t border-border/60 px-2.5 py-2">
+        <div
+          ref="timelineScrollArea"
+          class="max-h-[180px] space-y-3 overflow-y-auto overscroll-contain border-t border-border/60 px-2.5 py-2"
+        >
           <div v-for="section in getTimelineSections(message.timeline)" :key="section.key">
             <div
-              class="mb-1 px-1.5 text-[11px] font-medium tracking-wide text-muted-foreground/70 uppercase"
+              class="mb-1 px-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
             >
               {{ section.label }}
             </div>
             <div
               v-for="(item, index) in section.items"
               :key="`${item.kind}-${item.kind === 'tool' ? (item.callId ?? item.name) : index}`"
-              class="flex items-start gap-2 rounded p-1.5"
+              v-show="item.kind !== 'plan' || !isPlanMergedWithTool(item, section.items)"
+              class="flex items-start gap-2 rounded px-1.5 py-0.5"
               :class="
-                isTimelineActive(item) ? 'bg-primary/5 text-foreground' : 'text-muted-foreground'
+                isTimelineActive(item) || (item.kind === 'tool' && isMergedToolActive(item))
+                  ? 'bg-primary/5 text-foreground'
+                  : 'text-muted-foreground'
               "
             >
-              <component
-                :is="getTimelineIcon(item)"
-                class="mt-0.5 size-3.5 shrink-0"
-                :class="isTimelineActive(item) ? 'animate-spin text-primary' : ''"
-              />
-              <span class="min-w-0 flex-1">{{
-                getTimelineLabel(item, message.timeline ?? [])
-              }}</span>
-              <span
-                v-if="item.kind === 'tool' && item.durationMs"
-                class="shrink-0 text-[11px] text-muted-foreground/60 tabular-nums"
+              <div v-if="item.kind === 'plan'" class="min-w-0 flex-1 space-y-1">
+                <div
+                  v-for="step in item.steps"
+                  :key="step.key"
+                  class="flex items-start gap-2"
+                  :class="step.state === 'running' ? 'text-foreground' : 'text-muted-foreground'"
+                >
+                  <component
+                    :is="getPlanStepIcon(step)"
+                    class="mt-0.5 size-3.5 shrink-0"
+                    :class="step.state === 'running' ? 'animate-spin text-primary' : ''"
+                    aria-hidden="true"
+                  />
+                  <span class="min-w-0 flex-1">{{ getPlanStepLabel(step) }}</span>
+                  <span
+                    v-if="getPlanStepDurationMs(step) !== undefined"
+                    class="shrink-0 text-xs text-muted-foreground tabular-nums"
+                  >
+                    {{ getPlanStepDurationLabel(step) }}
+                  </span>
+                </div>
+              </div>
+              <template
+                v-else-if="item.kind === 'tool' && getConfirmationPlanForTool(item, section.items)"
               >
-                {{ item.durationMs }}ms
-              </span>
+                <component
+                  :is="getMergedToolIcon(item)"
+                  class="mt-0.5 size-3.5 shrink-0"
+                  :class="isMergedToolActive(item) ? 'animate-spin text-primary' : ''"
+                  aria-hidden="true"
+                />
+                <span class="min-w-0 flex-1">{{
+                  getMergedToolStatusLabel(item, getConfirmationPlanForTool(item, section.items)!)
+                }}</span>
+                <span
+                  class="max-w-[45%] min-w-0 truncate text-right text-muted-foreground"
+                  :title="item.displayName ?? item.detail?.toolName"
+                >
+                  {{ item.displayName ?? item.detail?.toolName }}
+                </span>
+                <span
+                  v-if="
+                    getMergedToolDurationLabel(
+                      item,
+                      getConfirmationPlanForTool(item, section.items)!
+                    )
+                  "
+                  class="shrink-0 text-xs text-muted-foreground tabular-nums"
+                >
+                  {{
+                    getMergedToolDurationLabel(
+                      item,
+                      getConfirmationPlanForTool(item, section.items)!
+                    )
+                  }}
+                </span>
+              </template>
+              <template v-else>
+                <component
+                  :is="getTimelineIcon(item)"
+                  class="mt-0.5 size-3.5 shrink-0"
+                  :class="isTimelineActive(item) ? 'animate-spin text-primary' : ''"
+                />
+                <span class="min-w-0 flex-1">{{
+                  getTimelineLabel(item, message.timeline ?? [])
+                }}</span>
+                <span
+                  v-if="getTimelineDurationMs(item) !== undefined"
+                  class="shrink-0 text-xs text-muted-foreground tabular-nums"
+                >
+                  {{ getTimelineDurationLabel(item) }}
+                </span>
+              </template>
             </div>
           </div>
         </div>

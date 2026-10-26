@@ -226,9 +226,17 @@ const columns = computed<ColumnDef<AgentMcpServer>[]>(() => [
     meta: { label: t('agent_config.enabled') },
     header: () => t('agent_config.enabled'),
     cell: ({ row }) =>
-      h(Badge, { variant: 'outline' }, () =>
-        t(row.original.enabled ? 'common.enabled' : 'common.disabled')
-      ),
+      h(Switch, {
+        modelValue: row.original.enabled,
+        'aria-label': t('agent_config.toggle_enabled', { name: row.original.name }),
+        title: t('agent_config.toggle_enabled', { name: row.original.name }),
+        disabled:
+          !can('agent-config:update') ||
+          loading.value ||
+          saving.value ||
+          updatingEnabledId.value !== null,
+        'onUpdate:modelValue': (enabled: boolean) => void toggleServer(row.original, enabled),
+      }),
   },
   {
     id: 'actions',
@@ -237,13 +245,6 @@ const columns = computed<ColumnDef<AgentMcpServer>[]>(() => [
     header: () => h('div', { class: 'text-right' }, t('common.actions')),
     cell: ({ row }) =>
       h('div', { class: 'flex items-center justify-end gap-2' }, [
-        h(Switch, {
-          modelValue: row.original.enabled,
-          'aria-label': t('agent_config.toggle_enabled', { name: row.original.name }),
-          title: t('agent_config.toggle_enabled', { name: row.original.name }),
-          disabled: !can('agent-config:update') || loading.value || saving.value,
-          'onUpdate:modelValue': (enabled: boolean) => void toggleServer(row.original, enabled),
-        }),
         h(
           Button,
           {

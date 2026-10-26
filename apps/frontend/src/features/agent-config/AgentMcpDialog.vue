@@ -11,7 +11,7 @@ import FormDialogContent from '@/components/common/FormDialogContent.vue'
 import FormDialogFooter from '@/components/common/FormDialogFooter.vue'
 import { Button } from '@/components/ui/button'
 import { Dialog } from '@/components/ui/dialog'
-import { FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
+import { FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form'
 import type { AgentMcpConfigurationDocument } from '@/features/agent-config/api'
 import { firstFormError } from '@/lib/form-validation'
 
@@ -135,14 +135,13 @@ const submit = form.handleSubmit(
         <div class="min-h-0 min-w-0 flex-1 space-y-4 overflow-x-hidden overflow-y-auto px-6 py-4">
           <FormField v-slot="{ componentField }" name="configurationText" :validate-on-blur="false">
             <FormItem>
-              <FormLabel>{{ t('agent_config.mcp_configuration') }}</FormLabel>
               <FormControl>
                 <CodeEditor
                   v-bind="componentField"
                   :model-value="String(componentField.modelValue ?? '')"
                   class="h-96 rounded-md border bg-background"
                   :extensions="configurationEditorExtensions"
-                  :aria-label="t('agent_config.mcp_configuration')"
+                  :aria-label="t('agent_config.mcp_configuration_title')"
                 />
               </FormControl>
               <p class="text-xs text-muted-foreground">
