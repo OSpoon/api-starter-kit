@@ -30,8 +30,11 @@ export type AiAgentMcpProcessConfiguration = {
 export function assertAiAgentMcpConfiguration(input: AiAgentMcpProcessConfiguration) {
   const command = input.command.trim()
   const cwd = input.cwd?.trim() || undefined
-  if (!isAbsolute(command) || command.includes('\0')) {
-    throw new Error('MCP 命令必须是服务器上的绝对路径')
+  if (
+    (!isAbsolute(command) && !/^[A-Za-z0-9][A-Za-z0-9._+-]*$/.test(command)) ||
+    command.includes('\0')
+  ) {
+    throw new Error('MCP 命令必须是服务器上的绝对路径或 PATH 中的命令名')
   }
   if (cwd && (!isAbsolute(cwd) || cwd.includes('\0'))) {
     throw new Error('MCP 工作目录必须是服务器上的绝对路径')

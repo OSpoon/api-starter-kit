@@ -63,8 +63,8 @@ const configurationPlaceholder = computed(() =>
     {
       mcpServers: {
         logs: {
-          command: '/usr/local/bin/node',
-          args: ['/opt/mcp/logs-mcp/dist/index.js', '--log-dir', '/app/logs'],
+          command: 'npx',
+          args: ['--no-install', 'logs-mcp', '--log-dir', '/absolute/path/to/logs'],
         },
       },
     },

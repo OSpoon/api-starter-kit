@@ -51,9 +51,9 @@ const mcpFields = {
   command: vine
     .string()
     .trim()
-    .minLength(2)
+    .minLength(1)
     .maxLength(2000)
-    .regex(/^\/.+$/),
+    .regex(/^(?:\/.+|[A-Za-z0-9][A-Za-z0-9._+-]*)$/),
   args: vine
     .array(
       vine

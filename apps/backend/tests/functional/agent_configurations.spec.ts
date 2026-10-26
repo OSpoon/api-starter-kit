@@ -331,14 +331,14 @@ test.group('Agent configuration', (group) => {
     assert.deepEqual(saved.args, ['--readonly'])
   })
 
-  test('requires MCP executable paths to be absolute', async ({ client }) => {
+  test('rejects relative MCP executable paths', async ({ client }) => {
     const token = await createActor(['agent-config:update'])
     const response = await client
       .post('/api/v1/system/agent-config/mcp-servers')
       .bearerToken(token)
       .json({
         name: 'Invalid MCP',
-        command: 'node',
+        command: './node',
         args: [],
         enabled: false,
         enabledTools: {},

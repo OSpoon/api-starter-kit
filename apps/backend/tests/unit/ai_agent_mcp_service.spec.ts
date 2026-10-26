@@ -56,7 +56,7 @@ test.group('AI agent local MCP tools', () => {
     )
   })
 
-  test('requires an absolute executable path and validates local process inputs', ({ assert }) => {
+  test('accepts command names and validates process inputs', ({ assert }) => {
     const configuration = assertAiAgentMcpConfiguration({
       command: process.execPath,
       args: ['server.js'],
@@ -69,9 +69,10 @@ test.group('AI agent local MCP tools', () => {
       cwd: '/opt/mcp',
       environment: { LOG_LEVEL: 'info' },
     })
+    assert.equal(assertAiAgentMcpConfiguration({ command: 'npx', args: [] }).command, 'npx')
     assert.throws(
-      () => assertAiAgentMcpConfiguration({ command: 'node', args: [] }),
-      'MCP 命令必须是服务器上的绝对路径'
+      () => assertAiAgentMcpConfiguration({ command: './node', args: [] }),
+      'MCP 命令必须是服务器上的绝对路径或 PATH 中的命令名'
     )
     assert.throws(
       () => assertAiAgentMcpConfiguration({ command: process.execPath, args: [], cwd: 'relative' }),
