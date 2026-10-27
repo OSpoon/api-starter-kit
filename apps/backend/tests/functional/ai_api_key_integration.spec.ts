@@ -23,6 +23,13 @@ test.group('AI API Key integration', (group) => {
     return { apiKey, secret }
   }
 
+  test('keeps streamed confirmation limited to user-authenticated routes', async ({ client }) => {
+    const response = await client.post(
+      '/api/v1/integrations/ai-chat/conversations/1/confirmations/1/confirm/stream'
+    )
+    response.assertStatus(404)
+  })
+
   test('gives each global key full assistant access with isolated conversations', async ({
     client,
     assert,

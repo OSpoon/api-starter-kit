@@ -2,8 +2,8 @@ import type { CallToolResult } from '@earendil-works/pi-mcp'
 import { test } from '@japa/runner'
 
 import { getAiAgentMcpResultText } from '#ai/actions/ai_agent_mcp_actions'
+import { assertAiAgentMcpConfiguration } from '#services/ai_agent_mcp_configuration_service'
 import {
-  assertAiAgentMcpConfiguration,
   createConfiguredMcpAgentTools,
   discoverAiAgentMcpTools,
   summarizeAiAgentMcpResult,

@@ -17,7 +17,7 @@ import { generateInitialPassword } from '#security/user_credentials'
 import {
   replaceAiAgentMcpConfiguration,
   updateAiAgentMcpServer,
-} from '#services/ai_agent_mcp_service'
+} from '#services/ai_agent_mcp_configuration_service'
 
 async function createActor(permissionCodes: string[]) {
   const permissions = await Promise.all(
@@ -252,6 +252,10 @@ test.group('Agent configuration', (group) => {
       })
     created.assertStatus(200)
     const skillId = (created.body().data as { id: number }).id
+    assert.equal(
+      (created.body().data as { instructions: string }).instructions,
+      '# Invoice review\n\nReview invoice exceptions and explain discrepancies.'
+    )
 
     const list = await client.get('/api/v1/system/agent-config/skills').bearerToken(token)
     list.assertStatus(200)
@@ -296,6 +300,7 @@ test.group('Agent configuration', (group) => {
       .json({ instructions: '## Steps\n\n1. Verify the invoice total.' })
     updated.assertStatus(200)
     assert.equal(updated.body().data.description, '1. Verify the invoice total.')
+    assert.equal(updated.body().data.instructions, '## Steps\n\n1. Verify the invoice total.')
   })
 
   test('encrypts MCP environment values and never returns them', async ({ client, assert }) => {

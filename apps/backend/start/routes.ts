@@ -24,6 +24,47 @@ const LlmConfigurationsController = () => import('#controllers/llm_configuration
 const AgentConfigurationsController = () => import('#controllers/agent_configurations_controller')
 const ImConfigurationsController = () => import('#controllers/im_configurations_controller')
 
+function registerAiChatRoutes(mode: 'user' | 'api-key') {
+  const isApiKey = mode === 'api-key'
+  const group = router
+    .group(() => {
+      router.get('conversations', [AiChatController, 'index'])
+      router.get('usage', [AiChatController, 'usage']).use(middleware.permission(['ai-usage:read']))
+      router.post('conversations', [AiChatController, 'store'])
+      router.get('conversations/:id', [AiChatController, 'show'])
+      router.post('transcribe', [AiChatController, 'transcribe'])
+      router.post('conversations/:id/messages', [AiChatController, 'sendMessage'])
+      router.post('conversations/:id/steer', [AiChatController, 'steer'])
+      router.post('conversations/:id/follow-up', [AiChatController, 'followUp'])
+      router.post('conversations/:id/confirmations/:confirmationId/confirm', [
+        AiChatController,
+        'confirmAiAgentAction',
+      ])
+      router.post('conversations/:id/confirmations/:confirmationId/cancel', [
+        AiChatController,
+        'cancelAiAgentAction',
+      ])
+      if (!isApiKey) {
+        router.post('conversations/:id/confirmations/:confirmationId/confirm/stream', [
+          AiChatController,
+          'confirmAiAgentActionStream',
+        ])
+      }
+      router.delete('conversations/:id', [AiChatController, 'destroy'])
+    })
+    .prefix(isApiKey ? 'integrations/ai-chat' : 'ai-chat')
+
+  if (isApiKey) {
+    group.as('integrations.ai_chat')
+    group.use(middleware.apiKey())
+    group.use(middleware.throttle({ max: 20, windowSeconds: 60, key: 'ip' }))
+    return
+  }
+
+  group.use(middleware.auth())
+  group.use(middleware.throttle({ max: 20, windowSeconds: 60, key: 'user' }))
+}
+
 router.get('/api/v1/health', () => {
   return { status: 'ok' }
 })
@@ -369,62 +410,8 @@ router
       .prefix('system')
       .use(middleware.auth())
 
-    router
-      .group(() => {
-        router.get('conversations', [AiChatController, 'index'])
-        router
-          .get('usage', [AiChatController, 'usage'])
-          .use(middleware.permission(['ai-usage:read']))
-        router.post('conversations', [AiChatController, 'store'])
-        router.get('conversations/:id', [AiChatController, 'show'])
-        router.post('transcribe', [AiChatController, 'transcribe'])
-        router.post('conversations/:id/messages', [AiChatController, 'sendMessage'])
-        router.post('conversations/:id/steer', [AiChatController, 'steer'])
-        router.post('conversations/:id/follow-up', [AiChatController, 'followUp'])
-        router.post('conversations/:id/confirmations/:confirmationId/confirm', [
-          AiChatController,
-          'confirmAiAgentAction',
-        ])
-        router.post('conversations/:id/confirmations/:confirmationId/cancel', [
-          AiChatController,
-          'cancelAiAgentAction',
-        ])
-        router.post('conversations/:id/confirmations/:confirmationId/confirm/stream', [
-          AiChatController,
-          'confirmAiAgentActionStream',
-        ])
-        router.delete('conversations/:id', [AiChatController, 'destroy'])
-      })
-      .prefix('ai-chat')
-      .use(middleware.auth())
-      .use(middleware.throttle({ max: 20, windowSeconds: 60, key: 'user' }))
-
-    router
-      .group(() => {
-        router.get('conversations', [AiChatController, 'index'])
-        router
-          .get('usage', [AiChatController, 'usage'])
-          .use(middleware.permission(['ai-usage:read']))
-        router.post('conversations', [AiChatController, 'store'])
-        router.get('conversations/:id', [AiChatController, 'show'])
-        router.post('transcribe', [AiChatController, 'transcribe'])
-        router.post('conversations/:id/messages', [AiChatController, 'sendMessage'])
-        router.post('conversations/:id/steer', [AiChatController, 'steer'])
-        router.post('conversations/:id/follow-up', [AiChatController, 'followUp'])
-        router.post('conversations/:id/confirmations/:confirmationId/confirm', [
-          AiChatController,
-          'confirmAiAgentAction',
-        ])
-        router.post('conversations/:id/confirmations/:confirmationId/cancel', [
-          AiChatController,
-          'cancelAiAgentAction',
-        ])
-        router.delete('conversations/:id', [AiChatController, 'destroy'])
-      })
-      .prefix('integrations/ai-chat')
-      .as('integrations.ai_chat')
-      .use(middleware.apiKey())
-      .use(middleware.throttle({ max: 20, windowSeconds: 60, key: 'ip' }))
+    registerAiChatRoutes('user')
+    registerAiChatRoutes('api-key')
   })
   .prefix('/api/v1')
 

@@ -9,9 +9,11 @@ import { sanitizeAiAgentToolErrorMessage } from '#ai/core/ai_agent_tool_errors'
 import { summarizeAiAgentToolParameters } from '#ai/core/ai_agent_tool_summary'
 import {
   type AiAgentMcpServer,
+  getAiAgentMcpServer,
+} from '#services/ai_agent_mcp_configuration_service'
+import {
   callConfiguredAiAgentMcpTool,
   discoverAiAgentMcpServerTools,
-  getAiAgentMcpServer,
   summarizeAiAgentMcpResult,
   validateAiAgentMcpArguments,
 } from '#services/ai_agent_mcp_service'

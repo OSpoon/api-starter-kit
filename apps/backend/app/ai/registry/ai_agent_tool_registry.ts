@@ -14,10 +14,8 @@ import { createSearchKnowledgeCatalogTool } from '#ai/tools/search_knowledge_cat
 import { createWecomMessageSendTool } from '#ai/tools/send_wecom_message'
 import { createSystemManagementChangeTool } from '#ai/tools/system_management_change'
 import { getAiAgentToolSettings } from '#services/ai_agent_configuration_service'
-import {
-  createConfiguredMcpAgentTools,
-  listEnabledAiAgentMcpServers,
-} from '#services/ai_agent_mcp_service'
+import { listEnabledAiAgentMcpServers } from '#services/ai_agent_mcp_configuration_service'
+import { createConfiguredMcpAgentTools } from '#services/ai_agent_mcp_service'
 
 export function createAiAgentTools(input: AiAgentToolContext): AgentTool[] {
   const support = createAiAgentToolSupport(input)

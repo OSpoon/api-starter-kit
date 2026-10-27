@@ -128,7 +128,7 @@ export const aiAgentMcpServerIdValidator = vine.compile(
   })
 )
 
-export const aiAgentModuleIdValidator = vine.compile(
+export const aiAgentSkillIdValidator = vine.compile(
   vine.object({
     id: vine
       .string()

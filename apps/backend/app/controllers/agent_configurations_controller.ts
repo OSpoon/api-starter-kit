@@ -7,27 +7,30 @@ import {
 } from '#services/ai_agent_configuration_service'
 import {
   decryptAiAgentMcpEnvironment,
-  discoverAiAgentMcpServerTools,
-  discoverAiAgentMcpTools,
   getAiAgentMcpConfiguration,
   getAiAgentMcpServer,
   listAiAgentMcpServers,
   replaceAiAgentMcpConfiguration,
   serializeAiAgentMcpServer,
   updateAiAgentMcpServer,
+} from '#services/ai_agent_mcp_configuration_service'
+import {
+  discoverAiAgentMcpServerTools,
+  discoverAiAgentMcpTools,
 } from '#services/ai_agent_mcp_service'
 import {
   createAiAgentSkill,
   deleteAiAgentSkill,
   getAiAgentSkill,
   listAiAgentSkills,
+  serializeAiAgentSkill,
   updateAiAgentSkill,
-} from '#services/ai_agent_module_service'
+} from '#services/ai_agent_skill_service'
 import { recordAuditEvent } from '#services/audit_log'
 import { clampLimit } from '#support/pagination'
 import {
   aiAgentMcpServerIdValidator,
-  aiAgentModuleIdValidator,
+  aiAgentSkillIdValidator,
   createAiAgentSkillValidator,
   testAiAgentMcpConnectionValidator,
   updateAiAgentConfigurationValidator,
@@ -86,17 +89,9 @@ export default class AgentConfigurationsController {
 
   @ApiOperation({ summary: '获取 Agent 技能详情' })
   async showSkill(ctx: HttpContext) {
-    const { id } = await aiAgentModuleIdValidator.validate({ id: ctx.request.param('id') })
+    const { id } = await aiAgentSkillIdValidator.validate({ id: ctx.request.param('id') })
     const skill = await getAiAgentSkill(Number(id))
-    return ctx.serialize({
-      id: skill.id,
-      code: skill.code,
-      name: skill.name,
-      description: skill.description,
-      instructions: skill.instructions,
-      enabled: skill.enabled,
-      updatedAt: skill.updatedAt.toISO(),
-    })
+    return ctx.serialize(serializeAiAgentSkill(skill))
   }
 
   @ApiOperation({ summary: '新增 Agent 技能' })
@@ -110,21 +105,13 @@ export default class AgentConfigurationsController {
       targetId: skill.id,
       metadata: { code: skill.code, enabled: skill.enabled },
     })
-    return ctx.serialize({
-      id: skill.id,
-      code: skill.code,
-      name: skill.name,
-      description: skill.description,
-      instructions: skill.instructions,
-      enabled: skill.enabled,
-      updatedAt: skill.updatedAt.toISO(),
-    })
+    return ctx.serialize(serializeAiAgentSkill(skill))
   }
 
   @ApiOperation({ summary: '更新 Agent 技能' })
   async updateSkill(ctx: HttpContext) {
     const payload = await updateAiAgentSkillValidator.validate(ctx.request.body())
-    const { id } = await aiAgentModuleIdValidator.validate({ id: ctx.request.param('id') })
+    const { id } = await aiAgentSkillIdValidator.validate({ id: ctx.request.param('id') })
     const skill = await updateAiAgentSkill(Number(id), payload)
     await recordAuditEvent(ctx, {
       actorUserId: ctx.auth.getUserOrFail().id,
@@ -133,20 +120,12 @@ export default class AgentConfigurationsController {
       targetId: skill.id,
       metadata: { code: skill.code, enabled: skill.enabled },
     })
-    return ctx.serialize({
-      id: skill.id,
-      code: skill.code,
-      name: skill.name,
-      description: skill.description,
-      instructions: skill.instructions,
-      enabled: skill.enabled,
-      updatedAt: skill.updatedAt.toISO(),
-    })
+    return ctx.serialize(serializeAiAgentSkill(skill))
   }
 
   @ApiOperation({ summary: '删除 Agent 技能' })
   async deleteSkill(ctx: HttpContext) {
-    const { id: rawId } = await aiAgentModuleIdValidator.validate({ id: ctx.request.param('id') })
+    const { id: rawId } = await aiAgentSkillIdValidator.validate({ id: ctx.request.param('id') })
     const id = Number(rawId)
     await deleteAiAgentSkill(id)
     await recordAuditEvent(ctx, {
