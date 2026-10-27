@@ -22,7 +22,8 @@ class FakeRuntime implements ReloadableBotRuntime {
   constructor(
     readonly configurationKey: string,
     private readonly events: string[],
-    private readonly startError = false
+    private readonly startError = false,
+    private readonly stopError = false
   ) {}
 
   async start() {
@@ -32,6 +33,7 @@ class FakeRuntime implements ReloadableBotRuntime {
 
   async stop() {
     this.events.push(`stop:${this.configurationKey}`)
+    if (this.stopError) throw new Error(`stop failed: ${this.configurationKey}`)
   }
 }
 
@@ -98,6 +100,36 @@ test.group('Reloadable AI channel runtime', () => {
 
     assert.deepEqual(events, ['start:1', 'start:2', 'stop:2', 'stop:1'])
     assert.lengthOf(logger.errors, 1)
+  })
+
+  test('logs replacement cleanup failure and preserves the active runtime', async ({ assert }) => {
+    const events: string[] = []
+    const logger = createLogger()
+    let attempt = 0
+    let listener: FakeListener | null = null
+    const runtime = new ReloadableAiChannelRuntime({
+      name: 'Test',
+      logger,
+      createRuntime: async () => {
+        attempt += 1
+        return new FakeRuntime(String(attempt), events, attempt === 2, attempt === 2)
+      },
+      createListener: (onChange) => {
+        listener = new FakeListener(onChange)
+        return listener
+      },
+      reconcileIntervalMs: 60 * 60 * 1000,
+    })
+
+    await runtime.start()
+    await listener!.notify()
+    await runtime.stop()
+
+    assert.deepEqual(events, ['start:1', 'start:2', 'stop:2', 'stop:1'])
+    assert.deepEqual(
+      logger.errors.map(({ fields }) => fields.operation),
+      ['stop_failed_replacement_runtime', 'start_replacement_runtime']
+    )
   })
 
   test('stops the active runtime when configuration becomes incomplete', async ({ assert }) => {

@@ -342,20 +342,28 @@ export class AiChannelBridge implements ReloadableBotRuntime {
   }
 
   async handleTemplateCardEvent(input: ChannelCardActionEvent): Promise<OutboundMessage> {
-    const guestUser = await getChannelGuestUser().catch(() => null)
-    if (guestUser) {
-      const visitorConversation = await findChannelConversation({
-        channel: input.channel,
-        externalTenantId: input.externalTenantId,
-        externalConversationKey: createVisitorConversationKey({
-          externalConversationKey: input.conversationKey,
-          externalUserId: input.externalUserId,
-        }),
-        userId: guestUser.id,
-      })
-      if (visitorConversation) {
-        return textReply('群聊访客模式不支持确认操作，请转到私聊并完成身份绑定。')
-      }
+    let guestUser: User
+    try {
+      guestUser = await getChannelGuestUser()
+    } catch (error) {
+      logger.error(
+        { err: error, channel: input.channel, conversationKey: input.conversationKey },
+        'Channel guest principal lookup failed while resolving card action'
+      )
+      return textReply('确认操作暂时不可用，请稍后重试或联系管理员。')
+    }
+
+    const visitorConversation = await findChannelConversation({
+      channel: input.channel,
+      externalTenantId: input.externalTenantId,
+      externalConversationKey: createVisitorConversationKey({
+        externalConversationKey: input.conversationKey,
+        externalUserId: input.externalUserId,
+      }),
+      userId: guestUser.id,
+    })
+    if (visitorConversation) {
+      return textReply('群聊访客模式不支持确认操作，请转到私聊并完成身份绑定。')
     }
 
     let identity = await findActiveChannelIdentity({

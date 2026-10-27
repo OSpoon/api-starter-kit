@@ -11,6 +11,7 @@ export interface SystemStatus {
   }
   memory: { usedPercent: number; usedGb: number; totalGb: number; availableGb: number }
   disks: Array<{ mount: string; usedPercent: number; usedBytes: number; totalBytes: number }>
+  diskCollectionAvailable: boolean
   runtime: {
     activeHandles: number | null
     pid: number

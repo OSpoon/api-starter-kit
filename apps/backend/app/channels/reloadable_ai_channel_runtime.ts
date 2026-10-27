@@ -135,7 +135,12 @@ export class ReloadableAiChannelRuntime implements ReloadableBotRuntime {
     try {
       await nextRuntime.start()
     } catch (error) {
-      await nextRuntime.stop().catch(() => undefined)
+      await nextRuntime.stop().catch((cleanupError) => {
+        this.logger.error(
+          { err: cleanupError, operation: 'stop_failed_replacement_runtime' },
+          'Failed to clean up AI channel replacement connection'
+        )
+      })
       this.logger.error(
         {
           err: error,

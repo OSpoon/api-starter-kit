@@ -202,7 +202,8 @@ useIntervalFn(() => void refreshAiOverview(), 60_000, { immediateCallback: true 
         <CardHeader class="flex flex-row items-center justify-between"
           ><CardTitle>{{ t('system_status.disks') }}</CardTitle
           ><span class="text-sm text-muted-foreground"
-            >{{ status ? status.disks.length : '—' }} {{ t('system_status.mounts') }}</span
+            >{{ status?.diskCollectionAvailable ? status.disks.length : '—' }}
+            {{ t('system_status.mounts') }}</span
           ></CardHeader
         >
         <CardContent class="min-h-0 flex-1 space-y-5 overflow-y-auto pr-2">
@@ -216,8 +217,17 @@ useIntervalFn(() => void refreshAiOverview(), 60_000, { immediateCallback: true 
             </div>
             <Progress :model-value="item.usedPercent" />
           </div>
-          <p v-if="status && !status.disks.length" class="text-sm text-muted-foreground">
+          <p
+            v-if="status?.diskCollectionAvailable && !status.disks.length"
+            class="text-sm text-muted-foreground"
+          >
             {{ t('system_status.no_disks') }}
+          </p>
+          <p
+            v-else-if="status && !status.diskCollectionAvailable"
+            class="text-sm text-muted-foreground"
+          >
+            {{ t('system_status.disk_unavailable') }}
           </p>
         </CardContent>
       </Card>

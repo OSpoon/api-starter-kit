@@ -49,12 +49,11 @@ export function parseMounts(output: string) {
     )
 }
 
-async function readMounts() {
+async function readMounts(readDf: () => Promise<string>) {
   try {
-    const { stdout } = await execFileAsync('df', ['-kP'], { timeout: 2_000 })
-    return parseMounts(stdout)
+    return parseMounts(await readDf())
   } catch {
-    return []
+    return null
   }
 }
 
@@ -62,13 +61,18 @@ function bytesToGb(bytes: number) {
   return Math.round((bytes / 1024 ** 3) * 10) / 10
 }
 
-export async function readSystemStatus() {
+export async function readSystemStatus(
+  readDf: () => Promise<string> = async () => {
+    const result = await execFileAsync('df', ['-kP'], { timeout: 2_000 })
+    return result.stdout
+  }
+) {
   const current = cpuSample()
   const perCore = cpuUsage(current, previousCpuSample)
   previousCpuSample = current
   const measuredCores = perCore?.filter((value): value is number => value !== null) ?? []
 
-  const mounts = await readMounts()
+  const mounts = await readMounts(readDf)
   const totalMemory = os.totalmem()
   const freeMemory = os.freemem()
   const memoryUsedPercent = Math.round(((totalMemory - freeMemory) / totalMemory) * 100)
@@ -91,7 +95,8 @@ export async function readSystemStatus() {
       totalGb: bytesToGb(totalMemory),
       availableGb: bytesToGb(freeMemory),
     },
-    disks: mounts,
+    disks: mounts ?? [],
+    diskCollectionAvailable: mounts !== null,
     runtime: {
       activeHandles:
         typeof processWithHandles._getActiveHandles === 'function'

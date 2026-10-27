@@ -7,8 +7,8 @@ import {
 } from '#services/llm_configuration_service'
 
 const knowledgeMetadataSchema = z.object({
-  summary: z.string().trim().max(2_000).nullable().catch(null),
-  topics: z.array(z.string().trim().min(1).max(80)).max(20).catch([]),
+  summary: z.string().trim().max(2_000).nullable(),
+  topics: z.array(z.string().trim().min(1).max(80)).max(20),
 })
 
 export type KnowledgeMetadataSuggestion = z.infer<typeof knowledgeMetadataSchema>
@@ -19,6 +19,12 @@ function parseJsonObject(value: string) {
     .replace(/^```(?:json)?\s*/i, '')
     .replace(/\s*```$/, '')
   return JSON.parse(normalized)
+}
+
+export function parseKnowledgeMetadataResponse(value: string): KnowledgeMetadataSuggestion {
+  const parsed = knowledgeMetadataSchema.safeParse(parseJsonObject(value))
+  if (!parsed.success) throw new Error('LLM 返回的知识文档元数据格式无效')
+  return parsed.data
 }
 
 export async function suggestKnowledgeMetadata(input: { title: string; content: string }) {
@@ -47,7 +53,5 @@ export async function suggestKnowledgeMetadata(input: { title: string; content: 
   })
   const content = response.choices[0]?.message.content
   if (!content) throw new Error('LLM 未返回知识文档元数据')
-  const parsed = knowledgeMetadataSchema.safeParse(parseJsonObject(content))
-  if (!parsed.success) throw new Error('LLM 返回的知识文档元数据格式无效')
-  return parsed.data
+  return parseKnowledgeMetadataResponse(content)
 }
