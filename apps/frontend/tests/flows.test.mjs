@@ -119,7 +119,15 @@ test('AI stream delivers MCP discovery and safe tool details', async () => {
     await streamAiChatMessage(null, 1, 'Find a user', (event) => events.push(event))
     assert.deepEqual(
       events.map(({ type }) => type),
-      ['agent_phase', 'agent_phase', 'agent_phase', 'agent_phase', 'agent_status', 'agent_status', 'done']
+      [
+        'agent_phase',
+        'agent_phase',
+        'agent_phase',
+        'agent_phase',
+        'agent_status',
+        'agent_status',
+        'done',
+      ]
     )
     assert.equal(events[0].serverName, 'Directory')
     assert.equal(events[1].toolCount, 2)
