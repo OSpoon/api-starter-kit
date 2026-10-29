@@ -27,11 +27,15 @@ test.group('system status service', () => {
   })
 
   test('reports disk collection failure separately from an empty disk list', async ({ assert }) => {
-    const status = await readSystemStatus(async () => {
-      throw new Error('df unavailable')
-    })
+    const status = await readSystemStatus(
+      async () => {
+        throw new Error('df unavailable')
+      },
+      async () => []
+    )
 
     assert.isFalse(status.diskCollectionAvailable)
     assert.deepEqual(status.disks, [])
+    assert.deepEqual(status.imBots, [])
   })
 })

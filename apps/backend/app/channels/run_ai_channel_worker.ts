@@ -2,14 +2,19 @@ import {
   ReloadableAiChannelRuntime,
   type ReloadableBotRuntime,
 } from '#channels/reloadable_ai_channel_runtime'
+import {
+  type ImBotChannel,
+  startImBotWorkerStatusReporter,
+} from '#services/im_bot_worker_status_service'
 
 interface RunAiChannelWorkerOptions {
-  name: string
+  name: ImBotChannel
   createRuntime: () => Promise<ReloadableBotRuntime | null>
 }
 
 export async function runAiChannelWorker({ name, createRuntime }: RunAiChannelWorkerOptions) {
   const runtime = new ReloadableAiChannelRuntime({ name, createRuntime })
+  const stopReportingStatus = await startImBotWorkerStatusReporter(name)
   let shuttingDown = false
   let shutdownResolver: (() => void) | null = null
 
@@ -37,5 +42,6 @@ export async function runAiChannelWorker({ name, createRuntime }: RunAiChannelWo
     process.off('SIGINT', onSigint)
     process.off('SIGTERM', onSigterm)
     await runtime.stop()
+    await stopReportingStatus()
   }
 }

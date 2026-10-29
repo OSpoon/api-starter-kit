@@ -195,6 +195,8 @@ docker compose -f docker/docker-compose.yml logs -f feishu-bot
 docker compose -f docker/docker-compose.yml logs -f dingtalk-bot
 ```
 
+系统状态页通过共享数据库心跳读取各 Bot 进程状态。worker 每 10 秒上报一次，超过 30 秒没有心跳会显示为离线。这反映进程存活状态，不代表 IM 平台连接正常。
+
 Bot worker 会监听 PostgreSQL 的 IM 配置变更通知。管理员在「Agent 配置 → IM 渠道」页面保存后，
 对应渠道会自动使用新配置建立连接，无需执行 `docker compose restart`。如果配置不完整，
 worker 会保持运行并等待；如果 PostgreSQL 监听连接断开，worker 会自动重连并重新读取

@@ -10,7 +10,7 @@ export default class FeishuBot extends BaseCommand {
 
   async run() {
     const completed = await runAiChannelWorker({
-      name: 'Feishu',
+      name: 'feishu',
       createRuntime: createFeishuAiRuntime,
     })
     if (!completed) this.exitCode = 1

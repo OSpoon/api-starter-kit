@@ -550,6 +550,21 @@ export class GithubLoginExchangeSchema extends BaseModel {
   declare userId: number
 }
 
+export class ImBotWorkerStatusSchema extends BaseModel {
+  static $columns = ['channel', 'lastHeartbeatAt', 'pid', 'startedAt', 'workerStatus'] as const
+  $columns = ImBotWorkerStatusSchema.$columns
+  @column({ isPrimary: true })
+  declare channel: string
+  @column.dateTime()
+  declare lastHeartbeatAt: DateTime
+  @column()
+  declare pid: number
+  @column.dateTime()
+  declare startedAt: DateTime
+  @column()
+  declare workerStatus: string
+}
+
 export class KnowledgeChunkSchema extends BaseModel {
   static $columns = [
     'chunkIndex',

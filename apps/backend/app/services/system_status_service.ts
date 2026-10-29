@@ -2,6 +2,11 @@ import { execFile } from 'node:child_process'
 import os from 'node:os'
 import { promisify } from 'node:util'
 
+import {
+  getImBotProcessStatuses,
+  type ImBotProcessStatus,
+} from '#services/im_bot_worker_status_service'
+
 const execFileAsync = promisify(execFile)
 
 type CpuSample = { idle: number; total: number }
@@ -65,7 +70,8 @@ export async function readSystemStatus(
   readDf: () => Promise<string> = async () => {
     const result = await execFileAsync('df', ['-kP'], { timeout: 2_000 })
     return result.stdout
-  }
+  },
+  readImBots: () => Promise<ImBotProcessStatus[]> = getImBotProcessStatuses
 ) {
   const current = cpuSample()
   const perCore = cpuUsage(current, previousCpuSample)
@@ -112,6 +118,7 @@ export async function readSystemStatus(
       platform: `${os.platform()} ${os.arch()}`,
       osVersion: os.version(),
     },
+    imBots: await readImBots(),
     updatedAt: new Date().toISOString(),
   }
 }

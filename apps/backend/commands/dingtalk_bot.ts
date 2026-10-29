@@ -10,7 +10,7 @@ export default class DingTalkBot extends BaseCommand {
 
   async run() {
     const completed = await runAiChannelWorker({
-      name: 'DingTalk',
+      name: 'dingtalk',
       createRuntime: createDingTalkAiRuntime,
     })
     if (!completed) this.exitCode = 1
