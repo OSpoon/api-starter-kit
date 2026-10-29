@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Copy, Link2, ShieldCheck, UserRound } from '@lucide/vue'
+import { Copy } from '@lucide/vue'
 import { toTypedSchema } from '@vee-validate/zod'
 import { useForm } from 'vee-validate'
 import { toast } from 'vue-sonner'
@@ -9,7 +9,6 @@ import DescriptionActionRow from '@/components/common/DescriptionActionRow.vue'
 import FormDialogContent from '@/components/common/FormDialogContent.vue'
 import FormDialogFooter from '@/components/common/FormDialogFooter.vue'
 import SegmentedCodeInput from '@/components/common/SegmentedCodeInput.vue'
-import SettingsSectionNavigation from '@/components/common/SettingsSectionNavigation.vue'
 import SettingsPageTemplate from '@/components/templates/SettingsPageTemplate.vue'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -51,12 +50,6 @@ const { copy: copyText } = useCopyText()
 const router = useRouter()
 const route = useRoute()
 const { t, locale } = useI18n()
-const activeSection = ref('account')
-const sections = computed(() => [
-  { value: 'account', label: t('profile.basic_info'), icon: UserRound },
-  { value: 'security', label: t('profile.security_title'), icon: ShieldCheck },
-  { value: 'channels', label: t('profile.channel_binding.title'), icon: Link2 },
-])
 
 const isLoading = ref(false)
 const disablePassword = ref('')
@@ -337,14 +330,7 @@ onMounted(async () => {
 
 <template>
   <SettingsPageTemplate :title="t('profile.title')" :description="t('profile.desc')">
-    <template #navigation>
-      <SettingsSectionNavigation
-        v-model="activeSection"
-        :items="sections"
-        :label="t('profile.sections_label')"
-      />
-    </template>
-    <Card v-show="activeSection === 'account'" class="rounded-xl">
+    <Card class="rounded-xl">
       <CardHeader>
         <CardTitle>{{ t('profile.basic_info') }}</CardTitle>
         <CardDescription>{{ t('profile.basic_desc') }}</CardDescription>
@@ -396,7 +382,7 @@ onMounted(async () => {
       </CardContent>
     </Card>
 
-    <Card v-show="activeSection === 'security'" class="rounded-xl">
+    <Card class="rounded-xl">
       <CardHeader>
         <CardTitle>{{ t('profile.security_title') }}</CardTitle>
         <CardDescription>{{ t('profile.security_desc') }}</CardDescription>
@@ -481,7 +467,7 @@ onMounted(async () => {
       </CardContent>
     </Card>
 
-    <Card v-show="activeSection === 'channels'" class="rounded-xl">
+    <Card class="rounded-xl">
       <CardHeader>
         <CardTitle>{{ t('profile.channel_binding.title') }}</CardTitle>
         <CardDescription>{{ t('profile.channel_binding.hint') }}</CardDescription>

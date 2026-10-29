@@ -1204,7 +1204,6 @@
   "profile": {
     "title": "Profile",
     "desc": "View account details and manage security settings.",
-    "sections_label": "Profile sections",
     "basic_info": "Basic information",
     "security": "Security",
     "change_password": "Change password",
