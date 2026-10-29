@@ -49,14 +49,12 @@ const callBuiltInToolAction: AiAgentActionImplementation = {
     await assertConfirmationMode(toolName)
     const args = object(input, 'arguments')
     const ids = documentIds(input)
-    const skillCode = toolName === 'load_agent_skill' ? string(args, 'code', 64) : undefined
     return {
       targetType: 'agent_tool',
       targetId: `${toolName}:${crypto.randomUUID()}`,
-      targetSummary: { name: skillCode ?? toolName },
+      targetSummary: { name: toolName },
       payload: {
         toolName,
-        ...(skillCode ? { skillCode } : {}),
         parameterNames: Object.keys(args),
         encryptedArguments: encryption.encrypt(
           JSON.stringify({ args, knowledgeCatalogDocumentIds: ids })
@@ -105,19 +103,9 @@ const callBuiltInToolAction: AiAgentActionImplementation = {
       .filter((item) => item.type === 'text')
       .map((item) => item.text)
       .join('\n')
-    const skill = details?.kind === 'agent_skill' ? (details as Record<string, unknown>) : null
     return {
       agentToolName: toolName,
       agentToolResult: text.length > 20_000 ? `${text.slice(0, 20_000)}\n[结果已截断]` : text,
-      ...(toolName === 'load_agent_skill'
-        ? {
-            agentSkillCode: args.code,
-            ...(typeof skill?.name === 'string' ? { agentSkillName: skill.name } : {}),
-            ...(typeof skill?.instructions === 'string'
-              ? { agentSkillInstructionCharacters: skill.instructions.length }
-              : {}),
-          }
-        : {}),
       ...(sources.length ? { agentToolSources: sources } : {}),
     }
   },
@@ -128,13 +116,8 @@ export const aiAgentBuiltInToolActions = {
     impact: 'standard',
     summarize: (payload) => [
       {
-        field: typeof payload.skillCode === 'string' ? 'skill' : 'tool_name',
-        value:
-          typeof payload.skillCode === 'string'
-            ? payload.skillCode
-            : typeof payload.toolName === 'string'
-              ? payload.toolName
-              : 'unknown',
+        field: 'tool_name',
+        value: typeof payload.toolName === 'string' ? payload.toolName : 'unknown',
       },
       {
         field: 'parameter_names',

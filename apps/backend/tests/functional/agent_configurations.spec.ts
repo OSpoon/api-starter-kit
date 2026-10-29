@@ -1,10 +1,8 @@
 import testUtils from '@adonisjs/core/services/test_utils'
+import db from '@adonisjs/lucid/services/db'
 import { test } from '@japa/runner'
 
-import {
-  createAiAgentTools,
-  createConfiguredAiAgentTools,
-} from '#ai/registry/ai_agent_tool_registry'
+import { createConfiguredAiAgentTools } from '#ai/registry/ai_agent_tool_registry'
 import AiAgentConfiguration from '#models/ai_agent_configuration'
 import AiAgentConfirmation from '#models/ai_agent_confirmation'
 import AiChatConversation from '#models/ai_chat_conversation'
@@ -236,71 +234,30 @@ test.group('Agent configuration', (group) => {
     assert.notProperty(updated.body().data, 'requestTimeoutMs')
   })
 
-  test('paginates skill summaries and discloses instructions only on detail', async ({
+  test('removes skill routes, tool settings, table, and stored data', async ({
     client,
     assert,
   }) => {
     const token = await createActor(['agent-config:read', 'agent-config:update'])
-    const created = await client
-      .post('/api/v1/system/agent-config/skills')
-      .bearerToken(token)
-      .json({
-        code: 'invoice-review',
-        name: 'Invoice review',
-        instructions: '# Invoice review\n\nReview invoice exceptions and explain discrepancies.',
-        enabled: true,
-      })
-    created.assertStatus(200)
-    const skillId = (created.body().data as { id: number }).id
-    assert.equal(
-      (created.body().data as { instructions: string }).instructions,
-      '# Invoice review\n\nReview invoice exceptions and explain discrepancies.'
+    const routes = await Promise.all([
+      client.get('/api/v1/system/agent-config/skills').bearerToken(token),
+      client.get('/api/v1/system/agent-config/skills/1').bearerToken(token),
+      client.post('/api/v1/system/agent-config/skills').bearerToken(token).json({}),
+      client.put('/api/v1/system/agent-config/skills/1').bearerToken(token).json({}),
+      client.delete('/api/v1/system/agent-config/skills/1').bearerToken(token),
+    ])
+    for (const response of routes) response.assertStatus(404)
+
+    const configuration = await client.get('/api/v1/system/agent-config').bearerToken(token)
+    configuration.assertStatus(200)
+    const toolCodes = (configuration.body().data as { tools: Array<{ code: string }> }).tools.map(
+      ({ code }) => code
     )
+    assert.notInclude(toolCodes, 'list_agent_skills')
+    assert.notInclude(toolCodes, 'load_agent_skill')
 
-    const list = await client.get('/api/v1/system/agent-config/skills').bearerToken(token)
-    list.assertStatus(200)
-    const skillItems = (list.body().data as { items: Array<Record<string, unknown>> }).items
-    const skillSummary = skillItems.find(({ id }) => id === skillId)
-    assert.exists(skillSummary)
-    assert.notProperty(skillSummary!, 'instructions')
-    assert.equal(skillSummary!.description, 'Review invoice exceptions and explain discrepancies.')
-
-    const detail = await client
-      .get(`/api/v1/system/agent-config/skills/${skillId}`)
-      .bearerToken(token)
-    detail.assertStatus(200)
-    assert.equal(
-      detail.body().data.instructions,
-      '# Invoice review\n\nReview invoice exceptions and explain discrepancies.'
-    )
-
-    const tools = createAiAgentTools({
-      userId: 1,
-      conversationId: 1,
-      agentRunId: crypto.randomUUID(),
-    })
-    const listTool = tools.find(({ name }) => name === 'list_agent_skills')!
-    const listed = await listTool.execute('list-skills-test', {})
-    const listedSkill = (
-      listed.details as { skills: Array<{ code: string; description: string }> }
-    ).skills.find(({ code }) => code === 'invoice-review')
-    assert.equal(listedSkill?.description, 'Review invoice exceptions and explain discrepancies.')
-
-    const loadTool = tools.find(({ name }) => name === 'load_agent_skill')!
-    const loaded = await loadTool.execute('load-skill-test', { code: 'invoice-review' })
-    assert.deepInclude(loaded.details, {
-      kind: 'agent_skill',
-      code: 'invoice-review',
-      instructions: '# Invoice review\n\nReview invoice exceptions and explain discrepancies.',
-    })
-
-    const updated = await client
-      .put(`/api/v1/system/agent-config/skills/${skillId}`)
-      .bearerToken(token)
-      .json({ instructions: '## Steps\n\n1. Verify the invoice total.' })
-    updated.assertStatus(200)
-    assert.equal(updated.body().data.description, '1. Verify the invoice total.')
-    assert.equal(updated.body().data.instructions, '## Steps\n\n1. Verify the invoice total.')
+    const schema = await db.rawQuery("SELECT to_regclass('ai_agent_skills') AS table_name")
+    assert.isNull(schema.rows[0]?.table_name)
   })
 
   test('encrypts MCP environment values and never returns them', async ({ client, assert }) => {

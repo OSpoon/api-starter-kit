@@ -169,15 +169,6 @@ async function executeConfirmationAndCreateMessage(input: {
   if (actionResult?.mcpToolResultSummary && typeof actionResult.mcpToolResultSummary === 'object') {
     runtimeSummary.resultSummary = actionResult.mcpToolResultSummary
   }
-  if (typeof actionResult?.agentSkillCode === 'string') {
-    runtimeSummary.skillCode = actionResult.agentSkillCode
-  }
-  if (typeof actionResult?.agentSkillName === 'string') {
-    runtimeSummary.skillName = actionResult.agentSkillName
-  }
-  if (typeof actionResult?.agentSkillInstructionCharacters === 'number') {
-    runtimeSummary.skillInstructionCharacters = actionResult.agentSkillInstructionCharacters
-  }
   const completedDetail = {
     ...executionDetail,
     ...runtimeSummary,

@@ -130,36 +130,6 @@ export class AiAgentPendingQuerySchema extends BaseModel {
   declare updatedAt: DateTime
 }
 
-export class AiAgentSkillSchema extends BaseModel {
-  static $columns = [
-    'code',
-    'createdAt',
-    'description',
-    'enabled',
-    'id',
-    'instructions',
-    'name',
-    'updatedAt',
-  ] as const
-  $columns = AiAgentSkillSchema.$columns
-  @column()
-  declare code: string
-  @column.dateTime({ autoCreate: true })
-  declare createdAt: DateTime
-  @column()
-  declare description: string
-  @column()
-  declare enabled: boolean
-  @column({ isPrimary: true })
-  declare id: bigint | number
-  @column()
-  declare instructions: string
-  @column()
-  declare name: string
-  @column.dateTime({ autoCreate: true, autoUpdate: true })
-  declare updatedAt: DateTime
-}
-
 export class AiChatConversationSchema extends BaseModel {
   static $columns = [
     'apiKeyId',

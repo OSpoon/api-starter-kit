@@ -3,7 +3,6 @@ import type { AgentTool } from '@earendil-works/pi-agent-core'
 import { proposeAiAgentAction } from '#ai/core/ai_agent_confirmation'
 import type { AiAgentToolContext } from '#ai/core/ai_agent_tool_context'
 import { createAiAgentToolSupport } from '#ai/registry/ai_agent_tool_helpers'
-import { createListAgentSkillsTool, createLoadAgentSkillTool } from '#ai/tools/agent_skills'
 import { createApiKeyCreationTool } from '#ai/tools/create_api_key'
 import { createApiKeyDeletionTool } from '#ai/tools/delete_api_key'
 import { createDiagnoseMyAccessTool } from '#ai/tools/diagnose_my_access'
@@ -33,8 +32,6 @@ export function createAiAgentTools(input: AiAgentToolContext): AgentTool[] {
           createRunRegisteredQueryTool(input, support),
           createSearchKnowledgeCatalogTool(knowledgeInput, support),
           createSearchKnowledgeTool(knowledgeInput, support),
-          createListAgentSkillsTool(input, support),
-          createLoadAgentSkillTool(input, support),
           createApiKeyRevocationTool(input, support),
           createApiKeyDeletionTool(input, support),
           createSystemManagementChangeTool(input, support),

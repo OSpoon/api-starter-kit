@@ -3,8 +3,6 @@ const readToolNames = new Set([
   'run_registered_query',
   'search_knowledge_catalog',
   'search_knowledge',
-  'list_agent_skills',
-  'load_agent_skill',
 ])
 
 export const maxConsecutiveAiAgentReadToolFailures = 2

@@ -641,13 +641,6 @@ test.group('AI agent confirmations', (group) => {
         setting.code === 'run_registered_query' ? { ...setting, mode: 'confirm' } : setting
       )
     )
-    const configuredSettings = await getAiAgentToolSettings()
-    const lockedSkillSetting = configuredSettings.find(
-      (setting) => setting.code === 'load_agent_skill'
-    )
-    assert.isFalse(lockedSkillSetting!.modeConfigurable)
-    assert.equal(lockedSkillSetting!.mode, 'direct')
-
     const queryConfirmation = await proposeAiAgentAction({
       action: 'call_builtin_tool',
       actionInput: {

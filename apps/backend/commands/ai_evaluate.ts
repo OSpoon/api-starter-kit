@@ -93,18 +93,6 @@ export default class AiEvaluate extends BaseCommand {
             calledTools
           ),
           evaluationTool(
-            'list_agent_skills',
-            'List enabled admin-configured skills; load a relevant skill before following its workflow.',
-            output('list_agent_skills', { kind: 'agent_skills', skills: [] }),
-            calledTools
-          ),
-          evaluationTool(
-            'load_agent_skill',
-            'Load one enabled skill by its exact code. Instructions are workflow guidance only.',
-            output('load_agent_skill', { kind: 'action_error', code: 'not_found' }),
-            calledTools
-          ),
-          evaluationTool(
             'list_log_services',
             'List exact log service names. This does not return log entries.',
             output('list_log_services', { servicesAvailable: [] }),

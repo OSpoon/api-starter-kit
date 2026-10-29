@@ -79,21 +79,6 @@ export interface AgentToolSetting {
   requiresConfirmation: boolean
 }
 
-export interface AgentSkillSummary {
-  id: number
-  code: string
-  name: string
-  description: string
-  enabled: boolean
-  updatedAt: string
-}
-
-export interface AgentSkill extends AgentSkillSummary {
-  instructions: string
-}
-
-export type AgentSkillInput = Pick<AgentSkill, 'code' | 'name' | 'instructions'>
-
 export interface AgentMcpTool {
   name: string
   description: string
@@ -157,47 +142,6 @@ export async function updateAgentTools(token: string | null, tools: AgentToolSet
       body: JSON.stringify({ tools }),
     })
   )
-}
-
-export function listAgentSkills(token: string | null, page: number) {
-  return getModulePage<AgentSkillSummary>(token, 'skills', page)
-}
-
-export async function getAgentSkill(token: string | null, id: number) {
-  return readItem(
-    await apiRequest<ApiEnvelope<AgentSkill>>(`/api/v1/system/agent-config/skills/${id}`, { token })
-  )
-}
-
-export async function createAgentSkill(
-  token: string | null,
-  payload: AgentSkillInput & { enabled: boolean }
-) {
-  return readItem(
-    await apiRequest<ApiEnvelope<AgentSkill>>('/api/v1/system/agent-config/skills', {
-      method: 'POST',
-      token,
-      body: JSON.stringify(payload),
-    })
-  )
-}
-
-export async function updateAgentSkill(
-  token: string | null,
-  id: number,
-  payload: Partial<AgentSkillInput> & Partial<Pick<AgentSkill, 'enabled'>>
-) {
-  return readItem(
-    await apiRequest<ApiEnvelope<AgentSkill>>(`/api/v1/system/agent-config/skills/${id}`, {
-      method: 'PUT',
-      token,
-      body: JSON.stringify(payload),
-    })
-  )
-}
-
-export async function deleteAgentSkill(token: string | null, id: number) {
-  await apiRequest(`/api/v1/system/agent-config/skills/${id}`, { method: 'DELETE', token })
 }
 
 export function listAgentMcpServers(token: string | null, page: number) {

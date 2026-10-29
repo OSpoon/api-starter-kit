@@ -17,29 +17,6 @@ export const updateAiAgentConfigurationValidator = vine.compile(
   })
 )
 
-const skillFields = {
-  code: vine
-    .string()
-    .trim()
-    .minLength(1)
-    .maxLength(64)
-    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
-  name: vine.string().trim().minLength(1).maxLength(128),
-  instructions: vine.string().trim().minLength(1).maxLength(50_000),
-  enabled: vine.boolean(),
-}
-
-export const createAiAgentSkillValidator = vine.compile(vine.object(skillFields))
-
-export const updateAiAgentSkillValidator = vine.compile(
-  vine.object({
-    code: skillFields.code.optional(),
-    name: skillFields.name.optional(),
-    instructions: skillFields.instructions.optional(),
-    enabled: skillFields.enabled.optional(),
-  })
-)
-
 const enabledMcpTools = vine.record(
   vine.object({
     mode: vine.enum(['read', 'confirm'] as const),
@@ -125,15 +102,5 @@ export const aiAgentMcpServerIdValidator = vine.compile(
       .minLength(1)
       .maxLength(64)
       .regex(/^[^/\\\0]+$/),
-  })
-)
-
-export const aiAgentSkillIdValidator = vine.compile(
-  vine.object({
-    id: vine
-      .string()
-      .trim()
-      .maxLength(16)
-      .regex(/^[1-9]\d*$/),
   })
 )

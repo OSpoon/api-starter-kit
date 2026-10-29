@@ -93,7 +93,7 @@ function serializeConfirmation(confirmation: AiAgentConfirmation): AiAgentConfir
     changeSummary,
     expiresAt: confirmation.expiresAt.toISO(),
     presentation: {
-      title: getActionTitle(confirmation.action, confirmation.payload),
+      title: getActionTitle(confirmation.action),
       summary:
         confirmation.status === 'pending'
           ? '请确认是否执行以下操作。'
@@ -194,10 +194,7 @@ const actionTitles: Record<string, string> = {
   call_builtin_tool: '确认调用工具',
 }
 
-function getActionTitle(action: string, payload: Record<string, unknown>) {
-  if (action === 'call_builtin_tool' && payload.toolName === 'load_agent_skill') {
-    return '确认加载技能'
-  }
+function getActionTitle(action: string) {
   return actionTitles[action] ?? '确认系统管理操作'
 }
 function getTargetLabel(targetId: string | null, summary: Record<string, unknown>) {
@@ -220,7 +217,6 @@ function getChangeLabel(field: string, action: string) {
         description: '说明',
         permission_ids: '权限',
         group: '分组',
-        skill: '技能',
         parameter_names: '参数字段与类型',
       } as Record<string, string>
     )[field] ?? field
@@ -394,10 +390,6 @@ export async function getAiAgentActionResultMessage(input: {
   if (confirmation.action === 'call_builtin_tool') {
     const toolName = input.result?.agentToolName
     const toolResult = input.result?.agentToolResult
-    const skillCode = input.result?.agentSkillCode
-    if (toolName === 'load_agent_skill' && typeof skillCode === 'string') {
-      return `技能「${skillCode}」已加载，指引内容已返回。`
-    }
     if (typeof toolName === 'string' && typeof toolResult === 'string') {
       return `工具 ${toolName} 已执行，返回结果：${toolResult}`
     }

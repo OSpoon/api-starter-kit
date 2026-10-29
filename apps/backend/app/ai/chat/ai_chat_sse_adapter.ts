@@ -122,43 +122,6 @@ function getAgentStatusDetail(
         : {}),
     }
   }
-  if (name === 'load_agent_skill') {
-    const skillCode =
-      typeof outputRecord?.code === 'string'
-        ? outputRecord.code
-        : typeof values.code === 'string'
-          ? values.code
-          : undefined
-    return {
-      ...(skillCode ? { skillCode: skillCode.slice(0, 64) } : {}),
-      ...(typeof outputRecord?.name === 'string'
-        ? { skillName: outputRecord.name.slice(0, 120) }
-        : {}),
-      ...(typeof outputRecord?.instructions === 'string'
-        ? { skillInstructionCharacters: outputRecord.instructions.length }
-        : {}),
-      parameterSummary: summarizeAiAgentToolParameters(values),
-    }
-  }
-  if (name === 'list_agent_skills' && Array.isArray(outputRecord?.skills)) {
-    const skills = outputRecord.skills.filter(
-      (skill): skill is Record<string, unknown> =>
-        skill !== null && typeof skill === 'object' && !Array.isArray(skill)
-    )
-    return {
-      skillCount: skills.length,
-      skillNames: skills
-        .map((skill) =>
-          typeof skill.name === 'string'
-            ? skill.name.slice(0, 120)
-            : typeof skill.code === 'string'
-              ? skill.code.slice(0, 64)
-              : null
-        )
-        .filter((skillName): skillName is string => skillName !== null)
-        .slice(0, 8),
-    }
-  }
   const action = getManagedAction(name, input)
   if (isManagedActionTool(name) && action) {
     const targetSummary =

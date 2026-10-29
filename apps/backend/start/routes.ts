@@ -264,21 +264,6 @@ router
           .as('agent-config.llm.test')
           .use(middleware.permission(['agent-config:update']))
         router
-          .get('agent-config/skills', [AgentConfigurationsController, 'skills'])
-          .use(middleware.permission(['agent-config:read']))
-        router
-          .get('agent-config/skills/:id', [AgentConfigurationsController, 'showSkill'])
-          .use(middleware.permission(['agent-config:read']))
-        router
-          .post('agent-config/skills', [AgentConfigurationsController, 'createSkill'])
-          .use(middleware.permission(['agent-config:update']))
-        router
-          .put('agent-config/skills/:id', [AgentConfigurationsController, 'updateSkill'])
-          .use(middleware.permission(['agent-config:update']))
-        router
-          .delete('agent-config/skills/:id', [AgentConfigurationsController, 'deleteSkill'])
-          .use(middleware.permission(['agent-config:update']))
-        router
           .get('agent-config/mcp-servers', [AgentConfigurationsController, 'mcpServers'])
           .use(middleware.permission(['agent-config:read']))
         router

@@ -20,8 +20,6 @@ test.group('AI agent tool registry', () => {
         'run_registered_query',
         'search_knowledge_catalog',
         'search_knowledge',
-        'list_agent_skills',
-        'load_agent_skill',
         'revoke_api_key',
         'delete_api_key',
         'system_management_change',
@@ -119,12 +117,12 @@ test.group('AI agent tool registry', () => {
       userId: 1,
       conversationId: 1,
       agentRunId: 'test-run',
-      enabledToolNames: ['search_knowledge', 'load_agent_skill'],
+      enabledToolNames: ['search_knowledge'],
     })
 
     assert.deepEqual(
       tools.map((tool) => tool.name),
-      ['search_knowledge', 'load_agent_skill']
+      ['search_knowledge']
     )
   })
 

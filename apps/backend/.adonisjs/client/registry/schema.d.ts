@@ -427,66 +427,6 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/llm_configurations_controller').default['test']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
-  'agent_configurations.skills': {
-    methods: ["GET","HEAD"]
-    pattern: '/api/v1/system/agent-config/skills'
-    types: {
-      body: {}
-      paramsTuple: []
-      params: {}
-      query: ExtractQueryForGet<InferInput<(typeof import('#validators/pagination').paginationSearchQueryValidator)>>
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['skills']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['skills']>>> | { status: 422; response: { errors: SimpleError[] } }
-    }
-  }
-  'agent_configurations.show_skill': {
-    methods: ["GET","HEAD"]
-    pattern: '/api/v1/system/agent-config/skills/:id'
-    types: {
-      body: {}
-      paramsTuple: [ParamValue]
-      params: { id: ParamValue }
-      query: ExtractQueryForGet<InferInput<(typeof import('#validators/ai_agent_configuration').aiAgentModuleIdValidator)>>
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['showSkill']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['showSkill']>>> | { status: 422; response: { errors: SimpleError[] } }
-    }
-  }
-  'agent_configurations.create_skill': {
-    methods: ["POST"]
-    pattern: '/api/v1/system/agent-config/skills'
-    types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/ai_agent_configuration').createAiAgentSkillValidator)>>
-      paramsTuple: []
-      params: {}
-      query: ExtractQuery<InferInput<(typeof import('#validators/ai_agent_configuration').createAiAgentSkillValidator)>>
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['createSkill']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['createSkill']>>> | { status: 422; response: { errors: SimpleError[] } }
-    }
-  }
-  'agent_configurations.update_skill': {
-    methods: ["PUT"]
-    pattern: '/api/v1/system/agent-config/skills/:id'
-    types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/ai_agent_configuration').updateAiAgentSkillValidator)>|InferInput<(typeof import('#validators/ai_agent_configuration').aiAgentModuleIdValidator)>>
-      paramsTuple: [ParamValue]
-      params: { id: ParamValue }
-      query: ExtractQuery<InferInput<(typeof import('#validators/ai_agent_configuration').updateAiAgentSkillValidator)>|InferInput<(typeof import('#validators/ai_agent_configuration').aiAgentModuleIdValidator)>>
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['updateSkill']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['updateSkill']>>> | { status: 422; response: { errors: SimpleError[] } }
-    }
-  }
-  'agent_configurations.delete_skill': {
-    methods: ["DELETE"]
-    pattern: '/api/v1/system/agent-config/skills/:id'
-    types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/ai_agent_configuration').aiAgentModuleIdValidator)>>
-      paramsTuple: [ParamValue]
-      params: { id: ParamValue }
-      query: ExtractQuery<InferInput<(typeof import('#validators/ai_agent_configuration').aiAgentModuleIdValidator)>>
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['deleteSkill']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['deleteSkill']>>> | { status: 422; response: { errors: SimpleError[] } }
-    }
-  }
   'agent_configurations.mcp_servers': {
     methods: ["GET","HEAD"]
     pattern: '/api/v1/system/agent-config/mcp-servers'

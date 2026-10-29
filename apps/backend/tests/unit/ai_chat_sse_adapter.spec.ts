@@ -248,36 +248,6 @@ test.group('AI chat SSE adapter', () => {
     assert.notInclude(writes.join(''), 'secret-value')
   })
 
-  test('shows loaded skill identity without exposing its instructions', async ({ assert }) => {
-    const { writes, response } = createFakeResponse()
-    const instructions = 'Private skill instructions'
-    const run = createFakeRun([
-      {
-        name: 'load_agent_skill',
-        callId: 'load-skill',
-        input: { code: 'invoice-review' },
-        status: Promise.resolve('finished'),
-        output: Promise.resolve({
-          kind: 'agent_skill',
-          code: 'invoice-review',
-          name: 'Invoice review',
-          instructions,
-        }),
-      },
-    ])
-
-    await streamAiAgentToolStatuses(run, response, new AbortController().signal)
-    const completed = parseSse(writes)[1].data as Record<string, unknown>
-    const detail = completed.detail as Record<string, unknown>
-
-    assert.deepInclude(detail, {
-      skillCode: 'invoice-review',
-      skillName: 'Invoice review',
-      skillInstructionCharacters: instructions.length,
-    })
-    assert.notInclude(writes.join(''), instructions)
-  })
-
   test('emits confirmation from the tool preflight and completes the plan', async ({ assert }) => {
     const { writes, response } = createFakeResponse()
     const confirmation = {

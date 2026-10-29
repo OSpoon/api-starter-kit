@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import {
-  BookOpen,
   BrainCircuit,
   LoaderCircle,
   MessageSquare,
@@ -34,7 +33,6 @@ import { usePermission } from '@/lib/permission'
 import { useAuthStore } from '@/stores/auth'
 
 import AgentMcpCard from './AgentMcpCard.vue'
-import AgentSkillsCard from './AgentSkillsCard.vue'
 import AgentToolsCard from './AgentToolsCard.vue'
 import {
   getLlmConfiguration,
@@ -60,7 +58,6 @@ watch(
 const sections = computed(() => [
   { value: 'models', label: t('agent_config.module_models'), icon: BrainCircuit },
   { value: 'tools', label: t('agent_config.module_tools'), icon: Wrench },
-  { value: 'skills', label: t('agent_config.module_skills'), icon: BookOpen },
   { value: 'mcp', label: t('agent_config.module_mcp'), icon: Server },
   { value: 'im', label: t('agent_config.module_im'), icon: MessageSquare },
 ])
@@ -525,9 +522,6 @@ onMounted(load)
     </div>
     <div v-if="!loading" v-show="activeModule === 'tools'" class="flex min-h-0 flex-1 flex-col">
       <AgentToolsCard />
-    </div>
-    <div v-if="!loading" v-show="activeModule === 'skills'" class="flex min-h-0 flex-1 flex-col">
-      <AgentSkillsCard />
     </div>
     <div v-if="!loading" v-show="activeModule === 'mcp'" class="flex min-h-0 flex-1 flex-col">
       <AgentMcpCard />
