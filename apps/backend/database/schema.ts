@@ -134,6 +134,7 @@ export class AiChatConversationSchema extends BaseModel {
   static $columns = [
     'apiKeyId',
     'contextSummary',
+    'contextSummaryMessageId',
     'createdAt',
     'id',
     'title',
@@ -145,6 +146,8 @@ export class AiChatConversationSchema extends BaseModel {
   declare apiKeyId: number | null
   @column()
   declare contextSummary: string | null
+  @column()
+  declare contextSummaryMessageId: number | null
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
   @column({ isPrimary: true })
