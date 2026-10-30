@@ -30,13 +30,17 @@ export {
 } from '#ai/policy/ai_agent_prompt_policy'
 
 async function buildLiveSessionContext(conversationId: number, userId: number) {
+  const runtimeContext = `\nServer-generated runtime context (JSON): ${serializeAiAgentRuntimeContext()}`
+  let contextSummary: string | null = null
+  let contextSummaryMessageId: number | null = null
   try {
-    const runtimeContext = `\nServer-generated runtime context (JSON): ${serializeAiAgentRuntimeContext()}`
     const conversation = await AiChatConversation.query()
       .where('id', conversationId)
       .where('user_id', userId)
-      .select(['context_summary'])
+      .select(['context_summary', 'context_summary_message_id'])
       .first()
+    contextSummary = conversation?.contextSummary ?? null
+    contextSummaryMessageId = conversation?.contextSummaryMessageId ?? null
     const pendingQueryContext = await getPendingAiQueryContext({ conversationId, userId })
     const confirmations = await listConversationConfirmations(conversationId, userId)
     const pendingConfirmationContext = `<pending-confirmations>${JSON.stringify(
@@ -48,12 +52,13 @@ async function buildLiveSessionContext(conversationId: number, userId: number) {
         targetSummary: confirmation.targetSummary,
       }))
     )}</pending-confirmations>`
-    const summaryContext = conversation?.contextSummary
-      ? `<conversation-summary>${conversation.contextSummary}</conversation-summary>`
-      : ''
-    return `${runtimeContext}${summaryContext} ${pendingQueryContext} ${pendingConfirmationContext}`
+    return {
+      context: `${runtimeContext} ${pendingQueryContext} ${pendingConfirmationContext}`,
+      contextSummary,
+      contextSummaryMessageId,
+    }
   } catch {
-    return `\nServer-generated runtime context (JSON): ${serializeAiAgentRuntimeContext()}`
+    return { context: runtimeContext, contextSummary, contextSummaryMessageId }
   }
 }
 
@@ -67,18 +72,26 @@ export async function createAiAgentStream(
   const agentRunId = crypto.randomUUID()
   let callSequence = 0
   const nextModelCallSequence = () => callSequence++
-  const liveSessionContext = await buildLiveSessionContext(input.conversationId, input.userId)
-  const persistCompaction = async (summary: string) => {
+  const sessionContext = await buildLiveSessionContext(input.conversationId, input.userId)
+  const persistCompaction = async (summary: string, coveredThroughMessageId: number) => {
     await AiChatConversation.query()
       .where('id', input.conversationId)
       .where('user_id', input.userId)
-      .update({ context_summary: summary })
+      .update({
+        context_summary: summary,
+        context_summary_message_id: coveredThroughMessageId || null,
+      })
   }
   const stream = await createAiAgentPiStream({
     ...input,
     agentRunId,
-    liveSessionContext,
-    getLiveSessionContext: () => buildLiveSessionContext(input.conversationId, input.userId),
+    liveSessionContext: sessionContext.context,
+    contextSummary: sessionContext.contextSummary,
+    contextSummaryMessageId: sessionContext.contextSummaryMessageId,
+    getLiveSessionContext: async () => {
+      const refreshedContext = await buildLiveSessionContext(input.conversationId, input.userId)
+      return refreshedContext.context
+    },
     onCompaction: persistCompaction,
     onCompactionUsage: async (usage) => {
       try {

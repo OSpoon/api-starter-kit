@@ -212,32 +212,29 @@ export async function runAiChatAssistantTurn(input: {
     }
 
     const regenerate = regeneration !== null
-    if (!regenerate) {
-      await conversation.load('messages', (query) => query.orderBy('created_at', 'asc'))
-    }
-
-    const history = regenerate
-      ? regeneration.messages
-          .filter((message) => message.role !== 'assistant' || message.content.trim())
-          .map((message) => ({
-            role: message.role,
-            content: message.content,
-            id: message.id,
-          }))
-      : [
-          ...conversation.messages
-            .filter(
-              (message) =>
-                message.id !== userMessage.id &&
-                (message.role !== 'assistant' || message.content.trim())
-            )
-            .map((message) => ({
-              role: message.role,
-              content: message.content,
-              id: message.id,
-            })),
-          { role: userMessage.role, content: userMessage.content, id: userMessage.id },
-        ]
+    const summaryBoundary = conversation.contextSummaryMessageId
+    const historyMessages = regenerate
+      ? regeneration.messages.filter(
+          (message) => summaryBoundary === null || message.id > summaryBoundary
+        )
+      : await AiChatMessage.query()
+          .where('conversation_id', conversation.id)
+          .if(summaryBoundary !== null, (query) => query.where('id', '>', summaryBoundary!))
+          .orderBy('id', 'asc')
+    const history = [
+      ...historyMessages
+        .filter(
+          (message) =>
+            message.id !== userMessage.id &&
+            (message.role !== 'assistant' || message.content.trim())
+        )
+        .map((message) => ({
+          role: message.role,
+          content: message.content,
+          id: message.id,
+        })),
+      { role: userMessage.role, content: userMessage.content, id: userMessage.id },
+    ]
     const usage = {
       inputTokens: 0,
       outputTokens: 0,

@@ -61,6 +61,9 @@ export default await Env.create(new URL('../', import.meta.url), {
   KNOWLEDGE_CHUNK_MAX_CHARACTERS: Env.schema.number.optional(),
   KNOWLEDGE_CHUNK_OVERLAP_CHARACTERS: Env.schema.number.optional(),
   KNOWLEDGE_SEMANTIC_BREAKPOINT_PERCENTILE: Env.schema.number.optional(),
+  AI_AGENT_CONTEXT_SUMMARY_ENABLED: Env.schema.boolean.optional(),
+  AI_AGENT_CONTEXT_SUMMARY_MAX_INPUT_TOKENS: Env.schema.number.optional(),
+  AI_AGENT_CONTEXT_SUMMARY_MAX_OUTPUT_TOKENS: Env.schema.number.optional(),
 
   // AI telemetry
   LANGFUSE_BASE_URL: Env.schema.string.optional({ format: 'url', tld: false }),

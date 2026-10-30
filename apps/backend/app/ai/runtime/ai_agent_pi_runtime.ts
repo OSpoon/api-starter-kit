@@ -23,6 +23,7 @@ import { estimateContextTokens, estimateMessageTokens } from '@earendil-works/pi
 import { getCurrentSystemMessage } from '@earendil-works/pi-ai/utils/transcript'
 import type { TelemetrySpan } from '@earendil-works/pi-telemetry'
 
+import { getAiAgentSummarizationOptions } from '#ai/core/ai_agent_config'
 import type { AiAgentConfirmationSummary } from '#ai/core/ai_agent_confirmation'
 import {
   isAiAgentReadTool,
@@ -41,7 +42,10 @@ import { resolveModelsDevPricing } from '#services/models_dev_pricing_service'
  * The application owns credentials, authorization, persistence, and tool
  * execution. Pi only owns the model/tool loop and its typed event stream.
  */
-export type PiAgentMessage = AgentMessage
+export type PiAgentMessage = AgentMessage & {
+  sourceMessageId?: number
+  isContextSummary?: boolean
+}
 
 export type PiModelUsage = {
   providerId: string
@@ -65,13 +69,20 @@ function getPiContextMessages(messages: AgentMessage[]): Message[] {
 }
 
 function convertPiMessages(messages: AgentMessage[]): Message[] {
-  return messages.filter(
-    (message): message is Message =>
-      message.role === 'system' ||
-      message.role === 'user' ||
-      message.role === 'assistant' ||
-      message.role === 'toolResult'
-  )
+  return messages
+    .filter(
+      (message) =>
+        message.role === 'system' ||
+        message.role === 'user' ||
+        message.role === 'assistant' ||
+        message.role === 'toolResult'
+    )
+    .map((message) => {
+      const converted = { ...message } as PiAgentMessage
+      delete converted.sourceMessageId
+      delete converted.isContextSummary
+      return converted as Message
+    })
 }
 
 export function trimPiContextToTokenBudget(messages: AgentMessage[], tokenBudget: number) {
@@ -80,19 +91,65 @@ export function trimPiContextToTokenBudget(messages: AgentMessage[], tokenBudget
   const systemMessage = getCurrentSystemMessage(convertPiMessages(messages))
   const recentMessages = messages.filter((message) => message.role !== 'system')
   let tokens = systemMessage ? estimateMessageTokens(systemMessage) : 0
+  const latestUserIndex = recentMessages.findLastIndex((message) => message.role === 'user')
+
+  if (latestUserIndex >= 0) {
+    const laterMessages: AgentMessage[] = []
+    const latestUserMessage = recentMessages[latestUserIndex]
+    const minimumUserTokens = estimateMessageTokens({
+      role: 'user',
+      content: '…',
+      timestamp: 0,
+    })
+    for (let index = recentMessages.length - 1; index > latestUserIndex; index -= 1) {
+      const message = recentMessages[index]
+      const piMessage = convertPiMessages([message])[0]
+      const messageTokens = piMessage ? estimateMessageTokens(piMessage) : 0
+      if (tokens + messageTokens + minimumUserTokens > tokenBudget) break
+      laterMessages.unshift(message)
+      tokens += messageTokens
+    }
+    const piUserMessage = convertPiMessages([latestUserMessage])[0]
+    const availableTokens = Math.max(tokenBudget - tokens, 0)
+    const boundedUserMessage = piUserMessage
+      ? estimateMessageTokens(piUserMessage) > availableTokens
+        ? truncateUserMessageToTokenBudget(latestUserMessage, availableTokens)
+        : latestUserMessage
+      : undefined
+    return [
+      ...(systemMessage ? [systemMessage] : []),
+      ...(boundedUserMessage ? [boundedUserMessage] : []),
+      ...laterMessages,
+    ]
+  }
+
   let firstRetainedIndex = recentMessages.length
   while (firstRetainedIndex > 0) {
-    const index = firstRetainedIndex - 1
-    const message = recentMessages[index]
+    const message = recentMessages[firstRetainedIndex - 1]
     const piMessage = convertPiMessages([message])[0]
     const messageTokens = piMessage ? estimateMessageTokens(piMessage) : 0
-    if (firstRetainedIndex < recentMessages.length && tokens + messageTokens > tokenBudget) break
-    firstRetainedIndex = index
+    if (tokens + messageTokens > tokenBudget) break
+    firstRetainedIndex -= 1
     tokens += messageTokens
   }
-  const latestUserIndex = recentMessages.findLastIndex((message) => message.role === 'user')
-  if (latestUserIndex >= 0) firstRetainedIndex = Math.min(firstRetainedIndex, latestUserIndex)
   return [...(systemMessage ? [systemMessage] : []), ...recentMessages.slice(firstRetainedIndex)]
+}
+
+function truncateUserMessageToTokenBudget(message: AgentMessage, tokenBudget: number) {
+  if (message.role !== 'user' || typeof message.content !== 'string') return undefined
+  let low = 0
+  let high = message.content.length
+  while (low < high) {
+    const middle = Math.ceil((low + high) / 2)
+    const candidate = { ...message, content: `${message.content.slice(0, middle)}…` }
+    const piCandidate = convertPiMessages([candidate])[0]
+    if (piCandidate && estimateMessageTokens(piCandidate) <= tokenBudget) low = middle
+    else high = middle - 1
+  }
+  if (tokenBudget < estimateMessageTokens({ role: 'user', content: '…', timestamp: 0 })) {
+    return undefined
+  }
+  return { ...message, content: `${message.content.slice(0, low)}…` }
 }
 
 function getSummaryMessageText(message: Message) {
@@ -107,10 +164,74 @@ function getSummaryMessageText(message: Message) {
     .join('\n')
 }
 
-function formatMessagesForSummary(messages: AgentMessage[]) {
-  return convertPiMessages(messages)
-    .map((message) => `${message.role}: ${getSummaryMessageText(message)}`)
-    .join('\n\n')
+function isContextSummaryMessage(message: AgentMessage): message is PiAgentMessage {
+  return 'isContextSummary' in message && message.isContextSummary === true
+}
+
+function getSourceMessageId(message: AgentMessage) {
+  return 'sourceMessageId' in message && typeof message.sourceMessageId === 'number'
+    ? message.sourceMessageId
+    : undefined
+}
+
+function truncateTextToTokenBudget(content: string, tokenBudget: number) {
+  const fits = (text: string) =>
+    estimateMessageTokens({ role: 'user', content: text, timestamp: 0 }) <= tokenBudget
+  if (fits(content)) return content
+
+  let low = 0
+  let high = content.length
+  while (low < high) {
+    const middle = Math.ceil((low + high) / 2)
+    if (fits(`${content.slice(0, middle)}…`)) low = middle
+    else high = middle - 1
+  }
+  return low > 0 ? `${content.slice(0, low)}…` : ''
+}
+
+export function buildAiAgentSummaryBatch(
+  messages: AgentMessage[],
+  previousSummary: string,
+  maxInputTokens: number
+) {
+  const summaryBudget = Math.max(Math.floor(maxInputTokens / 2), 0)
+  const boundedPreviousSummary = truncateTextToTokenBudget(previousSummary, summaryBudget)
+  const header = boundedPreviousSummary
+    ? `Existing summary (untrusted):\n${boundedPreviousSummary}\n\nNew messages:\n`
+    : 'New messages:\n'
+  let content = header
+  let includedCount = 0
+  let coveredThroughMessageId: number | undefined
+  const estimate = (value: string) =>
+    estimateMessageTokens({ role: 'user', content: value, timestamp: 0 })
+
+  for (const message of messages) {
+    const text = `${message.role}: ${getSummaryMessageText(
+      convertPiMessages([message])[0] ?? (message as Message)
+    )}`
+    const candidate = `${content}${text}\n\n`
+    if (estimate(candidate) <= maxInputTokens) {
+      content = candidate
+      includedCount += 1
+      coveredThroughMessageId = getSourceMessageId(message) ?? coveredThroughMessageId
+      continue
+    }
+
+    if (includedCount === 0) {
+      const availableTokens = Math.max(maxInputTokens - estimate(content), 0)
+      const truncatedText = truncateTextToTokenBudget(text, availableTokens)
+      if (truncatedText) {
+        content = `${content}${truncatedText}`
+        includedCount = 1
+        coveredThroughMessageId = getSourceMessageId(message)
+      }
+    }
+    break
+  }
+
+  return includedCount > 0 && estimate(content) <= maxInputTokens
+    ? { content, coveredThroughMessageId }
+    : undefined
 }
 
 async function compactPiContext(input: {
@@ -118,16 +239,25 @@ async function compactPiContext(input: {
   models: ReturnType<typeof createModels>
   model: Model<Api>
   tokenBudget: number
+  previousSummary: string
+  coveredThroughMessageId: number
+  summaryInputTokenBudget: number
+  summaryOutputTokenBudget: number
   signal?: AbortSignal
-  onCompaction?: (summary: string) => Promise<void>
+  onCompaction?: (summary: string, coveredThroughMessageId: number) => Promise<void>
   onUsage?: (usage: PiModelUsage) => void | Promise<void>
   getTelemetrySpan?: () => TelemetrySpan | undefined
 }) {
   const allMessages = convertPiMessages(input.messages)
   const systemMessage = getCurrentSystemMessage(allMessages)
-  const conversationalMessages = input.messages.filter((message) => message.role !== 'system')
+  const conversationalMessages = input.messages.filter(
+    (message) => message.role !== 'system' && !isContextSummaryMessage(message)
+  )
   const systemTokens = systemMessage ? estimateMessageTokens(systemMessage) : 0
-  const keepRecentTokens = Math.max(input.tokenBudget - systemTokens - 6000, 1)
+  const keepRecentTokens = Math.max(
+    input.tokenBudget - systemTokens - input.summaryOutputTokenBudget - 128,
+    1
+  )
   let firstRetainedIndex = conversationalMessages.length
   let retainedTokens = 0
   while (firstRetainedIndex > 0 && retainedTokens < keepRecentTokens) {
@@ -139,8 +269,19 @@ async function compactPiContext(input: {
   const latestUserIndex = conversationalMessages.findLastIndex((message) => message.role === 'user')
   if (latestUserIndex >= 0) firstRetainedIndex = Math.min(firstRetainedIndex, latestUserIndex)
 
-  const olderMessages = conversationalMessages.slice(0, firstRetainedIndex)
-  if (olderMessages.length === 0) return undefined
+  const olderMessages = conversationalMessages.slice(0, firstRetainedIndex).filter((message) => {
+    const sourceMessageId = getSourceMessageId(message)
+    return sourceMessageId === undefined || sourceMessageId > input.coveredThroughMessageId
+  })
+  const summaryBatch = buildAiAgentSummaryBatch(
+    olderMessages,
+    input.previousSummary,
+    Math.min(
+      input.summaryInputTokenBudget,
+      Math.max(input.model.contextWindow - input.summaryOutputTokenBudget - 512, 128)
+    )
+  )
+  if (!summaryBatch) return undefined
 
   const telemetry = input.getTelemetrySpan?.()
   const summaryContext = {
@@ -148,7 +289,7 @@ async function compactPiContext(input: {
     messages: [
       {
         role: 'user' as const,
-        content: formatMessagesForSummary(olderMessages),
+        content: summaryBatch.content,
         timestamp: Date.now(),
       },
     ],
@@ -167,6 +308,7 @@ async function compactPiContext(input: {
           const result = await input.models.completeSimple(input.model, summaryContext, {
             signal: input.signal,
             telemetry: span,
+            maxTokens: input.summaryOutputTokenBudget,
           })
           span.setAttributes({
             'langfuse.observation.output': JSON.stringify(result.content),
@@ -186,7 +328,10 @@ async function compactPiContext(input: {
           return result
         }
       )
-    : await input.models.completeSimple(input.model, summaryContext, { signal: input.signal })
+    : await input.models.completeSimple(input.model, summaryContext, {
+        signal: input.signal,
+        maxTokens: input.summaryOutputTokenBudget,
+      })
   await input.onUsage?.({
     providerId: input.model.provider,
     modelId: input.model.id,
@@ -200,19 +345,28 @@ async function compactPiContext(input: {
     .map((part) => part.text)
     .join('\n')
     .trim()
-  if (response.stopReason !== 'stop' || !summary) return undefined
+  if (!['stop', 'length'].includes(response.stopReason) || !summary) return undefined
 
-  await input.onCompaction?.(summary)
-  const summaryMessage: AgentMessage = {
+  const coveredThroughMessageId = Math.max(
+    input.coveredThroughMessageId,
+    summaryBatch.coveredThroughMessageId ?? input.coveredThroughMessageId
+  )
+  await input.onCompaction?.(summary, coveredThroughMessageId)
+  const summaryMessage: PiAgentMessage = {
     role: 'user',
     content: `<conversation-summary>\n${summary}\n</conversation-summary>`,
     timestamp: Date.now(),
+    isContextSummary: true,
   }
-  return [
-    ...(systemMessage ? [systemMessage] : []),
-    summaryMessage,
-    ...conversationalMessages.slice(firstRetainedIndex),
-  ]
+  return {
+    messages: [
+      ...(systemMessage ? [systemMessage] : []),
+      summaryMessage,
+      ...conversationalMessages.slice(firstRetainedIndex),
+    ],
+    summary,
+    coveredThroughMessageId,
+  }
 }
 
 function isTerminalToolResult(result: unknown) {
@@ -345,7 +499,9 @@ export async function createPiAgent(input: {
   signal?: AbortSignal
   initialRuntimeContext?: string
   refreshRuntimeContext?: () => Promise<string | undefined>
-  onCompaction?: (summary: string) => Promise<void>
+  contextSummary?: string | null
+  contextSummaryMessageId?: number | null
+  onCompaction?: (summary: string, coveredThroughMessageId: number) => Promise<void>
   onCompactionUsage?: (usage: PiModelUsage) => void | Promise<void>
   onConfirmationRequested?: (toolCallId: string, confirmation: AiAgentConfirmationSummary) => void
   getTelemetrySpan?: () => TelemetrySpan | undefined
@@ -358,6 +514,12 @@ export async function createPiAgent(input: {
 
   let hasQueuedMessages = () => false
   let consecutiveReadToolFailures = 0
+  const summaryOptions = getAiAgentSummarizationOptions()
+  let contextSummary = truncateTextToTokenBudget(
+    input.contextSummary ?? '',
+    summaryOptions.maxOutputTokens
+  )
+  let contextSummaryMessageId = input.contextSummaryMessageId ?? 0
   const getTelemetrySpan = input.getTelemetrySpan ?? (() => undefined)
   const tools = input.tools.map((tool) => addToolTelemetry(tool, getTelemetrySpan))
   const agent = new Agent({
@@ -372,6 +534,16 @@ export async function createPiAgent(input: {
           sections: { runtime_context: input.initialRuntimeContext ?? '' },
           timestamp: Date.now(),
         },
+        ...(contextSummary
+          ? [
+              {
+                role: 'user' as const,
+                content: `<conversation-summary>\n${contextSummary}\n</conversation-summary>`,
+                timestamp: Date.now(),
+                isContextSummary: true,
+              },
+            ]
+          : []),
         ...(input.messages ?? []),
       ],
       thinkingLevel: 'off',
@@ -428,19 +600,27 @@ export async function createPiAgent(input: {
     convertToLlm: getPiContextMessages,
     transformContext: async (messages, signal) => {
       const tokenBudget = Math.max(model.contextWindow - model.maxTokens, 1)
-      if (estimatePiMessages(messages) > tokenBudget) {
+      if (summaryOptions.enabled && estimatePiMessages(messages) > tokenBudget) {
         try {
           const compactedMessages = await compactPiContext({
             messages,
             models,
             model,
             tokenBudget,
+            previousSummary: contextSummary,
+            coveredThroughMessageId: contextSummaryMessageId,
+            summaryInputTokenBudget: summaryOptions.maxInputTokens,
+            summaryOutputTokenBudget: Math.min(summaryOptions.maxOutputTokens, model.maxTokens),
             signal,
             onCompaction: input.onCompaction,
             onUsage: input.onCompactionUsage,
             getTelemetrySpan: input.getTelemetrySpan,
           })
-          if (compactedMessages) return compactedMessages
+          if (compactedMessages) {
+            contextSummary = compactedMessages.summary
+            contextSummaryMessageId = compactedMessages.coveredThroughMessageId
+            return trimPiContextToTokenBudget(compactedMessages.messages, tokenBudget)
+          }
         } catch {
           // Context trimming below keeps a failed summary request from aborting the chat turn.
         }

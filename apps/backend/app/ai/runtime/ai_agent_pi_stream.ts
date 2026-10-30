@@ -80,10 +80,15 @@ function toPiMessages(messages: AiAgentMessage[]): PiAgentMessage[] {
     // assistant response when restoring the Pi context.
     if (message.role === 'system') return result
     if (message.role === 'user') {
-      result.push({ role: 'user', content: message.content, timestamp: Date.now() })
+      result.push({
+        role: 'user',
+        content: message.content,
+        timestamp: Date.now(),
+        ...(message.id !== undefined ? { sourceMessageId: message.id } : {}),
+      })
       return result
     }
-    result.push({
+    const assistantMessage = {
       role: 'assistant',
       content: [{ type: 'text', text: message.content }],
       api: 'openai-completions',
@@ -92,7 +97,11 @@ function toPiMessages(messages: AiAgentMessage[]): PiAgentMessage[] {
       usage: emptyUsage,
       stopReason: 'stop',
       timestamp: Date.now(),
-    } satisfies AssistantMessage)
+    } satisfies AssistantMessage
+    result.push({
+      ...assistantMessage,
+      ...(message.id !== undefined ? { sourceMessageId: message.id } : {}),
+    })
     return result
   }, [])
 }
@@ -102,9 +111,11 @@ export async function createAiAgentPiStream(
     messages: AiAgentMessage[]
     context?: AiAgentPageContext
     liveSessionContext?: string
+    contextSummary?: string | null
+    contextSummaryMessageId?: number | null
     getLiveSessionContext?: () => Promise<string>
     agentRunId: string
-    onCompaction?: (summary: string) => Promise<void>
+    onCompaction?: (summary: string, coveredThroughMessageId: number) => Promise<void>
     onCompactionUsage?: (usage: PiModelUsage) => void | Promise<void>
   }
 ) {
@@ -130,6 +141,8 @@ export async function createAiAgentPiStream(
     sessionId: `ai-chat:${input.conversationId}`,
     signal: input.signal,
     initialRuntimeContext: input.liveSessionContext,
+    contextSummary: input.contextSummary,
+    contextSummaryMessageId: input.contextSummaryMessageId,
     onCompaction: input.onCompaction,
     onCompactionUsage: input.onCompactionUsage,
     onConfirmationRequested: (toolCallId, confirmation) =>
