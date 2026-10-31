@@ -1,0 +1,36 @@
+services:
+  wecom-bot:
+    image: ${BACKEND_IMAGE:-api-starter-kit-backend:latest}
+    env_file:
+      - ../apps/backend/.env
+    environment:
+      NODE_ENV: production
+      DB_HOST: postgres
+    command: ['node', 'ace', 'wecom:bot']
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  feishu-bot:
+    image: ${BACKEND_IMAGE:-api-starter-kit-backend:latest}
+    env_file:
+      - ../apps/backend/.env
+    environment:
+      NODE_ENV: production
+      DB_HOST: postgres
+    command: ['node', 'ace', 'feishu:bot']
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  dingtalk-bot:
+    image: ${BACKEND_IMAGE:-api-starter-kit-backend:latest}
+    env_file:
+      - ../apps/backend/.env
+    environment:
+      NODE_ENV: production
+      DB_HOST: postgres
+    command: ['node', 'ace', 'dingtalk:bot']
+    depends_on:
+      backend:
+        condition: service_healthy

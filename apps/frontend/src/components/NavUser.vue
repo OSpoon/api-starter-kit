@@ -5,6 +5,7 @@ import {
   Check,
   ChevronsUpDown,
   CircleHelp,
+  ExternalLink,
   FileCode2,
   FileJson,
   Languages,
@@ -68,6 +69,18 @@ const menuOpen = ref(false)
 const showDevelopmentTools = import.meta.env.DEV
 const colorMode = useColorMode({ attribute: 'class' })
 const apiDocsUrl = import.meta.env.VITE_API_DOCS_URL || ''
+const grafanaDashboardUrl = computed(() => {
+  const baseUrl =
+    import.meta.env.VITE_GRAFANA_URL || (import.meta.env.DEV ? 'http://localhost:3000' : '')
+  if (!baseUrl) return ''
+
+  const dashboard = 'container-resources'
+  const params = new URLSearchParams({ from: 'now-6h', to: 'now' })
+  params.set('var-project', import.meta.env.VITE_MONITORING_PROJECT || 'api-starter-kit')
+  params.set('var-service', '$__all')
+
+  return `${baseUrl.replace(/\/+$/, '')}/d/${dashboard}/${dashboard}?${params}`
+})
 
 watch(
   () => route.path,
@@ -103,6 +116,11 @@ function openApiDocs() {
   if (docsUrl) {
     window.open(docsUrl, '_blank', 'noopener,noreferrer')
   }
+}
+
+function openGrafana() {
+  menuOpen.value = false
+  window.open(grafanaDashboardUrl.value, '_blank', 'noopener,noreferrer')
 }
 
 function handleLogout() {
@@ -171,7 +189,7 @@ function setTheme(mode: 'light' | 'dark' | 'auto') {
               <BadgeCheck />
               {{ t('nav.account') }}
             </DropdownMenuItem>
-            <DropdownMenuSub>
+            <DropdownMenuSub v-if="showDevelopmentTools">
               <DropdownMenuSubTrigger>
                 <CircleHelp />
                 <span>{{ t('nav.help') }}</span>
@@ -186,6 +204,10 @@ function setTheme(mode: 'light' | 'dark' | 'auto') {
                 <DropdownMenuItem v-if="apiDocsUrl" @click="openApiDocs">
                   <BookOpenText />
                   {{ t('nav.api_docs') }}
+                </DropdownMenuItem>
+                <DropdownMenuItem @click="openGrafana">
+                  <ExternalLink />
+                  {{ t('nav.grafana') }}
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   v-if="showDevelopmentTools"

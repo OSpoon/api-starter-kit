@@ -189,10 +189,10 @@ dingtalk-bot
 和 `node ace dingtalk:bot`。检查服务状态：
 
 ```bash
-docker compose -f docker/docker-compose.yml ps
-docker compose -f docker/docker-compose.yml logs -f wecom-bot
-docker compose -f docker/docker-compose.yml logs -f feishu-bot
-docker compose -f docker/docker-compose.yml logs -f dingtalk-bot
+docker compose -f docker/docker-compose.yml -f docker/docker-compose.app.yml -f docker/docker-compose.im.yml ps
+docker compose -f docker/docker-compose.yml -f docker/docker-compose.app.yml -f docker/docker-compose.im.yml logs -f wecom-bot
+docker compose -f docker/docker-compose.yml -f docker/docker-compose.app.yml -f docker/docker-compose.im.yml logs -f feishu-bot
+docker compose -f docker/docker-compose.yml -f docker/docker-compose.app.yml -f docker/docker-compose.im.yml logs -f dingtalk-bot
 ```
 
 系统状态页通过共享数据库心跳读取各 Bot 进程状态。worker 每 10 秒上报一次，超过 30 秒没有心跳会显示为离线。这反映进程存活状态，不代表 IM 平台连接正常。
@@ -316,5 +316,5 @@ git diff --check
 
 ```bash
 pnpm --dir apps/backend exec node ace migration:status
-docker compose --env-file apps/backend/.env -f docker/docker-compose.yml config
+docker compose --env-file apps/backend/.env -f docker/docker-compose.yml -f docker/docker-compose.app.yml -f docker/docker-compose.im.yml config
 ```

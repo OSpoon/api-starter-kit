@@ -1,0 +1,11 @@
+apiVersion: 1
+
+providers:
+  - name: Server monitoring
+    orgId: 1
+    folder: Server monitoring
+    type: file
+    disableDeletion: false
+    editable: false
+    options:
+      path: /var/lib/grafana/dashboards

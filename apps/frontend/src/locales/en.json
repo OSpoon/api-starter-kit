@@ -313,6 +313,7 @@
     "api_docs": "API integration",
     "github_repository": "GitHub",
     "help": "Help",
+    "grafana": "Grafana monitoring",
     "language": "Language",
     "language_switched": "Language switched",
     "schema_builder": "Schema Builder",

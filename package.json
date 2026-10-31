@@ -13,7 +13,7 @@
     "node": "24.15.0"
   },
   "scripts": {
-    "docker:up": "node scripts/docker-up.mjs",
+    "docker": "node scripts/docker.mjs",
     "dev": "turbo dev --filter=@api-starter-kit/backend --filter=@api-starter-kit/frontend",
     "bot:wecom": "pnpm --dir apps/backend bot:wecom",
     "bot:feishu": "pnpm --dir apps/backend bot:feishu",
@@ -32,6 +32,7 @@
   },
   "devDependencies": {
     "@adonisjs/prettier-config": "^1.5.0",
+    "@clack/prompts": "^1.8.1",
     "bumpp": "^10.4.1",
     "changelogen": "^0.6.2",
     "eslint-plugin-simple-import-sort": "^13.0.0",

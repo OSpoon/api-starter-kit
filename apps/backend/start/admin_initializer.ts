@@ -1,7 +1,7 @@
 import app from '@adonisjs/core/services/app'
 import logger from '@adonisjs/core/services/logger'
+import db from '@adonisjs/lucid/services/db'
 
-import Role from '#models/role'
 import User from '#models/user'
 import {
   ADMIN_PASSWORD_MIN_LENGTH,
@@ -9,6 +9,7 @@ import {
   PASSWORD_MAX_LENGTH,
   passwordContext,
 } from '#security/password_strength'
+import { lockSuperAdminRole } from '#services/super_admin_access'
 import env from '#start/env'
 
 async function ensureAdminUser() {
@@ -35,21 +36,44 @@ async function ensureAdminUser() {
     return
   }
 
-  const existingUsers = await User.query().count('* as total').first()
-  if (Number(existingUsers?.$extras.total ?? 0) > 0) {
+  const result = await db.transaction(async (trx) => {
+    const superAdmin = await lockSuperAdminRole(trx)
+    const existingAdmin = await User.query({ client: trx })
+      .where('email', email)
+      .forUpdate()
+      .first()
+
+    if (existingAdmin?.disabledAt) return 'disabled'
+
+    const user =
+      existingAdmin ??
+      (await User.create(
+        {
+          email,
+          password,
+          fullName,
+        },
+        { client: trx }
+      ))
+
+    await user.related('roles').sync([superAdmin.id], false, trx)
+    return existingAdmin ? 'existing' : 'created'
+  })
+
+  if (result === 'disabled') {
+    logger.error(
+      { email },
+      'Configured administrator account is disabled; it was not reactivated automatically'
+    )
     return
   }
 
-  const user = await User.create({
-    email,
-    password,
-    fullName,
-  })
-  const superAdmin = await Role.findBy('code', 'super-admin')
-  if (superAdmin) {
-    await user.related('roles').attach([superAdmin.id])
-  }
-  logger.info({ email }, 'Default administrator created from environment variables')
+  logger.info(
+    { email },
+    result === 'created'
+      ? 'Default administrator created from environment variables'
+      : 'Configured administrator ensured from environment variables'
+  )
 }
 
 if (app.getEnvironment() === 'web') {

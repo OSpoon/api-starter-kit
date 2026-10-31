@@ -1,7 +1,7 @@
 # 部署指南
 
-生产服务栈由支持 pgvector 的 PostgreSQL、AdonisJS API、三个独立的 AI 渠道 Bot
-worker、Nginx 管理端和独立助手 Web 静态站点组成。桌面安装包和 Chrome 扩展作为正式客户端交付物
+Compose 按用途拆分：基础文件只定义 PostgreSQL；应用、IM Bot 和监控分别使用独立 overlay 按需叠加。
+本地开发默认只启动数据库，backend 与管理端仍由 `pnpm dev` 运行。桌面安装包和 Chrome 扩展
 单独构建，不作为 Compose 服务运行。认证、授权、迁移和运行时配置仍由 backend 负责。
 
 ## 1. 部署前准备
@@ -18,7 +18,10 @@ worker、Nginx 管理端和独立助手 Web 静态站点组成。桌面安装包
 
 ```text
 docker/docker-compose.yml
-docker/docker-compose.dev.yml
+docker/docker-compose.app.yml
+docker/docker-compose.assistant-web.yml
+docker/docker-compose.im.yml
+docker/docker-compose.monitoring.yml
 docker/Dockerfile
 apps/backend/.env
 apps/frontend/.env
@@ -40,17 +43,17 @@ frontend 环境变量。管理员密码至少 15 位，并满足项目密码强�
 
 生产环境至少检查以下 backend 变量：
 
-| 变量                                                 | 生产要求                                                                                                                                       |
-| ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `NODE_ENV`                                           | 设置为 `production`；Compose 会再次覆盖为 `production`。                                                                                       |
-| `HOST` / `PORT`                                      | 容器内应为 `0.0.0.0` / `13333`；Compose 会覆盖 `HOST`，端口不要改成与 Dockerfile/Compose 不一致的值。                                          |
-| `APP_KEY`                                            | 必须填写高强度、稳定且只保存在服务端的密钥；更换会影响加密数据。                                                                               |
-| `APP_URL`                                            | 填写对外可访问的 backend URL。                                                                                                                 |
-| `ADMIN_EMAIL` / `ADMIN_PASSWORD` / `ADMIN_FULL_NAME` | 首次启动时用于自动创建首个管理员；必须使用未在其他环境复用的高强度密码，至少 15 位并满足项目密码强度要求。                                     |
-| `DB_USER` / `DB_PASSWORD` / `DB_DATABASE`            | PostgreSQL 初始化凭据；必须使用未与管理员或其他服务复用的高强度密码。Compose 会把它们传给 PostgreSQL，并让 backend 连接内部主机名 `postgres`。 |
-| `CORS_ORIGIN`                                        | 填写允许跨域访问 API 的前端 origin，多个值用逗号分隔，例如 `https://app.example.com`。同源访问仍由 Nginx 代理。                                |
-| `SESSION_DRIVER`                                     | 当前示例使用 `cookie`；按认证部署策略配置。                                                                                                    |
-| `OPENAPI_DOCS_ENABLED`                               | 生产默认建议为 `false`；仅在确实需要 `/api-docs` 时开启，并限制 backend 暴露范围。                                                             |
+| 变量                                                 | 生产要求                                                                                                                                                         |
+| ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `NODE_ENV`                                           | 设置为 `production`；Compose 会再次覆盖为 `production`。                                                                                                         |
+| `HOST` / `PORT`                                      | 容器内应为 `0.0.0.0` / `13333`；Compose 会覆盖 `HOST`，端口不要改成与 Dockerfile/Compose 不一致的值。                                                            |
+| `APP_KEY`                                            | 必须填写高强度、稳定且只保存在服务端的密钥；更换会影响加密数据。                                                                                                 |
+| `APP_URL`                                            | 填写对外可访问的 backend URL。                                                                                                                                   |
+| `ADMIN_EMAIL` / `ADMIN_PASSWORD` / `ADMIN_FULL_NAME` | 用于自动创建配置的管理员；迁移生成的内部账号不会阻止创建。必须使用未在其他环境复用的高强度密码，至少 15 位并满足项目密码强度要求。已有同邮箱账号时不会重置密码。 |
+| `DB_USER` / `DB_PASSWORD` / `DB_DATABASE`            | PostgreSQL 初始化凭据；必须使用未与管理员或其他服务复用的高强度密码。Compose 会把它们传给 PostgreSQL，并让 backend 连接内部主机名 `postgres`。                   |
+| `CORS_ORIGIN`                                        | 填写允许跨域访问 API 的前端 origin，多个值用逗号分隔，例如 `https://app.example.com`。同源访问仍由 Nginx 代理。                                                  |
+| `SESSION_DRIVER`                                     | 当前示例使用 `cookie`；按认证部署策略配置。                                                                                                                      |
+| `OPENAPI_DOCS_ENABLED`                               | 生产默认建议为 `false`；仅在确实需要 `/api-docs` 时开启，并限制 backend 暴露范围。                                                                               |
 
 可选能力的配置也来自 `apps/backend/.env.example`：GitHub OAuth 使用
 `GITHUB_CLIENT_ID`、`GITHUB_CLIENT_SECRET` 和正确的
@@ -105,7 +108,7 @@ frontend 是在镜像构建阶段生成的静态文件，Nginx 不会在容器�
 
 ### 独立助手 Web 与桌面端的配置边界
 
-独立助手 Web 在生产 Compose 中由单独的 `assistant-web` 服务构建和托管，默认对外端口为
+独立助手 Web 在生产 Compose 中由 `docker-compose.assistant-web.yml` 单独构建和托管，默认对外端口为
 `17070`。该服务使用自己的静态产物镜像，并复用管理端 Nginx 配置中的安全响应头、静态资源缓存
 和 `/api/` 到 backend 的同源反向代理。可用 `ASSISTANT_WEB_PORT` 修改宿主机端口；如果启用
 Turnstile，可通过构建时变量 `VITE_TURNSTILE_SITE_KEY` 注入公开站点密钥。
@@ -149,109 +152,144 @@ Chrome MV3 扩展通过 `pnpm --dir apps/assistant-extension build` 单独构建
 
 ## 3. 首次生产部署
 
-先检查 Compose 展开的配置，确认没有把 secret、端口或路径展开错误：
+先检查基础数据库与应用 overlay 的展开配置：
 
 ```bash
-docker compose --env-file apps/backend/.env -f docker/docker-compose.yml config
+docker compose --env-file apps/backend/.env \
+  -f docker/docker-compose.yml \
+  -f docker/docker-compose.app.yml config
 ```
 
-构建并启动生产栈：
+启动数据库、backend 和管理端 frontend：
 
 ```bash
-docker compose --env-file apps/backend/.env -f docker/docker-compose.yml build
-docker compose --env-file apps/backend/.env -f docker/docker-compose.yml up -d
+docker compose --env-file apps/backend/.env \
+  -f docker/docker-compose.yml \
+  -f docker/docker-compose.app.yml up -d --build
 ```
 
-backend 和三个 Bot 共用 `api-starter-kit-backend:latest` 运行镜像；frontend
+也可以通过 `pnpm docker` 打开交互菜单，多选要启动的服务组。选择应用会自动启动 PostgreSQL；选择独立助手 Web 或 IM Bot 会自动启动 backend 和 PostgreSQL；监控可独立启动。选择独立助手 Web 不会启动管理端 frontend。菜单启动会构建所选应用镜像。需要在 CI 或自动化部署中启动时，继续使用下面的 Compose 命令：
+
+```bash
+# 单独添加 assistant-web
+docker compose --env-file apps/backend/.env \
+  -f docker/docker-compose.yml \
+  -f docker/docker-compose.app.yml \
+  -f docker/docker-compose.assistant-web.yml up -d --build assistant-web
+
+# 添加三个 IM Bot
+docker compose --env-file apps/backend/.env \
+  -f docker/docker-compose.yml \
+  -f docker/docker-compose.app.yml \
+  -f docker/docker-compose.im.yml up -d
+
+# 添加 Prometheus、Grafana 和 cAdvisor
+docker compose --env-file apps/backend/.env \
+  --env-file docker/monitoring/.env \
+  -f docker/docker-compose.yml \
+  -f docker/docker-compose.app.yml \
+  -f docker/docker-compose.monitoring.yml up -d
+```
+
+backend 与三个 Bot 共用 `api-starter-kit-backend:latest` 运行镜像；frontend
 和 assistant-web 分别使用 `api-starter-kit-frontend:latest` 与
-`api-starter-kit-assistant-web:latest`。Bot 仍然是独立容器和独立进程，但
-Compose 不会为每个 Bot 重复构建一份镜像。可通过 `BACKEND_IMAGE`、`FRONTEND_IMAGE`
-和 `ASSISTANT_WEB_IMAGE` 覆盖默认镜像标签，例如在多套环境中使用不同的仓库或版本标签。
+`api-starter-kit-assistant-web:latest`。Bot 仍是独立容器和进程，但 Compose
+不会为每个 Bot 重复构建一份镜像。可通过 `BACKEND_IMAGE`、`FRONTEND_IMAGE`
+和 `ASSISTANT_WEB_IMAGE` 覆盖默认镜像标签。
 
 独立助手 Web 不使用管理端镜像；Compose 会从同一个 Dockerfile 的 `assistant-web` 构建目标生成
 独立镜像。独立助手桌面端不作为 Compose 服务运行，而是由发布流水线生成各平台安装包。
 
-backend 容器启动时会执行 `apps/backend/docker-entrypoint.js`。在生产
-Compose 中 `MIGRATE=true`，所以它会先运行：
+backend 容器启动时会执行 `apps/backend/docker-entrypoint.js`。应用 overlay 设置
+`MIGRATE=true`，所以 backend 会先运行：
 
 ```bash
 node ace migration:run --force
 ```
 
-迁移成功后才启动 API。backend 依赖 PostgreSQL healthcheck；三个 Bot 又
-依赖 backend healthcheck，因此首次启动时应等待服务进入 healthy 状态。
+迁移成功后才启动 API。backend 依赖 PostgreSQL healthcheck；IM Bot 又依赖 backend
+healthcheck，因此按需启动时 Compose 会等待依赖就绪。
 
-包含知识库字段收敛的迁移完成后，已有文档的正文仍然保留，但旧目录向量可能
-包含迁移前的元数据。升级后应在知识库管理台对已有文档执行一次“重建索引”，
-让目录向量按当前的标题、知识源说明和可检索主题重新生成。
+包含知识库字段收敛的迁移完成后，已有文档正文仍然保留，但旧目录向量可能包含迁移前的元数据。
+升级后应在知识库管理台对已有文档执行一次“重建索引”。
 
 ## 4. 服务、端口和网络
 
-下表列出生产 Compose 服务和桌面客户端交付物；桌面端不由 Compose 启动。
+| Compose 文件                       | 服务                                      | 职责和端口                                                     |
+| ---------------------------------- | ----------------------------------------- | -------------------------------------------------------------- |
+| `docker-compose.yml`               | `postgres`                                | PostgreSQL；宿主机 `127.0.0.1:5432`，可用 `POSTGRES_PORT` 覆盖 |
+| `docker-compose.app.yml`           | `backend`、`frontend`                     | API `13333`、管理端 `18080`                                    |
+| `docker-compose.assistant-web.yml` | `assistant-web`                           | 独立助手 Web `17070`                                           |
+| `docker-compose.im.yml`            | `wecom-bot`、`feishu-bot`、`dingtalk-bot` | 各渠道独立 worker，不映射宿主机端口                            |
+| `docker-compose.monitoring.yml`    | `prometheus`、`grafana`、`cadvisor`       | Prometheus `9090`、Grafana `3000`；默认只绑定 loopback         |
 
-| 服务/交付物         | 职责                                     | 默认对外端口/状态                              |
-| ------------------- | ---------------------------------------- | ---------------------------------------------- |
-| `postgres`          | `pgvector/pgvector:pg15`，持久化应用数据 | 仅 Compose 内部网络，无宿主机端口              |
-| `backend`           | AdonisJS API、迁移、健康检查             | 宿主机 `13333`，可由 `BACKEND_PORT` 覆盖       |
-| `wecom-bot`         | 企业微信 WebSocket AI worker             | 不暴露宿主机端口                               |
-| `feishu-bot`        | 飞书长连接 AI worker                     | 不暴露宿主机端口                               |
-| `dingtalk-bot`      | 钉钉 Stream AI worker                    | 不暴露宿主机端口                               |
-| `frontend`          | Nginx 静态文件和 `/api/` 反向代理        | 宿主机 `18080`，可由 `FRONTEND_PORT` 覆盖      |
-| `assistant-web`     | 独立助手 Web 静态文件和 `/api/` 反向代理 | 宿主机 `17070`，可由 `ASSISTANT_WEB_PORT` 覆盖 |
-| `assistant-desktop` | Tauri 桌面安装包                         | 无服务端口，按操作系统发布                     |
+管理端入口默认为 `http://localhost:18080`。Nginx 将 `/api/` 转发到
+`http://backend:13333`。独立助手 Web 默认为 `http://localhost:17070`，也通过 Compose
+网络访问 `backend:13333`。backend 健康检查地址为
+`http://<backend-host>:<BACKEND_PORT>/api/v1/health/ready`。
 
-访问入口默认为 `http://localhost:18080`。frontend 的 Nginx 配置将
-`/api/` 转发到 `http://backend:13333`，并设置了 10 MB 请求体上限和
-安全响应头。
+PostgreSQL 始终将宿主机端口绑定到 loopback：默认 `127.0.0.1:5432`，可通过 `POSTGRES_PORT` 修改。宿主机开发服务可连接该地址，局域网无法直接访问；容器内应用继续使用 `postgres:5432`。
 
-独立助手 Web 入口默认为 `http://localhost:17070`，也通过同一 Compose 网络中的
-`backend:13333` 访问 API，因此默认无需额外配置 CORS。
+### Grafana 与 Prometheus 容器监控
 
-backend 就绪检查地址为：
+监控服务单独定义在 `docker-compose.monitoring.yml`，只采集 Docker 容器指标，不采集宿主机进程或项目自有业务指标。cAdvisor 需要读取 Docker 容器和 cgroup 信息，因此使用特权及只读宿主机挂载，不映射宿主机端口。Grafana 仪表盘按 Compose project 和 service 标签筛选容器。
 
-```text
-http://<backend-host>:<BACKEND_PORT>/api/v1/health/ready
+首次启动监控前创建本地配置并设置 Grafana 管理员密码：
+
+```bash
+cp docker/monitoring/.env.example docker/monitoring/.env
 ```
 
-该检查会执行 `SELECT 1` 验证数据库连接；成功响应包含
-`{"status":"ok","checks":{"database":"ok",...}}`，数据库不可用时返回
-HTTP `503`。生产环境不应为 PostgreSQL 增加宿主机端口映射。
+与 Docker 应用一起启动监控：
+
+```bash
+docker compose --env-file apps/backend/.env \
+  --env-file docker/monitoring/.env \
+  -f docker/docker-compose.yml \
+  -f docker/docker-compose.app.yml \
+  -f docker/docker-compose.monitoring.yml up -d
+```
+
+Grafana 和 Prometheus 默认只绑定宿主机 loopback；远程访问 Grafana 应通过 VPN、SSH 隧道或带认证的反向代理。不要将 Prometheus 或 cAdvisor 采集端口直接暴露到公网。Prometheus 默认保留 15 天数据，Grafana 和 Prometheus 数据分别保存在命名 volume 中。
+
+帮助子菜单仅在开发模式显示；生产构建（包括 Docker frontend 镜像）会隐藏整个子菜单，包括 Grafana、API 文档和开发工具入口，账户、语言、主题和退出菜单保持可用。开发模式下 Grafana 入口默认打开 `http://localhost:3000`；`VITE_MONITORING_PROJECT` 必须与 Compose project 名称一致，默认为 `api-starter-kit`。
+
+Compose project 名称为 `api-starter-kit`。PostgreSQL、Grafana 和 Prometheus 使用各自的命名 volume；`docker compose down` 保留数据，`down -v` 删除所选 Compose 文件声明的 volume。
 
 ## 5. 更新、停止和数据持久化
 
-更新代码或镜像后重新构建并重建服务：
+更新核心应用时只需构建和启动数据库、backend 与 frontend：
 
 ```bash
-docker compose --env-file apps/backend/.env -f docker/docker-compose.yml build
-docker compose --env-file apps/backend/.env -f docker/docker-compose.yml up -d
+docker compose --env-file apps/backend/.env \
+  -f docker/docker-compose.yml \
+  -f docker/docker-compose.app.yml build
+
+docker compose --env-file apps/backend/.env \
+  -f docker/docker-compose.yml \
+  -f docker/docker-compose.app.yml up -d
 ```
 
-查看状态、日志和单个服务：
+更新独立助手 Web 时单独构建并启动它；Compose 会按依赖启动 backend 和 PostgreSQL，不会启动管理端 frontend：
 
 ```bash
-docker compose -f docker/docker-compose.yml ps
-docker compose -f docker/docker-compose.yml logs --tail=200 backend
-docker compose -f docker/docker-compose.yml logs -f assistant-web
-docker compose -f docker/docker-compose.yml logs -f wecom-bot
-docker compose -f docker/docker-compose.yml logs -f feishu-bot
-docker compose -f docker/docker-compose.yml logs -f dingtalk-bot
+docker compose --env-file apps/backend/.env \
+  -f docker/docker-compose.yml \
+  -f docker/docker-compose.app.yml \
+  -f docker/docker-compose.assistant-web.yml up -d --build assistant-web
 ```
 
-停止容器但保留数据库 volume：
+IM Bot 和监控按需叠加各自文件；启动命令见首次部署章节。查看核心服务：
 
 ```bash
-docker compose -f docker/docker-compose.yml stop
+docker compose --env-file apps/backend/.env \
+  -f docker/docker-compose.yml \
+  -f docker/docker-compose.app.yml ps
 ```
 
-删除 Compose 创建的容器和网络但保留数据库数据：
+管理某个可选服务时，加入对应 overlay 和服务名。停止或删除服务时使用与启动时相同的文件组合；`down` 会保留 volume。`down -v` 会删除所选 Compose 文件声明的 volume 和其中数据，只能在明确要清空环境时使用。
 
-```bash
-docker compose -f docker/docker-compose.yml down
-```
-
-`postgres-data` 是 PostgreSQL 的持久化 volume。`docker compose down -v`
-会删除该 volume 及其中的应用数据，只能在已确认完成备份且明确需要清空
-环境时使用；生产环境不要把它作为普通更新命令。
+`postgres-data` 是 PostgreSQL 持久化 volume。日常更新不要删除它。
 
 正式更新前应备份 PostgreSQL，并在目标环境核对迁移状态：
 
@@ -259,13 +297,13 @@ docker compose -f docker/docker-compose.yml down
 docker compose -f docker/docker-compose.yml exec postgres \
   sh -c 'pg_dump -U "$DB_USER" -d "$DB_DATABASE"' > backup.sql
 
-docker compose -f docker/docker-compose.yml exec backend \
+docker compose --env-file apps/backend/.env \
+  -f docker/docker-compose.yml \
+  -f docker/docker-compose.app.yml exec backend \
   node ace migration:status
 ```
 
-备份命令会将 SQL 写入宿主机当前目录，务必按组织的备份保管和访问控制
-策略处理 `backup.sql`。恢复前先停止会写入数据库的应用服务，并验证目标
-数据库与备份文件，不要在未确认目标的情况下覆盖生产数据。
+备份命令会将 SQL 写入宿主机当前目录，务必按组织的备份保管和访问控制策略处理 `backup.sql`。恢复前先停止会写入数据库的应用服务，并验证目标数据库与备份文件。
 
 ## 6. AI 与渠道 Bot
 
@@ -301,7 +339,7 @@ ASR/LLM 地址。渠道平台的应用发布、长连接、权限、绑定和卡
 - 如果发布独立助手 Web，`CORS_ORIGIN` 同时包含其正式 origin，且 Web 构建使用正确的 `VITE_API_URL`；
 - 如果发布桌面端，已在每个后端部署的 `CORS_ORIGIN` 中按平台配置 Tauri origin，运行时只连接正式 HTTPS API，Tauri CSP 与代码签名/公证策略已确认；
 - `OPENAPI_DOCS_ENABLED` 按需设置，未将不必要的 backend 管理端口暴露到公网；
-- PostgreSQL 未映射宿主机端口，`postgres-data` 已纳入备份策略；
+- PostgreSQL 只绑定宿主机 loopback，未暴露到局域网或公网；`postgres-data` 已纳入备份策略；
 - `docker compose ... config`、容器状态和 `/api/v1/health/ready` 均正常；
 - 首次管理员已登录并按需启用 2FA，管理员初始化密码不再继续作为共享凭据使用；
 - 若启用 OAuth、Turnstile、LLM、ASR 或渠道 Bot，已从实际容器网络完成连通性验证；
@@ -309,19 +347,17 @@ ASR/LLM 地址。渠道平台的应用发布、长连接、权限、绑定和卡
 
 ## 8. 常见排障
 
-| 现象                            | 检查方向                                                                                                                                                                      |
-| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `postgres` 不健康               | 检查 `DB_USER`、`DB_PASSWORD`、`DB_DATABASE` 是否一致；查看 `docker compose logs postgres`。已有 volume 使用旧凭据时，不要直接删除 volume，应按 PostgreSQL 凭据轮换流程处理。 |
-| backend 反复重启                | 查看 `docker compose logs backend`；重点检查 `APP_KEY`、数据库连接、环境变量格式和迁移失败信息。                                                                              |
-| Web 客户端打开但 API 失败       | 确认 backend healthy、frontend/assistant-web 与 backend 在同一 Compose 网络，浏览器请求使用 `/api/`，并检查对应 Nginx/backend 日志。                                          |
-| 直接访问 backend 出现 CORS 错误 | 将浏览器 origin 加入 `CORS_ORIGIN`，或使用 frontend 的同源入口；修改 backend `.env` 后重建/重启 backend。                                                                     |
-| `/api-docs` 404                 | 只有 `OPENAPI_DOCS_ENABLED=true` 时才注册该路由；修改后需要重启 backend。                                                                                                     |
-| Bot 已连接但配置未生效          | 检查对应 worker 日志中的配置通知、重载和连接错误；确认 PostgreSQL 可用且不要重复启动同一渠道的多个 worker。                                                                   |
-| 迁移未执行                      | 检查 Compose backend 是否使用 `MIGRATE=true`（生产文件会设置），再查看 backend 日志和 `node ace migration:status`。                                                           |
+| 现象                            | 检查方向                                                                                                                                                                                                          |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `postgres` 不健康               | 检查 `DB_USER`、`DB_PASSWORD`、`DB_DATABASE` 是否一致；用 `docker compose -f docker/docker-compose.yml logs postgres` 查看日志。已有 volume 使用旧凭据时，不要直接删除 volume，应按 PostgreSQL 凭据轮换流程处理。 |
+| backend 反复重启                | 用 `docker compose --env-file apps/backend/.env -f docker/docker-compose.yml -f docker/docker-compose.app.yml logs backend` 查看日志；重点检查 `APP_KEY`、数据库连接、环境变量格式和迁移失败信息。                |
+| Web 客户端打开但 API 失败       | 确认 backend healthy、frontend/assistant-web 与 backend 在同一 Compose 网络，浏览器请求使用 `/api/`，并检查对应 Nginx/backend 日志。                                                                              |
+| 直接访问 backend 出现 CORS 错误 | 将浏览器 origin 加入 `CORS_ORIGIN`，或使用 frontend 的同源入口；修改 backend `.env` 后重建/重启 backend。                                                                                                         |
+| `/api-docs` 404                 | 只有 `OPENAPI_DOCS_ENABLED=true` 时才注册该路由；修改后需要重启 backend。                                                                                                                                         |
+| Bot 已连接但配置未生效          | 检查对应 worker 日志中的配置通知、重载和连接错误；确认 PostgreSQL 可用且不要重复启动同一渠道的多个 worker。                                                                                                       |
+| 迁移未执行                      | 检查 Compose backend 是否使用 `MIGRATE=true`（生产文件会设置），再查看 backend 日志和 `node ace migration:status`。                                                                                               |
 
-开发环境使用 `pnpm docker:up` 或 `docker/docker-compose.dev.yml`，会额外
-映射 PostgreSQL `5432` 供宿主机 backend 使用；不要把该开发 override 文件
-用于生产部署。
+开发环境运行 `pnpm docker` 并选择 PostgreSQL；其端口只绑定在宿主机 loopback，供本机 backend 连接。
 
 # 网页版本更新提示
 

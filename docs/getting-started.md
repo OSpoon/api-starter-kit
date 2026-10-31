@@ -21,7 +21,7 @@ pnpm --dir apps/backend exec node ace generate:key --show
 示例文件中的 `Change-Me-1234-5678-9012` 和 `app_password` 只是占位值，不能用于共享或生产环境。
 管理员密码至少 15 位，并满足项目密码强度要求。不要将 `apps/backend/.env` 提交到 Git。
 
-`ADMIN_EMAIL`、`ADMIN_PASSWORD` 和 `ADMIN_FULL_NAME` 用于初始化首个管理员；仅当用户表为空时创建。
+`ADMIN_EMAIL`、`ADMIN_PASSWORD` 和 `ADMIN_FULL_NAME` 用于初始化配置的管理员；迁移创建的内部账号不会阻止管理员创建。同邮箱账号已存在时不会重置其密码；若该账号已停用，初始化会记录错误且不会自动启用。
 
 生产环境可启用 Cloudflare Turnstile 登录保护：在 Cloudflare 创建 Widget，将 Site Key 写入 `apps/frontend/.env` 的 `VITE_TURNSTILE_SITE_KEY`，将 Secret Key 写入 `apps/backend/.env` 的 `TURNSTILE_SECRET_KEY`，并设置 `TURNSTILE_ENABLED=true`。后端会在登录时通过 Cloudflare 服务端校验临时 token；本地开发默认关闭。
 
@@ -30,12 +30,12 @@ pnpm --dir apps/backend exec node ace generate:key --show
 启动 PostgreSQL，执行迁移并运行开发服务器：
 
 ```bash
-pnpm docker:up
+pnpm docker
 pnpm --dir apps/backend exec node ace migration:run
 pnpm dev
 ```
 
-开发命令 `pnpm docker:up` 会启动 PostgreSQL，并映射 PostgreSQL `5432`，以便宿主机运行的后端连接。根目录
+运行 `pnpm docker` 后，在菜单中选择 PostgreSQL；它会将 `127.0.0.1:5432` 映射到容器，以便宿主机运行的后端连接。根目录
 `pnpm dev` 只启动 backend 和管理端 frontend。管理端使用 `18080`，后端 API 使用 `13333`。
 
 | 服务       | 默认地址                          |
