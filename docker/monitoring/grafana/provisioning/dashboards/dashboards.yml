@@ -1,9 +1,9 @@
 apiVersion: 1
 
 providers:
-  - name: Server monitoring
+  - name: 监控
     orgId: 1
-    folder: Server monitoring
+    folder: 监控
     type: file
     disableDeletion: false
     editable: false

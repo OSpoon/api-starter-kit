@@ -232,7 +232,7 @@ PostgreSQL 始终将宿主机端口绑定到 loopback：默认 `127.0.0.1:5432`�
 
 ### Grafana 与 Prometheus 容器监控
 
-监控服务单独定义在 `docker-compose.monitoring.yml`，只采集 Docker 容器指标，不采集宿主机进程或项目自有业务指标。cAdvisor 需要读取 Docker 容器和 cgroup 信息，因此使用特权及只读宿主机挂载，不映射宿主机端口。Grafana 仪表盘按 Compose project 和 service 标签筛选容器。
+监控服务单独定义在 `docker-compose.monitoring.yml`。cAdvisor 只采集 Docker 容器指标，不采集宿主机进程；容器资源仪表盘按 Compose project 和 service 标签筛选。AI 对话统计仪表盘则由 Grafana 通过只读 PostgreSQL 数据源直接查询应用表，不经过 Prometheus。
 
 首次启动监控前创建本地配置并设置 Grafana 管理员密码：
 
@@ -249,6 +249,10 @@ docker compose --env-file apps/backend/.env \
   -f docker/docker-compose.app.yml \
   -f docker/docker-compose.monitoring.yml up -d
 ```
+
+启动前请在 `docker/monitoring/.env` 中分别设置 Grafana 管理员密码和唯一的 `GRAFANA_DB_READONLY_PASSWORD`。监控 overlay 会在 PostgreSQL 健康后创建只读角色 `grafana_reader`，仅授予对话、用户消息和模型调用统计所需字段的读取权限。启动监控前，backend 必须已完成数据库迁移；否则角色初始化会因统计表不存在而失败。
+
+Grafana 的 `系统监控` 仪表盘展示容器资源；`业务监控` 仪表盘每分钟查询一次 PostgreSQL，默认显示最近 30 天的每日对话数、用户提问数和模型调用数。业务统计基于数据库中仍保留的记录；删除对话时，关联消息和模型调用会级联删除，历史计数也会随之变化。
 
 Grafana 和 Prometheus 默认只绑定宿主机 loopback；远程访问 Grafana 应通过 VPN、SSH 隧道或带认证的反向代理。不要将 Prometheus 或 cAdvisor 采集端口直接暴露到公网。Prometheus 默认保留 15 天数据，Grafana 和 Prometheus 数据分别保存在命名 volume 中。
 

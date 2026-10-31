@@ -1,0 +1,19 @@
+apiVersion: 1
+
+datasources:
+  - name: Application PostgreSQL
+    type: postgres
+    access: proxy
+    url: postgres:5432
+    user: grafana_reader
+    uid: application-postgres
+    isDefault: false
+    editable: false
+    jsonData:
+      database: $__env{DB_DATABASE}
+      sslmode: disable
+      postgresVersion: 1500
+      maxOpenConns: 5
+      maxIdleConns: 2
+    secureJsonData:
+      password: $__env{GRAFANA_DB_READONLY_PASSWORD}

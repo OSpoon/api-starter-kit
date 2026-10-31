@@ -43,9 +43,9 @@ const serviceGroups = {
   },
   monitoring: {
     label: '监控（Prometheus、Grafana、cAdvisor）',
-    hint: '独立启动，需要配置 Grafana 密码',
-    files: ['docker/docker-compose.monitoring.yml'],
-    envFiles: ['docker/monitoring/.env'],
+    hint: '自动启动 PostgreSQL；需先迁移应用数据库并配置 Grafana 密码',
+    files: ['docker/docker-compose.yml', 'docker/docker-compose.monitoring.yml'],
+    envFiles: ['apps/backend/.env', 'docker/monitoring/.env'],
     services: ['prometheus', 'grafana', 'cadvisor'],
   },
 }

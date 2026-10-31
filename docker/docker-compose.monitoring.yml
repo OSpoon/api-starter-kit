@@ -1,4 +1,24 @@
 services:
+  grafana-db-reader-setup:
+    image: pgvector/pgvector:pg15
+    depends_on:
+      postgres:
+        condition: service_healthy
+    entrypoint: ['/bin/sh', '-ec']
+    command:
+      - >-
+        test -n "$$DB_USER" && test -n "$$DB_PASSWORD" && test -n "$$DB_DATABASE" && test -n "$$GRAFANA_DB_READONLY_PASSWORD" || { echo "Set DB_* in apps/backend/.env and GRAFANA_DB_READONLY_PASSWORD in docker/monitoring/.env" >&2; exit 1; };
+        export PGPASSWORD="$$DB_PASSWORD";
+        exec psql --no-psqlrc --host=postgres --username="$$DB_USER" --dbname="$$DB_DATABASE" --set=ON_ERROR_STOP=1 --file=/etc/grafana/create-reader.sql
+    environment:
+      DB_USER: ${DB_USER:-}
+      DB_PASSWORD: ${DB_PASSWORD:-}
+      DB_DATABASE: ${DB_DATABASE:-}
+      GRAFANA_DB_READONLY_PASSWORD: ${GRAFANA_DB_READONLY_PASSWORD:-}
+    volumes:
+      - ./monitoring/grafana/create-reader.sql:/etc/grafana/create-reader.sql:ro
+    restart: 'no'
+
   prometheus:
     image: prom/prometheus:v3.15.1
     command:
@@ -15,12 +35,17 @@ services:
   grafana:
     image: grafana/grafana:13.3.0
     depends_on:
-      - prometheus
+      prometheus:
+        condition: service_started
+      grafana-db-reader-setup:
+        condition: service_completed_successfully
     entrypoint: ['/bin/sh', '-ec']
     command:
-      - 'test -n "$$GF_SECURITY_ADMIN_PASSWORD" || { echo "Set GRAFANA_ADMIN_PASSWORD in docker/monitoring/.env" >&2; exit 1; }; exec /run.sh'
+      - 'test -n "$$GF_SECURITY_ADMIN_PASSWORD" || { echo "Set GRAFANA_ADMIN_PASSWORD in docker/monitoring/.env" >&2; exit 1; }; test -n "$$GRAFANA_DB_READONLY_PASSWORD" || { echo "Set GRAFANA_DB_READONLY_PASSWORD in docker/monitoring/.env" >&2; exit 1; }; exec /run.sh'
     environment:
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-}
+      GRAFANA_DB_READONLY_PASSWORD: ${GRAFANA_DB_READONLY_PASSWORD:-}
+      DB_DATABASE: ${DB_DATABASE:-}
       GF_USERS_ALLOW_SIGN_UP: 'false'
       GF_AUTH_ANONYMOUS_ENABLED: 'false'
     ports:

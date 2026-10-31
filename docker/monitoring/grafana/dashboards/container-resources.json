@@ -308,7 +308,7 @@
   },
   "time": { "from": "now-6h", "to": "now" },
   "timezone": "browser",
-  "title": "Docker container resources",
+  "title": "系统监控",
   "uid": "container-resources",
   "version": 1
 }
