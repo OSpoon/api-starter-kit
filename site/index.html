@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f6f7fb" />
+    <title>API Starter Kit · 项目图表</title>
+    <style>
+      :root { color-scheme: light; font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; color: #172033; background: #f6f7fb; }
+      * { box-sizing: border-box; }
+      body { margin: 0; }
+      main { width: min(100% - 32px, 960px); margin: 0 auto; padding: 72px 0; }
+      .eyebrow { color: #5264c8; font-size: .8rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+      h1 { margin: 12px 0; font-size: clamp(2rem, 6vw, 3.25rem); letter-spacing: -.04em; }
+      .intro { max-width: 640px; color: #596579; font-size: 1.05rem; line-height: 1.7; }
+      .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr)); gap: 16px; margin-top: 36px; }
+      a.card { display: block; min-height: 150px; padding: 24px; border: 1px solid #e1e5ef; border-radius: 16px; background: #fff; color: inherit; text-decoration: none; transition: border-color .18s ease, transform .18s ease, box-shadow .18s ease; }
+      a.card:hover, a.card:focus-visible { border-color: #8895ea; box-shadow: 0 12px 32px #202c5412; transform: translateY(-2px); }
+      a.card:focus-visible { outline: 3px solid #5264c866; outline-offset: 3px; }
+      .type { color: #5264c8; font-size: .78rem; font-weight: 700; }
+      h2 { margin: 10px 0 8px; font-size: 1.15rem; }
+      .description { margin: 0; color: #667085; line-height: 1.6; }
+      footer { margin-top: 32px; color: #778195; font-size: .9rem; }
+      footer a { color: #5264c8; }
+      @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p class="eyebrow">API Starter Kit</p>
+      <h1>项目交互式图表</h1>
+      <p class="intro">从系统边界、代码组织、API 安全流程和 AI 变更治理四个角度，了解项目如何协作。选择图表即可打开完整交互视图。</p>
+      <section class="grid" aria-label="项目图表">
+        <a class="card" href="diagrams/system-architecture.html">
+          <span class="type">系统架构</span>
+          <h2>多端入口，共享后端治理</h2>
+          <p class="description">查看 Web、桌面端、浏览器扩展与 Bot 如何复用后端能力。</p>
+        </a>
+        <a class="card" href="diagrams/repository-tree.html">
+          <span class="type">代码组织</span>
+          <h2>Workspace 与主要能力模块</h2>
+          <p class="description">沿着 monorepo 目录结构定位应用、服务和核心模块。</p>
+        </a>
+        <a class="card" href="diagrams/api-auth-sequence.html">
+          <span class="type">API 请求时序</span>
+          <h2>API Key 列表：认证、权限与安全响应</h2>
+          <p class="description">跟踪一次管理请求经过认证、权限检查和安全序列化的过程。</p>
+        </a>
+        <a class="card" href="diagrams/ai-controlled-workflow.html">
+          <span class="type">AI 受控工作流</span>
+          <h2>提案、用户确认与再次授权</h2>
+          <p class="description">了解 AI 如何提出变更，以及执行前如何再次验证权限和目标状态。</p>
+        </a>
+      </section>
+      <footer>图表随仓库更新自动发布 · <a href="https://github.com/OSpoon/api-starter-kit">查看源码仓库</a></footer>
+    </main>
+  </body>
+</html>

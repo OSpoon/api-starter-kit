@@ -15,6 +15,7 @@ dist
 
 # Temp files
 /tmp
+.archify/
 .eslintcache
 
 # Logs

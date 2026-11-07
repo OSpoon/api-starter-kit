@@ -45,6 +45,7 @@ API Starter Kit 为团队构建可运营业务系统提供统一的治理基础�
 3. [产品扩展指南](docs/customization.md)：基于 starter 新增业务 feature、页面、API 和权限。
 4. [系统架构](docs/architecture.md)：理解管理端、独立助手客户端和后端边界。
 5. [文档总览](docs/README.md)：按场景查找 API、安全、部署和 AI 参考。
+6. [交互式项目图表](https://ospoon.github.io/api-starter-kit/)：浏览项目架构、代码组织、API Key 认证和受控 AI 工作流。
 
 ## 许可证
 
