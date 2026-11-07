@@ -1,4 +1,5 @@
 import { BaseModel, column } from '@adonisjs/lucid/orm'
+import type { AgentMessage } from '@earendil-works/pi-agent-core'
 import { DateTime } from 'luxon'
 
 export type AiChatRole = 'user' | 'assistant'
@@ -156,6 +157,12 @@ export default class AiChatMessage extends BaseModel {
     consume: (value: unknown) => consumeJsonArray(value, 'runtime_details', isRuntimeDetail),
   })
   declare runtimeDetails: AiChatRuntimeDetail[]
+
+  @column({
+    prepare: (messages: AgentMessage[] | null | undefined) =>
+      messages ? JSON.stringify(messages) : null,
+  })
+  declare agentContext: AgentMessage[] | null
 
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime

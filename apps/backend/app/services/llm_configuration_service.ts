@@ -2,8 +2,11 @@ import encryption from '@adonisjs/core/services/encryption'
 import logger from '@adonisjs/core/services/logger'
 import db from '@adonisjs/lucid/services/db'
 
+import type { AiAgentThinkingLevel } from '#ai/core/ai_agent_config'
 import LlmConfiguration from '#models/llm_configuration'
 import { IM_CONFIGURATION_CHANGED_CHANNEL } from '#services/im_configuration_change_listener'
+
+const DEFAULT_EMBEDDING_MODEL = 'Qwen3-Embedding-0.6B-4bit-DWQ'
 
 export const LLM_REQUEST_TIMEOUT_MS = 180_000
 
@@ -13,6 +16,7 @@ type LlmConfigInput = {
   chatModel: string
   chatContextWindow: number
   chatMaxTokens: number
+  chatReasoningLevel?: AiAgentThinkingLevel
   asrApiKey?: string | null
   asrBaseUrl?: string | null
   asrModel: string
@@ -67,8 +71,9 @@ export async function getLlmConfiguration() {
     chatModel: 'Qwen3.5-4B-MLX-4bit',
     chatContextWindow: 128000,
     chatMaxTokens: 16384,
+    chatReasoningLevel: 'medium',
     asrModel: 'Qwen3-ASR-0.6B-4bit',
-    embeddingModel: 'Qwen3-Embedding-0.6B-4bit-DWQ',
+    embeddingModel: DEFAULT_EMBEDDING_MODEL,
     embeddingDimensions: 1024,
   })
 }
@@ -86,6 +91,7 @@ export async function readRuntimeLlmConfiguration() {
       model: config.chatModel,
       contextWindow: config.chatContextWindow,
       maxTokens: config.chatMaxTokens,
+      reasoningLevel: config.chatReasoningLevel,
     },
     asr: {
       apiKey: decryptSecret(config.asrApiKey),
@@ -95,7 +101,7 @@ export async function readRuntimeLlmConfiguration() {
     embedding: {
       apiKey: decryptSecret(config.embeddingApiKey) ?? decryptSecret(config.chatApiKey) ?? 'no-key',
       baseURL: config.embeddingBaseUrl ?? config.chatBaseUrl,
-      model: config.embeddingModel,
+      model: config.embeddingModel ?? DEFAULT_EMBEDDING_MODEL,
     },
   }
 }
@@ -167,6 +173,7 @@ export async function updateLlmConfiguration(input: LlmConfigInput) {
   config.chatModel = input.chatModel.trim()
   config.chatContextWindow = input.chatContextWindow
   config.chatMaxTokens = input.chatMaxTokens
+  if (input.chatReasoningLevel !== undefined) config.chatReasoningLevel = input.chatReasoningLevel
   config.asrBaseUrl = input.asrBaseUrl?.trim() || null
   config.asrModel = input.asrModel.trim()
   config.embeddingBaseUrl = input.embeddingBaseUrl?.trim() || null
@@ -211,6 +218,7 @@ export function serializeLlmConfiguration(config: LlmConfiguration) {
       model: config.chatModel,
       contextWindow: config.chatContextWindow,
       maxTokens: config.chatMaxTokens,
+      reasoningLevel: config.chatReasoningLevel,
       apiKeyConfigured: Boolean(config.chatApiKey),
     },
     asr: {
@@ -220,7 +228,7 @@ export function serializeLlmConfiguration(config: LlmConfiguration) {
     },
     embedding: {
       baseUrl: config.embeddingBaseUrl,
-      model: config.embeddingModel,
+      model: config.embeddingModel ?? DEFAULT_EMBEDDING_MODEL,
       dimensions: 1024,
       apiKeyConfigured: Boolean(config.embeddingApiKey || config.chatApiKey),
     },

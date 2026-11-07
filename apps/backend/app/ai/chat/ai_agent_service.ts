@@ -1,6 +1,7 @@
 import crypto from 'node:crypto'
 
 import logger from '@adonisjs/core/services/logger'
+import type { AgentMessage } from '@earendil-works/pi-agent-core'
 
 import { listConversationConfirmations } from '#ai/core/ai_agent_confirmation'
 import { serializeAiAgentRuntimeContext } from '#ai/core/ai_agent_runtime_context'
@@ -65,6 +66,7 @@ async function buildLiveSessionContext(conversationId: number, userId: number) {
 export async function createAiAgentStream(
   input: AiAgentToolRequestContext & {
     messages: AiAgentMessage[]
+    agentContext?: AgentMessage[]
     context?: AiAgentPageContext
     onCompactionUsage?: (usage: PiModelUsage) => void
   }

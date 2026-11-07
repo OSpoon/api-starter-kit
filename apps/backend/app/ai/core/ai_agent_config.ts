@@ -1,6 +1,17 @@
 import { LLM_REQUEST_TIMEOUT_MS } from '#services/llm_configuration_service'
 import env from '#start/env'
 
+export const aiAgentThinkingLevels = [
+  'off',
+  'minimal',
+  'low',
+  'medium',
+  'high',
+  'xhigh',
+  'max',
+] as const
+export type AiAgentThinkingLevel = (typeof aiAgentThinkingLevels)[number]
+
 export function getAiAgentModelName() {
   return 'runtime'
 }

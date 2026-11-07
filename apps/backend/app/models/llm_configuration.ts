@@ -1,6 +1,8 @@
 import { BaseModel, column } from '@adonisjs/lucid/orm'
 import { DateTime } from 'luxon'
 
+import type { AiAgentThinkingLevel } from '#ai/core/ai_agent_config'
+
 export default class LlmConfiguration extends BaseModel {
   @column({ isPrimary: true })
   declare id: number
@@ -19,6 +21,9 @@ export default class LlmConfiguration extends BaseModel {
 
   @column()
   declare chatMaxTokens: number
+
+  @column()
+  declare chatReasoningLevel: AiAgentThinkingLevel
 
   @column({ serializeAs: null })
   declare asrApiKey: string | null

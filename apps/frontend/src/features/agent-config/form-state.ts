@@ -6,6 +6,7 @@ export type LlmConfigurationDraft = {
   chatModel: string
   chatContextWindow: number
   chatMaxTokens: number
+  chatReasoningLevel: LlmConfiguration['chat']['reasoningLevel']
   asrApiKey: string
   asrBaseUrl: string
   asrModel: string
@@ -27,7 +28,8 @@ export function hasUnsavedLlmConfiguration(
       draft.chatBaseUrl !== (saved.chat.baseUrl ?? '') ||
       draft.chatModel !== saved.chat.model ||
       draft.chatContextWindow !== saved.chat.contextWindow ||
-      draft.chatMaxTokens !== saved.chat.maxTokens
+      draft.chatMaxTokens !== saved.chat.maxTokens ||
+      draft.chatReasoningLevel !== saved.chat.reasoningLevel
     ),
     asr: Boolean(
       draft.asrApiKey ||
@@ -62,6 +64,10 @@ export function buildLlmConfigurationUpdate(
         : saved.chat.contextWindow,
     chatMaxTokens:
       service === 'chat' ? (draft.chatMaxTokens ?? saved.chat.maxTokens) : saved.chat.maxTokens,
+    chatReasoningLevel:
+      service === 'chat'
+        ? (draft.chatReasoningLevel ?? saved.chat.reasoningLevel)
+        : saved.chat.reasoningLevel,
     asrApiKey: service === 'asr' ? draft.asrApiKey || undefined : undefined,
     asrBaseUrl:
       service === 'asr' ? (draft.asrBaseUrl ?? saved.asr.baseUrl ?? '') : (saved.asr.baseUrl ?? ''),
@@ -73,8 +79,8 @@ export function buildLlmConfigurationUpdate(
         : (saved.embedding.baseUrl ?? ''),
     embeddingModel:
       service === 'embedding'
-        ? (draft.embeddingModel ?? saved.embedding.model ?? '')
-        : (saved.embedding.model ?? ''),
+        ? (draft.embeddingModel ?? saved.embedding.model)
+        : saved.embedding.model,
     embeddingDimensions: 1024,
   }
 }

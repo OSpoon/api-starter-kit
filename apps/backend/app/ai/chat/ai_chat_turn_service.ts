@@ -2,6 +2,7 @@ import crypto from 'node:crypto'
 
 import type { HttpContext } from '@adonisjs/core/http'
 import logger from '@adonisjs/core/services/logger'
+import type { AgentMessage } from '@earendil-works/pi-agent-core'
 
 import { type AiAgentPageContext, createAiAgentStream } from '#ai/chat/ai_agent_service'
 import type { AiChatResolvedRegeneration } from '#ai/chat/ai_chat_regeneration'
@@ -22,6 +23,10 @@ import {
   sanitizeAiAgentToolErrorMessage,
 } from '#ai/core/ai_agent_tool_errors'
 import { releaseAiAgentRun } from '#ai/runtime/ai_agent_run_registry'
+import {
+  restoreAiAgentSessionContext,
+  snapshotAiAgentSessionContext,
+} from '#ai/runtime/ai_agent_session_context'
 import type AiChatConversation from '#models/ai_chat_conversation'
 import AiChatMessage, {
   type AiChatCitation,
@@ -235,6 +240,14 @@ export async function runAiChatAssistantTurn(input: {
         })),
       { role: userMessage.role, content: userMessage.content, id: userMessage.id },
     ]
+    const contextSourceMessages = regenerate ? regeneration.messages : historyMessages
+    const previousAgentContext = contextSourceMessages.findLast(
+      (message) => message.role === 'assistant' && message.agentContext
+    )?.agentContext
+    const agentContext = restoreAiAgentSessionContext(
+      previousAgentContext,
+      conversation.contextSummary ? summaryBoundary : null
+    )
     const usage = {
       inputTokens: 0,
       outputTokens: 0,
@@ -259,6 +272,7 @@ export async function runAiChatAssistantTurn(input: {
         userId,
         auditContext: input.ctx,
         messages: history,
+        agentContext,
         capabilityMode: input.capabilityMode,
         enabledToolNames: input.enabledToolNames,
         context: input.context,
@@ -507,10 +521,25 @@ export async function runAiChatAssistantTurn(input: {
       )
     }
 
+    let chatMessages: AiChatMessage[] = []
     try {
       await conversation.load('messages', (query) => query.orderBy('created_at', 'asc'))
+      chatMessages = conversation.messages
     } catch (error) {
       logger.error({ err: error, conversationId: conversation.id }, 'AI conversation reload failed')
+    }
+    try {
+      assistantMessage.agentContext = snapshotAiAgentSessionContext(
+        run.stream.getSessionMessages() as AgentMessage[],
+        chatMessages,
+        assistantMessage.id
+      )
+      await assistantMessage.save()
+    } catch (error) {
+      logger.warn(
+        { err: error, conversationId: conversation.id, agentRunId: run.agentRunId },
+        'AI agent session context could not be persisted'
+      )
     }
     aiFailureStage = 'done_event_serialization'
     const previousRuns = runtimeDetails.filter((detail) => detail.kind === 'run')

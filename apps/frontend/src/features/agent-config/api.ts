@@ -8,12 +8,13 @@ export interface LlmConfiguration {
     model: string
     contextWindow: number
     maxTokens: number
+    reasoningLevel: 'off' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max'
     apiKeyConfigured: boolean
   }
   asr: { baseUrl: string | null; model: string; apiKeyConfigured: boolean }
   embedding: {
     baseUrl: string | null
-    model: string | null
+    model: string
     dimensions: number
     apiKeyConfigured: boolean
   }
@@ -26,6 +27,7 @@ export interface UpdateLlmConfigurationInput {
   chatModel: string
   chatContextWindow: number
   chatMaxTokens: number
+  chatReasoningLevel: 'off' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max'
   asrApiKey?: string
   asrBaseUrl: string
   asrModel: string

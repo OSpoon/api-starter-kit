@@ -27,6 +27,13 @@ import {
 } from '@/components/ui/card'
 import { FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import ImConfigurationSection from '@/features/im-config/ImConfigurationSection.vue'
 import { firstFormError } from '@/lib/form-validation'
 import { usePermission } from '@/lib/permission'
@@ -71,15 +78,16 @@ const savedConfiguration = ref<LlmConfiguration | null>(null)
 const initialValues = {
   chatApiKey: '',
   chatBaseUrl: '',
-  chatModel: '',
+  chatModel: 'Qwen3.5-4B-MLX-4bit',
   chatContextWindow: 128000,
   chatMaxTokens: 16384,
+  chatReasoningLevel: 'medium' as const,
   asrApiKey: '',
   asrBaseUrl: '',
   asrModel: 'Qwen3-ASR-0.6B-4bit',
   embeddingApiKey: '',
   embeddingBaseUrl: '',
-  embeddingModel: '',
+  embeddingModel: 'Qwen3-Embedding-0.6B-4bit-DWQ',
 }
 const optionalUrl = () =>
   z
@@ -107,6 +115,7 @@ const chatSchema = z
       .int(t('llm_config.validation_integer'))
       .min(1, t('llm_config.validation_output_min'))
       .max(1_000_000, t('llm_config.validation_output_max')),
+    chatReasoningLevel: z.enum(['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max']),
   })
   .superRefine((values, context) => {
     if (values.chatMaxTokens >= values.chatContextWindow) {
@@ -149,12 +158,13 @@ function applySavedConfiguration(config: LlmConfiguration) {
       chatModel: config.chat.model,
       chatContextWindow: config.chat.contextWindow,
       chatMaxTokens: config.chat.maxTokens,
+      chatReasoningLevel: config.chat.reasoningLevel ?? 'medium',
       asrApiKey: '',
       asrBaseUrl: config.asr.baseUrl ?? '',
       asrModel: config.asr.model,
       embeddingApiKey: '',
       embeddingBaseUrl: config.embedding.baseUrl ?? '',
-      embeddingModel: config.embedding.model ?? '',
+      embeddingModel: config.embedding.model,
     },
   })
   savedConfiguration.value = config
@@ -188,7 +198,10 @@ async function submit() {
     savedConfiguration.value = config
     if (service === 'chat') form.setFieldValue('chatApiKey', '')
     if (service === 'asr') form.setFieldValue('asrApiKey', '')
-    if (service === 'embedding') form.setFieldValue('embeddingApiKey', '')
+    if (service === 'embedding') {
+      form.setFieldValue('embeddingApiKey', '')
+      form.setFieldValue('embeddingModel', config.embedding.model)
+    }
     toast.success(t('llm_config.service_saved', { service: t(`llm_config.${service}_title`) }))
   } catch (error) {
     toast.error(error instanceof Error ? error.message : t('llm_config.save_failed'))
@@ -265,12 +278,7 @@ onMounted(load)
               <CardDescription>{{ t('llm_config.chat_description') }}</CardDescription>
             </CardHeader>
             <CardContent class="grid items-start gap-4 md:grid-cols-2">
-              <FormField
-                v-slot="{ componentField }"
-                name="chatBaseUrl"
-                :validate-on-blur="false"
-                class="md:col-span-2"
-              >
+              <FormField v-slot="{ componentField }" name="chatBaseUrl" :validate-on-blur="false">
                 <FormItem>
                   <FormLabel>{{ t('llm_config.base_url') }}</FormLabel>
                   <FormControl
@@ -340,6 +348,40 @@ onMounted(load)
                   <p class="text-xs text-muted-foreground">
                     {{ t('llm_config.max_output_tokens_hint') }}
                   </p>
+                  <FormMessage />
+                </FormItem>
+              </FormField>
+              <FormField
+                v-slot="{ value, handleChange }"
+                name="chatReasoningLevel"
+                :validate-on-blur="false"
+              >
+                <FormItem>
+                  <FormLabel for="chat-reasoning-level">
+                    {{ t('llm_config.reasoning_level') }}
+                  </FormLabel>
+                  <Select :model-value="value ?? 'medium'" @update:model-value="handleChange">
+                    <FormControl>
+                      <SelectTrigger
+                        id="chat-reasoning-level"
+                        class="w-full"
+                        :disabled="saving || testing || !can('agent-config:update')"
+                      >
+                        <SelectValue :placeholder="t('llm_config.reasoning_level')" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="off">{{ t('llm_config.reasoning_off') }}</SelectItem>
+                      <SelectItem value="minimal">{{
+                        t('llm_config.reasoning_minimal')
+                      }}</SelectItem>
+                      <SelectItem value="low">{{ t('llm_config.reasoning_low') }}</SelectItem>
+                      <SelectItem value="medium">{{ t('llm_config.reasoning_medium') }}</SelectItem>
+                      <SelectItem value="high">{{ t('llm_config.reasoning_high') }}</SelectItem>
+                      <SelectItem value="xhigh">{{ t('llm_config.reasoning_xhigh') }}</SelectItem>
+                      <SelectItem value="max">{{ t('llm_config.reasoning_max') }}</SelectItem>
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               </FormField>

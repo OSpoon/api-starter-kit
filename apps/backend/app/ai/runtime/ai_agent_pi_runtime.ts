@@ -465,7 +465,7 @@ async function createModel(): Promise<Model<'openai-completions'>> {
     api: 'openai-completions',
     provider: 'api-starter-openai',
     baseUrl,
-    reasoning: /qwen|deepseek|reason/i.test(modelName),
+    reasoning: config.chat.reasoningLevel !== 'off',
     input: ['text'],
     cost: pricing?.cost ?? { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
     contextWindow: config.chat.contextWindow,
@@ -546,7 +546,7 @@ export async function createPiAgent(input: {
           : []),
         ...(input.messages ?? []),
       ],
-      thinkingLevel: 'off',
+      thinkingLevel: runtimeConfig.chat.reasoningLevel,
     },
     streamFn: (requestModel, context, options) => {
       const telemetry = input.getTelemetrySpan?.()

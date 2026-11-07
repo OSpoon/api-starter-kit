@@ -1,4 +1,4 @@
-import type { AgentEvent } from '@earendil-works/pi-agent-core'
+import type { AgentEvent, AgentMessage } from '@earendil-works/pi-agent-core'
 import type { AssistantMessage, Usage } from '@earendil-works/pi-ai'
 import {
   InMemoryTelemetryContext,
@@ -109,6 +109,7 @@ function toPiMessages(messages: AiAgentMessage[]): PiAgentMessage[] {
 export async function createAiAgentPiStream(
   input: AiAgentToolRequestContext & {
     messages: AiAgentMessage[]
+    agentContext?: AgentMessage[]
     context?: AiAgentPageContext
     liveSessionContext?: string
     contextSummary?: string | null
@@ -137,7 +138,7 @@ export async function createAiAgentPiStream(
   const { agent, models } = await createPiAgent({
     systemPrompt: createAiAgentSystemPrompt(input.context, '', input.capabilityMode),
     tools,
-    messages: toPiMessages(initialMessages),
+    messages: input.agentContext ?? toPiMessages(initialMessages),
     sessionId: `ai-chat:${input.conversationId}`,
     signal: input.signal,
     initialRuntimeContext: input.liveSessionContext,
@@ -190,7 +191,13 @@ export async function createAiAgentPiStream(
       activeSpan = span
       try {
         if (lastMessage?.role === 'user') {
-          await agent.prompt(lastMessage.content)
+          const userPrompt: PiAgentMessage = {
+            role: 'user',
+            content: lastMessage.content,
+            timestamp: Date.now(),
+            ...(lastMessage.id && lastMessage.id > 0 ? { sourceMessageId: lastMessage.id } : {}),
+          }
+          await agent.prompt(userPrompt)
           const response = agent.state.messages.findLast((message) => message.role === 'assistant')
           if (response) {
             span.setAttributes({ 'langfuse.observation.output': JSON.stringify(response.content) })
@@ -214,5 +221,6 @@ export async function createAiAgentPiStream(
     telemetryStore,
     completion,
     toolLabels,
+    getSessionMessages: () => agent.state.messages as AgentMessage[],
   }
 }

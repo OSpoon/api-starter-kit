@@ -1,5 +1,7 @@
 import vine from '@vinejs/vine'
 
+import { aiAgentThinkingLevels } from '#ai/core/ai_agent_config'
+
 const validChatModelLimits = vine.createRule((value: unknown, _options, field) => {
   if (!value || typeof value !== 'object') return
   const limits = value as { chatContextWindow?: unknown; chatMaxTokens?: unknown }
@@ -26,6 +28,7 @@ export const updateLlmConfigurationValidator = vine.compile(
       chatModel: vine.string().trim().minLength(1).maxLength(160),
       chatContextWindow: vine.number().decimal(0).min(1024).max(2_000_000),
       chatMaxTokens: vine.number().decimal(0).min(1).max(1_000_000),
+      chatReasoningLevel: vine.enum(aiAgentThinkingLevels).optional(),
       asrApiKey: vine.string().trim().maxLength(500).optional().nullable(),
       asrBaseUrl: vine
         .string()
