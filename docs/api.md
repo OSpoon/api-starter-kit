@@ -90,12 +90,11 @@ Embedding 向量维度固定为 `1024`。`PUT /system/llm-config` 的 `embedding
 
 以下分页列表在服务端分页前应用可选 `search`，避免只在当前页数据中筛选。参数最多 200 个字符，服务端会去除首尾空白，空字符串等同于未传；分页响应 envelope 保持不变。搜索字段以各 endpoint 的 OpenAPI 定义为准。
 
-| Endpoint                                     | 搜索范围                                          |
-| -------------------------------------------- | ------------------------------------------------- |
-| `GET /api/v1/api-keys`                       | API Key 名称和 prefix                             |
-| `GET /api/v1/system/audit-logs`              | 操作、目标、request ID、IP 地址和 actor 姓名/邮箱 |
-| `GET /api/v1/system/knowledge-documents`     | 文档标题、摘要和正文                              |
-| `GET /api/v1/system/wecom-message-templates` | 模板名称、说明和消息类型                          |
+| Endpoint                                 | 搜索范围                                          |
+| ---------------------------------------- | ------------------------------------------------- |
+| `GET /api/v1/api-keys`                   | API Key 名称和 prefix                             |
+| `GET /api/v1/system/audit-logs`          | 操作、目标、request ID、IP 地址和 actor 姓名/邮箱 |
+| `GET /api/v1/system/knowledge-documents` | 文档标题、摘要和正文                              |
 
 ## 新增或修改接口
 

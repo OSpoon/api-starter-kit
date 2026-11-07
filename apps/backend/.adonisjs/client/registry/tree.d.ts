@@ -81,20 +81,6 @@ export interface ApiDefinition {
     show: typeof routes['im_configurations.show']
     update: typeof routes['im_configurations.update']
   }
-  wecomMessageTemplates: {
-    index: typeof routes['wecom_message_templates.index']
-    store: typeof routes['wecom_message_templates.store']
-    update: typeof routes['wecom_message_templates.update']
-    destroy: typeof routes['wecom_message_templates.destroy']
-    testSend: typeof routes['wecom_message_templates.test_send']
-  }
-  system: {
-    wecom: {
-      messages: {
-        send: typeof routes['system.wecom.messages.send']
-      }
-    }
-  }
   knowledgeDocuments: {
     index: typeof routes['knowledge_documents.index']
     metadataPreview: typeof routes['knowledge_documents.metadata_preview']
@@ -158,11 +144,6 @@ export interface ApiDefinition {
         cancelAiAgentAction: typeof routes['integrations.ai_chat.ai_chat.cancel_ai_agent_action']
         destroy: typeof routes['integrations.ai_chat.ai_chat.destroy']
       }
-    }
-  }
-  wecom: {
-    messages: {
-      send: typeof routes['wecom.messages.send']
     }
   }
 }

@@ -67,12 +67,6 @@ test.group('permission catalog', (group) => {
           'api-keys:update',
           'audit-logs:read',
           'system-status:read',
-          'wecom-templates:create',
-          'wecom-templates:delete',
-          'wecom-templates:read',
-          'wecom-templates:send',
-          'wecom-templates:test',
-          'wecom-templates:update',
         ],
         权限管理: [
           'permissions:read',

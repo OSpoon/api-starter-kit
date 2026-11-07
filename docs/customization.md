@@ -112,7 +112,7 @@
 
 ### 表单契约
 
-标准表单使用 `vee-validate`、Zod、`toTypedSchema`、`FormField`、`FormControl` 和 `FormMessage`。表单弹窗参考 `apps/frontend/src/features/wecom-message-templates/components/WecomMessageTemplateForm.vue`；破坏性操作使用 `ConfirmDialog.vue`。
+标准表单使用 `vee-validate`、Zod、`toTypedSchema`、`FormField`、`FormControl` 和 `FormMessage`。表单弹窗参考 `apps/frontend/src/components/workbench/ApiKeyForm.vue`；破坏性操作使用 `ConfirmDialog.vue`。
 
 `ConfirmDialog` 的确认按钮只触发 `confirm`，不会自动关闭弹窗。业务处理器在操作完成后更新 `open`，异步执行时传入 `loading` 禁用确认和取消；失败时可以保留弹窗供重试，批量操作可通过描述展示处理进度。
 

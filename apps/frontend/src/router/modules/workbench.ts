@@ -4,7 +4,6 @@ import {
   FileClock,
   Gauge,
   Key,
-  MessageSquare,
   Server,
   ShieldCheck,
   UsersRound,
@@ -150,22 +149,6 @@ const workbenchRootRoute = {
         pageKind: 'list',
         permission: 'knowledge:read',
         nav: { group: 'sidebar.agent_management', groupOrder: 29, icon: BookOpen, order: 30 },
-      },
-    },
-    {
-      path: 'system/wecom-message-templates',
-      name: 'wecom-message-templates',
-      component: () => import('@/features/wecom-message-templates/WecomMessageTemplatesPage.vue'),
-      meta: {
-        title: 'sidebar.wecom_message_templates',
-        pageKind: 'list',
-        permission: 'wecom-templates:read',
-        nav: {
-          group: 'sidebar.system_management',
-          groupOrder: 32,
-          icon: MessageSquare,
-          order: 30,
-        },
       },
     },
     {

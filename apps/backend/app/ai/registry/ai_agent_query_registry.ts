@@ -13,9 +13,6 @@ import { recentAuditLogsQuery } from '#ai/queries/recent_audit_logs'
 import { revokedApiKeysQuery } from '#ai/queries/revoked_api_keys'
 import { roleProfileQuery } from '#ai/queries/role_profile'
 import { rolesWithPermissionsQuery } from '#ai/queries/roles_with_permissions'
-import { wecomMessagePreviewQuery } from '#ai/queries/wecom_message_preview'
-import { wecomMessageTemplateProfileQuery } from '#ai/queries/wecom_message_template_profile'
-import { wecomMessageTemplatesQuery } from '#ai/queries/wecom_message_templates'
 import type { AiQueryTemplate, AiQueryTemplateCode } from '#ai/registry/ai_agent_query_types'
 import AiAgentPendingQuery from '#models/ai_agent_pending_query'
 import { recordAuditEvent } from '#services/audit_log'
@@ -47,9 +44,6 @@ export type AiRegisteredQueryResult =
     }
 
 const queryTemplates: readonly AiQueryTemplate[] = [
-  wecomMessageTemplatesQuery,
-  wecomMessageTemplateProfileQuery,
-  wecomMessagePreviewQuery,
   activeApiKeysQuery,
   revokedApiKeysQuery,
   apiKeyProfileQuery,

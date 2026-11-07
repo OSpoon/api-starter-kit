@@ -15,7 +15,6 @@ import AuditLog from '#models/audit_log'
 import Permission from '#models/permission'
 import Role from '#models/role'
 import User from '#models/user'
-import WecomMessageTemplate from '#models/wecom_message_template'
 import { generateInitialPassword } from '#security/user_credentials'
 
 async function createAdminConversation() {
@@ -896,71 +895,5 @@ test.group('AI agent registered queries', (group) => {
         templateCode
       )
     }
-  })
-
-  test('lists and previews enabled WeCom templates without exposing Webhooks', async ({
-    assert,
-  }) => {
-    const { user, conversation } = await createAdminConversation()
-    const template = await WecomMessageTemplate.create({
-      name: `AI weather template ${Date.now()}`,
-      description: 'AI test template',
-      msgtype: 'text',
-      webhookUrl: 'https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=secret',
-      payload: {
-        msgtype: 'text',
-        text: { content: '{{region}}今日天气：{{temperature}}度' },
-      },
-      parameters: [
-        { name: 'region', type: 'string', required: true },
-        { name: 'temperature', type: 'string', required: true },
-      ],
-      enabled: true,
-    })
-
-    const listed = await runRegisteredAiQuery({
-      conversationId: conversation.id,
-      userId: user.id,
-      templateCode: 'wecom_message_templates',
-      params: {},
-    })
-    assert.equal(listed.kind, 'query_result')
-    if (listed.kind !== 'query_result') throw new Error('Expected template list result')
-    assert.exists(
-      listed.rows.find(
-        (row) =>
-          typeof row === 'object' &&
-          row !== null &&
-          'id' in row &&
-          row.id === template.id &&
-          'name' in row &&
-          row.name === template.name &&
-          'msgtype' in row &&
-          row.msgtype === 'text'
-      )
-    )
-    assert.notInclude(JSON.stringify(listed.rows), 'secret')
-
-    const preview = await runRegisteredAiQuery({
-      conversationId: conversation.id,
-      userId: user.id,
-      templateCode: 'wecom_message_preview',
-      params: {
-        templateId: template.id,
-        params: { region: '北京', temperature: '35' },
-        mentionedList: ['zhangsan'],
-      },
-    })
-    assert.equal(preview.kind, 'query_result')
-    if (preview.kind !== 'query_result') throw new Error('Expected template preview result')
-    assert.deepEqual(preview.rows[0], {
-      templateId: template.id,
-      name: template.name,
-      msgtype: 'text',
-      payload: {
-        msgtype: 'text',
-        text: { content: '北京今日天气：35度', mentioned_list: ['zhangsan'] },
-      },
-    })
   })
 })

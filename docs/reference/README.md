@@ -8,4 +8,3 @@
 - [知识库实现说明](../knowledge-base.md)：了解文档模型、LLM 元数据提取、分步检索、权限和审计。
 - [AI 助手提示词](ai-assistant-prompts.md)：系统提示、工具描述、确认文案和评估用例。
 - [企业微信、飞书与钉钉机器人](ai-channel-bots.md)：渠道配置、运行和排障。
-- [WeCom 消息模板](wecom-message-templates.md)：feature 边界、宿主集成和支持的消息类型。

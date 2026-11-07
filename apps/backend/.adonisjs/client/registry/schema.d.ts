@@ -523,78 +523,6 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/im_configurations_controller').default['update']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
-  'wecom_message_templates.index': {
-    methods: ["GET","HEAD"]
-    pattern: '/api/v1/system/wecom-message-templates'
-    types: {
-      body: {}
-      paramsTuple: []
-      params: {}
-      query: ExtractQueryForGet<InferInput<(typeof import('#validators/pagination').paginationSearchQueryValidator)>>
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/wecom_message_templates_controller').default['index']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/wecom_message_templates_controller').default['index']>>> | { status: 422; response: { errors: SimpleError[] } }
-    }
-  }
-  'wecom_message_templates.store': {
-    methods: ["POST"]
-    pattern: '/api/v1/system/wecom-message-templates'
-    types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/wecom_message_template').createWecomMessageTemplateValidator)>>
-      paramsTuple: []
-      params: {}
-      query: ExtractQuery<InferInput<(typeof import('#validators/wecom_message_template').createWecomMessageTemplateValidator)>>
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/wecom_message_templates_controller').default['store']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/wecom_message_templates_controller').default['store']>>> | { status: 422; response: { errors: SimpleError[] } }
-    }
-  }
-  'wecom_message_templates.update': {
-    methods: ["PUT"]
-    pattern: '/api/v1/system/wecom-message-templates/:id'
-    types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/wecom_message_template').updateWecomMessageTemplateValidator)>>
-      paramsTuple: [ParamValue]
-      params: { id: ParamValue }
-      query: ExtractQuery<InferInput<(typeof import('#validators/wecom_message_template').updateWecomMessageTemplateValidator)>>
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/wecom_message_templates_controller').default['update']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/wecom_message_templates_controller').default['update']>>> | { status: 422; response: { errors: SimpleError[] } }
-    }
-  }
-  'wecom_message_templates.destroy': {
-    methods: ["DELETE"]
-    pattern: '/api/v1/system/wecom-message-templates/:id'
-    types: {
-      body: {}
-      paramsTuple: [ParamValue]
-      params: { id: ParamValue }
-      query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/wecom_message_templates_controller').default['destroy']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/wecom_message_templates_controller').default['destroy']>>>
-    }
-  }
-  'wecom_message_templates.test_send': {
-    methods: ["POST"]
-    pattern: '/api/v1/system/wecom-message-templates/:id/test'
-    types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/wecom_message_template').wecomTemplateParamsValidator)>>
-      paramsTuple: [ParamValue]
-      params: { id: ParamValue }
-      query: ExtractQuery<InferInput<(typeof import('#validators/wecom_message_template').wecomTemplateParamsValidator)>>
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/wecom_message_templates_controller').default['testSend']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/wecom_message_templates_controller').default['testSend']>>> | { status: 422; response: { errors: SimpleError[] } }
-    }
-  }
-  'system.wecom.messages.send': {
-    methods: ["POST"]
-    pattern: '/api/v1/system/wecom-messages/:id/send'
-    types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/wecom_message_template').wecomTemplateParamsValidator)>>
-      paramsTuple: [ParamValue]
-      params: { id: ParamValue }
-      query: ExtractQuery<InferInput<(typeof import('#validators/wecom_message_template').wecomTemplateParamsValidator)>>
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/wecom_message_templates_controller').default['send']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/wecom_message_templates_controller').default['send']>>> | { status: 422; response: { errors: SimpleError[] } }
-    }
-  }
   'knowledge_documents.index': {
     methods: ["GET","HEAD"]
     pattern: '/api/v1/system/knowledge-documents'
@@ -1133,18 +1061,6 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['destroy']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['destroy']>>>
-    }
-  }
-  'wecom.messages.send': {
-    methods: ["POST"]
-    pattern: '/api/v1/wecom-messages/:id/send'
-    types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/wecom_message_template').wecomTemplateParamsValidator)>>
-      paramsTuple: [ParamValue]
-      params: { id: ParamValue }
-      query: ExtractQuery<InferInput<(typeof import('#validators/wecom_message_template').wecomTemplateParamsValidator)>>
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/wecom_message_templates_controller').default['send']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/wecom_message_templates_controller').default['send']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
 }

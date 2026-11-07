@@ -5,7 +5,6 @@ import { aiAgentBuiltInToolActions } from '#ai/actions/ai_agent_builtin_tool_act
 import { aiAgentMcpActions } from '#ai/actions/ai_agent_mcp_actions'
 import { apiKeyActions } from '#ai/actions/api_key_actions'
 import { userActions } from '#ai/actions/user_actions'
-import { wecomMessageActions } from '#ai/actions/wecom_message_actions'
 import type { AiAgentActionDefinition, AiAgentActionName } from '#ai/core/ai_agent_action_contracts'
 import { getAiAgentActor } from '#ai/core/ai_agent_action_helpers'
 import { ensureAiAgentPermission } from '#ai/core/ai_agent_authorization'
@@ -29,7 +28,6 @@ const aiAgentActions = {
   ...apiKeyActions,
   ...userActions,
   ...accessControlActions,
-  ...wecomMessageActions,
   ...aiAgentBuiltInToolActions,
   ...aiAgentMcpActions,
 } satisfies Record<AiAgentActionName, AiAgentActionDefinition>

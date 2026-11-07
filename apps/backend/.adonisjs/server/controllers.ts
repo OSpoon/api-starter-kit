@@ -22,5 +22,4 @@ export const controllers = {
   SystemStatus: () => import('#controllers/system_status_controller'),
   TwoFactorAuth: () => import('#controllers/two_factor_auth_controller'),
   Users: () => import('#controllers/users_controller'),
-  WecomMessageTemplates: () => import('#controllers/wecom_message_templates_controller'),
 }

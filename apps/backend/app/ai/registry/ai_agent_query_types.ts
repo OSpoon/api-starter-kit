@@ -18,9 +18,6 @@ export type AiQueryTemplateCode =
   | 'permission_catalog'
   | 'permission_usage'
   | 'recent_access_control_changes'
-  | 'wecom_message_templates'
-  | 'wecom_message_template_profile'
-  | 'wecom_message_preview'
 
 export type AiQueryTemplate = {
   code: AiQueryTemplateCode

@@ -47,12 +47,6 @@ export type ScannedRoutes = {
     'agent_configurations.discover_mcp_tools': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'im_configurations.show': { paramsTuple?: []; params?: {} }
     'im_configurations.update': { paramsTuple?: []; params?: {} }
-    'wecom_message_templates.index': { paramsTuple?: []; params?: {} }
-    'wecom_message_templates.store': { paramsTuple?: []; params?: {} }
-    'wecom_message_templates.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
-    'wecom_message_templates.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
-    'wecom_message_templates.test_send': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
-    'system.wecom.messages.send': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'knowledge_documents.index': { paramsTuple?: []; params?: {} }
     'knowledge_documents.metadata_preview': { paramsTuple?: []; params?: {} }
     'knowledge_documents.store': { paramsTuple?: []; params?: {} }
@@ -98,7 +92,6 @@ export type ScannedRoutes = {
     'integrations.ai_chat.ai_chat.confirm_ai_agent_action': { paramsTuple: [ParamValue,ParamValue]; params: {'id': ParamValue,'confirmationId': ParamValue} }
     'integrations.ai_chat.ai_chat.cancel_ai_agent_action': { paramsTuple: [ParamValue,ParamValue]; params: {'id': ParamValue,'confirmationId': ParamValue} }
     'integrations.ai_chat.ai_chat.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
-    'wecom.messages.send': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
   }
   GET: {
     'openapi.html': { paramsTuple?: []; params?: {} }
@@ -115,7 +108,6 @@ export type ScannedRoutes = {
     'agent_configurations.mcp_servers': { paramsTuple?: []; params?: {} }
     'agent_configurations.mcp_configuration': { paramsTuple?: []; params?: {} }
     'im_configurations.show': { paramsTuple?: []; params?: {} }
-    'wecom_message_templates.index': { paramsTuple?: []; params?: {} }
     'knowledge_documents.index': { paramsTuple?: []; params?: {} }
     'system_status.show': { paramsTuple?: []; params?: {} }
     'system_status.ai_overview': { paramsTuple?: []; params?: {} }
@@ -147,7 +139,6 @@ export type ScannedRoutes = {
     'agent_configurations.mcp_servers': { paramsTuple?: []; params?: {} }
     'agent_configurations.mcp_configuration': { paramsTuple?: []; params?: {} }
     'im_configurations.show': { paramsTuple?: []; params?: {} }
-    'wecom_message_templates.index': { paramsTuple?: []; params?: {} }
     'knowledge_documents.index': { paramsTuple?: []; params?: {} }
     'system_status.show': { paramsTuple?: []; params?: {} }
     'system_status.ai_overview': { paramsTuple?: []; params?: {} }
@@ -185,9 +176,6 @@ export type ScannedRoutes = {
     'agent-config.llm.test': { paramsTuple?: []; params?: {} }
     'agent_configurations.test_mcp_connection': { paramsTuple?: []; params?: {} }
     'agent_configurations.discover_mcp_tools': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
-    'wecom_message_templates.store': { paramsTuple?: []; params?: {} }
-    'wecom_message_templates.test_send': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
-    'system.wecom.messages.send': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'knowledge_documents.metadata_preview': { paramsTuple?: []; params?: {} }
     'knowledge_documents.store': { paramsTuple?: []; params?: {} }
     'knowledge_documents.store_batch': { paramsTuple?: []; params?: {} }
@@ -210,7 +198,6 @@ export type ScannedRoutes = {
     'integrations.ai_chat.ai_chat.follow_up': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'integrations.ai_chat.ai_chat.confirm_ai_agent_action': { paramsTuple: [ParamValue,ParamValue]; params: {'id': ParamValue,'confirmationId': ParamValue} }
     'integrations.ai_chat.ai_chat.cancel_ai_agent_action': { paramsTuple: [ParamValue,ParamValue]; params: {'id': ParamValue,'confirmationId': ParamValue} }
-    'wecom.messages.send': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
   }
   PUT: {
     'profile.profile.change_password': { paramsTuple?: []; params?: {} }
@@ -221,14 +208,12 @@ export type ScannedRoutes = {
     'agent_configurations.update_mcp_configuration': { paramsTuple?: []; params?: {} }
     'agent_configurations.update_mcp_server': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'im_configurations.update': { paramsTuple?: []; params?: {} }
-    'wecom_message_templates.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'knowledge_documents.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'users.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'roles.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
   }
   DELETE: {
     'api_keys.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
-    'wecom_message_templates.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'knowledge_documents.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'users.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'roles.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }

@@ -10,7 +10,6 @@ import { createApiKeyRevocationTool } from '#ai/tools/revoke_api_key'
 import { createRunRegisteredQueryTool } from '#ai/tools/run_registered_query'
 import { createSearchKnowledgeTool } from '#ai/tools/search_knowledge'
 import { createSearchKnowledgeCatalogTool } from '#ai/tools/search_knowledge_catalog'
-import { createWecomMessageSendTool } from '#ai/tools/send_wecom_message'
 import { createSystemManagementChangeTool } from '#ai/tools/system_management_change'
 import { getAiAgentToolSettings } from '#services/ai_agent_configuration_service'
 import { listEnabledAiAgentMcpServers } from '#services/ai_agent_mcp_configuration_service'
@@ -36,7 +35,6 @@ export function createAiAgentTools(input: AiAgentToolContext): AgentTool[] {
           createApiKeyDeletionTool(input, support),
           createSystemManagementChangeTool(input, support),
           ...(input.capabilityMode === 'channel' ? [] : [createApiKeyCreationTool(input, support)]),
-          createWecomMessageSendTool(input, support),
         ]
 
   if (!input.enabledToolNames) return tools

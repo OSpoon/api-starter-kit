@@ -150,7 +150,7 @@ Ordinary code edits, local verification, and directly related fixes do not requi
 
 - All frontend forms must use the shared `vee-validate` + `Zod` pattern: typed schema with `toTypedSchema`, `useForm`, `FormField`/`FormControl`, `FormMessage`, and `firstFormError`.
 - Do not add forms using native `required`, ad hoc `if` validation, or a page-local validation library. Backend Vine validation remains authoritative for security and persistence.
-- Standard create and edit dialogs must match the observable form behavior and layout established by `apps/frontend/src/features/wecom-message-templates/components/WecomMessageTemplateForm.vue`. The reference implementation and every standard create or edit dialog must satisfy all of the following requirements:
+- Standard create and edit dialogs must match the observable form behavior and layout established by `apps/frontend/src/components/workbench/ApiKeyForm.vue`. The reference implementation and every standard create or edit dialog must satisfy all of the following requirements:
   - Use `FormDialogContent` with a `flex min-h-0 flex-1 flex-col overflow-hidden` form, a separate `min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto` scrolling body, and a shrink-safe `FormDialogFooter`. The scrolling body and field grid must be separate elements.
   - Use the normal `FormMessage` without fixed height, minimum height, placeholder content, or reserved spacing. When a field has no error, no visible validation message may occupy layout space. Submission errors must increase the height of their current grid row naturally so the following row moves down as one unit.
   - Every multi-column field grid must use `items-start`. Fields that need explicit column spans must use wrapper elements. A `FormItem` must remain top-aligned and must never stretch to match a sibling containing a longer validation message.
@@ -244,8 +244,7 @@ permission-gated actions, and multiple management dialogs.
 #### Form-dialog anatomy and validation
 
 Standard create and edit dialogs must follow the structure and behavior of
-`apps/frontend/src/components/workbench/ApiKeyForm.vue` and
-`apps/frontend/src/features/wecom-message-templates/components/WecomMessageTemplateForm.vue`:
+`apps/frontend/src/components/workbench/ApiKeyForm.vue`:
 
 - `FormDialogContent` owns the dialog shell. The form uses a shrink-safe
   flex-column layout with a separate scrolling body and `FormDialogFooter`.
@@ -373,7 +372,6 @@ runtime.
 - New templates require tests for allowed and denied authorization, parameter validation, redaction, bounds, and multi-turn parameter completion; add scope tests for tenant-scoped data.
 - AI must not directly execute destructive or security-sensitive mutations. It may only create a persisted proposal through `ai_agent_action_registry`. Confirmation must revalidate conversation ownership, authorization, proposal status and expiry, and current target state before invoking the registered executor.
 - Every new action requires a stable action code, named permission, safe target summary, `prepare` logic, and executor. Use the existing generic confirmation API and approval strip above the assistant input. Model text or Markdown is never an authorization channel.
-- For WeCom message templates, AI tools may expose only authorized template discovery, parameter validation/render preview, and a confirmed send proposal. Reuse `wecom_message_template_service`; never expose Webhook URLs, encrypted credentials, API keys, or internal model fields to the model. Sending must use the internal service path, accept template ID plus structured parameters and runtime mention lists, enforce `wecom-templates:read`/`wecom-templates:send`, and require persisted confirmation before the external request. Template creation, editing, deletion, Webhook changes, media operations, and direct test sends remain management UI operations unless separately approved with the same action and audit requirements.
 - Every AI-exposed domain capability must define its structured input/output schema, missing-parameter behavior, redaction rules, permission code, audit metadata, and allow/deny regression tests before registration. Preview/query tools must be side-effect free; external sends and other mutations must be represented as actions rather than ordinary tools.
 
 ## 7. Tooling and Verification Commands

@@ -36,4 +36,4 @@
 
 - [AI 助手架构](ai-assistant-architecture.md)：运行时分层、工具边界、持久化和 SSE。
 - [知识库实现说明](knowledge-base.md)：文档字段、LLM 元数据提取、两阶段检索、权限和审计。
-- [AI 与集成参考](reference/README.md)：AI 能力、提示词、渠道 Bot 和 WeCom 消息模板。
+- [AI 与集成参考](reference/README.md)：AI 能力、提示词和渠道 Bot。

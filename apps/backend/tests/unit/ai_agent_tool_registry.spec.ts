@@ -24,7 +24,6 @@ test.group('AI agent tool registry', () => {
         'delete_api_key',
         'system_management_change',
         'create_api_key',
-        'send_wecom_message',
       ]
     )
     for (const tool of tools) {

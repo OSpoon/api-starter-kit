@@ -189,7 +189,6 @@ const actionTitles: Record<string, string> = {
   create_permission: '确认创建权限',
   update_permission: '确认更新权限',
   delete_permission: '确认删除权限',
-  send_wecom_message: '确认发送企业微信消息',
   call_mcp_tool: '确认调用 MCP 工具',
   call_builtin_tool: '确认调用工具',
 }
@@ -412,7 +411,6 @@ export async function getAiAgentActionResultMessage(input: {
     create_role: `角色 ${targetLabel}已创建`,
     update_role: `角色 ${targetLabel}已更新`,
     delete_role: `角色 ${targetLabel}已删除`,
-    send_wecom_message: `企业微信消息模板 ${targetLabel}已发送`,
   }
   const completedAction = completedActions[confirmation.action]
   if (completedAction) {

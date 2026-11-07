@@ -7,7 +7,6 @@ export const builtInAiAgentToolNames = [
   'delete_api_key',
   'system_management_change',
   'create_api_key',
-  'send_wecom_message',
 ] as const
 
 export type BuiltInAiAgentToolName = (typeof builtInAiAgentToolNames)[number]
@@ -17,7 +16,6 @@ export const builtInAiAgentToolsRequiringConfirmation = [
   'delete_api_key',
   'system_management_change',
   'create_api_key',
-  'send_wecom_message',
 ] as const satisfies readonly BuiltInAiAgentToolName[]
 
 const builtInAiAgentToolsWithFixedPolicy = [

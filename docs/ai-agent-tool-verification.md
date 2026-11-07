@@ -41,11 +41,11 @@ pnpm test:agent-workflows
 
 以工具配置接口返回的 `modeConfigurable`、`requiresConfirmation` 为准，并检查 UI 与运行时一致：
 
-| 工具                                                                                                   | 策略                          | 验证要求                                                         |
-| ------------------------------------------------------------------------------------------------------ | ----------------------------- | ---------------------------------------------------------------- |
-| `run_registered_query`                                                                                 | 可配置：直接执行 / 确认后执行 | 两种模式各执行一次；确认模式在确认前不得查询，确认后只执行一次   |
-| `diagnose_my_access`、`search_knowledge_catalog`、`search_knowledge`                                   | 固定直接执行                  | 策略控件禁用；提交相反策略后，接口和运行时仍保持直接执行         |
-| `revoke_api_key`、`delete_api_key`、`system_management_change`、`create_api_key`、`send_wecom_message` | 固定确认                      | 策略控件禁用；提交直接执行后仍生成确认提案，确认前不得产生副作用 |
+| 工具                                                                             | 策略                          | 验证要求                                                         |
+| -------------------------------------------------------------------------------- | ----------------------------- | ---------------------------------------------------------------- |
+| `run_registered_query`                                                           | 可配置：直接执行 / 确认后执行 | 两种模式各执行一次；确认模式在确认前不得查询，确认后只执行一次   |
+| `diagnose_my_access`、`search_knowledge_catalog`、`search_knowledge`             | 固定直接执行                  | 策略控件禁用；提交相反策略后，接口和运行时仍保持直接执行         |
+| `revoke_api_key`、`delete_api_key`、`system_management_change`、`create_api_key` | 固定确认                      | 策略控件禁用；提交直接执行后仍生成确认提案，确认前不得产生副作用 |
 
 接口应仅将 `run_registered_query` 标记为 `modeConfigurable: true`；固定工具的客户端提交不能覆盖服务端策略。固定确认工具必须始终走现有确认卡片。
 
@@ -61,26 +61,22 @@ pnpm test:agent-workflows
 | `delete_api_key`           | 吊销 Key 列表 → 精确查询 → 提案 → 取消和确认各跑一次 → 再查                 | 活跃 Key 被拒绝删除；取消后仍存在；确认后不存在；不能只查活跃列表来断言已吊销 Key 不存在                                                                           |
 | `system_management_change` | 用户/角色查询 → 逐项执行创建、更新、启用、禁用、删除变更 → 取消/确认 → 重查 | 覆盖用户密码重置、用户状态/资料/删除、角色创建/更新/删除；保护内部用户、本人和最后管理员；结果包含明确目标和状态。密码重置仅在网页助手开放，以便一次性展示临时密码 |
 | `create_api_key`           | 提案 → 取消和确认各跑一次 → 检查 API Key 列表和一次性凭证事件               | 取消不创建；确认后元数据可查，明文只通过网页助手的一次性安全卡展示；IM 不提供创建入口                                                                              |
-| `send_wecom_message`       | 模板列表 → 模板详情 → 参数预览 → 提案 → 取消/确认 → 查发送审计              | 取消不发送；确认只发送预览对应内容；结果明确成功或失败；Webhook 和凭证不展示                                                                                       |
 
 ### `run_registered_query` 模板覆盖
 
-| 模板                             | 验证路径                                                                               |
-| -------------------------------- | -------------------------------------------------------------------------------------- |
-| `active_api_keys`                | 只列活跃 Key、分页、无 key 明文/hash                                                   |
-| `revoked_api_keys`               | 只列已吊销 Key，作为删除候选，不返回密钥材料                                           |
-| `api_key_profile`                | 以精确名称、ID 和别名查询活跃/吊销状态；不提供目标时提示补参；相似名称不能替代精确匹配 |
-| `managed_users`                  | 分页列出用户；核对内部用户和敏感字段边界                                               |
-| `managed_user_profile`           | 以 userId、精确邮箱或精确全名查询；同名时列出候选并要求按 ID 选择                      |
-| `roles_with_permissions`         | 分页查看角色及权限关联                                                                 |
-| `role_profile`                   | 通过 ID 或精确 code 查看角色详情                                                       |
-| `permission_catalog`             | 分页查看已注册权限                                                                     |
-| `permission_usage`               | 以权限 code 查询使用情况；无效 code 清楚报错                                           |
-| `recent_audit_logs`              | 分页/过滤审计日志；不返回 IP、User-Agent 或原始 metadata                               |
-| `recent_access_control_changes`  | 分页查看权限变更；执行者字段按既有查询合同处理                                         |
-| `wecom_message_templates`        | 只列启用模板和可用参数，不返回 Webhook                                                 |
-| `wecom_message_template_profile` | 精确模板详情和参数定义，不返回 Webhook                                                 |
-| `wecom_message_preview`          | 缺参数补齐、预览渲染、错误参数拒绝；预览不得发送消息                                   |
+| 模板                            | 验证路径                                                                               |
+| ------------------------------- | -------------------------------------------------------------------------------------- |
+| `active_api_keys`               | 只列活跃 Key、分页、无 key 明文/hash                                                   |
+| `revoked_api_keys`              | 只列已吊销 Key，作为删除候选，不返回密钥材料                                           |
+| `api_key_profile`               | 以精确名称、ID 和别名查询活跃/吊销状态；不提供目标时提示补参；相似名称不能替代精确匹配 |
+| `managed_users`                 | 分页列出用户；核对内部用户和敏感字段边界                                               |
+| `managed_user_profile`          | 以 userId、精确邮箱或精确全名查询；同名时列出候选并要求按 ID 选择                      |
+| `roles_with_permissions`        | 分页查看角色及权限关联                                                                 |
+| `role_profile`                  | 通过 ID 或精确 code 查看角色详情                                                       |
+| `permission_catalog`            | 分页查看已注册权限                                                                     |
+| `permission_usage`              | 以权限 code 查询使用情况；无效 code 清楚报错                                           |
+| `recent_audit_logs`             | 分页/过滤审计日志；不返回 IP、User-Agent 或原始 metadata                               |
+| `recent_access_control_changes` | 分页查看权限变更；执行者字段按既有查询合同处理                                         |
 
 ## MCP 业务路径
 

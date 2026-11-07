@@ -83,8 +83,7 @@ function isManagedActionTool(name: string) {
     name === 'system_management_change' ||
     name === 'create_api_key' ||
     name === 'revoke_api_key' ||
-    name === 'delete_api_key' ||
-    name === 'send_wecom_message'
+    name === 'delete_api_key'
   )
 }
 

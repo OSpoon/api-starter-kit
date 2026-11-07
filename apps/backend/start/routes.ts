@@ -17,8 +17,6 @@ const PermissionsController = () => import('#controllers/permissions_controller'
 const RolesController = () => import('#controllers/roles_controller')
 const TwoFactorAuthController = () => import('#controllers/two_factor_auth_controller')
 const UsersController = () => import('#controllers/users_controller')
-const WecomMessageTemplatesController = () =>
-  import('#controllers/wecom_message_templates_controller')
 const SystemStatusController = () => import('#controllers/system_status_controller')
 const LlmConfigurationsController = () => import('#controllers/llm_configurations_controller')
 const AgentConfigurationsController = () => import('#controllers/agent_configurations_controller')
@@ -299,27 +297,6 @@ router
         router
           .put('im-config', [ImConfigurationsController, 'update'])
           .use(middleware.permission(['agent-config:update']))
-        router
-          .get('wecom-message-templates', [WecomMessageTemplatesController, 'index'])
-          .use(middleware.permission(['wecom-templates:read']))
-        router
-          .post('wecom-message-templates', [WecomMessageTemplatesController, 'store'])
-          .use(middleware.permission(['wecom-templates:create']))
-        router
-          .put('wecom-message-templates/:id', [WecomMessageTemplatesController, 'update'])
-          .use(middleware.permission(['wecom-templates:update']))
-        router
-          .delete('wecom-message-templates/:id', [WecomMessageTemplatesController, 'destroy'])
-          .use(middleware.permission(['wecom-templates:delete']))
-        router
-          .post('wecom-message-templates/:id/test', [WecomMessageTemplatesController, 'testSend'])
-          .use(middleware.permission(['wecom-templates:test']))
-          .use(middleware.throttle({ max: 20, windowSeconds: 60, key: 'user' }))
-        router
-          .post('wecom-messages/:id/send', [WecomMessageTemplatesController, 'send'])
-          .as('system.wecom.messages.send')
-          .use(middleware.permission(['wecom-templates:send']))
-          .use(middleware.throttle({ max: 20, windowSeconds: 60, key: 'user' }))
       })
       .prefix('system')
       .use(middleware.auth())
@@ -399,10 +376,3 @@ router
     registerAiChatRoutes('api-key')
   })
   .prefix('/api/v1')
-
-// The OpenAPI generator stores metadata by controller method, so keep the API Key variant last.
-router
-  .post('/api/v1/wecom-messages/:id/send', [WecomMessageTemplatesController, 'send'])
-  .as('wecom.messages.send')
-  .use(middleware.apiKey())
-  .use(middleware.throttle({ max: 20, windowSeconds: 60, key: 'ip' }))
