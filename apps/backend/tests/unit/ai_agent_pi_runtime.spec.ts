@@ -72,6 +72,18 @@ test.group('Pi agent runtime', () => {
     assert.isFalse(shouldStopPiAfterTurn({ message, toolResults: [] }))
   })
 
+  test('continues mixed tool batches when only a confirmation result is terminal', ({ assert }) => {
+    assert.isFalse(
+      shouldStopPiAfterTurn({
+        message: { stopReason: 'stop' } as never,
+        toolResults: [
+          { details: { kind: 'action_result' } } as never,
+          { details: { kind: 'action_error' } } as never,
+        ],
+      })
+    )
+  })
+
   test('keeps the agent running after a recoverable read error', ({ assert }) => {
     const shouldStop = shouldStopPiAfterTurn(
       {

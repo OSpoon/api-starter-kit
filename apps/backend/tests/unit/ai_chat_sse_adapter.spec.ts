@@ -130,6 +130,26 @@ test.group('AI chat SSE adapter', () => {
     })
   })
 
+  test('recognizes readable MCP aliases when a tool fails', async ({ assert }) => {
+    const { writes, response } = createFakeResponse()
+    const run = createFakeRun([
+      {
+        name: 'mcp_read_system_info__get_cpu_info',
+        callId: 'mcp-readable-failure',
+        input: {},
+        status: Promise.resolve('error'),
+        output: Promise.resolve(null),
+        errorOutput: { kind: 'action_error', code: 'failed', message: 'not available' },
+      },
+    ])
+
+    await streamAiAgentToolStatuses(run, response, new AbortController().signal)
+    const failed = parseSse(writes)[1].data as Record<string, unknown>
+
+    assert.equal(failed.errorCode, 'failed')
+    assert.equal(failed.callId, 'mcp-readable-failure')
+  })
+
   test('emits running then done agent_status with callId and durationMs', async ({ assert }) => {
     const { writes, response } = createFakeResponse()
     const run = createFakeRun([

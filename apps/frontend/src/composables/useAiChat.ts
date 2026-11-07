@@ -174,7 +174,7 @@ export function useAiChat() {
   }
 
   function presentLatestAiConfirmation(confirmations: AiChatConfirmation[]) {
-    const confirmation = confirmations.at(-1)
+    const confirmation = [...confirmations].sort((left, right) => left.id - right.id).at(-1)
     if (!confirmation) {
       pendingAiConfirmation.value = null
       aiApprovalDismissed.value = false
@@ -190,6 +190,19 @@ export function useAiChat() {
     confirmation: AiChatConfirmation,
     status: 'cancelled'
   ) {
+    const matchingTools = aiConversation.value?.messages
+      .find((message) => message.id === messageId)
+      ?.timeline?.filter(
+        (entry) =>
+          entry.kind === 'tool' &&
+          entry.phase === 'awaiting_confirmation' &&
+          entry.detail?.action === confirmation.action
+      )
+    const targetTool =
+      matchingTools?.find(
+        (entry) => entry.kind === 'tool' && entry.detail?.confirmationId === confirmation.id
+      ) ?? (matchingTools?.length === 1 ? matchingTools[0] : undefined)
+    const targetToolCallId = targetTool?.kind === 'tool' ? targetTool.callId : undefined
     const item: AiChatTimelineItem = {
       kind: 'confirmation',
       action: confirmation.action,
@@ -210,7 +223,8 @@ export function useAiChat() {
                   ...(message.timeline ?? []).map((entry) =>
                     entry.kind === 'tool' &&
                     entry.phase === 'awaiting_confirmation' &&
-                    entry.detail?.action === confirmation.action
+                    targetToolCallId !== undefined &&
+                    entry.callId === targetToolCallId
                       ? { ...entry, phase: 'cancelled' }
                       : entry
                   ),
@@ -249,9 +263,10 @@ export function useAiChat() {
     aiCancelling.value = true
     try {
       await cancelAiAgentAction(auth.token, conversation.id, confirmation.id)
-      pendingAiConfirmation.value = null
       aiConfirmations.value = aiConfirmations.value.filter((item) => item.id !== confirmation.id)
       appendConfirmationTimeline(confirmation.messageId, confirmation, 'cancelled')
+      presentLatestAiConfirmation(aiConfirmations.value)
+      await refreshAiConfirmationState(conversation.id)
     } catch (error) {
       await refreshAiConfirmationState(conversation.id)
       toast.error(error instanceof Error ? error.message : t('common.error'))

@@ -1,17 +1,12 @@
 import type { AgentMessage } from '@earendil-works/pi-agent-core'
 
-import { builtInAiAgentToolNames } from '#ai/core/ai_agent_tool_catalog'
-
 type SessionMessage = Extract<AgentMessage, { role: 'user' | 'assistant' | 'toolResult' }> & {
   sourceMessageId?: number
   isContextSummary?: boolean
 }
 
 type ChatMessage = { id: number; role: 'user' | 'assistant'; content: string }
-
-const knownToolNames = new Set<string>(builtInAiAgentToolNames)
-const externalResultPlaceholder =
-  'External tool output was omitted from saved context. Call the tool again if needed.'
+const maxSessionToolResultChars = 20_000
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
@@ -22,9 +17,12 @@ function isSessionMessage(value: unknown): value is SessionMessage {
     return false
   }
   if (typeof value.timestamp !== 'number') return false
-  if (typeof value.content !== 'string' && !Array.isArray(value.content)) return false
   if (value.role === 'toolResult') {
-    return typeof value.toolName === 'string' && typeof value.toolCallId === 'string'
+    return (
+      Array.isArray(value.content) &&
+      typeof value.toolName === 'string' &&
+      typeof value.toolCallId === 'string'
+    )
   }
   if (value.role === 'assistant') {
     return (
@@ -36,11 +34,21 @@ function isSessionMessage(value: unknown): value is SessionMessage {
       isRecord(value.usage)
     )
   }
-  return true
+  return typeof value.content === 'string' || Array.isArray(value.content)
+}
+
+function redactSensitiveText(value: string) {
+  return value
+    .replace(/\bBearer\s+\S+/gi, 'Bearer [redacted]')
+    .replace(
+      /\b(password|secret|token|authorization|api[\s_-]?key|cookie|webhook)(\s*[:=]\s*)(?:"[^"]*"|'[^']*'|[^\s,;]+)/gi,
+      '$1$2[redacted]'
+    )
 }
 
 function redactSensitiveFields(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(redactSensitiveFields)
+  if (typeof value === 'string') return redactSensitiveText(value)
   if (!isRecord(value)) return value
   return Object.fromEntries(
     Object.entries(value).map(([key, item]) => [
@@ -52,6 +60,14 @@ function redactSensitiveFields(value: unknown): unknown {
   )
 }
 
+function redactToolText(value: string) {
+  try {
+    return JSON.stringify(redactSensitiveFields(JSON.parse(value)))
+  } catch {
+    return redactSensitiveText(value)
+  }
+}
+
 function copySafeMessage(message: SessionMessage): SessionMessage {
   const copy = JSON.parse(JSON.stringify(message)) as SessionMessage
   if (copy.role === 'assistant' && Array.isArray(copy.content)) {
@@ -59,11 +75,46 @@ function copySafeMessage(message: SessionMessage): SessionMessage {
       .filter((part) => !isRecord(part) || part.type !== 'thinking')
       .map((part) => redactSensitiveFields(part)) as typeof copy.content
   } else if (copy.role === 'toolResult') {
-    copy.content = knownToolNames.has(copy.toolName)
-      ? copy.content.filter((part) => isRecord(part) && part.type === 'text')
-      : [{ type: 'text', text: externalResultPlaceholder }]
+    copy.content = copy.content.map((part) => {
+      if (isRecord(part) && part.type === 'text' && typeof part.text === 'string') {
+        return { ...part, text: redactToolText(part.text) }
+      }
+      return redactSensitiveFields(part)
+    }) as typeof copy.content
   }
   return copy
+}
+
+export function upsertAiAgentToolResult(
+  value: unknown,
+  input: {
+    assistantMessageId: number
+    toolCallId: string
+    toolName: string
+    text: string
+    isError: boolean
+  }
+) {
+  const messages = restoreAiAgentSessionContext(value)
+  const text =
+    input.text.length > maxSessionToolResultChars
+      ? `${input.text.slice(0, maxSessionToolResultChars)}\n[结果已截断]`
+      : input.text
+  const result = copySafeMessage({
+    role: 'toolResult',
+    toolCallId: input.toolCallId,
+    toolName: input.toolName,
+    content: [{ type: 'text', text }],
+    isError: input.isError,
+    timestamp: Date.now(),
+    sourceMessageId: input.assistantMessageId,
+  })
+  const existingIndex = messages.findIndex(
+    (message) => message.role === 'toolResult' && message.toolCallId === input.toolCallId
+  )
+  if (existingIndex >= 0) messages[existingIndex] = result
+  else messages.push(result)
+  return messages
 }
 
 function getUserText(message: SessionMessage) {

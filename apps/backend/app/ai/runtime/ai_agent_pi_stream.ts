@@ -7,7 +7,7 @@ import {
 } from '@earendil-works/pi-telemetry'
 
 import type { AiAgentConfirmationSummary } from '#ai/core/ai_agent_confirmation'
-import type { AiAgentToolRequestContext } from '#ai/core/ai_agent_tool_context'
+import type { AiAgentTaskPlanStep, AiAgentToolRequestContext } from '#ai/core/ai_agent_tool_context'
 import type { AiAgentMessage } from '#ai/core/ai_agent_types'
 import {
   type AiAgentPageContext,
@@ -63,6 +63,7 @@ type AiAgentRuntimeEvent =
       toolCallId: string
       confirmation: AiAgentConfirmationSummary
     }
+  | { type: 'app_task_plan_updated'; steps: AiAgentTaskPlanStep[] }
 
 const emptyUsage: Usage = {
   input: 0,
@@ -129,7 +130,11 @@ export async function createAiAgentPiStream(
   const initialMessages =
     lastMessage?.role === 'user' ? input.messages.slice(0, -1) : input.messages
 
-  const tools = await createConfiguredAiAgentTools({ ...input, agentRunId: input.agentRunId })
+  const tools = await createConfiguredAiAgentTools({
+    ...input,
+    agentRunId: input.agentRunId,
+    onTaskPlanUpdate: (steps) => events.push({ type: 'app_task_plan_updated', steps }),
+  })
   const toolLabels = new Map(
     tools
       .filter((tool) => typeof tool.label === 'string' && tool.label !== tool.name)

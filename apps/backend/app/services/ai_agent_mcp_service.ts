@@ -232,10 +232,33 @@ export async function callConfiguredAiAgentMcpTool(input: {
   }
 }
 
-function getAiToolName(serverId: string, toolName: string, mode: string) {
-  const readableName = toolName.replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 32)
-  const suffix = createHash('sha256').update(`${serverId}:${toolName}`).digest('hex').slice(0, 16)
-  return `mcp_${mode}_${readableName}_${suffix}`
+function getAiToolNameSegment(value: string, maxLength: number) {
+  return (
+    value
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '')
+      .slice(0, maxLength)
+      .replace(/_+$/g, '') || 'tool'
+  )
+}
+
+export function getAiToolName(
+  serverName: string,
+  serverId: string,
+  toolName: string,
+  mode: string,
+  existingNames: Set<string>
+) {
+  const readableName = `mcp_${mode}_${getAiToolNameSegment(serverName, 18)}__${getAiToolNameSegment(toolName, 30)}`
+  if (!existingNames.has(readableName)) return readableName
+
+  const suffix = createHash('sha256').update(`${serverId}:${toolName}`).digest('hex')
+  for (let length = 6; length <= Math.min(suffix.length, 62); length += 2) {
+    const candidate = `${readableName.slice(0, 63 - length)}_${suffix.slice(0, length)}`
+    if (!existingNames.has(candidate)) return candidate
+  }
+  throw new Error('Unable to create a unique MCP tool alias')
 }
 
 export async function createConfiguredMcpAgentTools(
@@ -316,7 +339,13 @@ export async function createConfiguredMcpAgentTools(
         })
         continue
       }
-      const name = getAiToolName(server.id, tool.name, mode)
+      const name = getAiToolName(
+        server.name,
+        server.id,
+        tool.name,
+        mode,
+        new Set(tools.map((agentTool) => agentTool.name))
+      )
       const agentTool: AgentTool & {
         prepareConfirmation?: (args: unknown) => Promise<unknown>
       } = {
@@ -324,7 +353,7 @@ export async function createConfiguredMcpAgentTools(
         label: `${server.name}: ${tool.name}`,
         description: `${tool.description} Local MCP server: ${server.name}. Execution policy: ${mode === 'read' ? 'direct execution' : 'user confirmation required'}.`,
         parameters,
-        executionMode: 'sequential',
+        executionMode: mode === 'read' && tool.readOnlyHint ? 'parallel' : 'sequential',
         ...(mode === 'confirm'
           ? {
               prepareConfirmation: async (params: unknown) => {

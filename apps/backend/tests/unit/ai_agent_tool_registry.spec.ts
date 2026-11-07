@@ -193,17 +193,21 @@ test.group('AI agent tool registry', () => {
     assert.include(tool.description, 'create_user requires fullName, email, and roleIds')
   })
 
-  test('runs all registered tools sequentially', ({ assert }) => {
+  test('runs independent reads in parallel and preserves sequential tool dependencies', ({
+    assert,
+  }) => {
     const tools = createAiAgentTools({
       userId: 1,
       conversationId: 1,
       agentRunId: 'test-run',
     })
 
-    for (const tool of tools) {
-      assert.equal(tool.executionMode, 'sequential')
-      assert.isObject(tool.parameters)
-    }
+    const toolsByName = new Map(tools.map((tool) => [tool.name, tool]))
+    assert.equal(toolsByName.get('diagnose_my_access')?.executionMode, 'parallel')
+    assert.equal(toolsByName.get('run_registered_query')?.executionMode, 'parallel')
+    assert.equal(toolsByName.get('system_management_change')?.executionMode, 'sequential')
+    assert.equal(toolsByName.get('search_knowledge_catalog')?.executionMode, 'sequential')
+    for (const tool of tools) assert.isObject(tool.parameters)
   })
 
   test('rejects an already-aborted tool call before executing business logic', async ({

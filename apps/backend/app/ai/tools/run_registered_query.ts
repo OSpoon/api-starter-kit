@@ -54,7 +54,7 @@ export function createRunRegisteredQueryTool(
           knowledgeCatalogDocumentIds: [...(input.knowledgeCatalogDocumentIds ?? [])],
         })
       },
-      executionMode: 'sequential',
+      executionMode: 'parallel',
     }
   )
 }

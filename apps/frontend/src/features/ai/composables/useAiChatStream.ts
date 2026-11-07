@@ -159,6 +159,7 @@ export function useAiChatStream(
 
           if (event.type === 'agent_plan') {
             assistantMessage.plan = event.steps
+            const planType = event.planType ?? 'confirmation'
             const timeline = assistantMessage.timeline ?? []
             const turn = Math.max(
               1,
@@ -168,9 +169,10 @@ export function useAiChatStream(
             const planIndex = timeline.findIndex(
               (item) =>
                 item.kind === 'plan' &&
+                (item.planType ?? 'confirmation') === planType &&
                 (item.turn === turn || (turn === 1 && item.turn === undefined))
             )
-            const plan = { kind: 'plan' as const, turn, steps: event.steps }
+            const plan = { kind: 'plan' as const, turn, planType, steps: event.steps }
             if (planIndex >= 0) timeline[planIndex] = plan
             else timeline.push(plan)
             assistantMessage.timeline = [...timeline]
@@ -516,6 +518,7 @@ export function useAiChatStream(
 
           if (event.type === 'agent_plan') {
             assistantMessage.plan = event.steps
+            const planType = event.planType ?? 'confirmation'
             const timeline = assistantMessage.timeline ?? []
             const turn = Math.max(
               1,
@@ -525,9 +528,10 @@ export function useAiChatStream(
             const planIndex = timeline.findIndex(
               (item) =>
                 item.kind === 'plan' &&
+                (item.planType ?? 'confirmation') === planType &&
                 (item.turn === turn || (turn === 1 && item.turn === undefined))
             )
-            const plan = { kind: 'plan' as const, turn, steps: event.steps }
+            const plan = { kind: 'plan' as const, turn, planType, steps: event.steps }
             if (planIndex >= 0) timeline[planIndex] = plan
             else timeline.push(plan)
             assistantMessage.timeline = [...timeline]

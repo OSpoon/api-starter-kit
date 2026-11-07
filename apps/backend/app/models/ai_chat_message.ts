@@ -36,7 +36,12 @@ export type AiChatRuntimeDetail =
       toolCount?: number
       tools?: Array<{ name: string; mode?: 'read' | 'confirm' }>
     }
-  | { kind: 'plan'; turn?: number; steps: Array<Record<string, unknown>> }
+  | {
+      kind: 'plan'
+      turn?: number
+      planType?: 'task' | 'confirmation'
+      steps: Array<Record<string, unknown>>
+    }
   | {
       kind: 'run'
       durationMs: number
@@ -83,6 +88,8 @@ function isRuntimeDetail(value: unknown): value is AiChatRuntimeDetail {
   if (value.kind === 'plan') {
     return (
       (value.turn === undefined || (Number.isInteger(value.turn) && (value.turn as number) > 0)) &&
+      (value.planType === undefined ||
+        ['task', 'confirmation'].includes(value.planType as string)) &&
       Array.isArray(value.steps) &&
       value.steps.every(isJsonRecord)
     )

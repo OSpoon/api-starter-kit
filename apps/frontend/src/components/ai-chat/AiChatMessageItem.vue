@@ -136,7 +136,7 @@ function getTimelineLabel(item: AiChatTimelineItem, timeline: AiChatTimelineItem
     return t(`ai_chat.timeline.phases.preparing_agent.${item.state}`)
   }
   if (item.kind === 'plan') {
-    return item.steps.map((step) => t(`ai_chat.plan.${step.key}.${step.state}`)).join(' · ')
+    return item.steps.map(getPlanStepLabel).join(' · ')
   }
   if (item.kind === 'confirmation') return ''
   if (item.kind === 'run') {
@@ -248,7 +248,7 @@ function getPlanStepDurationLabel(step: AiChatPlanStep) {
 }
 
 function getPlanStepLabel(step: AiChatPlanStep) {
-  return t(`ai_chat.plan.${step.key}.${step.state}`)
+  return step.label ?? t(`ai_chat.plan.${step.key}.${step.state}`)
 }
 
 function getConfirmationPlanForTool(
@@ -266,7 +266,9 @@ function getConfirmationPlanForTool(
   }
   return items.find(
     (item): item is Extract<AiChatTimelineItem, { kind: 'plan' }> =>
-      item.kind === 'plan' && item.steps.some((step) => step.key === 'await_confirmation')
+      item.kind === 'plan' &&
+      (item.planType ?? 'confirmation') === 'confirmation' &&
+      item.steps.some((step) => step.key === 'await_confirmation')
   )
 }
 
@@ -402,7 +404,10 @@ function getTimelineSections(timeline: AiChatTimelineItem[]) {
   const turns = new Map<number, AiChatTimelineItem[]>()
   let currentTurn = 0
   for (const item of timeline) {
-    if (item.kind === 'phase' && item.name === 'preparing_agent') currentTurn += 1
+    if (item.kind === 'phase' && item.name === 'preparing_agent') {
+      currentTurn += 1
+      if (item.state === 'done') continue
+    }
     if (item.kind === 'confirmation') continue
     if (item.kind === 'run' && props.message.status === 'streaming') continue
     if (item.kind === 'phase' && item.name === 'mcp_discovery' && item.state !== 'error') continue
@@ -413,7 +418,6 @@ function getTimelineSections(timeline: AiChatTimelineItem[]) {
   }
   return [...turns].map(([turn, items]) => ({
     key: `turn-${turn}`,
-    label: t('ai_chat.timeline.turn_section', { turn }),
     items,
   }))
 }
@@ -480,7 +484,11 @@ function getTimelineSections(timeline: AiChatTimelineItem[]) {
         </template>
       </div>
       <details
-        v-if="message.role === 'assistant' && message.timeline?.length"
+        v-if="
+          message.role === 'assistant' &&
+          message.timeline?.length &&
+          getTimelineSections(message.timeline).length
+        "
         class="group/timeline mt-1 overflow-hidden rounded-md bg-muted/20 text-xs"
         :open="shouldOpenTimeline(message)"
       >
@@ -497,11 +505,6 @@ function getTimelineSections(timeline: AiChatTimelineItem[]) {
           class="max-h-[180px] space-y-3 overflow-y-auto overscroll-contain border-t border-border/60 px-2.5 py-2"
         >
           <div v-for="section in getTimelineSections(message.timeline)" :key="section.key">
-            <div
-              class="mb-1 px-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
-            >
-              {{ section.label }}
-            </div>
             <div
               v-for="(item, index) in section.items"
               :key="`${item.kind}-${item.kind === 'tool' ? (item.callId ?? item.name) : index}`"
@@ -526,7 +529,9 @@ function getTimelineSections(timeline: AiChatTimelineItem[]) {
                     :class="step.state === 'running' ? 'animate-spin text-primary' : ''"
                     aria-hidden="true"
                   />
-                  <span class="min-w-0 flex-1">{{ getPlanStepLabel(step) }}</span>
+                  <span class="min-w-0 flex-1 truncate" :title="getPlanStepLabel(step)">
+                    {{ getPlanStepLabel(step) }}
+                  </span>
                   <span
                     v-if="getPlanStepDurationMs(step) !== undefined"
                     class="shrink-0 text-xs text-muted-foreground tabular-nums"
@@ -544,11 +549,11 @@ function getTimelineSections(timeline: AiChatTimelineItem[]) {
                   :class="isMergedToolActive(item) ? 'animate-spin text-primary' : ''"
                   aria-hidden="true"
                 />
-                <span class="min-w-0 flex-1">{{
+                <span class="shrink-0">{{
                   getMergedToolStatusLabel(item, getConfirmationPlanForTool(item, section.items)!)
                 }}</span>
                 <span
-                  class="max-w-[45%] min-w-0 truncate text-right text-muted-foreground"
+                  class="min-w-0 flex-1 truncate text-muted-foreground"
                   :title="item.displayName ?? item.detail?.toolName"
                 >
                   {{ item.displayName ?? item.detail?.toolName }}
@@ -576,9 +581,12 @@ function getTimelineSections(timeline: AiChatTimelineItem[]) {
                   class="mt-0.5 size-3.5 shrink-0"
                   :class="isTimelineActive(item) ? 'animate-spin text-primary' : ''"
                 />
-                <span class="min-w-0 flex-1">{{
-                  getTimelineLabel(item, message.timeline ?? [])
-                }}</span>
+                <span
+                  class="min-w-0 flex-1 truncate"
+                  :title="getTimelineLabel(item, message.timeline ?? [])"
+                >
+                  {{ getTimelineLabel(item, message.timeline ?? []) }}
+                </span>
                 <span
                   v-if="getTimelineDurationMs(item) !== undefined"
                   class="shrink-0 text-xs text-muted-foreground tabular-nums"

@@ -162,6 +162,7 @@ export class AiChatConversationSchema extends BaseModel {
 
 export class AiChatMessageSchema extends BaseModel {
   static $columns = [
+    'agentContext',
     'citations',
     'content',
     'conversationId',
@@ -172,6 +173,8 @@ export class AiChatMessageSchema extends BaseModel {
     'updatedAt',
   ] as const
   $columns = AiChatMessageSchema.$columns
+  @column()
+  declare agentContext: any | null
   @column()
   declare citations: any
   @column()
@@ -661,6 +664,7 @@ export class LlmConfigurationSchema extends BaseModel {
     'chatContextWindow',
     'chatMaxTokens',
     'chatModel',
+    'chatReasoningLevel',
     'createdAt',
     'dingtalkCardTemplateId',
     'dingtalkClientId',
@@ -697,6 +701,8 @@ export class LlmConfigurationSchema extends BaseModel {
   declare chatMaxTokens: number
   @column()
   declare chatModel: string
+  @column()
+  declare chatReasoningLevel: string
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
   @column()

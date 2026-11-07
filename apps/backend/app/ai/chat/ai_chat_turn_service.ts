@@ -360,14 +360,17 @@ export async function runAiChatAssistantTurn(input: {
           else runtimeDetails.push(detail)
         }
         if (event.value.event === 'agent_plan') {
+          const planType = event.value.data.planType ?? 'confirmation'
           const planDetail: AiChatRuntimeDetail = {
             kind: 'plan',
             turn: runtimeTurn,
+            planType,
             steps: event.value.data.steps.map((step) => ({ ...step })),
           }
           const existingIndex = runtimeDetails.findIndex(
             (item) =>
               item.kind === 'plan' &&
+              (item.planType ?? 'confirmation') === planType &&
               (item.turn === runtimeTurn || (runtimeTurn === 1 && item.turn === undefined))
           )
           if (existingIndex >= 0) runtimeDetails[existingIndex] = planDetail

@@ -593,7 +593,7 @@ export async function createPiAgent(input: {
           .catch(reject)
       })
     },
-    toolExecution: 'sequential',
+    toolExecution: 'parallel',
     steeringMode: 'one-at-a-time',
     followUpMode: 'one-at-a-time',
     sessionId: input.sessionId,

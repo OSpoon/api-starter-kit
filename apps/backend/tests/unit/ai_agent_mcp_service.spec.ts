@@ -6,11 +6,35 @@ import { assertAiAgentMcpConfiguration } from '#services/ai_agent_mcp_configurat
 import {
   createConfiguredMcpAgentTools,
   discoverAiAgentMcpTools,
+  getAiToolName,
   summarizeAiAgentMcpResult,
   validateAiAgentMcpArguments,
 } from '#services/ai_agent_mcp_service'
 
 test.group('AI agent local MCP tools', () => {
+  test('uses readable MCP tool aliases and hashes only collisions', ({ assert }) => {
+    const first = getAiToolName('System Info', 'server-a', 'get_cpu_info', 'read', new Set())
+    const collision = getAiToolName(
+      'System Info',
+      'server-b',
+      'get_cpu_info',
+      'read',
+      new Set([first])
+    )
+    const longName = getAiToolName(
+      'x'.repeat(100),
+      'server-c',
+      'y'.repeat(100),
+      'confirm',
+      new Set()
+    )
+
+    assert.equal(first, 'mcp_read_system_info__get_cpu_info')
+    assert.notEqual(collision, first)
+    assert.isAtMost(collision.length, 64)
+    assert.isAtMost(longName.length, 64)
+  })
+
   test('extracts and bounds text for the post-confirmation assistant turn', ({ assert }) => {
     const result = getAiAgentMcpResultText({
       content: [
@@ -112,7 +136,7 @@ test.group('AI agent local MCP tools', () => {
     const script = [
       "let buffer = '';",
       "process.stdin.setEncoding('utf8');",
-      "process.stdin.on('data', (chunk) => { buffer += chunk; let newline; while ((newline = buffer.indexOf('\\n')) >= 0) { const line = buffer.slice(0, newline); buffer = buffer.slice(newline + 1); if (!line) continue; const request = JSON.parse(line); if (request.id === undefined) continue; const result = request.method === 'initialize' ? { protocolVersion: '2025-11-25', capabilities: { tools: {} }, serverInfo: { name: 'test-mcp', version: '1.0.0' } } : { tools: [{ name: 'lookup', description: 'Look up a record', inputSchema: { type: 'object', properties: {}, additionalProperties: false }, annotations: { readOnlyHint: true } }, { name: 'search_logs', description: 'Search logs', inputSchema: { type: 'object', properties: {}, additionalProperties: false }, annotations: { readOnlyHint: true } }] }; process.stdout.write(JSON.stringify({ jsonrpc: '2.0', id: request.id, result }) + '\\n'); } });",
+      "process.stdin.on('data', (chunk) => { buffer += chunk; let newline; while ((newline = buffer.indexOf('\\n')) >= 0) { const line = buffer.slice(0, newline); buffer = buffer.slice(newline + 1); if (!line) continue; const request = JSON.parse(line); if (request.id === undefined) continue; const result = request.method === 'initialize' ? { protocolVersion: '2025-11-25', capabilities: { tools: {} }, serverInfo: { name: 'test-mcp', version: '1.0.0' } } : { tools: [{ name: 'lookup', description: 'Look up a record', inputSchema: { type: 'object', properties: {}, additionalProperties: false }, annotations: { readOnlyHint: true } }, { name: 'search_logs', description: 'Search logs', inputSchema: { type: 'object', properties: {}, additionalProperties: false } }] }; process.stdout.write(JSON.stringify({ jsonrpc: '2.0', id: request.id, result }) + '\\n'); } });",
     ].join('')
 
     const tools = await discoverAiAgentMcpTools({
@@ -131,7 +155,7 @@ test.group('AI agent local MCP tools', () => {
         name: 'search_logs',
         description: 'Search logs',
         inputSchema: { type: 'object', properties: {}, additionalProperties: false },
-        readOnlyHint: true,
+        readOnlyHint: false,
       },
     ])
 
@@ -146,7 +170,7 @@ test.group('AI agent local MCP tools', () => {
           cwd: null,
           environment: null,
           enabled: true,
-          enabledTools: { lookup: { mode: 'read' } },
+          enabledTools: { lookup: { mode: 'read' }, search_logs: { mode: 'read' } },
           updatedAt: new Date().toISOString(),
         },
       ],
@@ -160,9 +184,15 @@ test.group('AI agent local MCP tools', () => {
       }
     )
 
-    assert.lengthOf(enabledTools, 1)
+    assert.lengthOf(enabledTools, 2)
+    assert.equal(enabledTools[0]?.executionMode, 'parallel')
+    assert.equal(enabledTools[0]?.name, 'mcp_read_logs__lookup')
+    assert.equal(enabledTools[1]?.executionMode, 'sequential')
     const discovery = discoveryStatuses.find(({ state }) => state === 'done')
     assert.equal(discovery?.toolCount, 2)
-    assert.deepEqual(discovery?.tools, [{ name: 'lookup', mode: 'read' }, { name: 'search_logs' }])
+    assert.deepEqual(discovery?.tools, [
+      { name: 'lookup', mode: 'read' },
+      { name: 'search_logs', mode: 'read' },
+    ])
   })
 })

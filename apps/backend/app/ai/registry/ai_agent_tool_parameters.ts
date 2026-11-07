@@ -28,6 +28,15 @@ export const piToolParameters = {
     documentIds: Type.Array(Type.Integer({ minimum: 1 }), { minItems: 1, maxItems: 10 }),
   }),
   searchKnowledgeCatalog: Type.Object({ query: Type.String() }),
+  taskPlan: Type.Object({
+    steps: Type.Array(
+      Type.Object({
+        label: Type.String({ minLength: 1, maxLength: 240 }),
+        state: Type.Union([Type.Literal('pending'), Type.Literal('running'), Type.Literal('done')]),
+      }),
+      { minItems: 1, maxItems: 8 }
+    ),
+  }),
   apiKeyTarget: Type.Union([
     Type.Object({ apiKeyId: Type.Integer({ minimum: 1 }) }),
     Type.Object({ id: Type.Integer({ minimum: 1 }) }),

@@ -11,6 +11,7 @@ import { createRunRegisteredQueryTool } from '#ai/tools/run_registered_query'
 import { createSearchKnowledgeTool } from '#ai/tools/search_knowledge'
 import { createSearchKnowledgeCatalogTool } from '#ai/tools/search_knowledge_catalog'
 import { createSystemManagementChangeTool } from '#ai/tools/system_management_change'
+import { createAiAgentTaskPlanTool } from '#ai/tools/update_task_plan'
 import { getAiAgentToolSettings } from '#services/ai_agent_configuration_service'
 import { listEnabledAiAgentMcpServers } from '#services/ai_agent_mcp_configuration_service'
 import { createConfiguredMcpAgentTools } from '#services/ai_agent_mcp_service'
@@ -68,8 +69,16 @@ export async function createConfiguredAiAgentTools(
   const configuredTools = tools.map((tool) =>
     configureToolConfirmation(tool, settingByName.get(tool.name), configuredInput)
   )
+  const taskPlanTool = createAiAgentTaskPlanTool(
+    configuredInput,
+    createAiAgentToolSupport(configuredInput)
+  )
   const mcpServers = await listEnabledAiAgentMcpServers()
-  return [...configuredTools, ...(await createConfiguredMcpAgentTools(mcpServers, configuredInput))]
+  return [
+    ...configuredTools,
+    taskPlanTool,
+    ...(await createConfiguredMcpAgentTools(mcpServers, configuredInput)),
+  ]
 }
 
 function configureToolConfirmation(

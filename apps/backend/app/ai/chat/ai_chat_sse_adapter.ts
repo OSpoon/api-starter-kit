@@ -7,14 +7,18 @@ import { sanitizeAiAgentToolErrorMessage } from '#ai/core/ai_agent_tool_errors'
 import { summarizeAiAgentToolParameters } from '#ai/core/ai_agent_tool_summary'
 
 type AiAgentPlanStep = {
-  key: 'identify_target' | 'prepare_action' | 'await_confirmation'
+  key: string
+  label?: string
   state: 'pending' | 'running' | 'done'
   startedAt?: number
   durationMs?: number
 }
 
 export type AiAgentToolFrame =
-  | { event: 'agent_plan'; data: { steps: AiAgentPlanStep[] } }
+  | {
+      event: 'agent_plan'
+      data: { planType?: 'task' | 'confirmation'; steps: AiAgentPlanStep[] }
+    }
   | {
       event: 'agent_status'
       data: {
@@ -252,8 +256,10 @@ function getToolErrorMessage(result: unknown, output: unknown) {
 }
 
 function getMcpToolNameFromAlias(name: string) {
-  const match = /^mcp_(?:read|confirm)_(.+)_([a-f\d]{8,16})$/i.exec(name)
-  return match?.[1]?.replace(/^[a-f\d-]{36}_/i, '')
+  const readableAlias = /^mcp_(?:read|confirm)_[a-z\d_-]+__([a-z\d_-]+)$/i.exec(name)
+  if (readableAlias) return readableAlias[1]
+  const legacyAlias = /^mcp_(?:read|confirm)_(.+)_([a-f\d]{8,16})$/i.exec(name)
+  return legacyAlias?.[1]?.replace(/^[a-f\d-]{36}_/i, '')
 }
 
 function getToolDisplayName(run: Awaited<ReturnType<typeof createAiAgentStream>>, name: string) {
@@ -293,7 +299,7 @@ export async function* streamAiAgentTurnEvents(
   }
   const planFrame = (): AiAgentToolFrame => ({
     event: 'agent_plan',
-    data: { steps: plan.map((step) => ({ ...step })) },
+    data: { planType: 'confirmation', steps: plan.map((step) => ({ ...step })) },
   })
   const toolStartedAt = new Map<string, number>()
   const toolInputs = new Map<string, unknown>()
@@ -312,6 +318,13 @@ export async function* streamAiAgentTurnEvents(
       yield {
         source: 'frame',
         value: { event: 'agent_confirmation', data: event.confirmation },
+      }
+      continue
+    }
+    if (event.type === 'app_task_plan_updated') {
+      yield {
+        source: 'frame',
+        value: { event: 'agent_plan', data: { planType: 'task', steps: event.steps } },
       }
       continue
     }
@@ -361,6 +374,7 @@ export async function* streamAiAgentTurnEvents(
       continue
     }
     if (event.type === 'tool_execution_start') {
+      if (event.toolName === 'update_task_plan') continue
       const startedAt = Date.now()
       toolStartedAt.set(event.toolCallId, startedAt)
       toolInputs.set(event.toolCallId, event.args)
@@ -390,6 +404,7 @@ export async function* streamAiAgentTurnEvents(
       continue
     }
     if (event.type === 'tool_execution_update') {
+      if (event.toolName === 'update_task_plan') continue
       const progressDetail = getToolProgressDetail(event.partialResult)
       const runningDetail = getAgentStatusDetail(event.toolName, event.args)
       const displayName = getToolDisplayName(run, event.toolName)
@@ -413,6 +428,7 @@ export async function* streamAiAgentTurnEvents(
       continue
     }
     if (event.type === 'tool_execution_end') {
+      if (event.toolName === 'update_task_plan') continue
       const output = event.result?.details ?? event.result
       const confirmation = pendingConfirmations.get(event.toolCallId)
       const toolArtifact = readAgentToolArtifact(output)

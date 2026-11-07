@@ -25,6 +25,12 @@ export type AiAgentMcpDiscoveryStatus = {
   tools?: Array<{ name: string; mode?: 'read' | 'confirm' }>
 }
 
+export type AiAgentTaskPlanStep = {
+  key: string
+  label: string
+  state: 'pending' | 'running' | 'done'
+}
+
 export interface AiAgentToolRequestContext {
   userId: number
   conversationId: number
@@ -34,6 +40,7 @@ export interface AiAgentToolRequestContext {
   onKnowledgeSources?: (sources: AiAgentKnowledgeSource[]) => void
   onCredentialDisclosure?: (credential: AiAgentCredentialDisclosure) => void | Promise<void>
   onMcpDiscovery?: (status: AiAgentMcpDiscoveryStatus) => void | Promise<void>
+  onTaskPlanUpdate?: (steps: AiAgentTaskPlanStep[]) => void | Promise<void>
   knowledgeCatalogDocumentIds?: Set<number>
   enabledToolNames?: string[]
 }

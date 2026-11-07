@@ -349,6 +349,19 @@ export async function listConversationConfirmations(conversationId: number, user
   }))
 }
 
+export async function listCancelledToolConfirmations(input: {
+  conversationId: number
+  userId: number
+  assistantMessageId: number
+}) {
+  return AiAgentConfirmation.query()
+    .where('conversation_id', input.conversationId)
+    .where('requested_by_user_id', input.userId)
+    .where('assistant_message_id', input.assistantMessageId)
+    .where('status', 'cancelled')
+    .whereIn('action', ['call_mcp_tool', 'call_builtin_tool'])
+}
+
 export async function listPendingConversationConfirmations(conversationId: number, userId: number) {
   const confirmations = await AiAgentConfirmation.query()
     .where('conversation_id', conversationId)

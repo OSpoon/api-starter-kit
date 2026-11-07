@@ -7,12 +7,13 @@ import {
   AiAgentConfirmationError,
   cancelAiAgentAction,
   confirmAiAgentAction,
+  findPendingConfirmationTool,
   getAiAgentActionResultMessage,
-} from '#ai/core/ai_agent_confirmation'
-import {
+  listCancelledToolConfirmations,
   listConversationConfirmations,
-  listPendingConversationConfirmations,
 } from '#ai/core/ai_agent_confirmation'
+import { listPendingConversationConfirmations } from '#ai/core/ai_agent_confirmation'
+import { upsertAiAgentToolResult } from '#ai/runtime/ai_agent_session_context'
 import type {
   ChannelAdapter,
   ChannelCardActionEvent,
@@ -407,6 +408,14 @@ export class AiChannelBridge implements ReloadableBotRuntime {
         if (isToolAction && !proposalMessage) {
           return textReply('找不到工具提案对应的助手消息，操作未执行。')
         }
+        const pendingTool =
+          isToolAction && proposalMessage
+            ? findPendingConfirmationTool(
+                proposalMessage.runtimeDetails,
+                confirmationId,
+                proposal!.action
+              )
+            : undefined
 
         const execution = await confirmAiAgentAction(ctx, {
           confirmationId,
@@ -414,17 +423,56 @@ export class AiChannelBridge implements ReloadableBotRuntime {
           userId: user.id,
         })
         if (isToolAction && proposalMessage) {
+          const message = await AiChatMessage.findOrFail(proposalMessage.id)
+          const result =
+            execution.result && typeof execution.result === 'object' ? execution.result : undefined
+          const resultText =
+            typeof result?.agentToolResult === 'string'
+              ? result.agentToolResult
+              : typeof result?.mcpToolResult === 'string'
+                ? result.mcpToolResult
+                : 'Tool completed without a text result.'
+          message.agentContext = upsertAiAgentToolResult(message.agentContext, {
+            assistantMessageId: message.id,
+            toolCallId:
+              (pendingTool?.kind === 'tool' ? pendingTool.callId : undefined) ??
+              `confirmation-${confirmationId}`,
+            toolName:
+              (pendingTool?.kind === 'tool' ? pendingTool.name : undefined) ??
+              (typeof result?.agentToolName === 'string'
+                ? result.agentToolName
+                : typeof result?.mcpToolName === 'string'
+                  ? result.mcpToolName
+                  : proposal!.action),
+            text: resultText,
+            isError: false,
+          })
+          await message.save()
+
+          const pendingConfirmations = await listConversationConfirmations(conversation.id, user.id)
+          if (pendingConfirmations.some((item) => item.messageId === message.id)) {
+            return textReply('操作已执行；这组确认仍有待处理项，处理完后我会统一总结。')
+          }
+
+          const cancelledConfirmations = await listCancelledToolConfirmations({
+            assistantMessageId: message.id,
+            conversationId: conversation.id,
+            userId: user.id,
+          })
           let reply = ''
           try {
             const summary = await summarizeConfirmedToolResult({
               ctx,
               conversation,
-              assistantMessage: proposalMessage,
+              assistantMessage: message,
               userId: user.id,
-              result:
-                execution.result && typeof execution.result === 'object'
-                  ? execution.result
-                  : undefined,
+              result,
+              continueWithConfiguredTools: cancelledConfirmations.length === 0,
+              confirmationBatchResolved: true,
+              resolutions: cancelledConfirmations.map((item) => ({
+                action: item.action,
+                targetSummary: item.targetSummary ?? undefined,
+              })),
               onEvent: (event, data) => {
                 if (event !== 'delta' || !data || typeof data !== 'object') return
                 const content = (data as Record<string, unknown>).content
@@ -453,11 +501,72 @@ export class AiChannelBridge implements ReloadableBotRuntime {
         )
       }
       if (input.actionKey === `cancel:${input.taskId}`) {
+        const proposal = await AiAgentConfirmation.query()
+          .where('id', confirmationId)
+          .where('conversation_id', conversation.id)
+          .where('requested_by_user_id', user.id)
+          .first()
+        const isToolAction =
+          proposal?.action === 'call_mcp_tool' || proposal?.action === 'call_builtin_tool'
+        const proposalMessage =
+          isToolAction && proposal?.assistantMessageId
+            ? await AiChatMessage.query()
+                .where('id', proposal.assistantMessageId)
+                .where('conversation_id', conversation.id)
+                .where('role', 'assistant')
+                .first()
+            : null
+        const pendingTool =
+          isToolAction && proposalMessage && proposal
+            ? findPendingConfirmationTool(
+                proposalMessage.runtimeDetails,
+                confirmationId,
+                proposal.action
+              )
+            : undefined
         await cancelAiAgentAction(ctx, {
           confirmationId,
           conversationId: conversation.id,
           userId: user.id,
         })
+        if (isToolAction && proposalMessage) {
+          const message = await AiChatMessage.findOrFail(proposalMessage.id)
+          message.agentContext = upsertAiAgentToolResult(message.agentContext, {
+            assistantMessageId: message.id,
+            toolCallId:
+              (pendingTool?.kind === 'tool' ? pendingTool.callId : undefined) ??
+              `confirmation-${confirmationId}`,
+            toolName:
+              (pendingTool?.kind === 'tool' ? pendingTool.name : undefined) ?? proposal!.action,
+            text: 'The user cancelled this proposed operation; it was not executed.',
+            isError: true,
+          })
+          await message.save()
+
+          const pendingConfirmations = await listConversationConfirmations(conversation.id, user.id)
+          if (pendingConfirmations.some((item) => item.messageId === message.id)) {
+            return textReply('操作已取消；这组确认仍有待处理项，处理完后我会统一总结。')
+          }
+
+          const cancelledConfirmations = await listCancelledToolConfirmations({
+            assistantMessageId: message.id,
+            conversationId: conversation.id,
+            userId: user.id,
+          })
+          const summary = await summarizeConfirmedToolResult({
+            ctx,
+            conversation,
+            assistantMessage: message,
+            userId: user.id,
+            continueWithConfiguredTools: false,
+            confirmationBatchResolved: true,
+            resolutions: cancelledConfirmations.map((item) => ({
+              action: item.action,
+              targetSummary: item.targetSummary ?? undefined,
+            })),
+          })
+          return textReply(summary.reply || '已取消该操作，并整理当前已获取的信息。')
+        }
         return textReply('操作已取消。')
       }
       return textReply('未知的确认操作。')

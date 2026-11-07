@@ -6,7 +6,10 @@ import { resolveAiChatRegeneration } from '#ai/chat/ai_chat_regeneration'
 import { startAiChatSseKeepalive, writeAiChatSse } from '#ai/chat/ai_chat_sse_adapter'
 import { runAiChatAssistantTurn } from '#ai/chat/ai_chat_turn_service'
 import { resetAiConversationState } from '#ai/chat/ai_conversation_state'
-import { summarizeConfirmedToolResult } from '#ai/chat/confirmed_tool_result_summary'
+import {
+  shouldDeferConfirmationReply,
+  summarizeConfirmedToolResult,
+} from '#ai/chat/confirmed_tool_result_summary'
 import { getAiRequestTimeout } from '#ai/core/ai_agent_config'
 import {
   AiAgentConfirmationError,
@@ -14,6 +17,7 @@ import {
   confirmAiAgentAction as executeAiAgentAction,
   findPendingConfirmationTool,
   getAiAgentActionResultMessage,
+  listCancelledToolConfirmations,
   listConversationConfirmations,
 } from '#ai/core/ai_agent_confirmation'
 import { sanitizeAiAgentToolErrorMessage } from '#ai/core/ai_agent_tool_errors'
@@ -22,6 +26,7 @@ import {
   getAiAgentRun,
   releaseAiAgentConversation,
 } from '#ai/runtime/ai_agent_run_registry'
+import { upsertAiAgentToolResult } from '#ai/runtime/ai_agent_session_context'
 import AiAgentConfirmation from '#models/ai_agent_confirmation'
 import AiChatConversation from '#models/ai_chat_conversation'
 import AiChatMessage from '#models/ai_chat_message'
@@ -186,9 +191,14 @@ async function executeConfirmationAndCreateMessage(input: {
     await assistantMessage.save()
   }
 
-  const completedPlan = assistantMessage.runtimeDetails.find((item) => item.kind === 'plan')
+  const completedPlan = assistantMessage.runtimeDetails.find(
+    (item) => item.kind === 'plan' && (item.planType ?? 'confirmation') === 'confirmation'
+  )
   if (response && completedPlan?.kind === 'plan') {
-    writeAiChatSse(response, 'agent_plan', { steps: completedPlan.steps })
+    writeAiChatSse(response, 'agent_plan', {
+      planType: completedPlan.planType ?? 'confirmation',
+      steps: completedPlan.steps,
+    })
   }
 
   if (response) {
@@ -208,6 +218,41 @@ async function executeConfirmationAndCreateMessage(input: {
   if (response && credential) writeAiChatSse(response, 'credential_disclosure', { credential })
 
   if (isToolAction) {
+    const resultText =
+      typeof actionResult?.agentToolResult === 'string'
+        ? actionResult.agentToolResult
+        : typeof actionResult?.mcpToolResult === 'string'
+          ? actionResult.mcpToolResult
+          : 'Tool completed without a text result.'
+    assistantMessage.agentContext = upsertAiAgentToolResult(assistantMessage.agentContext, {
+      assistantMessageId: assistantMessage.id,
+      toolCallId: activityCallId,
+      toolName: pendingTool?.kind === 'tool' ? pendingTool.name : executionName,
+      text: resultText,
+      isError: false,
+    })
+    await assistantMessage.save()
+
+    const pendingConfirmations = await listConversationConfirmations(conversation.id, userId)
+    const messageConfirmations = pendingConfirmations.filter(
+      (item) => item.messageId === assistantMessage.id
+    )
+    if (messageConfirmations.length > 0) {
+      if (response) {
+        writeAiChatSse(response, 'done', {
+          conversation: serializeAiChatConversation(conversation),
+          message: serializeAiChatMessage(assistantMessage),
+          confirmations: messageConfirmations,
+        })
+      }
+      return { confirmation, actionResult, message: assistantMessage, isToolAction }
+    }
+
+    const cancelledConfirmations = await listCancelledToolConfirmations({
+      assistantMessageId: assistantMessage.id,
+      conversationId: conversation.id,
+      userId,
+    })
     const { message } = await summarizeConfirmedToolResult({
       ctx,
       conversation,
@@ -215,7 +260,12 @@ async function executeConfirmationAndCreateMessage(input: {
       userId,
       result: actionResult,
       response,
-      continueWithConfiguredTools: true,
+      continueWithConfiguredTools: cancelledConfirmations.length === 0,
+      confirmationBatchResolved: true,
+      resolutions: cancelledConfirmations.map((item) => ({
+        action: item.action,
+        targetSummary: item.targetSummary ?? undefined,
+      })),
     })
     return { confirmation, actionResult, message, isToolAction }
   }
@@ -569,14 +619,78 @@ export default class AiChatController {
     const route = await request.validateUsing(aiChatConfirmationRouteValidator, { data: params })
     const user = currentUser(ctx)
     const conversation = await conversationsFor(ctx, user.id).where('id', route.id).firstOrFail()
+    if (!claimAiAgentConversation(conversation.id, user.id)) {
+      return response.conflict({ message: '当前会话已有 AI 请求正在运行，请稍后再试' })
+    }
 
     try {
+      const pending = await AiAgentConfirmation.query()
+        .where('id', route.confirmationId)
+        .where('conversation_id', conversation.id)
+        .where('requested_by_user_id', user.id)
+        .first()
       const confirmation = await cancelAgentAction(ctx, {
         confirmationId: Number(route.confirmationId),
         conversationId: conversation.id,
         userId: user.id,
         source: 'api',
       })
+      if (
+        pending?.assistantMessageId &&
+        (pending.action === 'call_mcp_tool' || pending.action === 'call_builtin_tool')
+      ) {
+        const assistantMessage = await AiChatMessage.find(pending.assistantMessageId)
+        if (assistantMessage) {
+          const pendingTool = findPendingConfirmationTool(
+            assistantMessage.runtimeDetails,
+            Number(route.confirmationId),
+            pending.action
+          )
+          const toolCallId =
+            (pendingTool?.kind === 'tool' ? pendingTool.callId : undefined) ??
+            `confirmation-${route.confirmationId}`
+          assistantMessage.agentContext = upsertAiAgentToolResult(assistantMessage.agentContext, {
+            assistantMessageId: assistantMessage.id,
+            toolCallId,
+            toolName:
+              (pendingTool?.kind === 'tool' ? pendingTool.name : undefined) ?? pending.action,
+            text: 'The user cancelled this proposed operation; it was not executed.',
+            isError: true,
+          })
+          await assistantMessage.save()
+          const pendingConfirmations = await listConversationConfirmations(conversation.id, user.id)
+          if (!shouldDeferConfirmationReply(pendingConfirmations, assistantMessage.id)) {
+            const cancelledConfirmations = await listCancelledToolConfirmations({
+              assistantMessageId: assistantMessage.id,
+              conversationId: conversation.id,
+              userId: user.id,
+            })
+            try {
+              await summarizeConfirmedToolResult({
+                ctx,
+                conversation,
+                assistantMessage,
+                userId: user.id,
+                continueWithConfiguredTools: false,
+                confirmationBatchResolved: true,
+                resolutions: cancelledConfirmations.map((item) => ({
+                  action: item.action,
+                  targetSummary: item.targetSummary ?? undefined,
+                })),
+              })
+            } catch (error) {
+              logger.warn(
+                {
+                  err: error,
+                  confirmationId: route.confirmationId,
+                  conversationId: conversation.id,
+                },
+                'Cancelled tool continuation could not be completed'
+              )
+            }
+          }
+        }
+      }
       return serialize(confirmation)
     } catch (error) {
       if (error instanceof AiAgentConfirmationError) {
@@ -586,6 +700,8 @@ export default class AiChatController {
         return response.unprocessableEntity({ message: error.message })
       }
       throw error
+    } finally {
+      releaseAiAgentConversation(conversation.id, user.id)
     }
   }
 

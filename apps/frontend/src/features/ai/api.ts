@@ -195,7 +195,7 @@ export interface AiChatRunMeta {
 }
 
 export type AiChatTimelineItem =
-  | { kind: 'plan'; turn?: number; steps: AiChatPlanStep[] }
+  | { kind: 'plan'; turn?: number; planType?: 'task' | 'confirmation'; steps: AiChatPlanStep[] }
   | AiChatRunPhase
   | ({ kind: 'tool' } & AiChatAgentActivity)
   | {
@@ -212,7 +212,8 @@ export type AiChatTimelineItem =
     }
 
 export interface AiChatPlanStep {
-  key: 'identify_target' | 'prepare_action' | 'await_confirmation'
+  key: string
+  label?: string
   state: 'pending' | 'running' | 'done'
   startedAt?: number
   durationMs?: number
@@ -288,7 +289,7 @@ type AiChatStreamEvent =
       detail?: AiChatAgentActivity['detail']
     }
   | ({ type: 'agent_phase' } & Omit<AiChatRunPhase, 'kind'>)
-  | { type: 'agent_plan'; steps: AiChatPlanStep[] }
+  | { type: 'agent_plan'; planType?: 'task' | 'confirmation'; steps: AiChatPlanStep[] }
   | { type: 'agent_citations'; citations: AiChatCitation[] }
   | ({ type: 'agent_confirmation' } & AiChatPendingConfirmation)
   | ({ type: 'run' } & AiChatRunMeta)
