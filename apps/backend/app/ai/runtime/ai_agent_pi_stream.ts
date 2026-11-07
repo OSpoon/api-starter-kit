@@ -20,6 +20,7 @@ import {
   type PiModelUsage,
 } from '#ai/runtime/ai_agent_pi_runtime'
 import { isAiTelemetryEnabled } from '#ai/runtime/ai_agent_telemetry_exporter'
+import { listEnabledAiAgentSkills } from '#services/ai_agent_skill_service'
 
 export type PiAgentControl = {
   steer(content: string): void
@@ -130,18 +131,28 @@ export async function createAiAgentPiStream(
   const initialMessages =
     lastMessage?.role === 'user' ? input.messages.slice(0, -1) : input.messages
 
-  const tools = await createConfiguredAiAgentTools({
-    ...input,
-    agentRunId: input.agentRunId,
-    onTaskPlanUpdate: (steps) => events.push({ type: 'app_task_plan_updated', steps }),
-  })
+  const [tools, availableSkills] = await Promise.all([
+    createConfiguredAiAgentTools({
+      ...input,
+      agentRunId: input.agentRunId,
+      onTaskPlanUpdate: (steps) => events.push({ type: 'app_task_plan_updated', steps }),
+    }),
+    input.capabilityMode === 'knowledge-only' || input.enabledToolNames?.length === 0
+      ? Promise.resolve([])
+      : listEnabledAiAgentSkills(),
+  ])
   const toolLabels = new Map(
     tools
       .filter((tool) => typeof tool.label === 'string' && tool.label !== tool.name)
       .map((tool) => [tool.name, tool.label as string])
   )
   const { agent, models } = await createPiAgent({
-    systemPrompt: createAiAgentSystemPrompt(input.context, '', input.capabilityMode),
+    systemPrompt: createAiAgentSystemPrompt(
+      input.context,
+      '',
+      input.capabilityMode,
+      availableSkills
+    ),
     tools,
     messages: input.agentContext ?? toPiMessages(initialMessages),
     sessionId: `ai-chat:${input.conversationId}`,

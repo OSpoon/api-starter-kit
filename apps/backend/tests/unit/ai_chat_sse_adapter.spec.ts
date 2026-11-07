@@ -2,7 +2,12 @@ import type { HttpContext } from '@adonisjs/core/http'
 import { test } from '@japa/runner'
 
 import type { createAiAgentStream } from '#ai/chat/ai_agent_service'
-import { streamAiAgentToolStatuses, writeAiChatSse } from '#ai/chat/ai_chat_sse_adapter'
+import type { AiAgentTurnEvent } from '#ai/chat/ai_chat_sse_adapter'
+import {
+  streamAiAgentToolStatuses,
+  streamAiAgentTurnEvents,
+  writeAiChatSse,
+} from '#ai/chat/ai_chat_sse_adapter'
 
 type FakeToolCall = {
   name: string
@@ -62,6 +67,18 @@ function createFakeRun(toolCalls: FakeToolCall[], toolLabels = new Map<string, s
   } as unknown as Awaited<ReturnType<typeof createAiAgentStream>>
 }
 
+function createFakeEventRun(events: unknown[]) {
+  async function* generate() {
+    yield* events
+  }
+  return {
+    agentRunId: 'agent-run-1',
+    stream: { events: generate() },
+    model: { baseUrl: 'https://chat.example' },
+    toolLabels: new Map(),
+  } as unknown as Awaited<ReturnType<typeof createAiAgentStream>>
+}
+
 function createFakeResponse() {
   const writes: string[] = []
   const nodeResponse = {
@@ -98,6 +115,116 @@ function parseSse(writes: string[]) {
 }
 
 test.group('AI chat SSE adapter', () => {
+  test('hides text from a model response that calls a tool and emits the post-tool answer', async ({
+    assert,
+  }) => {
+    const usage = { input: 1, output: 1, cacheRead: 0, cacheWrite: 0, totalTokens: 2 }
+    const toolCallMessage = {
+      role: 'assistant',
+      content: [
+        { type: 'text', text: '抱歉，我重新查一下。' },
+        { type: 'toolCall', id: 'call-skill', name: 'bash', arguments: {} },
+      ],
+      provider: 'test-provider',
+      model: 'test-model',
+      usage,
+      stopReason: 'toolUse',
+    }
+    const finalMessage = {
+      role: 'assistant',
+      content: [{ type: 'text', text: '可用空间是 72 GiB。' }],
+      provider: 'test-provider',
+      model: 'test-model',
+      usage,
+      stopReason: 'stop',
+    }
+    const events = [
+      { type: 'message_start', message: { role: 'assistant' } },
+      {
+        type: 'message_update',
+        assistantMessageEvent: { type: 'text_delta', delta: '抱歉，我重新查一下。' },
+      },
+      { type: 'message_end', message: toolCallMessage },
+      {
+        type: 'tool_execution_start',
+        toolCallId: 'call-skill',
+        toolName: 'bash',
+        args: {},
+      },
+      {
+        type: 'tool_execution_end',
+        toolCallId: 'call-skill',
+        toolName: 'bash',
+        result: { details: { kind: 'skill_script_result' } },
+        isError: false,
+      },
+      { type: 'message_start', message: { role: 'assistant' } },
+      {
+        type: 'message_update',
+        assistantMessageEvent: { type: 'text_delta', delta: '可用空间是 72 GiB。' },
+      },
+      { type: 'message_end', message: finalMessage },
+    ]
+    const output: AiAgentTurnEvent[] = []
+
+    for await (const event of streamAiAgentTurnEvents(
+      createFakeEventRun(events),
+      new AbortController().signal
+    )) {
+      output.push(event)
+    }
+
+    assert.deepEqual(
+      output
+        .filter(
+          (event): event is Extract<AiAgentTurnEvent, { source: 'message_delta' }> =>
+            event.source === 'message_delta'
+        )
+        .map((event) => event.value),
+      ['可用空间是 72 GiB。']
+    )
+  })
+
+  test('emits text normally when the model response does not call a tool', async ({ assert }) => {
+    const usage = { input: 1, output: 1, cacheRead: 0, cacheWrite: 0, totalTokens: 2 }
+    const events = [
+      { type: 'message_start', message: { role: 'assistant' } },
+      {
+        type: 'message_update',
+        assistantMessageEvent: { type: 'text_delta', delta: '直接回答。' },
+      },
+      {
+        type: 'message_end',
+        message: {
+          role: 'assistant',
+          content: [{ type: 'text', text: '直接回答。' }],
+          provider: 'test-provider',
+          model: 'test-model',
+          usage,
+          stopReason: 'stop',
+        },
+      },
+    ]
+    const output: AiAgentTurnEvent[] = []
+
+    for await (const event of streamAiAgentTurnEvents(
+      createFakeEventRun(events),
+      new AbortController().signal
+    )) {
+      output.push(event)
+    }
+
+    assert.deepEqual(
+      output
+        .filter(
+          (event): event is Extract<AiAgentTurnEvent, { source: 'message_delta' }> =>
+            event.source === 'message_delta'
+        )
+        .map((event) => event.value),
+      ['直接回答。']
+    )
+  })
+
   test('shows a bounded, redacted reason and the MCP tool name when a tool fails', async ({
     assert,
   }) => {

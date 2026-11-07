@@ -5,6 +5,7 @@ import {
   MessageSquare,
   Save,
   Server,
+  Sparkles,
   TestTube,
   Wrench,
 } from '@lucide/vue'
@@ -40,6 +41,7 @@ import { usePermission } from '@/lib/permission'
 import { useAuthStore } from '@/stores/auth'
 
 import AgentMcpCard from './AgentMcpCard.vue'
+import AgentSkillsCard from './AgentSkillsCard.vue'
 import AgentToolsCard from './AgentToolsCard.vue'
 import {
   getLlmConfiguration,
@@ -58,13 +60,17 @@ const activeModule = ref('models')
 watch(
   () => route.query.module,
   (module) => {
-    activeModule.value = module === 'im' ? 'im' : 'models'
+    activeModule.value =
+      module === 'im' || module === 'skills' || module === 'mcp' || module === 'tools'
+        ? module
+        : 'models'
   },
   { immediate: true }
 )
 const sections = computed(() => [
   { value: 'models', label: t('agent_config.module_models'), icon: BrainCircuit },
   { value: 'tools', label: t('agent_config.module_tools'), icon: Wrench },
+  { value: 'skills', label: t('agent_config.module_skills'), icon: Sparkles },
   { value: 'mcp', label: t('agent_config.module_mcp'), icon: Server },
   { value: 'im', label: t('agent_config.module_im'), icon: MessageSquare },
 ])
@@ -564,6 +570,9 @@ onMounted(load)
     </div>
     <div v-if="!loading" v-show="activeModule === 'tools'" class="flex min-h-0 flex-1 flex-col">
       <AgentToolsCard />
+    </div>
+    <div v-if="!loading" v-show="activeModule === 'skills'" class="flex min-h-0 flex-1 flex-col">
+      <AgentSkillsCard />
     </div>
     <div v-if="!loading" v-show="activeModule === 'mcp'" class="flex min-h-0 flex-1 flex-col">
       <AgentMcpCard />

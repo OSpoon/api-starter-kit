@@ -34,4 +34,5 @@ yarn-error.log
 public/assets
 
 db/
+apps/backend/storage/
 docker-compose/

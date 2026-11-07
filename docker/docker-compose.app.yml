@@ -14,6 +14,9 @@ services:
       MIGRATE: 'true'
       NODE_ENV: production
       DB_HOST: postgres
+      AI_AGENT_SKILLS_DIR: /data/assistant-skills
+    volumes:
+      - assistant-skills:/data/assistant-skills
     ports:
       - '${BACKEND_PORT:-13333}:13333'
     healthcheck:
@@ -44,3 +47,6 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+
+volumes:
+  assistant-skills:

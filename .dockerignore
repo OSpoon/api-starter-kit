@@ -9,6 +9,7 @@ node_modules
 .idea
 .codebuddy
 apps/backend/tmp
+apps/backend/storage
 apps/backend/.env
 apps/frontend/.env
 apps/assistant-web/.env

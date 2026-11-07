@@ -102,6 +102,7 @@
     "pino-roll": "^4.0.0",
     "qrcode": "^1.5.4",
     "reflect-metadata": "^0.2.2",
+    "skills": "1.7.6",
     "yaml": "^2.9.0",
     "zod": "3.25.76"
   },

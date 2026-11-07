@@ -126,15 +126,16 @@ const columns = computed<ColumnDef<AgentMcpTool>[]>(() => [
 
 <template>
   <Dialog :open="open" @update:open="emit('update:open', $event)">
-    <DialogContent class="max-h-[85vh] overflow-y-auto sm:max-w-5xl">
-      <DialogHeader>
+    <DialogContent class="flex max-h-[85vh] flex-col gap-0 overflow-hidden sm:max-w-5xl">
+      <DialogHeader class="shrink-0">
         <DialogTitle>{{ t('agent_config.mcp_tools') }} · {{ server?.name }}</DialogTitle>
         <DialogDescription>{{ t('agent_config.mcp_tools_description') }}</DialogDescription>
       </DialogHeader>
-      <div class="min-w-0">
-        <p v-if="error" class="text-sm text-destructive">{{ error }}</p>
+      <div class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+        <p v-if="error" class="shrink-0 text-sm text-destructive">{{ error }}</p>
         <DataTable
           v-if="tools.length || !error"
+          class="min-h-0 flex-1"
           :columns="columns"
           :data="tools"
           :show-search="false"

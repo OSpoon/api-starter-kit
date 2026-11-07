@@ -23,10 +23,11 @@ flowchart TB
 - `app/ai` 集中维护 Pi runtime、会话编排、SSE 适配、提示词策略和工具注册；可复用的领域逻辑仍位于 `app/services`。
 - `ai_chat_controller.ts` 只负责会话归属、输入校验、消息持久化和 HTTP/SSE 生命周期。
 - `ai_chat_controller.ts` 的 `transcribe` 处理管理端 Web、独立助手 Web 和桌面 WebView 的 multipart 音频上传；`ai_speech_service.ts` 使用运行时 LLM 配置调用 OpenAI-compatible ASR 服务，并只返回转写文本。转写接口不直接创建聊天消息，客户端拿到文本后复用普通消息 SSE 链路。
-- `ai_chat_sse_adapter.ts` 只负责把单一 Pi `AgentEvent` 流转换为 SSE、keepalive、工具状态详情、阶段和确认事件。
+- `ai_chat_sse_adapter.ts` 只负责把单一 Pi `AgentEvent` 流转换为 SSE、keepalive、工具状态详情、阶段和确认事件。助手文本按单次模型响应暂存；响应包含工具调用时丢弃其中的说明文字，纯文本响应结束后再发送，工具进度仍实时发送。
 - `ai_agent_service.ts` 创建 Pi Agent，配置模型、上下文和工具事件流；每个会话使用稳定的 Pi `sessionId`，并显式使用 Pi 的 steer/follow-up 单条队列策略。
 - `ai_agent_pi_stream.ts` 负责创建 Pi Agent、订阅原始事件并暴露控制句柄；消息流和工具流统一通过 Pi 事件处理。
 - `ai_agent_tool_registry.ts` 直接返回 Pi `AgentTool[]`；工具 schema、执行逻辑和业务服务调用在同一注册边界内维护。
+- `ai_agent_skill_service.ts` 通过固定版本的 Vercel `skills` CLI 安装和移除技能，工作目录由 `AI_AGENT_SKILLS_DIR` 指定，默认使用 `apps/backend/storage`，技能文件位于其 `.agents/skills/` 下。助手配置页是管理入口；新技能默认停用，启用状态是技能运行的唯一管理开关。`list_agent_skills` 和 `load_agent_skill` 只暴露启用技能的说明和受限资源读取。`bash` 只接受启用技能目录内的 JavaScript 文件，并在助手服务进程所在环境直接执行。
 - Pi 生命周期钩子在工具调用前校验输入，在调用后识别错误和终止结果；确认提议及终止性业务错误使用原生 `terminate` 结束本轮。
 - Pi 的 `prepareCompaction`/`compact` 按 token 预算压缩长上下文，摘要写入 `AiChatConversation.contextSummary`，完整消息历史不变；`shouldStopAfterTurn` 防止终态工具结果触发无意义的下一轮推理。
 - Pi 的 `prepareNextTurnWithContext` 在每轮模型调用前刷新待确认提议和 pending query 上下文；`tool_execution_update` 仅转发白名单进度字段到 `agent_status` SSE 事件。
@@ -34,23 +35,31 @@ flowchart TB
 
 ## 工具边界
 
-| 工具                               | 行为                                                                                                                                              |
-| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `diagnose_my_access`               | 只诊断当前认证用户的服务端权限。                                                                                                                  |
-| `run_registered_query`             | 只调用 `ai_agent_query_registry` 中的固定模板；禁止自由 SQL。所有列表固定最多返回 20 条，不提供分页或继续查询协议，更多数据需到对应管理模块查看。 |
-| `search_knowledge_catalog`         | 两阶段检索第一步。按当前角色或公开范围检索知识源目录，最多返回 12 个候选文档的标题、说明和主题，不返回正文片段。                                  |
-| `search_knowledge`                 | 两阶段检索第二步。必须限定在本轮目录返回的 1 至 10 个文档 ID 内检索正文分块；返回的摘录才是回答知识库事实的证据。                                 |
-| `update_task_plan`                 | 仅为复杂多步请求发布或更新最多 8 步的进度计划；计划只用于展示，不代表业务操作已完成。                                                             |
-| `propose_system_management_change` | 只创建非 API Key 的持久化变更提议（如用户、角色、权限），不执行破坏性操作。执行必须经过确认 API。                                                 |
-| `propose_api_key_creation`         | 只创建 API Key 的持久化变更提议；不执行，必须经过确认 API。                                                                                       |
-| `propose_api_key_revocation`       | 只创建吊销活跃 API Key 的持久化提议，与删除工具解耦；不执行。执行必须经过确认 API。                                                               |
-| `propose_api_key_deletion`         | 只创建删除已吊销 API Key 的持久化提议；不执行。执行必须经过确认 API。                                                                             |
+| 工具                                     | 行为                                                                                                                                                                           |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `diagnose_my_access`                     | 只诊断当前认证用户的服务端权限。                                                                                                                                               |
+| `run_registered_query`                   | 只调用 `ai_agent_query_registry` 中的固定模板；禁止自由 SQL。所有列表固定最多返回 20 条，不提供分页或继续查询协议，更多数据需到对应管理模块查看。                              |
+| `search_knowledge_catalog`               | 两阶段检索第一步。按当前角色或公开范围检索知识源目录，最多返回 12 个候选文档的标题、说明和主题，不返回正文片段。                                                               |
+| `search_knowledge`                       | 两阶段检索第二步。必须限定在本轮目录返回的 1 至 10 个文档 ID 内检索正文分块；返回的摘录才是回答知识库事实的证据。                                                              |
+| `update_task_plan`                       | 仅为复杂多步请求发布或更新最多 8 步的进度计划；计划只用于展示，不代表业务操作已完成。                                                                                          |
+| `list_agent_skills` / `load_agent_skill` | 枚举已启用技能并读取 `SKILL.md` 或技能目录内的小型资源文件；技能内容是非可信工作流说明，只能配合已注册工具使用。                                                               |
+| `bash`                                   | 只执行已启用技能声明的 Node 脚本；Node 权限模式限制文件读取范围并默认阻止子进程、Worker 等能力，同时对常见高危 API 做静态拦截。已声明的 `system-status` 能力提供服务状态快照。 |
+| `propose_system_management_change`       | 只创建非 API Key 的持久化变更提议（如用户、角色、权限），不执行破坏性操作。执行必须经过确认 API。                                                                              |
+| `propose_api_key_creation`               | 只创建 API Key 的持久化变更提议；不执行，必须经过确认 API。                                                                                                                    |
+| `propose_api_key_revocation`             | 只创建吊销活跃 API Key 的持久化提议，与删除工具解耦；不执行。执行必须经过确认 API。                                                                                            |
+| `propose_api_key_deletion`               | 只创建删除已吊销 API Key 的持久化提议；不执行。执行必须经过确认 API。                                                                                                          |
 
 查询模板具有稳定 code/version、参数 schema、权限码、服务端作用域、字段脱敏和固定 20 条结果上限。缺少必要参数时，`AiAgentPendingQuery` 只保存参数收集状态，下一轮会话重新校验模板、归属、权限和有效期。
 
 知识库的管理字段、LLM 元数据预览、文件限制、角色范围、两阶段检索和审计事件见[知识库实现说明](knowledge-base.md)。目录元数据仅用于选源，模型必须使用第二阶段返回的正文摘录回答，不得把目录摘要或通用模型知识当作证据。
 
 变更提议由 `prepare` 创建安全目标摘要和 payload；`confirmAiAgentAction` 在执行前重新校验会话归属、权限、proposal 状态、有效期和目标当前状态，并记录审计。
+
+技能通过 `skills` CLI 安装到应用专属持久目录；Docker Compose 使用 `assistant-skills` 命名卷保存目录和 CLI lock 文件。可在助手配置的“技能”分区输入 GitHub 简称、GitHub 仓库 URL 或 Git remote URL。安装阶段不会运行技能文件；新技能默认停用，管理员启用后，模型可按技能说明中的 Node 命令调用内置 `bash` 工具。技能启用状态是唯一运行开关，不另设用户运行权限。
+
+启用技能的脚本直接运行在后端服务所在的宿主机或容器中。执行器使用 Node 权限模式，只开放技能目录的文件读取，不开放文件写入、子进程、Worker、原生扩展和 Inspector；还会对技能目录内的 JavaScript 源码检查常见网络、进程、动态代码和文件写入 API，并限制为 30 秒、256 MiB V8 堆和 64 KiB 输出。此模式是降低误用风险的限制，不是安全沙箱；Node 权限模式和静态检查都不能保证抵御恶意脚本，技能安装和启用必须只针对可信来源。容器部署时，系统信息脚本看到容器环境；开发模式看到本机 macOS 环境。服务状态快照仍由现有 `system_status_service` 提供，可作为 `runtimeContext["system-status"]` 返回给模型，并通过 `ASSISTANT_SKILL_CONTEXT_JSON` 注入脚本环境。
+
+技能可在 frontmatter 中声明受支持的 `assistant-capabilities`。当前只支持 `system-status`；能力快照由已启用技能的声明决定，不另设运行权限。快照包含服务 CPU、内存、磁盘和运行时信息；能力名由服务器白名单控制，技能声明不能增加白名单之外的能力。
 
 ## 状态与持久化
 

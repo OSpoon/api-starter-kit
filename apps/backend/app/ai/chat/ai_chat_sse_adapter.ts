@@ -273,6 +273,10 @@ function assistantText(message: AssistantMessage) {
     .join('')
 }
 
+function assistantMessageHasToolCall(message: AssistantMessage) {
+  return message.content.some((part) => part.type === 'toolCall')
+}
+
 export async function* streamAiAgentTurnEvents(
   run: Awaited<ReturnType<typeof createAiAgentStream>>,
   signal: AbortSignal
@@ -304,7 +308,7 @@ export async function* streamAiAgentTurnEvents(
   const toolStartedAt = new Map<string, number>()
   const toolInputs = new Map<string, unknown>()
   const pendingConfirmations = new Map<string, AiAgentConfirmationSummary>()
-  let streamedAssistantText = ''
+  let assistantTextBuffer = ''
   let userMessagesSeen = 0
   for await (const event of run.stream.events) {
     if (signal.aborted) throw new DOMException('AI request was cancelled', 'AbortError')
@@ -334,22 +338,22 @@ export async function* streamAiAgentTurnEvents(
       continue
     }
     if (event.type === 'message_start' && event.message.role === 'assistant') {
-      streamedAssistantText = ''
+      assistantTextBuffer = ''
       yield { source: 'message_start' }
       continue
     }
     if (event.type === 'message_update' && event.assistantMessageEvent.type === 'text_delta') {
-      streamedAssistantText += event.assistantMessageEvent.delta
-      yield { source: 'message_delta', value: event.assistantMessageEvent.delta }
+      assistantTextBuffer += event.assistantMessageEvent.delta
       continue
     }
     if (event.type === 'message_end' && event.message.role === 'assistant') {
-      const finalText = assistantText(event.message)
-      if (finalText.startsWith(streamedAssistantText)) {
-        const remainder = finalText.slice(streamedAssistantText.length)
-        if (remainder) yield { source: 'message_delta', value: remainder }
-      } else if (finalText && !streamedAssistantText) {
-        yield { source: 'message_delta', value: finalText }
+      if (!assistantMessageHasToolCall(event.message)) {
+        const finalText = assistantText(event.message)
+        const responseText =
+          finalText.startsWith(assistantTextBuffer) || !assistantTextBuffer
+            ? finalText
+            : assistantTextBuffer
+        if (responseText) yield { source: 'message_delta', value: responseText }
       }
       yield {
         source: 'message_end',

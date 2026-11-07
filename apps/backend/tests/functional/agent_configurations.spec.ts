@@ -101,7 +101,20 @@ test.group('Agent configuration', (group) => {
       userId: 1,
       conversationId: 1,
       agentRunId: crypto.randomUUID(),
+      enabledToolNames: saved.map(({ code }) => code),
     })
+    assert.include(
+      runtimeTools.map(({ name }) => name),
+      'list_agent_skills'
+    )
+    assert.include(
+      runtimeTools.map(({ name }) => name),
+      'load_agent_skill'
+    )
+    assert.include(
+      runtimeTools.map(({ name }) => name),
+      'bash'
+    )
     for (const setting of saved) {
       const runtimeTool = runtimeTools.find(({ name }) => name === setting.code) as
         | ((typeof runtimeTools)[number] & { prepareConfirmation?: unknown })
@@ -234,21 +247,54 @@ test.group('Agent configuration', (group) => {
     assert.notProperty(updated.body().data, 'requestTimeoutMs')
   })
 
-  test('removes skill routes, tool settings, table, and stored data', async ({
+  test('manages skills through the CLI-backed directory without a skills table', async ({
     client,
     assert,
   }) => {
-    const token = await createActor(['agent-config:read', 'agent-config:update'])
-    const routes = await Promise.all([
-      client.get('/api/v1/system/agent-config/skills').bearerToken(token),
-      client.get('/api/v1/system/agent-config/skills/1').bearerToken(token),
-      client.post('/api/v1/system/agent-config/skills').bearerToken(token).json({}),
-      client.put('/api/v1/system/agent-config/skills/1').bearerToken(token).json({}),
-      client.delete('/api/v1/system/agent-config/skills/1').bearerToken(token),
-    ])
-    for (const response of routes) response.assertStatus(404)
+    const unauthorizedToken = await createActor([])
+    const deniedList = await client
+      .get('/api/v1/system/agent-config/skills')
+      .bearerToken(unauthorizedToken)
+    deniedList.assertStatus(403)
 
-    const configuration = await client.get('/api/v1/system/agent-config').bearerToken(token)
+    const readerToken = await createActor(['agent-config:read'])
+    const listed = await client.get('/api/v1/system/agent-config/skills').bearerToken(readerToken)
+    listed.assertStatus(200)
+    assert.isArray((listed.body().data as { items: unknown[] }).items)
+    assert.property(listed.body().data as { meta: object }, 'meta')
+
+    const deniedInstall = await client
+      .post('/api/v1/system/agent-config/skills')
+      .bearerToken(readerToken)
+      .json({ source: 'vercel-labs/agent-skills' })
+    deniedInstall.assertStatus(403)
+    const deniedToggle = await client
+      .put('/api/v1/system/agent-config/skills/not-installed')
+      .bearerToken(readerToken)
+      .json({ enabled: true })
+    deniedToggle.assertStatus(403)
+    const deniedRemoval = await client
+      .delete('/api/v1/system/agent-config/skills/not-installed')
+      .bearerToken(readerToken)
+    deniedRemoval.assertStatus(403)
+
+    const updaterToken = await createActor(['agent-config:read', 'agent-config:update'])
+    const invalidInstall = await client
+      .post('/api/v1/system/agent-config/skills')
+      .bearerToken(updaterToken)
+      .json({ source: 'https://example.com/skills.zip' })
+    invalidInstall.assertStatus(422)
+    const missingToggle = await client
+      .put('/api/v1/system/agent-config/skills/not-installed')
+      .bearerToken(updaterToken)
+      .json({ enabled: true })
+    missingToggle.assertStatus(404)
+    const missingRemoval = await client
+      .delete('/api/v1/system/agent-config/skills/not-installed')
+      .bearerToken(updaterToken)
+    missingRemoval.assertStatus(404)
+
+    const configuration = await client.get('/api/v1/system/agent-config').bearerToken(updaterToken)
     configuration.assertStatus(200)
     const toolCodes = (configuration.body().data as { tools: Array<{ code: string }> }).tools.map(
       ({ code }) => code

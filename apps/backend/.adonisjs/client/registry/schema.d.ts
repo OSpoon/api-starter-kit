@@ -427,6 +427,54 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/llm_configurations_controller').default['test']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
+  'agent_configurations.skills': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/system/agent-config/skills'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/pagination').paginationSearchQueryValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['skills']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['skills']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'agent_configurations.install_skills': {
+    methods: ["POST"]
+    pattern: '/api/v1/system/agent-config/skills'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/ai_agent_configuration').installAiAgentSkillsValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/ai_agent_configuration').installAiAgentSkillsValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['installSkills']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['installSkills']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'agent_configurations.update_skill': {
+    methods: ["PUT"]
+    pattern: '/api/v1/system/agent-config/skills/:code'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/ai_agent_configuration').updateAiAgentSkillValidator)>|InferInput<(typeof import('#validators/ai_agent_configuration').aiAgentSkillCodeValidator)>>
+      paramsTuple: [ParamValue]
+      params: { code: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/ai_agent_configuration').updateAiAgentSkillValidator)>|InferInput<(typeof import('#validators/ai_agent_configuration').aiAgentSkillCodeValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['updateSkill']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['updateSkill']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'agent_configurations.remove_skill': {
+    methods: ["DELETE"]
+    pattern: '/api/v1/system/agent-config/skills/:code'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/ai_agent_configuration').aiAgentSkillCodeValidator)>>
+      paramsTuple: [ParamValue]
+      params: { code: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/ai_agent_configuration').aiAgentSkillCodeValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['removeSkill']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['removeSkill']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
   'agent_configurations.mcp_servers': {
     methods: ["GET","HEAD"]
     pattern: '/api/v1/system/agent-config/mcp-servers'

@@ -216,6 +216,30 @@ const routes = {
     tokens: [{"old":"/api/v1/system/agent-config/llm/test","type":0,"val":"api","end":""},{"old":"/api/v1/system/agent-config/llm/test","type":0,"val":"v1","end":""},{"old":"/api/v1/system/agent-config/llm/test","type":0,"val":"system","end":""},{"old":"/api/v1/system/agent-config/llm/test","type":0,"val":"agent-config","end":""},{"old":"/api/v1/system/agent-config/llm/test","type":0,"val":"llm","end":""},{"old":"/api/v1/system/agent-config/llm/test","type":0,"val":"test","end":""}],
     types: placeholder as Registry['agent-config.llm.test']['types'],
   },
+  'agent_configurations.skills': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/v1/system/agent-config/skills',
+    tokens: [{"old":"/api/v1/system/agent-config/skills","type":0,"val":"api","end":""},{"old":"/api/v1/system/agent-config/skills","type":0,"val":"v1","end":""},{"old":"/api/v1/system/agent-config/skills","type":0,"val":"system","end":""},{"old":"/api/v1/system/agent-config/skills","type":0,"val":"agent-config","end":""},{"old":"/api/v1/system/agent-config/skills","type":0,"val":"skills","end":""}],
+    types: placeholder as Registry['agent_configurations.skills']['types'],
+  },
+  'agent_configurations.install_skills': {
+    methods: ["POST"],
+    pattern: '/api/v1/system/agent-config/skills',
+    tokens: [{"old":"/api/v1/system/agent-config/skills","type":0,"val":"api","end":""},{"old":"/api/v1/system/agent-config/skills","type":0,"val":"v1","end":""},{"old":"/api/v1/system/agent-config/skills","type":0,"val":"system","end":""},{"old":"/api/v1/system/agent-config/skills","type":0,"val":"agent-config","end":""},{"old":"/api/v1/system/agent-config/skills","type":0,"val":"skills","end":""}],
+    types: placeholder as Registry['agent_configurations.install_skills']['types'],
+  },
+  'agent_configurations.update_skill': {
+    methods: ["PUT"],
+    pattern: '/api/v1/system/agent-config/skills/:code',
+    tokens: [{"old":"/api/v1/system/agent-config/skills/:code","type":0,"val":"api","end":""},{"old":"/api/v1/system/agent-config/skills/:code","type":0,"val":"v1","end":""},{"old":"/api/v1/system/agent-config/skills/:code","type":0,"val":"system","end":""},{"old":"/api/v1/system/agent-config/skills/:code","type":0,"val":"agent-config","end":""},{"old":"/api/v1/system/agent-config/skills/:code","type":0,"val":"skills","end":""},{"old":"/api/v1/system/agent-config/skills/:code","type":1,"val":"code","end":""}],
+    types: placeholder as Registry['agent_configurations.update_skill']['types'],
+  },
+  'agent_configurations.remove_skill': {
+    methods: ["DELETE"],
+    pattern: '/api/v1/system/agent-config/skills/:code',
+    tokens: [{"old":"/api/v1/system/agent-config/skills/:code","type":0,"val":"api","end":""},{"old":"/api/v1/system/agent-config/skills/:code","type":0,"val":"v1","end":""},{"old":"/api/v1/system/agent-config/skills/:code","type":0,"val":"system","end":""},{"old":"/api/v1/system/agent-config/skills/:code","type":0,"val":"agent-config","end":""},{"old":"/api/v1/system/agent-config/skills/:code","type":0,"val":"skills","end":""},{"old":"/api/v1/system/agent-config/skills/:code","type":1,"val":"code","end":""}],
+    types: placeholder as Registry['agent_configurations.remove_skill']['types'],
+  },
   'agent_configurations.mcp_servers': {
     methods: ["GET","HEAD"],
     pattern: '/api/v1/system/agent-config/mcp-servers',

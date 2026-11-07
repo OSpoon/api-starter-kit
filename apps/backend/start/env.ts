@@ -61,6 +61,7 @@ export default await Env.create(new URL('../', import.meta.url), {
   AI_AGENT_CONTEXT_SUMMARY_ENABLED: Env.schema.boolean.optional(),
   AI_AGENT_CONTEXT_SUMMARY_MAX_INPUT_TOKENS: Env.schema.number.optional(),
   AI_AGENT_CONTEXT_SUMMARY_MAX_OUTPUT_TOKENS: Env.schema.number.optional(),
+  AI_AGENT_SKILLS_DIR: Env.schema.string.optional(),
 
   // AI telemetry
   LANGFUSE_BASE_URL: Env.schema.string.optional({ format: 'url', tld: false }),

@@ -63,6 +63,10 @@ export interface ApiDefinition {
   agentConfigurations: {
     show: typeof routes['agent_configurations.show']
     updateConfiguration: typeof routes['agent_configurations.update_configuration']
+    skills: typeof routes['agent_configurations.skills']
+    installSkills: typeof routes['agent_configurations.install_skills']
+    updateSkill: typeof routes['agent_configurations.update_skill']
+    removeSkill: typeof routes['agent_configurations.remove_skill']
     mcpServers: typeof routes['agent_configurations.mcp_servers']
     mcpConfiguration: typeof routes['agent_configurations.mcp_configuration']
     updateMcpConfiguration: typeof routes['agent_configurations.update_mcp_configuration']

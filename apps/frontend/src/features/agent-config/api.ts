@@ -116,6 +116,14 @@ export interface AgentModulePage<T> {
   meta: { currentPage: number; perPage: number; lastPage: number; total: number }
 }
 
+export interface AgentSkill {
+  code: string
+  name: string
+  description: string
+  enabled: boolean
+  updatedAt: string
+}
+
 async function getModulePage<T>(token: string | null, path: string, page: number) {
   const query = new URLSearchParams({ page: String(page), limit: '100' })
   return readItem(
@@ -148,6 +156,37 @@ export async function updateAgentTools(token: string | null, tools: AgentToolSet
 
 export function listAgentMcpServers(token: string | null, page: number) {
   return getModulePage<AgentMcpServer>(token, 'mcp-servers', page)
+}
+
+export function listAgentSkills(token: string | null, page: number) {
+  return getModulePage<AgentSkill>(token, 'skills', page)
+}
+
+export async function installAgentSkills(token: string | null, source: string) {
+  return readItem(
+    await apiRequest<ApiEnvelope<{ installed: Array<Pick<AgentSkill, 'code' | 'name'>> }>>(
+      '/api/v1/system/agent-config/skills',
+      { method: 'POST', token, body: JSON.stringify({ source }) }
+    )
+  )
+}
+
+export async function updateAgentSkill(token: string | null, code: string, enabled: boolean) {
+  return readItem(
+    await apiRequest<ApiEnvelope<AgentSkill>>(
+      `/api/v1/system/agent-config/skills/${encodeURIComponent(code)}`,
+      { method: 'PUT', token, body: JSON.stringify({ enabled }) }
+    )
+  )
+}
+
+export async function removeAgentSkill(token: string | null, code: string) {
+  return readItem(
+    await apiRequest<ApiEnvelope<{ code: string; removed: boolean }>>(
+      `/api/v1/system/agent-config/skills/${encodeURIComponent(code)}`,
+      { method: 'DELETE', token }
+    )
+  )
 }
 
 export async function getAgentMcpConfiguration(token: string | null) {
