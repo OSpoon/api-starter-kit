@@ -61,7 +61,7 @@ export function createSearchKnowledgeCatalogTool(
     {
       name: 'search_knowledge_catalog',
       description:
-        'First stage of document knowledge retrieval. Search the knowledge-source catalog available to this Agent and return at most 12 candidate documents without正文片段. You must call this before search_knowledge; use the returned documentId values to choose the narrow document scope for the second stage.',
+        'First stage of document knowledge retrieval. Search the knowledge-source catalog available to this Agent and return at most 12 candidate documents without document excerpts. You must call this before search_knowledge; use the returned documentId values to choose the narrow document scope for the second stage.',
       schema: z.object({ query: z.string().trim().min(2).max(1000) }),
       parameters: piToolParameters.searchKnowledgeCatalog,
       executionMode: 'sequential',
