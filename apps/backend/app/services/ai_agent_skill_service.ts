@@ -230,7 +230,15 @@ async function resolveSkillFile(skillPath: string, resourcePath: string, maxByte
   if (lexicalPathFromSkill === '..' || lexicalPathFromSkill.startsWith(`..${sep}`)) {
     throw new Error('技能资源路径无效')
   }
-  const realFilePath = await realpath(filePath)
+  let realFilePath: string
+  try {
+    realFilePath = await realpath(filePath)
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      throw new Error('技能资源不存在')
+    }
+    throw error
+  }
   const pathFromSkill = relative(skillPath, realFilePath)
   if (pathFromSkill === '..' || pathFromSkill.startsWith(`..${sep}`)) {
     throw new Error('技能资源路径无效')

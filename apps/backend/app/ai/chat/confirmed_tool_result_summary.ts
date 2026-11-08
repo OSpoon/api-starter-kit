@@ -80,6 +80,7 @@ export async function summarizeConfirmedToolResult(input: {
   let needsFallback = input.confirmationBatchResolved !== true
   const contentBeforeSummary = message.content.trimEnd()
   const paragraphBreak = contentBeforeSummary ? '\n\n' : ''
+  let separatorPending = Boolean(paragraphBreak)
   let confirmations: unknown[] = []
 
   if (!input.confirmationBatchResolved) {
@@ -112,7 +113,18 @@ export async function summarizeConfirmedToolResult(input: {
         onEvent: async (event, data) => {
           if (event === 'delta' && data && typeof data === 'object') {
             const content = (data as Record<string, unknown>).content
-            if (typeof content === 'string') reply += content
+            if (typeof content === 'string') {
+              reply += content
+              if (separatorPending && content) {
+                const separator = { content: paragraphBreak }
+                if (input.response) writeAiChatSse(input.response, event, separator)
+                await input.onEvent?.(event, separator)
+                separatorPending = false
+              }
+              if (input.response) writeAiChatSse(input.response, event, data)
+              await input.onEvent?.(event, data)
+            }
+            return
           }
           if (event === 'done' && data && typeof data === 'object') {
             const resultConfirmations = (data as { confirmations?: unknown }).confirmations
@@ -171,12 +183,6 @@ export async function summarizeConfirmedToolResult(input: {
   if (needsFallback) {
     message.content = `${contentBeforeSummary}${paragraphBreak}${reply}`
     await message.save()
-    const delta = `${paragraphBreak}${reply}`
-    if (input.response) writeAiChatSse(input.response, 'delta', { content: delta })
-    await input.onEvent?.('delta', { content: delta })
-  }
-
-  if (reply && !needsFallback) {
     const delta = `${paragraphBreak}${reply}`
     if (input.response) writeAiChatSse(input.response, 'delta', { content: delta })
     await input.onEvent?.('delta', { content: delta })

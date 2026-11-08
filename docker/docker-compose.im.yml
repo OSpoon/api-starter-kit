@@ -6,6 +6,9 @@ services:
     environment:
       NODE_ENV: production
       DB_HOST: postgres
+      AI_AGENT_SKILLS_DIR: /data/assistant-skills
+    volumes:
+      - assistant-skills:/data/assistant-skills
     command: ['node', 'ace', 'wecom:bot']
     depends_on:
       backend:
@@ -18,6 +21,9 @@ services:
     environment:
       NODE_ENV: production
       DB_HOST: postgres
+      AI_AGENT_SKILLS_DIR: /data/assistant-skills
+    volumes:
+      - assistant-skills:/data/assistant-skills
     command: ['node', 'ace', 'feishu:bot']
     depends_on:
       backend:
@@ -30,6 +36,9 @@ services:
     environment:
       NODE_ENV: production
       DB_HOST: postgres
+      AI_AGENT_SKILLS_DIR: /data/assistant-skills
+    volumes:
+      - assistant-skills:/data/assistant-skills
     command: ['node', 'ace', 'dingtalk:bot']
     depends_on:
       backend:

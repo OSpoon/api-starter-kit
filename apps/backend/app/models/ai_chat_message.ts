@@ -12,6 +12,7 @@ export type AiChatCitation = {
 }
 
 export type AiChatRuntimeDetail =
+  | { kind: 'model_text'; callId: string; text: string }
   | {
       kind: 'tool'
       name: string
@@ -35,6 +36,7 @@ export type AiChatRuntimeDetail =
       serverName?: string
       toolCount?: number
       tools?: Array<{ name: string; mode?: 'read' | 'confirm' }>
+      outcome?: 'tool_call' | 'final_response'
     }
   | {
       kind: 'plan'
@@ -71,6 +73,9 @@ function isCitation(value: unknown): value is AiChatCitation {
 
 function isRuntimeDetail(value: unknown): value is AiChatRuntimeDetail {
   if (!isJsonRecord(value)) return false
+  if (value.kind === 'model_text') {
+    return typeof value.callId === 'string' && typeof value.text === 'string'
+  }
   if (value.kind === 'tool') {
     return (
       typeof value.name === 'string' &&
@@ -111,7 +116,9 @@ function isRuntimeDetail(value: unknown): value is AiChatRuntimeDetail {
               isJsonRecord(tool) &&
               typeof tool.name === 'string' &&
               (tool.mode === undefined || ['read', 'confirm'].includes(tool.mode as string))
-          )))
+          ))) &&
+      (value.outcome === undefined ||
+        ['tool_call', 'final_response'].includes(value.outcome as string))
     )
   }
   if (value.kind === 'run') {

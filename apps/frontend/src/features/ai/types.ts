@@ -6,6 +6,8 @@ export type DisplayAiChatMessage = {
   id?: string | number
   role: 'user' | 'assistant'
   content: string
+  candidateContent?: string
+  candidateCallId?: string
   status?: AiMessageContentStatus
   activity?: AiChatAgentActivity
   plan?: AiChatPlanStep[]

@@ -83,6 +83,14 @@ test.group('AI agent prompt', () => {
     assert.notInclude(prompt, 'call bash')
   })
 
+  test('restricts the post-tool final response to available results', ({ assert }) => {
+    const prompt = createAiAgentSystemPrompt(undefined, '', 'full', [], true)
+
+    assert.include(prompt, 'All tool work for this request is complete')
+    assert.include(prompt, 'Do not call tools or request confirmation')
+    assert.include(prompt, 'Ignore intermediate assistant drafts')
+  })
+
   test('advertises enabled skills as untrusted metadata and explains how to load one', ({
     assert,
   }) => {

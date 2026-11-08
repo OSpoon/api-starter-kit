@@ -40,6 +40,9 @@ export type AiAgentToolFrame =
 export type AiAgentTurnEvent =
   | { source: 'queued_user_message' }
   | { source: 'message_start' }
+  | { source: 'message_candidate_delta'; value: string }
+  | { source: 'message_candidate_clear' }
+  | { source: 'model_text_delta'; value: string }
   | { source: 'message_delta'; value: string }
   | {
       source: 'message_end'
@@ -47,6 +50,8 @@ export type AiAgentTurnEvent =
         providerId: string
         modelId: string
         baseUrl: string
+        hasToolCall: boolean
+        text: string
         inputTokens: number
         outputTokens: number
         cacheReadTokens: number
@@ -180,6 +185,62 @@ function getAgentStatusDetail(
   return parameterSummary.length ? { parameterSummary } : undefined
 }
 
+function getSkillToolInputPreview(name: string, input: unknown) {
+  if (!input || typeof input !== 'object') return undefined
+  const values = input as Record<string, unknown>
+  if (name === 'load_agent_skill' && typeof values.code === 'string') {
+    return `技能：${values.code}\n资源：${typeof values.resourcePath === 'string' ? values.resourcePath : 'SKILL.md'}`
+  }
+  if (name === 'bash' && typeof values.code === 'string') {
+    return `技能：${values.code}\n脚本：${typeof values.scriptPath === 'string' ? values.scriptPath : '未知'}\n参数数：${Array.isArray(values.args) ? values.args.length : 0}`
+  }
+  return undefined
+}
+
+function getSkillToolOutputPreview(output: unknown) {
+  if (!isJsonRecord(output)) return undefined
+  if (output.kind === 'agent_skill') {
+    const code = typeof output.code === 'string' ? output.code : '技能'
+    const path = typeof output.resourcePath === 'string' ? output.resourcePath : 'SKILL.md'
+    const characters = typeof output.content === 'string' ? output.content.length : 0
+    return `已载入 ${code}/${path}（${characters} 字）`
+  }
+  if (output.kind !== 'skill_script_result' && output.kind !== 'skill_script_error') {
+    return undefined
+  }
+  const text = [output.stdout, output.stderr]
+    .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+    .join('\n')
+    .trim()
+  if (!text) return `脚本退出码：${String(output.exitCode ?? '未知')}`
+  let preview = text
+  try {
+    const parsed: unknown = JSON.parse(text)
+    if (isJsonRecord(parsed)) {
+      preview = JSON.stringify(
+        Object.fromEntries(
+          Object.entries(parsed)
+            .filter(
+              ([key]) =>
+                !/(?:api[_-]?key|access[_-]?token|refresh[_-]?token|password|secret|authorization)/i.test(
+                  key
+                ) && !(output.code === 'system-info' && key === 'path')
+            )
+            .slice(0, 20)
+        ),
+        null,
+        2
+      )
+    }
+  } catch {
+    preview = preview.replace(
+      /(["']?(?:api[_-]?key|access[_-]?token|refresh[_-]?token|password|secret|authorization)["']?\s*[:=]\s*)(["']?)[^,"'\s}]+/gi,
+      '$1[已隐藏]'
+    )
+  }
+  return preview.length > 1600 ? `${preview.slice(0, 1600)}\n[内容已截断]` : preview
+}
+
 function isJsonRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
 }
@@ -277,9 +338,21 @@ function assistantMessageHasToolCall(message: AssistantMessage) {
   return message.content.some((part) => part.type === 'toolCall')
 }
 
+function getAssistantTextDeltas(finalText: string, streamedText: string, deltas: string[]) {
+  if (deltas.length === 0) return finalText ? [finalText] : []
+  if (!finalText.startsWith(streamedText)) return [finalText || streamedText]
+  const suffix = finalText.slice(streamedText.length)
+  return suffix ? [...deltas, suffix] : deltas
+}
+
 export async function* streamAiAgentTurnEvents(
   run: Awaited<ReturnType<typeof createAiAgentStream>>,
-  signal: AbortSignal
+  signal: AbortSignal,
+  options: {
+    streamText?: boolean
+    captureModelText?: boolean
+    streamTextAfterToolExecution?: boolean
+  } = {}
 ): AsyncGenerator<AiAgentTurnEvent> {
   const plan: AiAgentPlanStep[] = [
     { key: 'identify_target', state: 'running', startedAt: Date.now() },
@@ -309,6 +382,11 @@ export async function* streamAiAgentTurnEvents(
   const toolInputs = new Map<string, unknown>()
   const pendingConfirmations = new Map<string, AiAgentConfirmationSummary>()
   let assistantTextBuffer = ''
+  let assistantTextDeltas: string[] = []
+  let toolCallStarted = false
+  let emittedModelTextDeltas = 0
+  let toolExecuted = false
+  let candidateTextStreamed = false
   let userMessagesSeen = 0
   for await (const event of run.stream.events) {
     if (signal.aborted) throw new DOMException('AI request was cancelled', 'AbortError')
@@ -334,26 +412,93 @@ export async function* streamAiAgentTurnEvents(
     }
     if (event.type === 'message_start' && event.message.role === 'user') {
       userMessagesSeen += 1
-      if (userMessagesSeen > 1) yield { source: 'queued_user_message' }
+      if (userMessagesSeen > 1) {
+        toolExecuted = false
+        yield { source: 'queued_user_message' }
+      }
       continue
     }
     if (event.type === 'message_start' && event.message.role === 'assistant') {
       assistantTextBuffer = ''
+      assistantTextDeltas = []
+      toolCallStarted = false
+      emittedModelTextDeltas = 0
+      candidateTextStreamed = false
       yield { source: 'message_start' }
+      continue
+    }
+    if (
+      event.type === 'message_update' &&
+      event.assistantMessageEvent.type === 'toolcall_start' &&
+      options.captureModelText &&
+      !toolCallStarted
+    ) {
+      if (candidateTextStreamed) {
+        yield { source: 'message_candidate_clear' }
+        candidateTextStreamed = false
+      }
+      toolCallStarted = true
+      while (emittedModelTextDeltas < assistantTextDeltas.length) {
+        const delta = assistantTextDeltas[emittedModelTextDeltas++]
+        if (delta) yield { source: 'model_text_delta', value: delta }
+      }
       continue
     }
     if (event.type === 'message_update' && event.assistantMessageEvent.type === 'text_delta') {
       assistantTextBuffer += event.assistantMessageEvent.delta
+      assistantTextDeltas.push(event.assistantMessageEvent.delta)
+      if (options.streamText) {
+        yield { source: 'message_delta', value: event.assistantMessageEvent.delta }
+      } else if (options.streamTextAfterToolExecution && toolExecuted && !toolCallStarted) {
+        candidateTextStreamed = true
+        yield { source: 'message_candidate_delta', value: event.assistantMessageEvent.delta }
+      } else if (options.captureModelText && toolCallStarted) {
+        emittedModelTextDeltas = assistantTextDeltas.length
+        yield { source: 'model_text_delta', value: event.assistantMessageEvent.delta }
+      }
       continue
     }
     if (event.type === 'message_end' && event.message.role === 'assistant') {
-      if (!assistantMessageHasToolCall(event.message)) {
-        const finalText = assistantText(event.message)
-        const responseText =
-          finalText.startsWith(assistantTextBuffer) || !assistantTextBuffer
-            ? finalText
-            : assistantTextBuffer
-        if (responseText) yield { source: 'message_delta', value: responseText }
+      const hasToolCall = assistantMessageHasToolCall(event.message)
+      const finalText = assistantText(event.message)
+      if (hasToolCall && candidateTextStreamed) {
+        yield { source: 'message_candidate_clear' }
+        candidateTextStreamed = false
+      }
+      if (!hasToolCall && !options.streamText) {
+        let deltas: string[]
+        if (candidateTextStreamed && !finalText.startsWith(assistantTextBuffer)) {
+          yield { source: 'message_candidate_clear' }
+          candidateTextStreamed = false
+          deltas = [finalText || assistantTextBuffer]
+        } else if (candidateTextStreamed) {
+          const suffix = finalText.slice(assistantTextBuffer.length)
+          deltas = suffix ? [suffix] : []
+        } else {
+          deltas = getAssistantTextDeltas(finalText, assistantTextBuffer, assistantTextDeltas)
+        }
+        for (const delta of deltas) {
+          yield {
+            source: candidateTextStreamed ? 'message_candidate_delta' : 'message_delta',
+            value: delta,
+          }
+        }
+      } else if (!hasToolCall && options.streamText) {
+        const finalTextSuffix = finalText.startsWith(assistantTextBuffer)
+          ? finalText.slice(assistantTextBuffer.length)
+          : assistantTextBuffer
+            ? ''
+            : finalText
+        if (finalTextSuffix) yield { source: 'message_delta', value: finalTextSuffix }
+      } else if (options.captureModelText) {
+        while (emittedModelTextDeltas < assistantTextDeltas.length) {
+          const delta = assistantTextDeltas[emittedModelTextDeltas++]
+          if (delta) yield { source: 'model_text_delta', value: delta }
+        }
+        const finalTextSuffix = finalText.startsWith(assistantTextBuffer)
+          ? finalText.slice(assistantTextBuffer.length)
+          : ''
+        if (finalTextSuffix) yield { source: 'model_text_delta', value: finalTextSuffix }
       }
       yield {
         source: 'message_end',
@@ -361,6 +506,8 @@ export async function* streamAiAgentTurnEvents(
           providerId: event.message.provider,
           modelId: event.message.model,
           baseUrl: run.model.baseUrl,
+          hasToolCall,
+          text: assistantText(event.message),
           inputTokens: event.message.usage.input,
           outputTokens: event.message.usage.output,
           cacheReadTokens: event.message.usage.cacheRead,
@@ -433,6 +580,7 @@ export async function* streamAiAgentTurnEvents(
     }
     if (event.type === 'tool_execution_end') {
       if (event.toolName === 'update_task_plan') continue
+      toolExecuted = true
       const output = event.result?.details ?? event.result
       const confirmation = pendingConfirmations.get(event.toolCallId)
       const toolArtifact = readAgentToolArtifact(output)
@@ -448,6 +596,19 @@ export async function* streamAiAgentTurnEvents(
         output,
         confirmation
       )
+      const skillInputPreview = getSkillToolInputPreview(
+        event.toolName,
+        toolInputs.get(event.toolCallId)
+      )
+      const skillOutputPreview = getSkillToolOutputPreview(output)
+      const visibleCompletedDetail =
+        skillInputPreview || skillOutputPreview
+          ? {
+              ...completedDetail,
+              ...(skillInputPreview ? { inputPreview: skillInputPreview } : {}),
+              ...(skillOutputPreview ? { outputPreview: skillOutputPreview } : {}),
+            }
+          : completedDetail
       const completedState =
         confirmation || toolErrorCode === 'permission_denied' || (!event.isError && !toolArtifact)
           ? 'done'
@@ -463,7 +624,7 @@ export async function* streamAiAgentTurnEvents(
             startedAt: toolStartedAt.get(event.toolCallId),
             durationMs: Date.now() - (toolStartedAt.get(event.toolCallId) ?? Date.now()),
             ...(displayName ? { displayName } : {}),
-            ...(completedDetail ? { detail: completedDetail } : {}),
+            ...(visibleCompletedDetail ? { detail: visibleCompletedDetail } : {}),
             ...(getAgentStatusPhase(event.toolName, completedState, Boolean(confirmation))
               ? {
                   phase: getAgentStatusPhase(event.toolName, completedState, Boolean(confirmation)),

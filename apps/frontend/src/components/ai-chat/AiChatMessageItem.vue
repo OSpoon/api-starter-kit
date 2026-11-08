@@ -30,6 +30,7 @@ export interface AiChatMessageItemData {
   id?: string | number
   role: 'assistant' | 'user'
   content: string
+  candidateContent?: string
   status?: AiChatMessageItemStatus
   activity?: AiChatAgentActivity
   plan?: AiChatPlanStep[]
@@ -65,6 +66,7 @@ defineEmits<{
 }>()
 
 const { t, te } = useI18n()
+const timelineOpen = ref(false)
 
 const actionMarker = /\[\[action:([A-Za-z0-9_-]+)\]\]/g
 const legacyConfirmationNotice = '此操作需要确认，请在确认卡片中确认后继续。'
@@ -107,6 +109,12 @@ function getMessageContent(message: AiChatMessageItemData) {
   return content.trim()
 }
 
+function getRenderedMessageContent(message: AiChatMessageItemData) {
+  const content = getMessageContent(message)
+  const candidateContent = message.role === 'assistant' ? (message.candidateContent ?? '') : ''
+  return content ? `${content}${candidateContent}` : candidateContent.trimStart()
+}
+
 function canRetryMessage(message: AiChatMessageItemData) {
   const messages = props.allMessages ?? [message]
   const latestAssistantMessage = [...messages].reverse().find((item) => item.role === 'assistant')
@@ -131,6 +139,9 @@ function getTimelineLabel(item: AiChatTimelineItem, timeline: AiChatTimelineItem
       })
     }
     if (item.name === 'model_response') {
+      if (item.outcome === 'tool_call') {
+        return t('ai_chat.timeline.phases.model_response.tool_call')
+      }
       return t(`ai_chat.timeline.phases.model_response.${item.state}`)
     }
     return t(`ai_chat.timeline.phases.preparing_agent.${item.state}`)
@@ -148,6 +159,7 @@ function getTimelineLabel(item: AiChatTimelineItem, timeline: AiChatTimelineItem
       { duration: formatDurationSeconds(item.durationMs) }
     )
   }
+  if (item.kind === 'model_text') return item.text
   const activity = item
   const toolKey = `ai_chat.timeline.tools.${activity.name}`
   const awaitingConfirmation = activity.phase === 'awaiting_confirmation'
@@ -199,7 +211,7 @@ function getTimelineLabel(item: AiChatTimelineItem, timeline: AiChatTimelineItem
     ? t('ai_chat.timeline.error_reason_separator', {
         message: t('ai_chat.timeline.tool_not_registered'),
       })
-    : activity.message && !awaitingConfirmation
+    : activity.state === 'error' && activity.message && !awaitingConfirmation
       ? t('ai_chat.timeline.error_reason_separator', { message: activity.message })
       : ''
   if (activity.displayName && !awaitingConfirmation && !cancelledConfirmation) {
@@ -216,6 +228,7 @@ function getTimelineIcon(item: AiChatTimelineItem) {
   if (item.kind === 'plan') return ListChecks
   if (item.kind === 'confirmation') return CircleCheck
   if (item.kind === 'run') return Gauge
+  if (item.kind === 'model_text') return item.streaming ? LoaderCircle : Activity
   if (item.name === 'run_registered_query') return Search
   if (item.name === 'search_knowledge_catalog' || item.name === 'search_knowledge') return BookOpen
   if (item.name === 'diagnose_my_access') return ShieldCheck
@@ -330,6 +343,7 @@ function isMergedToolActive(tool: Extract<AiChatTimelineItem, { kind: 'tool' }>)
 }
 
 function isTimelineActive(item: AiChatTimelineItem) {
+  if (item.kind === 'model_text') return Boolean(item.streaming)
   return (item.kind === 'tool' || item.kind === 'phase') && item.state === 'running'
 }
 
@@ -386,6 +400,9 @@ function getTimelineSummary(timeline: AiChatTimelineItem[]) {
 }
 
 function shouldOpenTimeline(message: AiChatMessageItemData) {
+  if (message.timeline?.some((item) => item.kind === 'tool' || item.kind === 'model_text')) {
+    return true
+  }
   if (message.status === 'streaming') return true
   if (message.status === 'pending' && message.timeline?.some((item) => item.kind === 'phase')) {
     return true
@@ -398,6 +415,18 @@ function shouldOpenTimeline(message: AiChatMessageItemData) {
         (item.kind === 'tool' && item.name.startsWith('propose_'))
     )
   )
+}
+
+watch(
+  () => [props.message.status, props.message.timeline] as const,
+  () => {
+    if (shouldOpenTimeline(props.message)) timelineOpen.value = true
+  },
+  { immediate: true }
+)
+
+function updateTimelineOpen(event: Event) {
+  timelineOpen.value = (event.currentTarget as HTMLDetailsElement).open
 }
 
 function getTimelineSections(timeline: AiChatTimelineItem[]) {
@@ -446,7 +475,7 @@ function getTimelineSections(timeline: AiChatTimelineItem[]) {
         v-if="
           isWelcomeMessage ||
           message.role === 'user' ||
-          getMessageContent(message) ||
+          getRenderedMessageContent(message) ||
           ((message.status === 'pending' || message.status === 'streaming') &&
             !getMessageContent(message)) ||
           (isAwaitingConfirmation(message) && !getMessageContent(message))
@@ -472,7 +501,7 @@ function getTimelineSections(timeline: AiChatTimelineItem[]) {
         </div>
         <AiMessageContent
           v-else-if="message.role === 'assistant'"
-          :content="getMessageContent(message)"
+          :content="getRenderedMessageContent(message)"
           :status="message.status ?? 'done'"
           :streaming="message.status === 'streaming' || message.id === streamingMessageId"
           :waiting-label="
@@ -490,7 +519,8 @@ function getTimelineSections(timeline: AiChatTimelineItem[]) {
           getTimelineSections(message.timeline).length
         "
         class="group/timeline mt-1 overflow-hidden rounded-md bg-muted/20 text-xs"
-        :open="shouldOpenTimeline(message)"
+        :open="timelineOpen"
+        @toggle="updateTimelineOpen"
       >
         <summary
           class="flex cursor-pointer list-none items-center gap-2 px-2.5 py-2 text-muted-foreground transition-colors hover:bg-muted/50 [&::-webkit-details-marker]:hidden"
@@ -540,6 +570,9 @@ function getTimelineSections(timeline: AiChatTimelineItem[]) {
                   </span>
                 </div>
               </div>
+              <div v-else-if="item.kind === 'model_text'" class="min-w-0 flex-1">
+                <p class="break-words whitespace-pre-wrap">{{ item.text }}</p>
+              </div>
               <template
                 v-else-if="item.kind === 'tool' && getConfirmationPlanForTool(item, section.items)"
               >
@@ -581,12 +614,24 @@ function getTimelineSections(timeline: AiChatTimelineItem[]) {
                   class="mt-0.5 size-3.5 shrink-0"
                   :class="isTimelineActive(item) ? 'animate-spin text-primary' : ''"
                 />
-                <span
-                  class="min-w-0 flex-1 truncate"
-                  :title="getTimelineLabel(item, message.timeline ?? [])"
-                >
-                  {{ getTimelineLabel(item, message.timeline ?? []) }}
-                </span>
+                <div class="min-w-0 flex-1">
+                  <span
+                    class="block truncate"
+                    :title="getTimelineLabel(item, message.timeline ?? [])"
+                  >
+                    {{ getTimelineLabel(item, message.timeline ?? []) }}
+                  </span>
+                  <pre
+                    v-if="item.kind === 'tool' && item.detail?.inputPreview"
+                    class="mt-1 font-sans break-words whitespace-pre-wrap text-muted-foreground"
+                    >{{ item.detail.inputPreview }}</pre
+                  >
+                  <pre
+                    v-if="item.kind === 'tool' && item.detail?.outputPreview"
+                    class="mt-1 rounded bg-background/70 p-1.5 font-mono break-words whitespace-pre-wrap text-muted-foreground"
+                    >{{ item.detail.outputPreview }}</pre
+                  >
+                </div>
                 <span
                   v-if="getTimelineDurationMs(item) !== undefined"
                   class="shrink-0 text-xs text-muted-foreground tabular-nums"

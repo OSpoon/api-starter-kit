@@ -527,6 +527,7 @@
         "model_response": {
           "running": "Waiting for model response",
           "done": "Model response completed",
+          "tool_call": "Model generated a tool call",
           "error": "Model response failed"
         }
       },

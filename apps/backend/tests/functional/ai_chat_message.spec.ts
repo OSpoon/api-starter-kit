@@ -52,6 +52,11 @@ test.group('AI chat messages', (group) => {
     })
     const runtimeDetails = [
       {
+        kind: 'model_text' as const,
+        callId: 'model-response-1',
+        text: '正在检查工具结果。',
+      },
+      {
         kind: 'tool' as const,
         name: 'run_registered_query',
         state: 'done' as const,

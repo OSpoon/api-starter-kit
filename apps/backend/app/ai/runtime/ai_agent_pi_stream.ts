@@ -118,6 +118,7 @@ export async function createAiAgentPiStream(
     contextSummaryMessageId?: number | null
     getLiveSessionContext?: () => Promise<string>
     agentRunId: string
+    finalResponseOnly?: boolean
     onCompaction?: (summary: string, coveredThroughMessageId: number) => Promise<void>
     onCompactionUsage?: (usage: PiModelUsage) => void | Promise<void>
   }
@@ -151,7 +152,8 @@ export async function createAiAgentPiStream(
       input.context,
       '',
       input.capabilityMode,
-      availableSkills
+      availableSkills,
+      input.finalResponseOnly
     ),
     tools,
     messages: input.agentContext ?? toPiMessages(initialMessages),

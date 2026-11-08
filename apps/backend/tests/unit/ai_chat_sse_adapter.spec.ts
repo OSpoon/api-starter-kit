@@ -115,7 +115,7 @@ function parseSse(writes: string[]) {
 }
 
 test.group('AI chat SSE adapter', () => {
-  test('hides text from a model response that calls a tool and emits the post-tool answer', async ({
+  test('routes tool-call text to details and final text to the assistant response', async ({
     assert,
   }) => {
     const usage = { input: 1, output: 1, cacheRead: 0, cacheWrite: 0, totalTokens: 2 }
@@ -144,6 +144,10 @@ test.group('AI chat SSE adapter', () => {
         type: 'message_update',
         assistantMessageEvent: { type: 'text_delta', delta: '抱歉，我重新查一下。' },
       },
+      {
+        type: 'message_update',
+        assistantMessageEvent: { type: 'toolcall_start', contentIndex: 1 },
+      },
       { type: 'message_end', message: toolCallMessage },
       {
         type: 'tool_execution_start',
@@ -161,7 +165,11 @@ test.group('AI chat SSE adapter', () => {
       { type: 'message_start', message: { role: 'assistant' } },
       {
         type: 'message_update',
-        assistantMessageEvent: { type: 'text_delta', delta: '可用空间是 72 GiB。' },
+        assistantMessageEvent: { type: 'text_delta', delta: '可用空间是 ' },
+      },
+      {
+        type: 'message_update',
+        assistantMessageEvent: { type: 'text_delta', delta: '72 GiB。' },
       },
       { type: 'message_end', message: finalMessage },
     ]
@@ -169,10 +177,21 @@ test.group('AI chat SSE adapter', () => {
 
     for await (const event of streamAiAgentTurnEvents(
       createFakeEventRun(events),
-      new AbortController().signal
+      new AbortController().signal,
+      { captureModelText: true }
     )) {
       output.push(event)
     }
+
+    assert.deepEqual(
+      output
+        .filter(
+          (event): event is Extract<AiAgentTurnEvent, { source: 'model_text_delta' }> =>
+            event.source === 'model_text_delta'
+        )
+        .map((event) => event.value),
+      ['抱歉，我重新查一下。']
+    )
 
     assert.deepEqual(
       output
@@ -181,11 +200,30 @@ test.group('AI chat SSE adapter', () => {
             event.source === 'message_delta'
         )
         .map((event) => event.value),
-      ['可用空间是 72 GiB。']
+      ['可用空间是 ', '72 GiB。']
+    )
+    assert.isBelow(
+      output.findIndex((event) => event.source === 'model_text_delta'),
+      output.findIndex((event) => event.source === 'message_end')
+    )
+
+    assert.deepEqual(
+      output
+        .filter(
+          (event): event is Extract<AiAgentTurnEvent, { source: 'message_end' }> =>
+            event.source === 'message_end'
+        )
+        .map(({ value }) => ({ hasToolCall: value.hasToolCall, text: value.text })),
+      [
+        { hasToolCall: true, text: '抱歉，我重新查一下。' },
+        { hasToolCall: false, text: '可用空间是 72 GiB。' },
+      ]
     )
   })
 
-  test('emits text normally when the model response does not call a tool', async ({ assert }) => {
+  test('streams tool-enabled final text to the assistant response without exposing it as intermediate', async ({
+    assert,
+  }) => {
     const usage = { input: 1, output: 1, cacheRead: 0, cacheWrite: 0, totalTokens: 2 }
     const events = [
       { type: 'message_start', message: { role: 'assistant' } },
@@ -209,7 +247,8 @@ test.group('AI chat SSE adapter', () => {
 
     for await (const event of streamAiAgentTurnEvents(
       createFakeEventRun(events),
-      new AbortController().signal
+      new AbortController().signal,
+      { captureModelText: true }
     )) {
       output.push(event)
     }
@@ -223,6 +262,234 @@ test.group('AI chat SSE adapter', () => {
         .map((event) => event.value),
       ['直接回答。']
     )
+    assert.deepEqual(
+      output.filter((event) => event.source === 'model_text_delta'),
+      []
+    )
+  })
+
+  test('streams text deltas directly for a tool-free final response', async ({ assert }) => {
+    const usage = { input: 1, output: 2, cacheRead: 0, cacheWrite: 0, totalTokens: 3 }
+    const events = [
+      { type: 'message_start', message: { role: 'assistant' } },
+      {
+        type: 'message_update',
+        assistantMessageEvent: { type: 'text_delta', delta: '磁盘 ' },
+      },
+      {
+        type: 'message_update',
+        assistantMessageEvent: { type: 'text_delta', delta: '可用空间 72 GiB。' },
+      },
+      {
+        type: 'message_end',
+        message: {
+          role: 'assistant',
+          content: [{ type: 'text', text: '磁盘 可用空间 72 GiB。' }],
+          provider: 'test-provider',
+          model: 'test-model',
+          usage,
+          stopReason: 'stop',
+        },
+      },
+    ]
+    const output: AiAgentTurnEvent[] = []
+
+    for await (const event of streamAiAgentTurnEvents(
+      createFakeEventRun(events),
+      new AbortController().signal,
+      { streamText: true }
+    )) {
+      output.push(event)
+    }
+
+    assert.deepEqual(
+      output
+        .filter(
+          (event): event is Extract<AiAgentTurnEvent, { source: 'message_delta' }> =>
+            event.source === 'message_delta'
+        )
+        .map((event) => event.value),
+      ['磁盘 ', '可用空间 72 GiB。']
+    )
+    assert.isBelow(
+      output.findIndex((event) => event.source === 'message_delta'),
+      output.findIndex((event) => event.source === 'message_end')
+    )
+  })
+
+  test('streams the post-tool final answer as candidate deltas before the model response ends', async ({
+    assert,
+  }) => {
+    const usage = { input: 1, output: 2, cacheRead: 0, cacheWrite: 0, totalTokens: 3 }
+    const events = [
+      {
+        type: 'tool_execution_start',
+        toolCallId: 'call-read',
+        toolName: 'read_system_info',
+        args: {},
+      },
+      {
+        type: 'tool_execution_end',
+        toolCallId: 'call-read',
+        toolName: 'read_system_info',
+        result: { details: { kind: 'system_info' } },
+        isError: false,
+      },
+      { type: 'message_start', message: { role: 'assistant' } },
+      {
+        type: 'message_update',
+        assistantMessageEvent: { type: 'text_delta', delta: '可用空间 ' },
+      },
+      {
+        type: 'message_update',
+        assistantMessageEvent: { type: 'text_delta', delta: '为 72 GiB。' },
+      },
+      {
+        type: 'message_end',
+        message: {
+          role: 'assistant',
+          content: [{ type: 'text', text: '可用空间 为 72 GiB。' }],
+          provider: 'test-provider',
+          model: 'test-model',
+          usage,
+          stopReason: 'stop',
+        },
+      },
+    ]
+    const output: AiAgentTurnEvent[] = []
+
+    for await (const event of streamAiAgentTurnEvents(
+      createFakeEventRun(events),
+      new AbortController().signal,
+      { captureModelText: true, streamTextAfterToolExecution: true }
+    )) {
+      output.push(event)
+    }
+
+    assert.deepEqual(
+      output
+        .filter(
+          (event): event is Extract<AiAgentTurnEvent, { source: 'message_candidate_delta' }> =>
+            event.source === 'message_candidate_delta'
+        )
+        .map((event) => event.value),
+      ['可用空间 ', '为 72 GiB。']
+    )
+    assert.isBelow(
+      output.findIndex((event) => event.source === 'message_candidate_delta'),
+      output.findIndex((event) => event.source === 'message_end')
+    )
+  })
+
+  test('reclassifies streamed pre-tool text into runtime details if another tool call starts', async ({
+    assert,
+  }) => {
+    const usage = { input: 1, output: 1, cacheRead: 0, cacheWrite: 0, totalTokens: 2 }
+    const events = [
+      {
+        type: 'tool_execution_start',
+        toolCallId: 'call-first',
+        toolName: 'read_first',
+        args: {},
+      },
+      {
+        type: 'tool_execution_end',
+        toolCallId: 'call-first',
+        toolName: 'read_first',
+        result: { details: { kind: 'read_result' } },
+        isError: false,
+      },
+      { type: 'message_start', message: { role: 'assistant' } },
+      {
+        type: 'message_update',
+        assistantMessageEvent: { type: 'text_delta', delta: '先读取配置。' },
+      },
+      {
+        type: 'message_update',
+        assistantMessageEvent: { type: 'toolcall_start', contentIndex: 1 },
+      },
+      {
+        type: 'message_end',
+        message: {
+          role: 'assistant',
+          content: [
+            { type: 'text', text: '先读取配置。' },
+            { type: 'toolCall', id: 'call-second', name: 'read_second', arguments: {} },
+          ],
+          provider: 'test-provider',
+          model: 'test-model',
+          usage,
+          stopReason: 'toolUse',
+        },
+      },
+    ]
+    const output: AiAgentTurnEvent[] = []
+
+    for await (const event of streamAiAgentTurnEvents(
+      createFakeEventRun(events),
+      new AbortController().signal,
+      { captureModelText: true, streamTextAfterToolExecution: true }
+    )) {
+      output.push(event)
+    }
+
+    assert.deepEqual(
+      output
+        .filter((event) => ['message_candidate_clear', 'model_text_delta'].includes(event.source))
+        .map((event) => event.source),
+      ['message_candidate_clear', 'model_text_delta']
+    )
+  })
+
+  test('shows skill inputs and bounded script output in tool runtime details', async ({
+    assert,
+  }) => {
+    const output = {
+      kind: 'skill_script_result',
+      code: 'system-info',
+      scriptPath: 'scripts/index.mjs',
+      exitCode: 0,
+      stdout: '{"availableBytes":123}',
+      runtimeContext: { token: 'must not be displayed' },
+    }
+    const events = [
+      {
+        type: 'tool_execution_start',
+        toolCallId: 'call-skill-script',
+        toolName: 'bash',
+        args: { code: 'system-info', scriptPath: 'scripts/index.mjs', args: ['disk'] },
+      },
+      {
+        type: 'tool_execution_end',
+        toolCallId: 'call-skill-script',
+        toolName: 'bash',
+        result: { details: output },
+        isError: false,
+      },
+    ]
+    const frames: Array<Extract<AiAgentTurnEvent, { source: 'frame' }>['value']> = []
+
+    for await (const event of streamAiAgentTurnEvents(
+      createFakeEventRun(events),
+      new AbortController().signal,
+      { captureModelText: true }
+    )) {
+      if (event.source === 'frame') frames.push(event.value)
+    }
+
+    const completed = frames.find(
+      (frame) => frame.event === 'agent_status' && frame.data.state === 'done'
+    )
+    assert.isDefined(completed)
+    if (completed?.event !== 'agent_status') return
+    assert.equal(
+      completed.data.detail?.inputPreview,
+      '技能：system-info\n脚本：scripts/index.mjs\n参数数：1'
+    )
+    assert.deepEqual(JSON.parse(String(completed.data.detail?.outputPreview ?? '{}')), {
+      availableBytes: 123,
+    })
+    assert.notInclude(JSON.stringify(completed.data.detail), 'must not be displayed')
   })
 
   test('shows a bounded, redacted reason and the MCP tool name when a tool fails', async ({

@@ -44,7 +44,7 @@ export class LatestContentStream {
     if (this.stopped || this.updateError) return
     this.latestContent = content || this.latestContent
     this.pendingContent = this.latestContent
-    if (!this.updateLoop) this.updateLoop = this.runLoop()
+    this.startUpdateLoop()
   }
 
   async finish() {
@@ -52,6 +52,16 @@ export class LatestContentStream {
     this.stopped = true
     await this.updateLoop
     return this.updateError
+  }
+
+  private startUpdateLoop() {
+    if (this.updateLoop) return
+    this.updateLoop = this.runLoop().finally(() => {
+      this.updateLoop = null
+      if (this.pendingContent !== null && !this.stopped && !this.updateError) {
+        this.startUpdateLoop()
+      }
+    })
   }
 
   private async runLoop() {

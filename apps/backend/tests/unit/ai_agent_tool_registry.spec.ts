@@ -4,8 +4,31 @@ import {
   createAiAgentTools,
   createConfiguredAiAgentTools,
 } from '#ai/registry/ai_agent_tool_registry'
+import { createAgentSkillBashTool, createLoadAgentSkillTool } from '#ai/tools/agent_skills'
 
 test.group('AI agent tool registry', () => {
+  test('directs first skill loads to SKILL.md', ({ assert }) => {
+    const context = {
+      userId: 1,
+      conversationId: 1,
+      agentRunId: 'skill-run',
+    }
+    const loadTool = createLoadAgentSkillTool(context)
+    const bashTool = createAgentSkillBashTool(context)
+
+    assert.include(loadTool.description, 'omit resourcePath to read SKILL.md')
+    assert.include(
+      (loadTool.parameters as { properties: { resourcePath: { description: string } } }).properties
+        .resourcePath.description,
+      'Omit on the first load to read SKILL.md'
+    )
+    assert.include(
+      (bashTool.parameters as { properties: { scriptPath: { description: string } } }).properties
+        .scriptPath.description,
+      'scripts/index.mjs'
+    )
+  })
+
   test('registers every Pi tool with an explicit name and description', ({ assert }) => {
     const tools = createAiAgentTools({
       userId: 1,

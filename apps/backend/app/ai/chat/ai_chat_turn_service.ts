@@ -24,6 +24,7 @@ import {
 } from '#ai/core/ai_agent_tool_errors'
 import { releaseAiAgentRun } from '#ai/runtime/ai_agent_run_registry'
 import {
+  createAiAgentFinalResponseContext,
   restoreAiAgentSessionContext,
   snapshotAiAgentSessionContext,
 } from '#ai/runtime/ai_agent_session_context'
@@ -67,6 +68,17 @@ export function getTerminalToolAssistantContent(
 
 export function shouldPreserveInterruptedRun(error: unknown) {
   return isAbortError(error)
+}
+
+export function buildAiChatHistoryQuery(
+  conversationId: number,
+  summaryBoundary: number | null | undefined
+) {
+  const query = AiChatMessage.query().where('conversation_id', conversationId)
+  if (summaryBoundary !== null && summaryBoundary !== undefined) {
+    query.where('id', '>', summaryBoundary)
+  }
+  return query.orderBy('id', 'asc')
 }
 
 async function failUnattachedConfirmationsWithRetry(input: {
@@ -133,9 +145,17 @@ export async function runAiChatAssistantTurn(input: {
     runtimeDetails.filter((item) => item.kind === 'phase' && item.name === 'preparing_agent')
       .length + 1
   let consecutiveReadToolFailures = 0
+  let toolActivity = false
+  const isChannelTurn =
+    input.capabilityMode === 'channel' || input.capabilityMode === 'knowledge-only'
+  const captureModelText = input.enabledToolNames?.length !== 0
+  let pendingConfirmation = false
+  let queuedUserMessage = false
   let modelResponseIndex = 0
   let mcpDiscoveryErrorIndex = 0
   let activeModelResponse: { callId: string; startedAt: number } | undefined
+  const pendingModelText = new Map<string, string>()
+  let pendingAssistantCandidate = ''
   const attachedConfirmations: Array<
     Awaited<ReturnType<typeof attachAgentRunConfirmations>>[number] & { messageId: number }
   > = []
@@ -150,6 +170,7 @@ export async function runAiChatAssistantTurn(input: {
     serverName?: string
     toolCount?: number
     tools?: Array<{ name: string; mode?: 'read' | 'confirm' }>
+    outcome?: 'tool_call' | 'final_response'
   }) => {
     const detail: AiChatRuntimeDetail = { kind: 'phase', ...phase }
     const existingIndex = runtimeDetails.findIndex(
@@ -169,16 +190,72 @@ export async function runAiChatAssistantTurn(input: {
     await emitRuntimePhase({ name: 'model_response', ...activeModelResponse, state: 'running' })
   }
 
-  const finishModelResponse = async (state: 'done' | 'error') => {
+  const finishModelResponse = async (
+    state: 'done' | 'error',
+    outcome?: 'tool_call' | 'final_response'
+  ) => {
     if (!activeModelResponse) return
     const finishedAt = Date.now()
-    await emitRuntimePhase({
+    const phase = {
       name: 'model_response',
       ...activeModelResponse,
       state,
       durationMs: finishedAt - activeModelResponse.startedAt,
-    })
+      ...(outcome ? { outcome } : {}),
+    } as const
+    if (outcome === 'final_response') {
+      const phaseIndex = runtimeDetails.findIndex(
+        (item) => item.kind === 'phase' && item.callId === activeModelResponse?.callId
+      )
+      if (phaseIndex >= 0) runtimeDetails.splice(phaseIndex, 1)
+      await emit('agent_phase', phase)
+    } else {
+      await emitRuntimePhase(phase)
+    }
     activeModelResponse = undefined
+  }
+
+  const updateModelTextDetail = async (
+    callId: string,
+    text: string,
+    streaming: boolean,
+    append = false
+  ) => {
+    if (!append && !text.trim()) return
+    const existingIndex = runtimeDetails.findIndex(
+      (item) => item.kind === 'model_text' && item.callId === callId
+    )
+    const previousText =
+      existingIndex >= 0 && runtimeDetails[existingIndex]?.kind === 'model_text'
+        ? runtimeDetails[existingIndex].text
+        : ''
+    const detail: AiChatRuntimeDetail = {
+      kind: 'model_text',
+      callId,
+      text: append ? previousText + text : text,
+    }
+    if (existingIndex >= 0) runtimeDetails[existingIndex] = detail
+    else runtimeDetails.push(detail)
+    await emit('agent_model_text', { callId, text, streaming, append })
+  }
+
+  const removeModelTextDetail = async (callId: string) => {
+    const existingIndex = runtimeDetails.findIndex(
+      (item) => item.kind === 'model_text' && item.callId === callId
+    )
+    if (existingIndex >= 0) {
+      runtimeDetails.splice(existingIndex, 1)
+      await emit('agent_model_text_clear', { callId })
+    }
+  }
+
+  const flushModelTextToDetails = async () => {
+    for (const [callId, text] of pendingModelText) {
+      if (!text.trim()) continue
+      await updateModelTextDetail(callId, text, false)
+    }
+    if (pendingModelText.size) await persistAssistantMessage(true)
+    pendingModelText.clear()
   }
 
   const persistAssistantMessage = async (allowEmpty = false) => {
@@ -217,15 +294,12 @@ export async function runAiChatAssistantTurn(input: {
     }
 
     const regenerate = regeneration !== null
-    const summaryBoundary = conversation.contextSummaryMessageId
+    const summaryBoundary = conversation.contextSummaryMessageId ?? null
     const historyMessages = regenerate
       ? regeneration.messages.filter(
           (message) => summaryBoundary === null || message.id > summaryBoundary
         )
-      : await AiChatMessage.query()
-          .where('conversation_id', conversation.id)
-          .if(summaryBoundary !== null, (query) => query.where('id', '>', summaryBoundary!))
-          .orderBy('id', 'asc')
+      : await buildAiChatHistoryQuery(conversation.id, summaryBoundary)
     const history = [
       ...historyMessages
         .filter(
@@ -321,14 +395,32 @@ export async function runAiChatAssistantTurn(input: {
       durationMs: Date.now() - preparationStartedAt,
     })
     agentRunId = run.agentRunId
+    let sessionRun = run
     aiFailureStage = 'message_stream'
-    for await (const event of streamAiAgentTurnEvents(run, input.signal)) {
+    for await (const event of streamAiAgentTurnEvents(
+      run,
+      input.signal,
+      input.enabledToolNames?.length === 0
+        ? { streamText: true }
+        : {
+            captureModelText: true,
+            streamTextAfterToolExecution: true,
+          }
+    )) {
       if (input.signal.aborted) {
         throw new DOMException('AI request was cancelled', 'AbortError')
       }
       if (event.source === 'frame') {
         if (event.value.event === 'agent_status') {
           const status = event.value.data
+          if (status.state === 'running') {
+            toolActivity = true
+            if (isChannelTurn) {
+              await emit('channel_progress', { content: '正在执行工具…' })
+            }
+          } else if (isChannelTurn) {
+            await emit('channel_progress', { content: '正在整理结果…' })
+          }
           if (status.state === 'error' && status.detail?.action && status.message) {
             const toolError = sanitizeAiAgentToolErrorMessage(status.message)
             if (toolError) {
@@ -409,12 +501,21 @@ export async function runAiChatAssistantTurn(input: {
           continue
         }
         if (event.value.event === 'agent_confirmation') {
+          pendingConfirmation = true
+          await flushModelTextToDetails()
+          if (isChannelTurn) {
+            await emit('channel_progress', { content: '等待确认操作…' })
+          }
           await persistAssistantMessage(true)
         }
         await emit(event.value.event, event.value.data)
         continue
       }
       if (event.source === 'queued_user_message') {
+        queuedUserMessage = true
+        if (toolActivity && !pendingConfirmation) {
+          await flushModelTextToDetails()
+        }
         const completedSegment = await persistAssistantMessage()
         if (completedSegment && agentRunId) {
           try {
@@ -442,6 +543,10 @@ export async function runAiChatAssistantTurn(input: {
         lastPersistedContentLength = 0
         knowledgeCitations.clear()
         runtimeDetails.splice(0)
+        pendingModelText.clear()
+        pendingAssistantCandidate = ''
+        toolActivity = false
+        pendingConfirmation = false
         await emit('assistant_segment_start', {})
         continue
       }
@@ -450,8 +555,50 @@ export async function runAiChatAssistantTurn(input: {
         await startModelResponse()
         continue
       }
+      if (event.source === 'model_text_delta') {
+        if (!event.value || !activeModelResponse) continue
+        const previousText = pendingModelText.get(activeModelResponse.callId) ?? ''
+        const text = `${previousText}${event.value}`
+        pendingModelText.set(activeModelResponse.callId, text)
+        if (isChannelTurn) {
+          await emit('channel_preview', { callId: activeModelResponse.callId, text })
+        } else if (text.trim()) {
+          const append = Boolean(previousText.trim())
+          await updateModelTextDetail(
+            activeModelResponse.callId,
+            append ? event.value : text,
+            true,
+            append
+          )
+        }
+        continue
+      }
+      if (event.source === 'message_candidate_delta') {
+        if (!event.value || !activeModelResponse) continue
+        pendingAssistantCandidate += event.value
+        if (isChannelTurn) {
+          await emit('channel_candidate_delta', { content: pendingAssistantCandidate })
+        } else {
+          await emit('agent_candidate_delta', {
+            callId: activeModelResponse.callId,
+            content: event.value,
+          })
+        }
+        continue
+      }
+      if (event.source === 'message_candidate_clear') {
+        if (pendingAssistantCandidate && activeModelResponse) {
+          if (isChannelTurn) await emit('channel_candidate_clear', {})
+          else await emit('agent_candidate_clear', { callId: activeModelResponse.callId })
+        }
+        pendingAssistantCandidate = ''
+        continue
+      }
       if (event.source === 'message_delta') {
         if (!event.value) continue
+        if (captureModelText && isChannelTurn) continue
+        if (!captureModelText && toolActivity) continue
+        if (activeModelResponse) pendingModelText.delete(activeModelResponse.callId)
         assistantContent += event.value
         if (
           !persistedAssistantMessage ||
@@ -463,7 +610,16 @@ export async function runAiChatAssistantTurn(input: {
         continue
       }
       if (event.source === 'message_end') {
-        await finishModelResponse(event.value.error ? 'error' : 'done')
+        const modelCallId = activeModelResponse?.callId
+        const streamedModelText = modelCallId ? pendingModelText.get(modelCallId) : undefined
+        const responseText = event.value.text || streamedModelText || ''
+        if (isChannelTurn && event.value.hasToolCall) {
+          await emit('channel_progress', { content: '正在执行工具…' })
+        }
+        await finishModelResponse(
+          event.value.error ? 'error' : 'done',
+          event.value.error ? undefined : event.value.hasToolCall ? 'tool_call' : 'final_response'
+        )
         usage.inputTokens += event.value.inputTokens
         usage.outputTokens += event.value.outputTokens
         usage.cacheReadTokens += event.value.cacheReadTokens
@@ -493,8 +649,138 @@ export async function runAiChatAssistantTurn(input: {
             'AI usage event could not be recorded'
           )
         }
-        if (event.value.error) throw event.value.error
+        if (event.value.error) {
+          if (captureModelText && modelCallId) {
+            const partialText = pendingModelText.get(modelCallId)
+            pendingModelText.delete(modelCallId)
+            if (partialText) await updateModelTextDetail(modelCallId, partialText, false)
+          }
+          if (pendingAssistantCandidate && modelCallId) {
+            assistantContent += pendingAssistantCandidate
+            pendingAssistantCandidate = ''
+            await emit('agent_candidate_commit', { callId: modelCallId })
+            await persistAssistantMessage()
+          }
+          throw event.value.error
+        }
+        if (!event.value.hasToolCall && pendingAssistantCandidate && modelCallId) {
+          assistantContent += pendingAssistantCandidate
+          pendingAssistantCandidate = ''
+          await emit('agent_candidate_commit', { callId: modelCallId })
+        }
+        if (captureModelText && modelCallId && responseText.trim() && !pendingConfirmation) {
+          pendingModelText.delete(modelCallId)
+          if (event.value.hasToolCall) {
+            await updateModelTextDetail(modelCallId, responseText, false)
+            await persistAssistantMessage(true)
+          } else if (isChannelTurn) {
+            await removeModelTextDetail(modelCallId)
+            const separator = assistantContent.trim()
+              ? assistantContent.endsWith('\n\n')
+                ? ''
+                : assistantContent.endsWith('\n')
+                  ? '\n'
+                  : '\n\n'
+              : ''
+            const committedText = `${separator}${responseText}`
+            assistantContent += committedText
+            await emit('delta', { content: committedText })
+          }
+        }
+        if (captureModelText && modelCallId && !event.value.hasToolCall) {
+          pendingModelText.delete(modelCallId)
+          await removeModelTextDetail(modelCallId)
+        }
         await persistAssistantMessage()
+      }
+    }
+    if (toolActivity && !pendingConfirmation && !queuedUserMessage) {
+      await flushModelTextToDetails()
+    }
+    if (toolActivity && !pendingConfirmation && !queuedUserMessage && !assistantContent.trim()) {
+      aiFailureStage = 'final_response_agent'
+      const finalizer = await createAiAgentStream({
+        conversationId: conversation.id,
+        userId,
+        auditContext: input.ctx,
+        messages: history,
+        agentContext: createAiAgentFinalResponseContext(
+          run.stream.getSessionMessages() as AgentMessage[],
+          userMessage.id
+        ),
+        capabilityMode: input.capabilityMode,
+        enabledToolNames: [],
+        context: input.context,
+        signal: input.signal,
+        agentRunId: run.agentRunId,
+        modelCallSequenceStart: run.getNextModelCallSequence(),
+        finalResponseOnly: true,
+      })
+      sessionRun = finalizer
+      aiFailureStage = 'final_response_stream'
+      for await (const event of streamAiAgentTurnEvents(finalizer, input.signal, {
+        streamText: true,
+      })) {
+        if (input.signal.aborted) {
+          throw new DOMException('AI request was cancelled', 'AbortError')
+        }
+        if (event.source === 'message_start') {
+          usage.modelCalls += 1
+          await startModelResponse()
+          continue
+        }
+        if (event.source === 'message_delta') {
+          assistantContent += event.value
+          if (
+            !persistedAssistantMessage ||
+            assistantContent.length - lastPersistedContentLength >= 500
+          ) {
+            await persistAssistantMessage()
+          }
+          await emit('delta', { content: event.value })
+          continue
+        }
+        if (event.source === 'message_end') {
+          await finishModelResponse(
+            event.value.error ? 'error' : 'done',
+            event.value.error ? undefined : 'final_response'
+          )
+          usage.inputTokens += event.value.inputTokens
+          usage.outputTokens += event.value.outputTokens
+          usage.cacheReadTokens += event.value.cacheReadTokens
+          usage.cacheWriteTokens += event.value.cacheWriteTokens
+          usage.totalTokens += event.value.totalTokens
+          try {
+            await recordAiUsageEvent({
+              userId,
+              conversationId: conversation.id,
+              agentRunId: finalizer.agentRunId,
+              callSequence: finalizer.nextModelCallSequence(),
+              providerId: event.value.providerId,
+              modelId: event.value.modelId,
+              baseUrl: event.value.baseUrl,
+              usage: {
+                input: event.value.inputTokens,
+                output: event.value.outputTokens,
+                cacheRead: event.value.cacheReadTokens,
+                cacheWrite: event.value.cacheWriteTokens,
+                totalTokens: event.value.totalTokens,
+              },
+              status: event.value.error ? 'failed' : 'completed',
+            })
+          } catch (error) {
+            logger.warn(
+              { err: error, conversationId: conversation.id, agentRunId: finalizer.agentRunId },
+              'AI usage event could not be recorded'
+            )
+          }
+          if (event.value.error) throw event.value.error
+          await persistAssistantMessage()
+          continue
+        }
+        if (event.source === 'frame') {
+          throw new Error('Tool-free final response unexpectedly emitted a tool event')
+        }
       }
     }
     aiFailureStage = 'assistant_message_persistence'
@@ -533,7 +819,7 @@ export async function runAiChatAssistantTurn(input: {
     }
     try {
       assistantMessage.agentContext = snapshotAiAgentSessionContext(
-        run.stream.getSessionMessages() as AgentMessage[],
+        sessionRun.stream.getSessionMessages() as AgentMessage[],
         chatMessages,
         assistantMessage.id
       )
@@ -581,7 +867,18 @@ export async function runAiChatAssistantTurn(input: {
     })
     return assistantMessage
   } catch (error) {
+    const candidateCallId = activeModelResponse?.callId
     await finishModelResponse('error')
+    if (pendingAssistantCandidate && candidateCallId) {
+      assistantContent += pendingAssistantCandidate
+      pendingAssistantCandidate = ''
+      await emit('agent_candidate_commit', { callId: candidateCallId })
+      await persistAssistantMessage()
+    }
+    for (const [callId, text] of pendingModelText) {
+      if (text.trim()) await updateModelTextDetail(callId, text, false)
+    }
+    pendingModelText.clear()
     logger.error(
       { err: error, conversationId: conversation.id, agentRunId, aiFailureStage },
       'AI chat stream failed'

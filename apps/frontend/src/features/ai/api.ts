@@ -127,6 +127,8 @@ export interface AiChatAgentActivity {
     skillInstructionCharacters?: number
     skillCount?: number
     skillNames?: string[]
+    inputPreview?: string
+    outputPreview?: string
     resultSummary?: AiChatMcpResultSummary
   }
 }
@@ -148,6 +150,7 @@ export interface AiChatRunPhase {
   serverName?: string
   toolCount?: number
   tools?: Array<{ name: string; mode?: 'read' | 'confirm' }>
+  outcome?: 'tool_call' | 'final_response'
 }
 
 export interface AiChatRunUsage {
@@ -195,6 +198,7 @@ export interface AiChatRunMeta {
 }
 
 export type AiChatTimelineItem =
+  | { kind: 'model_text'; callId: string; text: string; streaming?: boolean }
   | { kind: 'plan'; turn?: number; planType?: 'task' | 'confirmation'; steps: AiChatPlanStep[] }
   | AiChatRunPhase
   | ({ kind: 'tool' } & AiChatAgentActivity)
@@ -274,6 +278,9 @@ export async function transcribeAiChatAudio(token: string | null, audio: Blob, f
 type AiChatStreamEvent =
   | { type: 'user'; conversation: AiChatConversationSummary; message: AiChatMessage }
   | { type: 'delta'; content: string }
+  | { type: 'agent_candidate_delta'; callId: string; content: string }
+  | { type: 'agent_candidate_clear'; callId: string }
+  | { type: 'agent_candidate_commit'; callId: string }
   | { type: 'assistant_segment_start' }
   | {
       type: 'agent_status'
@@ -289,6 +296,14 @@ type AiChatStreamEvent =
       detail?: AiChatAgentActivity['detail']
     }
   | ({ type: 'agent_phase' } & Omit<AiChatRunPhase, 'kind'>)
+  | {
+      type: 'agent_model_text'
+      callId: string
+      text: string
+      streaming: boolean
+      append: boolean
+    }
+  | { type: 'agent_model_text_clear'; callId: string }
   | { type: 'agent_plan'; planType?: 'task' | 'confirmation'; steps: AiChatPlanStep[] }
   | { type: 'agent_citations'; citations: AiChatCitation[] }
   | ({ type: 'agent_confirmation' } & AiChatPendingConfirmation)

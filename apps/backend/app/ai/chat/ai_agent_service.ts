@@ -69,10 +69,13 @@ export async function createAiAgentStream(
     agentContext?: AgentMessage[]
     context?: AiAgentPageContext
     onCompactionUsage?: (usage: PiModelUsage) => void
+    finalResponseOnly?: boolean
+    agentRunId?: string
+    modelCallSequenceStart?: number
   }
 ) {
-  const agentRunId = crypto.randomUUID()
-  let callSequence = 0
+  const agentRunId = input.agentRunId ?? crypto.randomUUID()
+  let callSequence = input.modelCallSequenceStart ?? 0
   const nextModelCallSequence = () => callSequence++
   const sessionContext = await buildLiveSessionContext(input.conversationId, input.userId)
   const persistCompaction = async (summary: string, coveredThroughMessageId: number) => {
@@ -87,6 +90,7 @@ export async function createAiAgentStream(
   const stream = await createAiAgentPiStream({
     ...input,
     agentRunId,
+    finalResponseOnly: input.finalResponseOnly,
     liveSessionContext: sessionContext.context,
     contextSummary: sessionContext.contextSummary,
     contextSummaryMessageId: sessionContext.contextSummaryMessageId,
@@ -158,6 +162,7 @@ export async function createAiAgentStream(
     model: stream.model,
     models: stream.models,
     nextModelCallSequence,
+    getNextModelCallSequence: () => callSequence,
     toolLabels: stream.toolLabels,
   }
 }

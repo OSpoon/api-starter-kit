@@ -188,6 +188,11 @@ dingtalk-bot
 三个服务都依赖 backend 和数据库，但分别执行 `node ace wecom:bot`、`node ace feishu:bot`
 和 `node ace dingtalk:bot`。检查服务状态：
 
+技能由 backend 安装和管理，Compose 会将同一个 `assistant-skills` 持久卷挂载到
+backend 和三个 Bot worker，并统一设置 `AI_AGENT_SKILLS_DIR=/data/assistant-skills`。
+自行部署独立 worker 时，也必须让 backend 与 worker 使用相同的 `AI_AGENT_SKILLS_DIR`
+并挂载同一持久目录，否则 worker 无法读取后台安装的技能。
+
 ```bash
 docker compose -f docker/docker-compose.yml -f docker/docker-compose.app.yml -f docker/docker-compose.im.yml ps
 docker compose -f docker/docker-compose.yml -f docker/docker-compose.app.yml -f docker/docker-compose.im.yml logs -f wecom-bot

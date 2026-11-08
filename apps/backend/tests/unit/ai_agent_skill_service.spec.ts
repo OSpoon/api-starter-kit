@@ -79,6 +79,10 @@ test.group('AI agent skill service', (group) => {
       await loadAiAgentSkill('summarize', 'references/guide.md', workspace),
       'Keep only durable facts.'
     )
+    await assert.rejects(
+      () => loadAiAgentSkill('summarize', 'system-info.md', workspace),
+      /技能资源不存在/
+    )
 
     await updateAiAgentSkill('summarize', false, workspace)
     assert.deepEqual(await listEnabledAiAgentSkills(workspace), [])

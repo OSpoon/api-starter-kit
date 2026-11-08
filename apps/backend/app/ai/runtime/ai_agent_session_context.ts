@@ -152,6 +152,24 @@ export function restoreAiAgentSessionContext(
   })
 }
 
+export function createAiAgentFinalResponseContext(value: unknown, userMessageId: number) {
+  const messages = restoreAiAgentSessionContext(value)
+  const userIndex = messages.findLastIndex(
+    (message) => message.role === 'user' && message.sourceMessageId === userMessageId
+  )
+  if (userIndex < 0) return messages
+
+  const finalDraftIndex = messages.findLastIndex(
+    (message, index) =>
+      index > userIndex &&
+      message.role === 'assistant' &&
+      !message.content.some((part) => isRecord(part) && part.type === 'toolCall')
+  )
+  if (finalDraftIndex >= 0) messages.splice(finalDraftIndex, 1)
+  messages.splice(userIndex, 1)
+  return messages
+}
+
 export function snapshotAiAgentSessionContext(
   messages: AgentMessage[],
   chatMessages: ChatMessage[],

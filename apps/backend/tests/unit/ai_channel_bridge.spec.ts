@@ -1,10 +1,18 @@
 import { test } from '@japa/runner'
 
-import { AiChannelBridge } from '#channels/ai_channel_bridge'
+import { AiChannelBridge, getAssistantContentFromDoneEvent } from '#channels/ai_channel_bridge'
 import type { ChannelAdapter } from '#channels/channel_types'
 import User from '#models/user'
 
 test.group('AI channel bridge', () => {
+  test('reads the persisted final assistant response from a done event', ({ assert }) => {
+    assert.equal(
+      getAssistantContentFromDoneEvent({ message: { content: '磁盘可用空间为 20 GiB。' } }),
+      '磁盘可用空间为 20 GiB。'
+    )
+    assert.isNull(getAssistantContentFromDoneEvent({ message: null }))
+  })
+
   test('refuses card actions when the guest principal lookup fails', async ({ assert }) => {
     const adapter: ChannelAdapter = {
       channel: 'wecom',

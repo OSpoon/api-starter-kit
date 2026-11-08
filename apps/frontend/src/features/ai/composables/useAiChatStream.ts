@@ -28,6 +28,38 @@ function createStreamingAssistantMessage(): LocalAiChatMessage {
   }
 }
 
+function updateModelText(
+  message: LocalAiChatMessage,
+  callId: string,
+  text: string,
+  streaming: boolean,
+  append: boolean
+) {
+  const timeline = message.timeline ?? []
+  const modelTextIndex = timeline.findIndex(
+    (item) => item.kind === 'model_text' && item.callId === callId
+  )
+  if (modelTextIndex >= 0) {
+    const item = timeline[modelTextIndex]
+    if (item?.kind === 'model_text') {
+      timeline[modelTextIndex] = {
+        ...item,
+        text: append ? item.text + text : text,
+        streaming,
+      }
+    }
+  } else {
+    timeline.push({ kind: 'model_text', callId, text, streaming })
+  }
+  message.timeline = [...timeline]
+}
+
+function removeModelText(message: LocalAiChatMessage, callId: string) {
+  message.timeline = message.timeline?.filter(
+    (item) => !(item.kind === 'model_text' && item.callId === callId)
+  )
+}
+
 export function useAiChatStream(
   token: () => string | null,
   translate: (key: string) => string,
@@ -118,6 +150,32 @@ export function useAiChatStream(
             updateAssistantMessage()
           }
 
+          if (event.type === 'agent_candidate_delta') {
+            assistantMessage.candidateCallId = event.callId
+            assistantMessage.candidateContent = `${assistantMessage.candidateContent ?? ''}${event.content}`
+            assistantMessage.status = 'streaming'
+            updateAssistantMessage()
+          }
+
+          if (
+            event.type === 'agent_candidate_clear' &&
+            assistantMessage.candidateCallId === event.callId
+          ) {
+            assistantMessage.candidateContent = ''
+            assistantMessage.candidateCallId = undefined
+            updateAssistantMessage()
+          }
+
+          if (
+            event.type === 'agent_candidate_commit' &&
+            assistantMessage.candidateCallId === event.callId
+          ) {
+            assistantMessage.content += assistantMessage.candidateContent ?? ''
+            assistantMessage.candidateContent = ''
+            assistantMessage.candidateCallId = undefined
+            updateAssistantMessage()
+          }
+
           if (event.type === 'assistant_segment_start') {
             if (assistantMessage.content.trim()) {
               assistantMessage.status = 'done'
@@ -181,23 +239,48 @@ export function useAiChatStream(
 
           if (event.type === 'agent_phase') {
             const timeline = assistantMessage.timeline ?? []
-            const phaseIndex = timeline.findIndex(
-              (item) => item.kind === 'phase' && item.callId === event.callId
-            )
-            const phase = {
-              kind: 'phase' as const,
-              name: event.name,
-              state: event.state,
-              callId: event.callId,
-              startedAt: event.startedAt,
-              durationMs: event.durationMs,
-              serverName: event.serverName,
-              toolCount: event.toolCount,
-              tools: event.tools,
+            if (event.name === 'model_response' && event.outcome === 'final_response') {
+              assistantMessage.timeline = timeline.filter(
+                (item) => !(item.kind === 'phase' && item.callId === event.callId)
+              )
+              updateAssistantMessage()
+            } else {
+              const phaseIndex = timeline.findIndex(
+                (item) => item.kind === 'phase' && item.callId === event.callId
+              )
+              const phase = {
+                kind: 'phase' as const,
+                name: event.name,
+                state: event.state,
+                callId: event.callId,
+                startedAt: event.startedAt,
+                durationMs: event.durationMs,
+                serverName: event.serverName,
+                toolCount: event.toolCount,
+                tools: event.tools,
+                outcome: event.outcome,
+              }
+              if (phaseIndex >= 0) timeline[phaseIndex] = phase
+              else timeline.push(phase)
+              assistantMessage.timeline = [...timeline]
+              updateAssistantMessage()
             }
-            if (phaseIndex >= 0) timeline[phaseIndex] = phase
-            else timeline.push(phase)
-            assistantMessage.timeline = [...timeline]
+          }
+
+          if (event.type === 'agent_model_text') {
+            updateModelText(
+              assistantMessage,
+              event.callId,
+              event.text,
+              event.streaming,
+              event.append
+            )
+            assistantMessage.status = 'streaming'
+            updateAssistantMessage()
+          }
+
+          if (event.type === 'agent_model_text_clear') {
+            removeModelText(assistantMessage, event.callId)
             updateAssistantMessage()
           }
 
@@ -496,23 +579,48 @@ export function useAiChatStream(
 
           if (event.type === 'agent_phase') {
             const timeline = assistantMessage.timeline ?? []
-            const phaseIndex = timeline.findIndex(
-              (item) => item.kind === 'phase' && item.callId === event.callId
-            )
-            const phase = {
-              kind: 'phase' as const,
-              name: event.name,
-              state: event.state,
-              callId: event.callId,
-              startedAt: event.startedAt,
-              durationMs: event.durationMs,
-              serverName: event.serverName,
-              toolCount: event.toolCount,
-              tools: event.tools,
+            if (event.name === 'model_response' && event.outcome === 'final_response') {
+              assistantMessage.timeline = timeline.filter(
+                (item) => !(item.kind === 'phase' && item.callId === event.callId)
+              )
+              updateAssistantMessage()
+            } else {
+              const phaseIndex = timeline.findIndex(
+                (item) => item.kind === 'phase' && item.callId === event.callId
+              )
+              const phase = {
+                kind: 'phase' as const,
+                name: event.name,
+                state: event.state,
+                callId: event.callId,
+                startedAt: event.startedAt,
+                durationMs: event.durationMs,
+                serverName: event.serverName,
+                toolCount: event.toolCount,
+                tools: event.tools,
+                outcome: event.outcome,
+              }
+              if (phaseIndex >= 0) timeline[phaseIndex] = phase
+              else timeline.push(phase)
+              assistantMessage.timeline = [...timeline]
+              updateAssistantMessage()
             }
-            if (phaseIndex >= 0) timeline[phaseIndex] = phase
-            else timeline.push(phase)
-            assistantMessage.timeline = [...timeline]
+          }
+
+          if (event.type === 'agent_model_text') {
+            updateModelText(
+              assistantMessage,
+              event.callId,
+              event.text,
+              event.streaming,
+              event.append
+            )
+            assistantMessage.status = 'streaming'
+            updateAssistantMessage()
+          }
+
+          if (event.type === 'agent_model_text_clear') {
+            removeModelText(assistantMessage, event.callId)
             updateAssistantMessage()
           }
 

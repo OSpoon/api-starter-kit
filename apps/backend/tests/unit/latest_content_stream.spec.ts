@@ -57,4 +57,29 @@ test.group('Latest content stream', () => {
     await tick()
     assert.equal(updateCount, 1)
   })
+
+  test('restarts updates for tool progress and the final answer', async ({ assert }) => {
+    const updates: string[] = []
+    const stream = new LatestContentStream(
+      '正在输入……',
+      async (content) => {
+        updates.push(content)
+      },
+      {
+        now: () => 0,
+        intervalMs: 0,
+        sleep: async () => undefined,
+      }
+    )
+
+    stream.publish('候选文字')
+    await tick()
+    stream.publish('正在执行工具…')
+    await tick()
+    stream.publish('最终答复')
+    await tick()
+    await stream.finish()
+
+    assert.deepEqual(updates, ['候选文字', '正在执行工具…', '最终答复'])
+  })
 })

@@ -115,6 +115,16 @@ test.group('Agent configuration', (group) => {
       runtimeTools.map(({ name }) => name),
       'bash'
     )
+    const channelRuntimeTools = await createConfiguredAiAgentTools({
+      userId: 1,
+      conversationId: 1,
+      agentRunId: crypto.randomUUID(),
+      capabilityMode: 'channel',
+    })
+    assert.include(
+      channelRuntimeTools.map(({ name }) => name),
+      'bash'
+    )
     for (const setting of saved) {
       const runtimeTool = runtimeTools.find(({ name }) => name === setting.code) as
         | ((typeof runtimeTools)[number] & { prepareConfirmation?: unknown })

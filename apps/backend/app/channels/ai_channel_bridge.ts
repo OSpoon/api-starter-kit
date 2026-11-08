@@ -66,6 +66,13 @@ function removeConfirmationPlaceholder(content: string) {
     .trim()
 }
 
+export function getAssistantContentFromDoneEvent(data: Record<string, unknown>) {
+  const message = data.message
+  if (!message || typeof message !== 'object') return null
+  const content = (message as Record<string, unknown>).content
+  return typeof content === 'string' ? content : null
+}
+
 function confirmationReply(value: Record<string, unknown>): OutboundMessage | null {
   const nestedConfirmation = value.confirmation
   const candidate =
@@ -201,8 +208,15 @@ export class AiChannelBridge implements ReloadableBotRuntime {
     })
 
     let assistantContent = ''
+    let streamedContent = ''
     let confirmation: Record<string, unknown> | null = null
     let managedActionResult: 'pending' | 'error' | null = null
+    const publishStreamContent = async (content: string) => {
+      const visibleContent = removeConfirmationPlaceholder(content)
+      if (!emit || !visibleContent || visibleContent === streamedContent) return
+      streamedContent = visibleContent
+      await emit(visibleContent)
+    }
     try {
       await runAiChatAssistantTurn({
         conversation,
@@ -213,14 +227,31 @@ export class AiChannelBridge implements ReloadableBotRuntime {
         signal: new AbortController().signal,
         ctx: createChannelHttpContext(user, message.channel),
         onEvent: async (event, data) => {
+          if (
+            message.channel !== 'wecom' &&
+            event === 'channel_candidate_delta' &&
+            data &&
+            typeof data === 'object'
+          ) {
+            const content = (data as Record<string, unknown>).content
+            if (typeof content === 'string') await publishStreamContent(content)
+          }
+          if (message.channel !== 'wecom' && event === 'channel_candidate_clear') {
+            await publishStreamContent('正在输入……')
+          }
           if (event === 'delta' && data && typeof data === 'object') {
             const content = (data as Record<string, unknown>).content
             if (typeof content === 'string') {
               assistantContent += content
-              if (emit) await emit(removeConfirmationPlaceholder(assistantContent))
+              await publishStreamContent(assistantContent)
             }
           }
           if (event === 'done' && data && typeof data === 'object') {
+            const finalContent = getAssistantContentFromDoneEvent(data as Record<string, unknown>)
+            if (finalContent !== null) {
+              assistantContent = finalContent
+              await publishStreamContent(finalContent)
+            }
             const confirmations = (data as Record<string, unknown>).confirmations
             log.info(
               {
@@ -238,6 +269,7 @@ export class AiChannelBridge implements ReloadableBotRuntime {
           if (event === 'agent_confirmation' && data && typeof data === 'object') {
             managedActionResult = 'pending'
             confirmation = data as Record<string, unknown>
+            await publishStreamContent('等待确认操作…')
             log.info(
               {
                 messageId: message.messageId,

@@ -82,7 +82,7 @@ export async function createConfiguredAiAgentTools(
   const skillTools = [
     createListAgentSkillsTool(configuredInput),
     createLoadAgentSkillTool(configuredInput),
-    ...(input.capabilityMode === 'channel' ? [] : [createAgentSkillBashTool(configuredInput)]),
+    createAgentSkillBashTool(configuredInput),
   ]
   return [
     ...configuredTools,

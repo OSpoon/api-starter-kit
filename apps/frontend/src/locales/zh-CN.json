@@ -393,7 +393,7 @@
     },
     "response_disclaimer": "AI 回复仅供参考；重要信息请核对系统数据和项目文档。",
     "thinking": "正在思考...",
-    "waiting": "正在输入...",
+    "waiting": "正在输入……",
     "waiting_for_confirmation": "等待您确认此操作",
     "new_chat": "新对话",
     "history": "历史会话",
@@ -525,8 +525,9 @@
           "error": "MCP 工具发现失败：{serverName}"
         },
         "model_response": {
-          "running": "正在等待模型响应",
+          "running": "正在等待响应",
           "done": "模型响应完成",
+          "tool_call": "已生成工具调用",
           "error": "模型响应失败"
         }
       },
