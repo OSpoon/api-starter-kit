@@ -67,12 +67,6 @@ export interface ApiDefinition {
     installSkills: typeof routes['agent_configurations.install_skills']
     updateSkill: typeof routes['agent_configurations.update_skill']
     removeSkill: typeof routes['agent_configurations.remove_skill']
-    mcpServers: typeof routes['agent_configurations.mcp_servers']
-    mcpConfiguration: typeof routes['agent_configurations.mcp_configuration']
-    updateMcpConfiguration: typeof routes['agent_configurations.update_mcp_configuration']
-    updateMcpServer: typeof routes['agent_configurations.update_mcp_server']
-    testMcpConnection: typeof routes['agent_configurations.test_mcp_connection']
-    discoverMcpTools: typeof routes['agent_configurations.discover_mcp_tools']
   }
   agentConfig: {
     llm: {

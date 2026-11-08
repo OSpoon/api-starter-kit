@@ -22,7 +22,7 @@
     "release": "bumpp",
     "version": "changelogen --output CHANGELOG.md",
     "test": "turbo test",
-    "test:agent-workflows": "pnpm --dir apps/backend test:agent-workflows && pnpm --filter @api-starter-kit/logs-mcp test",
+    "test:agent-workflows": "pnpm --dir apps/backend test:agent-workflows",
     "lint": "turbo lint",
     "lint:check": "turbo lint:check",
     "format": "turbo format",

@@ -97,7 +97,7 @@ function isManagedActionTool(name: string) {
 }
 
 function isActionPreparationTool(name: string) {
-  return isManagedActionTool(name) || name.startsWith('mcp_confirm_')
+  return isManagedActionTool(name)
 }
 
 function getManagedAction(name: string, input: unknown) {
@@ -316,17 +316,6 @@ function getToolErrorMessage(result: unknown, output: unknown) {
   return sanitizeAiAgentToolErrorMessage(artifact?.message || resultContent)
 }
 
-function getMcpToolNameFromAlias(name: string) {
-  const readableAlias = /^mcp_(?:read|confirm)_[a-z\d_-]+__([a-z\d_-]+)$/i.exec(name)
-  if (readableAlias) return readableAlias[1]
-  const legacyAlias = /^mcp_(?:read|confirm)_(.+)_([a-f\d]{8,16})$/i.exec(name)
-  return legacyAlias?.[1]?.replace(/^[a-f\d-]{36}_/i, '')
-}
-
-function getToolDisplayName(run: Awaited<ReturnType<typeof createAiAgentStream>>, name: string) {
-  return run.toolLabels?.get(name) ?? getMcpToolNameFromAlias(name)
-}
-
 function assistantText(message: AssistantMessage) {
   return message.content
     .filter((part): part is { type: 'text'; text: string } => part.type === 'text')
@@ -536,7 +525,6 @@ export async function* streamAiAgentTurnEvents(
       }
       const runningDetail = getAgentStatusDetail(event.toolName, event.args)
       const runningPhase = getAgentStatusPhase(event.toolName, 'running')
-      const displayName = getToolDisplayName(run, event.toolName)
       yield {
         source: 'frame',
         value: {
@@ -546,7 +534,6 @@ export async function* streamAiAgentTurnEvents(
             callId: event.toolCallId,
             state: 'running',
             startedAt,
-            ...(displayName ? { displayName } : {}),
             ...(runningDetail ? { detail: runningDetail } : {}),
             ...(runningPhase ? { phase: runningPhase } : {}),
           },
@@ -558,7 +545,6 @@ export async function* streamAiAgentTurnEvents(
       if (event.toolName === 'update_task_plan') continue
       const progressDetail = getToolProgressDetail(event.partialResult)
       const runningDetail = getAgentStatusDetail(event.toolName, event.args)
-      const displayName = getToolDisplayName(run, event.toolName)
       yield {
         source: 'frame',
         value: {
@@ -568,7 +554,6 @@ export async function* streamAiAgentTurnEvents(
             callId: event.toolCallId,
             state: 'running',
             startedAt: toolStartedAt.get(event.toolCallId),
-            ...(displayName ? { displayName } : {}),
             ...(runningDetail || progressDetail
               ? { detail: { ...runningDetail, ...progressDetail } }
               : {}),
@@ -586,10 +571,6 @@ export async function* streamAiAgentTurnEvents(
       const toolArtifact = readAgentToolArtifact(output)
       const toolErrorCode = toolArtifact?.kind === 'action_error' ? toolArtifact.code : undefined
       const visibleToolError = getToolErrorMessage(event.result, output)
-      const mcpToolName = getMcpToolNameFromAlias(event.toolName)
-      const toolNotRegistered =
-        Boolean(mcpToolName) && visibleToolError === `Tool ${event.toolName} not found`
-      const displayName = getToolDisplayName(run, event.toolName)
       const completedDetail = getAgentStatusDetail(
         event.toolName,
         toolInputs.get(event.toolCallId),
@@ -623,17 +604,14 @@ export async function* streamAiAgentTurnEvents(
             state: completedState,
             startedAt: toolStartedAt.get(event.toolCallId),
             durationMs: Date.now() - (toolStartedAt.get(event.toolCallId) ?? Date.now()),
-            ...(displayName ? { displayName } : {}),
             ...(visibleCompletedDetail ? { detail: visibleCompletedDetail } : {}),
             ...(getAgentStatusPhase(event.toolName, completedState, Boolean(confirmation))
               ? {
                   phase: getAgentStatusPhase(event.toolName, completedState, Boolean(confirmation)),
                 }
               : {}),
-            ...(visibleToolError && !toolNotRegistered ? { message: visibleToolError } : {}),
-            ...(toolErrorCode || toolNotRegistered
-              ? { errorCode: toolErrorCode ?? 'tool_not_registered' }
-              : {}),
+            ...(visibleToolError ? { message: visibleToolError } : {}),
+            ...(toolErrorCode ? { errorCode: toolErrorCode } : {}),
           },
         },
       }

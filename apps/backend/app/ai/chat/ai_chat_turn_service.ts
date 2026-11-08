@@ -152,7 +152,6 @@ export async function runAiChatAssistantTurn(input: {
   let pendingConfirmation = false
   let queuedUserMessage = false
   let modelResponseIndex = 0
-  let mcpDiscoveryErrorIndex = 0
   let activeModelResponse: { callId: string; startedAt: number } | undefined
   const pendingModelText = new Map<string, string>()
   let pendingAssistantCandidate = ''
@@ -162,7 +161,7 @@ export async function runAiChatAssistantTurn(input: {
   let aiFailureStage = 'initialization'
 
   const emitRuntimePhase = async (phase: {
-    name: 'preparing_agent' | 'mcp_discovery' | 'model_response'
+    name: 'preparing_agent' | 'model_response'
     state: 'running' | 'done' | 'error'
     callId: string
     startedAt: number
@@ -360,14 +359,6 @@ export async function runAiChatAssistantTurn(input: {
           })
         },
         onCredentialDisclosure: (credential) => emit('credential_disclosure', { credential }),
-        onMcpDiscovery: (status) =>
-          status.state === 'error'
-            ? emitRuntimePhase({
-                name: 'mcp_discovery',
-                ...status,
-                callId: `${runtimePhaseId}:d${mcpDiscoveryErrorIndex++}`,
-              })
-            : undefined,
         onCompactionUsage: ({ usage: compactionUsage }) => {
           usage.modelCalls += 1
           usage.inputTokens += compactionUsage.input

@@ -100,16 +100,14 @@ test('AI stream accepts a terminal done event', async () => {
   }
 })
 
-test('AI stream delivers MCP discovery and safe tool details', async () => {
+test('AI stream delivers model and safe built-in tool details', async () => {
   const originalFetch = globalThis.fetch
   globalThis.fetch = async () =>
     new Response(
-      'event: agent_phase\ndata: {"name":"mcp_discovery","state":"running","callId":"mcp-discovery-1","startedAt":1000,"serverName":"Directory"}\n\n' +
-        'event: agent_phase\ndata: {"name":"mcp_discovery","state":"done","callId":"mcp-discovery-1","startedAt":1000,"durationMs":350,"serverName":"Directory","toolCount":2,"tools":[{"name":"list_log_services","mode":"read"},{"name":"search_logs"}]}\n\n' +
-        'event: agent_phase\ndata: {"name":"model_response","state":"running","callId":"model-response-1","startedAt":1050}\n\n' +
+      'event: agent_phase\ndata: {"name":"model_response","state":"running","callId":"model-response-1","startedAt":1050}\n\n' +
         'event: agent_phase\ndata: {"name":"model_response","state":"done","callId":"model-response-1","startedAt":1050,"durationMs":8400}\n\n' +
-        'event: agent_status\ndata: {"name":"mcp_read_1_lookup_12345678","state":"running","callId":"mcp-call-1","startedAt":1100,"displayName":"Directory: lookup","detail":{"parameterSummary":[{"name":"query","type":"string"}]}}\n\n' +
-        'event: agent_status\ndata: {"name":"mcp_read_1_lookup_12345678","state":"done","callId":"mcp-call-1","displayName":"Directory: lookup","detail":{"resultSummary":{"contentTypes":["text"],"textCharacters":18}}}\n\n' +
+        'event: agent_status\ndata: {"name":"run_registered_query","state":"running","callId":"tool-call-1","startedAt":1100,"detail":{"parameterSummary":[{"name":"templateCode","type":"string"}]}}\n\n' +
+        'event: agent_status\ndata: {"name":"run_registered_query","state":"done","callId":"tool-call-1","detail":{"resultCount":1}}\n\n' +
         'event: done\ndata: {"conversation":{"id":1},"message":{"id":2},"confirmations":[]}\n\n',
       { status: 200 }
     )
@@ -122,23 +120,16 @@ test('AI stream delivers MCP discovery and safe tool details', async () => {
       [
         'agent_phase',
         'agent_phase',
-        'agent_phase',
-        'agent_phase',
         'agent_status',
         'agent_status',
         'done',
       ]
     )
-    assert.equal(events[0].serverName, 'Directory')
-    assert.equal(events[1].toolCount, 2)
-    assert.deepEqual(events[1].tools, [
-      { name: 'list_log_services', mode: 'read' },
-      { name: 'search_logs' },
+    assert.equal(events[1].durationMs, 8400)
+    assert.deepEqual(events[2].detail.parameterSummary, [
+      { name: 'templateCode', type: 'string' },
     ])
-    assert.equal(events[3].durationMs, 8400)
-    assert.equal(events[4].displayName, 'Directory: lookup')
-    assert.deepEqual(events[4].detail.parameterSummary, [{ name: 'query', type: 'string' }])
-    assert.equal(events[5].detail.resultSummary.textCharacters, 18)
+    assert.equal(events[3].detail.resultCount, 1)
   } finally {
     globalThis.fetch = originalFetch
   }
@@ -151,7 +142,7 @@ test('confirmation stream delivers status and assistant text before completion',
     assert.equal(new Headers(options.headers).get('Accept'), 'text/event-stream')
     return new Response(
       'event: agent_status\ndata: {"name":"confirmation_execution","state":"running","callId":"tool-call-2"}\n\n' +
-        'event: agent_status\ndata: {"name":"confirmation_execution","state":"done","callId":"tool-call-2","detail":{"toolName":"search_logs"}}\n\n' +
+        'event: agent_status\ndata: {"name":"confirmation_execution","state":"done","callId":"tool-call-2","detail":{"toolName":"run_registered_query"}}\n\n' +
         'event: delta\ndata: {"content":"操作完成"}\n\n' +
         'event: done\ndata: {"conversation":{"id":1},"message":{"id":2},"confirmations":[]}\n\n',
       { status: 200 }
@@ -178,9 +169,9 @@ test('confirmation continuation keeps one assistant message and presents the nex
   const originalFetch = globalThis.fetch
   const now = '2026-10-26T00:00:00.000Z'
   const presentation = {
-    title: 'Approve log query',
-    summary: 'Read the latest backend log',
-    targetLabel: 'backend',
+    title: 'Approve system query',
+    summary: 'Read system data',
+    targetLabel: 'system data',
     changes: [],
     impactLabel: 'Read only',
     approveLabel: 'Approve',
@@ -189,12 +180,12 @@ test('confirmation continuation keeps one assistant message and presents the nex
   const previousConfirmation = {
     id: 1,
     messageId: 20,
-    action: 'call_mcp_tool',
+    action: 'call_builtin_tool',
     status: 'confirmed',
     impact: 'standard',
-    targetType: 'mcp_tool',
-    targetId: 'logs:list_log_services',
-    targetSummary: { serverName: 'logs', toolName: 'list_log_services' },
+    targetType: 'builtin_tool',
+    targetId: 'run_registered_query',
+    targetSummary: { toolName: 'run_registered_query' },
     changeSummary: [],
     expiresAt: null,
     presentation,
@@ -202,12 +193,12 @@ test('confirmation continuation keeps one assistant message and presents the nex
   const nextConfirmation = {
     id: 2,
     messageId: 20,
-    action: 'call_mcp_tool',
+    action: 'call_builtin_tool',
     status: 'pending',
     impact: 'standard',
-    targetType: 'mcp_tool',
-    targetId: 'logs:get_latest_log',
-    targetSummary: { serverName: 'logs', toolName: 'get_latest_log' },
+    targetType: 'builtin_tool',
+    targetId: 'run_registered_query',
+    targetSummary: { toolName: 'run_registered_query' },
     changeSummary: [],
     expiresAt: '2026-10-26T00:10:00.000Z',
     presentation,
@@ -216,7 +207,7 @@ test('confirmation continuation keeps one assistant message and presents the nex
     id: 20,
     conversationId: 1,
     role: 'assistant',
-    content: '我来查询最新日志。',
+    content: '我来查询系统数据。',
     citations: [],
     createdAt: now,
     updatedAt: now,
@@ -224,7 +215,7 @@ test('confirmation continuation keeps one assistant message and presents the nex
   }
   const conversation = {
     id: 1,
-    title: '日志查询',
+    title: '系统查询',
     createdAt: now,
     updatedAt: now,
     messages: [assistantMessage],

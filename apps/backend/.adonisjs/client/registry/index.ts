@@ -240,42 +240,6 @@ const routes = {
     tokens: [{"old":"/api/v1/system/agent-config/skills/:code","type":0,"val":"api","end":""},{"old":"/api/v1/system/agent-config/skills/:code","type":0,"val":"v1","end":""},{"old":"/api/v1/system/agent-config/skills/:code","type":0,"val":"system","end":""},{"old":"/api/v1/system/agent-config/skills/:code","type":0,"val":"agent-config","end":""},{"old":"/api/v1/system/agent-config/skills/:code","type":0,"val":"skills","end":""},{"old":"/api/v1/system/agent-config/skills/:code","type":1,"val":"code","end":""}],
     types: placeholder as Registry['agent_configurations.remove_skill']['types'],
   },
-  'agent_configurations.mcp_servers': {
-    methods: ["GET","HEAD"],
-    pattern: '/api/v1/system/agent-config/mcp-servers',
-    tokens: [{"old":"/api/v1/system/agent-config/mcp-servers","type":0,"val":"api","end":""},{"old":"/api/v1/system/agent-config/mcp-servers","type":0,"val":"v1","end":""},{"old":"/api/v1/system/agent-config/mcp-servers","type":0,"val":"system","end":""},{"old":"/api/v1/system/agent-config/mcp-servers","type":0,"val":"agent-config","end":""},{"old":"/api/v1/system/agent-config/mcp-servers","type":0,"val":"mcp-servers","end":""}],
-    types: placeholder as Registry['agent_configurations.mcp_servers']['types'],
-  },
-  'agent_configurations.mcp_configuration': {
-    methods: ["GET","HEAD"],
-    pattern: '/api/v1/system/agent-config/mcp-servers/configuration',
-    tokens: [{"old":"/api/v1/system/agent-config/mcp-servers/configuration","type":0,"val":"api","end":""},{"old":"/api/v1/system/agent-config/mcp-servers/configuration","type":0,"val":"v1","end":""},{"old":"/api/v1/system/agent-config/mcp-servers/configuration","type":0,"val":"system","end":""},{"old":"/api/v1/system/agent-config/mcp-servers/configuration","type":0,"val":"agent-config","end":""},{"old":"/api/v1/system/agent-config/mcp-servers/configuration","type":0,"val":"mcp-servers","end":""},{"old":"/api/v1/system/agent-config/mcp-servers/configuration","type":0,"val":"configuration","end":""}],
-    types: placeholder as Registry['agent_configurations.mcp_configuration']['types'],
-  },
-  'agent_configurations.update_mcp_configuration': {
-    methods: ["PUT"],
-    pattern: '/api/v1/system/agent-config/mcp-servers/configuration',
-    tokens: [{"old":"/api/v1/system/agent-config/mcp-servers/configuration","type":0,"val":"api","end":""},{"old":"/api/v1/system/agent-config/mcp-servers/configuration","type":0,"val":"v1","end":""},{"old":"/api/v1/system/agent-config/mcp-servers/configuration","type":0,"val":"system","end":""},{"old":"/api/v1/system/agent-config/mcp-servers/configuration","type":0,"val":"agent-config","end":""},{"old":"/api/v1/system/agent-config/mcp-servers/configuration","type":0,"val":"mcp-servers","end":""},{"old":"/api/v1/system/agent-config/mcp-servers/configuration","type":0,"val":"configuration","end":""}],
-    types: placeholder as Registry['agent_configurations.update_mcp_configuration']['types'],
-  },
-  'agent_configurations.update_mcp_server': {
-    methods: ["PUT"],
-    pattern: '/api/v1/system/agent-config/mcp-servers/:id',
-    tokens: [{"old":"/api/v1/system/agent-config/mcp-servers/:id","type":0,"val":"api","end":""},{"old":"/api/v1/system/agent-config/mcp-servers/:id","type":0,"val":"v1","end":""},{"old":"/api/v1/system/agent-config/mcp-servers/:id","type":0,"val":"system","end":""},{"old":"/api/v1/system/agent-config/mcp-servers/:id","type":0,"val":"agent-config","end":""},{"old":"/api/v1/system/agent-config/mcp-servers/:id","type":0,"val":"mcp-servers","end":""},{"old":"/api/v1/system/agent-config/mcp-servers/:id","type":1,"val":"id","end":""}],
-    types: placeholder as Registry['agent_configurations.update_mcp_server']['types'],
-  },
-  'agent_configurations.test_mcp_connection': {
-    methods: ["POST"],
-    pattern: '/api/v1/system/agent-config/mcp-servers/test',
-    tokens: [{"old":"/api/v1/system/agent-config/mcp-servers/test","type":0,"val":"api","end":""},{"old":"/api/v1/system/agent-config/mcp-servers/test","type":0,"val":"v1","end":""},{"old":"/api/v1/system/agent-config/mcp-servers/test","type":0,"val":"system","end":""},{"old":"/api/v1/system/agent-config/mcp-servers/test","type":0,"val":"agent-config","end":""},{"old":"/api/v1/system/agent-config/mcp-servers/test","type":0,"val":"mcp-servers","end":""},{"old":"/api/v1/system/agent-config/mcp-servers/test","type":0,"val":"test","end":""}],
-    types: placeholder as Registry['agent_configurations.test_mcp_connection']['types'],
-  },
-  'agent_configurations.discover_mcp_tools': {
-    methods: ["POST"],
-    pattern: '/api/v1/system/agent-config/mcp-servers/:id/discover',
-    tokens: [{"old":"/api/v1/system/agent-config/mcp-servers/:id/discover","type":0,"val":"api","end":""},{"old":"/api/v1/system/agent-config/mcp-servers/:id/discover","type":0,"val":"v1","end":""},{"old":"/api/v1/system/agent-config/mcp-servers/:id/discover","type":0,"val":"system","end":""},{"old":"/api/v1/system/agent-config/mcp-servers/:id/discover","type":0,"val":"agent-config","end":""},{"old":"/api/v1/system/agent-config/mcp-servers/:id/discover","type":0,"val":"mcp-servers","end":""},{"old":"/api/v1/system/agent-config/mcp-servers/:id/discover","type":1,"val":"id","end":""},{"old":"/api/v1/system/agent-config/mcp-servers/:id/discover","type":0,"val":"discover","end":""}],
-    types: placeholder as Registry['agent_configurations.discover_mcp_tools']['types'],
-  },
   'im_configurations.show': {
     methods: ["GET","HEAD"],
     pattern: '/api/v1/system/im-config',

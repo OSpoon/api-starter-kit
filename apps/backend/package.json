@@ -85,7 +85,6 @@
     "@adonisjs/shield": "^9.0.0",
     "@earendil-works/pi-agent-core": "^1.4.0",
     "@earendil-works/pi-ai": "^1.4.0",
-    "@earendil-works/pi-mcp": "1.4.0",
     "@earendil-works/pi-telemetry": "1.4.0",
     "@foadonis/openapi": "^1.0.1",
     "@larksuiteoapi/node-sdk": "^1.73.0",

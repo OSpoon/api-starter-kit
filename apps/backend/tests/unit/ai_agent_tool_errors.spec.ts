@@ -21,10 +21,6 @@ test.group('AI agent read tool errors', () => {
 
     assert.isTrue(isRecoverableAiAgentReadToolError('run_registered_query', output))
     assert.isFalse(isAiAgentTerminalToolResult('run_registered_query', output))
-    assert.isTrue(isRecoverableAiAgentReadToolError('mcp_read_2_lookup_12345678', output))
-    assert.isFalse(isAiAgentTerminalToolResult('mcp_read_2_lookup_12345678', output))
-    assert.isFalse(isRecoverableAiAgentReadToolError('mcp_confirm_2_lookup_12345678', output))
-    assert.isTrue(isAiAgentTerminalToolResult('mcp_confirm_2_lookup_12345678', output))
   })
 
   test('keeps permission denials and write errors terminal', ({ assert }) => {

@@ -427,8 +427,7 @@ export class AiChannelBridge implements ReloadableBotRuntime {
           .where('conversation_id', conversation.id)
           .where('requested_by_user_id', user.id)
           .first()
-        const isToolAction =
-          proposal?.action === 'call_mcp_tool' || proposal?.action === 'call_builtin_tool'
+        const isToolAction = proposal?.action === 'call_builtin_tool'
         const proposalMessage =
           isToolAction && proposal?.assistantMessageId
             ? await AiChatMessage.query()
@@ -461,9 +460,7 @@ export class AiChannelBridge implements ReloadableBotRuntime {
           const resultText =
             typeof result?.agentToolResult === 'string'
               ? result.agentToolResult
-              : typeof result?.mcpToolResult === 'string'
-                ? result.mcpToolResult
-                : 'Tool completed without a text result.'
+              : 'Tool completed without a text result.'
           message.agentContext = upsertAiAgentToolResult(message.agentContext, {
             assistantMessageId: message.id,
             toolCallId:
@@ -471,11 +468,7 @@ export class AiChannelBridge implements ReloadableBotRuntime {
               `confirmation-${confirmationId}`,
             toolName:
               (pendingTool?.kind === 'tool' ? pendingTool.name : undefined) ??
-              (typeof result?.agentToolName === 'string'
-                ? result.agentToolName
-                : typeof result?.mcpToolName === 'string'
-                  ? result.mcpToolName
-                  : proposal!.action),
+              (typeof result?.agentToolName === 'string' ? result.agentToolName : proposal!.action),
             text: resultText,
             isError: false,
           })
@@ -538,8 +531,7 @@ export class AiChannelBridge implements ReloadableBotRuntime {
           .where('conversation_id', conversation.id)
           .where('requested_by_user_id', user.id)
           .first()
-        const isToolAction =
-          proposal?.action === 'call_mcp_tool' || proposal?.action === 'call_builtin_tool'
+        const isToolAction = proposal?.action === 'call_builtin_tool'
         const proposalMessage =
           isToolAction && proposal?.assistantMessageId
             ? await AiChatMessage.query()

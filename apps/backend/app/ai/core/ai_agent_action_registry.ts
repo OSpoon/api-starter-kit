@@ -2,7 +2,6 @@ import type { HttpContext } from '@adonisjs/core/http'
 
 import { accessControlActions } from '#ai/actions/access_control_actions'
 import { aiAgentBuiltInToolActions } from '#ai/actions/ai_agent_builtin_tool_actions'
-import { aiAgentMcpActions } from '#ai/actions/ai_agent_mcp_actions'
 import { apiKeyActions } from '#ai/actions/api_key_actions'
 import { userActions } from '#ai/actions/user_actions'
 import type { AiAgentActionDefinition, AiAgentActionName } from '#ai/core/ai_agent_action_contracts'
@@ -29,7 +28,6 @@ const aiAgentActions = {
   ...userActions,
   ...accessControlActions,
   ...aiAgentBuiltInToolActions,
-  ...aiAgentMcpActions,
 } satisfies Record<AiAgentActionName, AiAgentActionDefinition>
 
 export async function executeAiAgentActionImmediately(input: {

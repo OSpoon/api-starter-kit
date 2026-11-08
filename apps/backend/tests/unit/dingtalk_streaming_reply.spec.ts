@@ -5,7 +5,7 @@ import { DingTalkBotAdapter } from '#channels/dingtalk/dingtalk_bot_adapter'
 
 const confirmation: OutboundMessage = {
   kind: 'confirmation',
-  title: '确认调用 MCP 工具',
+  title: '确认调用工具',
   description: '请确认是否执行以下操作。',
   confirmationId: '42',
   confirmLabel: '确认执行',

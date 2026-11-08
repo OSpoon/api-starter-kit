@@ -28,14 +28,11 @@ export type AiChatRuntimeDetail =
     }
   | {
       kind: 'phase'
-      name: 'preparing_agent' | 'mcp_discovery' | 'model_response'
+      name: 'preparing_agent' | 'model_response'
       state: 'running' | 'done' | 'error'
       callId: string
       startedAt: number
       durationMs?: number
-      serverName?: string
-      toolCount?: number
-      tools?: Array<{ name: string; mode?: 'read' | 'confirm' }>
       outcome?: 'tool_call' | 'final_response'
     }
   | {
@@ -101,22 +98,11 @@ function isRuntimeDetail(value: unknown): value is AiChatRuntimeDetail {
   }
   if (value.kind === 'phase') {
     return (
-      ['preparing_agent', 'mcp_discovery', 'model_response'].includes(value.name as string) &&
+      ['preparing_agent', 'model_response'].includes(value.name as string) &&
       ['running', 'done', 'error'].includes(value.state as string) &&
       typeof value.callId === 'string' &&
       typeof value.startedAt === 'number' &&
       (value.durationMs === undefined || typeof value.durationMs === 'number') &&
-      (value.serverName === undefined || typeof value.serverName === 'string') &&
-      (value.toolCount === undefined ||
-        (typeof value.toolCount === 'number' && value.toolCount >= 0)) &&
-      (value.tools === undefined ||
-        (Array.isArray(value.tools) &&
-          value.tools.every(
-            (tool) =>
-              isJsonRecord(tool) &&
-              typeof tool.name === 'string' &&
-              (tool.mode === undefined || ['read', 'confirm'].includes(tool.mode as string))
-          ))) &&
       (value.outcome === undefined ||
         ['tool_call', 'final_response'].includes(value.outcome as string))
     )

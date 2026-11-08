@@ -102,9 +102,7 @@ async function executeConfirmationAndCreateMessage(input: {
     confirmationRecord.action
   )
   const callId = pendingTool?.kind === 'tool' ? pendingTool.callId : undefined
-  const isToolAction =
-    confirmationRecord.action === 'call_mcp_tool' ||
-    confirmationRecord.action === 'call_builtin_tool'
+  const isToolAction = confirmationRecord.action === 'call_builtin_tool'
   const executionName =
     isToolAction || pendingTool?.kind !== 'tool' ? 'confirmation_execution' : pendingTool.name
   const executionDetail = {
@@ -118,15 +116,7 @@ async function executeConfirmationAndCreateMessage(input: {
           ? { toolName: confirmationRecord.targetSummary.name }
           : {}),
   }
-  const targetToolName = confirmationRecord.targetSummary?.toolName
-  const displayName =
-    confirmationRecord.action === 'call_mcp_tool' &&
-    typeof confirmationRecord.targetSummary?.name === 'string' &&
-    typeof targetToolName === 'string'
-      ? `${confirmationRecord.targetSummary.name}: ${targetToolName}`
-      : pendingTool?.kind === 'tool'
-        ? pendingTool.displayName
-        : undefined
+  const displayName = pendingTool?.kind === 'tool' ? pendingTool.displayName : undefined
   const activityCallId = callId ?? `confirmation-${confirmationId}`
   const actionStartedAt = Date.now()
   if (response) {
@@ -169,14 +159,9 @@ async function executeConfirmationAndCreateMessage(input: {
   assistantMessage = await AiChatMessage.findOrFail(assistantMessage.id)
   const actionResult =
     confirmation.result && typeof confirmation.result === 'object' ? confirmation.result : undefined
-  const toolName = actionResult?.mcpToolName ?? actionResult?.agentToolName
-  const runtimeSummary: Record<string, unknown> = {}
-  if (actionResult?.mcpToolResultSummary && typeof actionResult.mcpToolResultSummary === 'object') {
-    runtimeSummary.resultSummary = actionResult.mcpToolResultSummary
-  }
+  const toolName = actionResult?.agentToolName
   const completedDetail = {
     ...executionDetail,
-    ...runtimeSummary,
     ...(typeof toolName === 'string' ? { toolName } : {}),
   }
   const completedTool = assistantMessage.runtimeDetails.find(
@@ -187,7 +172,6 @@ async function executeConfirmationAndCreateMessage(input: {
     completedTool.phase = 'confirmed'
     completedTool.durationMs = Date.now() - actionStartedAt
     if (displayName) completedTool.displayName = displayName
-    completedTool.detail = { ...completedTool.detail, ...runtimeSummary }
     await assistantMessage.save()
   }
 
@@ -221,9 +205,7 @@ async function executeConfirmationAndCreateMessage(input: {
     const resultText =
       typeof actionResult?.agentToolResult === 'string'
         ? actionResult.agentToolResult
-        : typeof actionResult?.mcpToolResult === 'string'
-          ? actionResult.mcpToolResult
-          : 'Tool completed without a text result.'
+        : 'Tool completed without a text result.'
     assistantMessage.agentContext = upsertAiAgentToolResult(assistantMessage.agentContext, {
       assistantMessageId: assistantMessage.id,
       toolCallId: activityCallId,
@@ -635,10 +617,7 @@ export default class AiChatController {
         userId: user.id,
         source: 'api',
       })
-      if (
-        pending?.assistantMessageId &&
-        (pending.action === 'call_mcp_tool' || pending.action === 'call_builtin_tool')
-      ) {
+      if (pending?.assistantMessageId && pending.action === 'call_builtin_tool') {
         const assistantMessage = await AiChatMessage.find(pending.assistantMessageId)
         if (assistantMessage) {
           const pendingTool = findPendingConfirmationTool(

@@ -142,11 +142,6 @@ export async function createAiAgentPiStream(
       ? Promise.resolve([])
       : listEnabledAiAgentSkills(),
   ])
-  const toolLabels = new Map(
-    tools
-      .filter((tool) => typeof tool.label === 'string' && tool.label !== tool.name)
-      .map((tool) => [tool.name, tool.label as string])
-  )
   const { agent, models } = await createPiAgent({
     systemPrompt: createAiAgentSystemPrompt(
       input.context,
@@ -238,7 +233,6 @@ export async function createAiAgentPiStream(
     telemetry,
     telemetryStore,
     completion,
-    toolLabels,
     getSessionMessages: () => agent.state.messages as AgentMessage[],
   }
 }

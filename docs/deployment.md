@@ -65,31 +65,6 @@ frontend 环境变量。管理员密码至少 15 位，并满足项目密码强�
 secret、Bot secret 或 AI API key 写入 frontend 环境变量。LLM、Embedding、ASR
 和 Bot 凭据通过系统管理的「Agent 配置」页面维护，敏感值由 backend 加密保存。
 
-### 手动接入 MCP
-
-项目不会把 MCP 安装进应用镜像，也不会通过 Compose 自动挂载或启动 MCP。backend 通过 stdio
-启动 Agent 配置中登记的 MCP 程序，不会为 MCP 开放入站 HTTP 端点。
-
-添加 MCP 时，先由运维将程序单独安装到 backend 运行环境可访问的位置，并确认 backend 运行用户有执行程序及访问所需文件的权限。Docker 部署需要运维自行提供容器内的程序路径和文件挂载；项目不会自动处理这些步骤。
-
-然后在「Agent 配置 → MCP」中登记服务名称、程序绝对路径、启动参数、工作目录和环境变量。标准 MCP JSON 中的 `command`、`args`、`cwd`、`env` 对应这些字段，例如：
-
-```json
-{
-  "mcpServers": {
-    "logs": {
-      "command": "/absolute/path/to/node",
-      "args": ["/absolute/path/to/logs-mcp/dist/index.js", "--log-dir", "/absolute/path/to/logs"],
-      "cwd": "/absolute/path/to/mcp"
-    }
-  }
-}
-```
-
-保存后点击“启动并发现工具”，启用需要的工具，并选择直接读取或用户确认后执行。MCP 子进程以 backend 运行用户身份启动，因此只登记可信程序，并按最小需要提供文件和环境变量访问权限。stdio 不会暴露入站 MCP HTTP 服务，但不会限制子进程自身发起网络连接。
-
-日志查询 MCP 的独立安装和工具说明见 [`packages/logs-mcp/README.md`](../packages/logs-mcp/README.md)。
-
 如果 PostgreSQL 已经使用现有 volume 初始化，之后仅修改 `.env` 中的
 `DB_PASSWORD` 不会修改数据库内部密码；请按既有数据库凭据轮换流程先同步更新
 PostgreSQL 用户密码，再更新应用配置，避免直接删除 volume。

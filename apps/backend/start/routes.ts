@@ -274,36 +274,6 @@ router
           .delete('agent-config/skills/:code', [AgentConfigurationsController, 'removeSkill'])
           .use(middleware.permission(['agent-config:update']))
         router
-          .get('agent-config/mcp-servers', [AgentConfigurationsController, 'mcpServers'])
-          .use(middleware.permission(['agent-config:read']))
-        router
-          .get('agent-config/mcp-servers/configuration', [
-            AgentConfigurationsController,
-            'mcpConfiguration',
-          ])
-          .use(middleware.permission(['agent-config:read']))
-        router
-          .put('agent-config/mcp-servers/configuration', [
-            AgentConfigurationsController,
-            'updateMcpConfiguration',
-          ])
-          .use(middleware.permission(['agent-config:update']))
-        router
-          .put('agent-config/mcp-servers/:id', [AgentConfigurationsController, 'updateMcpServer'])
-          .use(middleware.permission(['agent-config:update']))
-        router
-          .post('agent-config/mcp-servers/test', [
-            AgentConfigurationsController,
-            'testMcpConnection',
-          ])
-          .use(middleware.permission(['agent-config:update']))
-        router
-          .post('agent-config/mcp-servers/:id/discover', [
-            AgentConfigurationsController,
-            'discoverMcpTools',
-          ])
-          .use(middleware.permission(['agent-config:update']))
-        router
           .get('im-config', [ImConfigurationsController, 'show'])
           .use(middleware.permission(['agent-config:read']))
         router

@@ -148,13 +148,11 @@ test.group('AI agent tool registry', () => {
     )
   })
 
-  test('supports a tool-free assistant turn for confirmed MCP result summaries', async ({
-    assert,
-  }) => {
+  test('supports a tool-free assistant turn when all tools are disabled', async ({ assert }) => {
     const tools = await createConfiguredAiAgentTools({
       userId: 1,
       conversationId: 1,
-      agentRunId: 'mcp-summary-run',
+      agentRunId: 'tool-free-run',
       enabledToolNames: [],
     })
 

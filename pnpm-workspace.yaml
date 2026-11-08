@@ -11,10 +11,6 @@ allowBuilds:
   protobufjs: true
   simple-git-hooks: true
   vue-demi: true
-minimumReleaseAgeExclude:
-  - '@modelcontextprotocol/sdk@1.32.2'
-  - '@modelcontextprotocol/core@2.4.0'
-  - '@modelcontextprotocol/server@2.4.0'
 onlyBuiltDependencies:
   - maplibre-gl
   - simple-git-hooks

@@ -16,7 +16,6 @@ export const aiAgentActionNames = [
   'create_role',
   'update_role',
   'delete_role',
-  'call_mcp_tool',
   'call_builtin_tool',
 ] as const
 

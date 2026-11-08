@@ -20,7 +20,7 @@ type FakeToolCall = {
   updates?: unknown[]
 }
 
-function createFakeRun(toolCalls: FakeToolCall[], toolLabels = new Map<string, string>()) {
+function createFakeRun(toolCalls: FakeToolCall[]) {
   async function* generate() {
     for (const toolCall of toolCalls) {
       yield {
@@ -63,7 +63,6 @@ function createFakeRun(toolCalls: FakeToolCall[], toolLabels = new Map<string, s
   return {
     agentRunId: 'agent-run-1',
     stream: { events: generate() },
-    toolLabels,
   } as unknown as Awaited<ReturnType<typeof createAiAgentStream>>
 }
 
@@ -75,7 +74,6 @@ function createFakeEventRun(events: unknown[]) {
     agentRunId: 'agent-run-1',
     stream: { events: generate() },
     model: { baseUrl: 'https://chat.example' },
-    toolLabels: new Map(),
   } as unknown as Awaited<ReturnType<typeof createAiAgentStream>>
 }
 
@@ -492,14 +490,12 @@ test.group('AI chat SSE adapter', () => {
     assert.notInclude(JSON.stringify(completed.data.detail), 'must not be displayed')
   })
 
-  test('shows a bounded, redacted reason and the MCP tool name when a tool fails', async ({
-    assert,
-  }) => {
+  test('shows a bounded, redacted reason when a tool fails', async ({ assert }) => {
     const { writes, response } = createFakeResponse()
     const run = createFakeRun([
       {
-        name: 'mcp_read_2_search_logs_12345678',
-        callId: 'mcp-failure',
+        name: 'search_knowledge',
+        callId: 'read-tool-failure',
         input: { limit: 1 },
         status: Promise.resolve('error'),
         output: Promise.resolve(null),
@@ -516,32 +512,12 @@ test.group('AI chat SSE adapter', () => {
     const failed = parseSse(writes)[1].data as Record<string, unknown>
 
     assert.equal(failed.state, 'error')
-    assert.equal(failed.callId, 'mcp-failure')
+    assert.equal(failed.callId, 'read-tool-failure')
     assert.equal(failed.message, 'Connection refused')
     assert.deepEqual(failed.detail, {
       toolName: 'search_logs',
       parameterSummary: [{ name: 'limit', type: 'number' }],
     })
-  })
-
-  test('recognizes readable MCP aliases when a tool fails', async ({ assert }) => {
-    const { writes, response } = createFakeResponse()
-    const run = createFakeRun([
-      {
-        name: 'mcp_read_system_info__get_cpu_info',
-        callId: 'mcp-readable-failure',
-        input: {},
-        status: Promise.resolve('error'),
-        output: Promise.resolve(null),
-        errorOutput: { kind: 'action_error', code: 'failed', message: 'not available' },
-      },
-    ])
-
-    await streamAiAgentToolStatuses(run, response, new AbortController().signal)
-    const failed = parseSse(writes)[1].data as Record<string, unknown>
-
-    assert.equal(failed.errorCode, 'failed')
-    assert.equal(failed.callId, 'mcp-readable-failure')
   })
 
   test('emits running then done agent_status with callId and durationMs', async ({ assert }) => {
@@ -621,47 +597,6 @@ test.group('AI chat SSE adapter', () => {
     })
   })
 
-  test('shows MCP identity and safe parameter and result summaries', async ({ assert }) => {
-    const { writes, response } = createFakeResponse()
-    const name = 'mcp_read_server_lookup_12345678'
-    const run = createFakeRun(
-      [
-        {
-          name,
-          callId: 'mcp-safe-summary',
-          input: { filter: { email: 'person@example.com' }, api_token: 'secret-value', limit: 5 },
-          status: Promise.resolve('finished'),
-          output: Promise.resolve({
-            kind: 'mcp_tool_result',
-            toolName: 'lookup',
-            resultSummary: { contentTypes: ['text'], textCharacters: 42 },
-          }),
-        },
-      ],
-      new Map([[name, 'Customer directory: lookup']])
-    )
-
-    await streamAiAgentToolStatuses(run, response, new AbortController().signal)
-    const frames = parseSse(writes)
-    const running = frames[0].data as Record<string, unknown>
-    const completed = frames[1].data as Record<string, unknown>
-    const runningDetail = running.detail as Record<string, unknown>
-    const completedDetail = completed.detail as Record<string, unknown>
-
-    assert.equal(running.displayName, 'Customer directory: lookup')
-    assert.deepEqual(runningDetail.parameterSummary, [
-      { name: 'filter', type: 'object' },
-      { name: 'api_token', type: 'string' },
-      { name: 'limit', type: 'number' },
-    ])
-    assert.deepEqual(completedDetail.resultSummary, {
-      contentTypes: ['text'],
-      textCharacters: 42,
-    })
-    assert.notInclude(writes.join(''), 'person@example.com')
-    assert.notInclude(writes.join(''), 'secret-value')
-  })
-
   test('emits confirmation from the tool preflight and completes the plan', async ({ assert }) => {
     const { writes, response } = createFakeResponse()
     const confirmation = {
@@ -724,23 +659,23 @@ test.group('AI chat SSE adapter', () => {
     assert.deepEqual(frames[3].data, confirmation)
   })
 
-  test('includes the configured MCP tool name while awaiting confirmation', async ({ assert }) => {
+  test('includes the configured tool name while awaiting confirmation', async ({ assert }) => {
     const { writes, response } = createFakeResponse()
     const confirmation = {
       id: 9,
-      action: 'call_mcp_tool',
+      action: 'call_builtin_tool',
       impact: { scope: 'single_user' },
-      targetType: 'mcp_server_tool',
-      targetId: '3:search_logs',
-      targetSummary: { name: 'Application logs', toolName: 'search_logs' },
+      targetType: 'builtin_tool',
+      targetId: 'run_registered_query',
+      targetSummary: { name: 'System data query', toolName: 'run_registered_query' },
       changeSummary: [],
       expiresAt: null,
     }
     const run = createFakeRun([
       {
-        name: 'mcp_confirm_3_search_logs_12345678',
-        callId: 'mcp-call-1',
-        input: { query: 'latest', limit: 1 },
+        name: 'run_registered_query',
+        callId: 'builtin-call-1',
+        input: { templateCode: 'team_member_count' },
         status: Promise.resolve('finished'),
         output: Promise.resolve(null),
         confirmation,
@@ -753,8 +688,8 @@ test.group('AI chat SSE adapter', () => {
     )?.data as Record<string, unknown>
 
     assert.equal(done.phase, 'awaiting_confirmation')
-    assert.equal((done.detail as Record<string, unknown>).targetLabel, 'Application logs')
-    assert.equal((done.detail as Record<string, unknown>).toolName, 'search_logs')
+    assert.equal((done.detail as Record<string, unknown>).targetLabel, 'System data query')
+    assert.equal((done.detail as Record<string, unknown>).toolName, 'run_registered_query')
     assert.equal((done.detail as Record<string, unknown>).confirmationId, 9)
   })
 

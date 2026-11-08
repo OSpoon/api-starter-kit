@@ -68,21 +68,6 @@ test.group('AI chat messages', (group) => {
       },
       {
         kind: 'phase' as const,
-        name: 'mcp_discovery' as const,
-        state: 'done' as const,
-        callId: 'mcp-discovery:server-1',
-        startedAt: 1_760_000_000_000,
-        durationMs: 11,
-        serverName: 'Internal catalog',
-        toolCount: 3,
-        tools: [
-          { name: 'list_log_services', mode: 'read' as const },
-          { name: 'get_latest_log' },
-          { name: 'search_logs', mode: 'confirm' as const },
-        ],
-      },
-      {
-        kind: 'phase' as const,
         name: 'model_response' as const,
         state: 'done' as const,
         callId: 'model-response-1',

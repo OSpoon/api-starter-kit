@@ -12,7 +12,7 @@ test.group('AI agent session context', () => {
         {
           role: 'toolResult',
           toolCallId: 'call-1',
-          toolName: 'mcp_read_system_info__get_disk_info',
+          toolName: 'search_knowledge',
           content: [{ type: 'text', text: 'Waiting for confirmation.' }],
           isError: true,
           timestamp: 1,
@@ -21,7 +21,7 @@ test.group('AI agent session context', () => {
       {
         assistantMessageId: 12,
         toolCallId: 'call-1',
-        toolName: 'mcp_read_system_info__get_disk_info',
+        toolName: 'search_knowledge',
         text: '{"password":"sensitive","available":82}',
         isError: false,
       }
@@ -31,7 +31,7 @@ test.group('AI agent session context', () => {
     assert.deepInclude(context[0], {
       role: 'toolResult',
       toolCallId: 'call-1',
-      toolName: 'mcp_read_system_info__get_disk_info',
+      toolName: 'search_knowledge',
       isError: false,
       sourceMessageId: 12,
     })

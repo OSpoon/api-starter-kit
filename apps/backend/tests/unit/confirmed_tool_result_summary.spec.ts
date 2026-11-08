@@ -18,13 +18,15 @@ test.group('confirmed tool result summary', () => {
   test('records cancelled calls as unexecuted and tells the model not to repeat them', ({
     assert,
   }) => {
-    const resolutions = [{ action: 'call_mcp_tool', targetSummary: { toolName: 'get_disk_info' } }]
+    const resolutions = [
+      { action: 'call_builtin_tool', targetSummary: { toolName: 'run_registered_query' } },
+    ]
     const prompt = createCancellationPrompt(resolutions)
     const batchPrompt = createConfirmationBatchPrompt(false, resolutions)
 
     assert.include(prompt, 'was not executed')
     assert.include(prompt, 'Do not repeat it')
-    assert.include(prompt, 'get_disk_info')
+    assert.include(prompt, 'run_registered_query')
     assert.include(batchPrompt, 'All user-confirmation decisions')
     assert.include(batchPrompt, 'Do not call tools')
   })

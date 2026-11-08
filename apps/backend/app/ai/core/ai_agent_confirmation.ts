@@ -104,7 +104,7 @@ function serializeConfirmation(confirmation: AiAgentConfirmation): AiAgentConfir
               : '操作未执行。',
       targetLabel: getTargetLabel(confirmation.targetId, targetSummary),
       changes: changeSummary.map(({ field, value }) => ({
-        label: getChangeLabel(field, confirmation.action),
+        label: getChangeLabel(field),
         value: getChangeValue(value, confirmation.status),
       })),
       impactLabel:
@@ -137,10 +137,7 @@ async function appendConfirmationRuntimeDetail(
     const sanitizedMessage = sanitizeAiAgentToolErrorMessage(errorMessage)
     delete pendingTool.message
     if (sanitizedMessage) pendingTool.message = sanitizedMessage
-    if (
-      status === 'confirmed' &&
-      ['call_mcp_tool', 'call_builtin_tool'].includes(confirmation.action)
-    ) {
+    if (status === 'confirmed' && confirmation.action === 'call_builtin_tool') {
       pendingTool.name = 'confirmation_execution'
       const toolName = confirmation.targetSummary?.name
       if (typeof toolName === 'string') {
@@ -189,7 +186,6 @@ const actionTitles: Record<string, string> = {
   create_permission: '确认创建权限',
   update_permission: '确认更新权限',
   delete_permission: '确认删除权限',
-  call_mcp_tool: '确认调用 MCP 工具',
   call_builtin_tool: '确认调用工具',
 }
 
@@ -200,8 +196,8 @@ function getTargetLabel(targetId: string | null, summary: Record<string, unknown
   const name = summary.name ?? summary.fullName ?? summary.code
   return typeof name === 'string' ? name : targetId
 }
-function getChangeLabel(field: string, action: string) {
-  if (field === 'tool_name') return action === 'call_mcp_tool' ? 'MCP 工具' : '工具'
+function getChangeLabel(field: string) {
+  if (field === 'tool_name') return '工具'
   return (
     (
       {
@@ -339,6 +335,7 @@ export async function listConversationConfirmations(conversationId: number, user
     .where('conversation_id', conversationId)
     .where('requested_by_user_id', userId)
     .where('status', 'pending')
+    .whereNot('action', 'call_mcp_tool')
     .whereNull('execution_token')
     .where('expires_at', '>', DateTime.now().toSQL()!)
     .whereNotNull('assistant_message_id')
@@ -359,7 +356,7 @@ export async function listCancelledToolConfirmations(input: {
     .where('requested_by_user_id', input.userId)
     .where('assistant_message_id', input.assistantMessageId)
     .where('status', 'cancelled')
-    .whereIn('action', ['call_mcp_tool', 'call_builtin_tool'])
+    .where('action', 'call_builtin_tool')
 }
 
 export async function listPendingConversationConfirmations(conversationId: number, userId: number) {
@@ -367,6 +364,7 @@ export async function listPendingConversationConfirmations(conversationId: numbe
     .where('conversation_id', conversationId)
     .where('requested_by_user_id', userId)
     .where('status', 'pending')
+    .whereNot('action', 'call_mcp_tool')
     .whereNull('execution_token')
     .where('expires_at', '>', DateTime.now().toSQL()!)
 

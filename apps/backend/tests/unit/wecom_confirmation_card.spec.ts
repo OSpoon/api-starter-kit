@@ -8,23 +8,23 @@ test.group('WeCom confirmation card', () => {
   }) => {
     const card = createWecomConfirmationCard({
       kind: 'confirmation',
-      title: '确认调用 MCP 工具',
+      title: '确认调用工具',
       description: '请确认是否执行以下操作。',
       confirmationId: '42',
       confirmLabel: '确认执行',
       cancelLabel: '取消',
       targetLabel: '应用日志查询',
       changes: [
-        { label: 'MCP 工具', value: 'search_logs' },
+        { label: '工具', value: 'search_knowledge' },
         { label: '参数', value: 'limit, offset' },
       ],
       impactLabel: '执行前会再次验证权限和操作状态。',
     })
 
-    assert.equal(card.main_title?.title, '确认调用 MCP 工具')
+    assert.equal(card.main_title?.title, '确认调用工具')
     assert.deepEqual(card.horizontal_content_list, [
       { keyname: '操作对象', value: '应用日志查询' },
-      { keyname: 'MCP 工具', value: 'search_logs' },
+      { keyname: '工具', value: 'search_knowledge' },
       { keyname: '参数', value: 'limit, offset' },
       { keyname: '影响提示', value: '执行前会再次验证权限和操作状态。' },
     ])

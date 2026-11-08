@@ -15,16 +15,6 @@ export type AiAgentCredentialDisclosure = {
 
 export type AiAgentCapabilityMode = 'full' | 'channel' | 'knowledge-only'
 
-export type AiAgentMcpDiscoveryStatus = {
-  callId: string
-  serverName: string
-  state: 'running' | 'done' | 'error'
-  startedAt: number
-  durationMs?: number
-  toolCount?: number
-  tools?: Array<{ name: string; mode?: 'read' | 'confirm' }>
-}
-
 export type AiAgentTaskPlanStep = {
   key: string
   label: string
@@ -39,7 +29,6 @@ export interface AiAgentToolRequestContext {
   signal?: AbortSignal
   onKnowledgeSources?: (sources: AiAgentKnowledgeSource[]) => void
   onCredentialDisclosure?: (credential: AiAgentCredentialDisclosure) => void | Promise<void>
-  onMcpDiscovery?: (status: AiAgentMcpDiscoveryStatus) => void | Promise<void>
   onTaskPlanUpdate?: (steps: AiAgentTaskPlanStep[]) => void | Promise<void>
   knowledgeCatalogDocumentIds?: Set<number>
   enabledToolNames?: string[]

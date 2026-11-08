@@ -255,9 +255,6 @@ export function useAiChatStream(
                 callId: event.callId,
                 startedAt: event.startedAt,
                 durationMs: event.durationMs,
-                serverName: event.serverName,
-                toolCount: event.toolCount,
-                tools: event.tools,
                 outcome: event.outcome,
               }
               if (phaseIndex >= 0) timeline[phaseIndex] = phase
@@ -595,9 +592,6 @@ export function useAiChatStream(
                 callId: event.callId,
                 startedAt: event.startedAt,
                 durationMs: event.durationMs,
-                serverName: event.serverName,
-                toolCount: event.toolCount,
-                tools: event.tools,
                 outcome: event.outcome,
               }
               if (phaseIndex >= 0) timeline[phaseIndex] = phase

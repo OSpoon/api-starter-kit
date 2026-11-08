@@ -23,7 +23,7 @@ export function sanitizeAiAgentToolErrorMessage(value: unknown) {
 }
 
 export function isAiAgentReadTool(toolName: string) {
-  return readToolNames.has(toolName) || toolName.startsWith('mcp_read_')
+  return readToolNames.has(toolName)
 }
 
 export function isRecoverableAiAgentReadToolError(toolName: string, output: unknown) {

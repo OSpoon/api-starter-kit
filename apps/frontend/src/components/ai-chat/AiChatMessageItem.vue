@@ -131,13 +131,6 @@ function canRetryMessage(message: AiChatMessageItemData) {
 
 function getTimelineLabel(item: AiChatTimelineItem, timeline: AiChatTimelineItem[] = []) {
   if (item.kind === 'phase') {
-    if (item.name === 'mcp_discovery') {
-      return t(`ai_chat.timeline.phases.mcp_discovery.${item.state}`, {
-        serverName: item.serverName ?? t('ai_chat.timeline.phases.unknown_server'),
-        toolCount: item.toolCount ?? item.tools?.length ?? 0,
-        enabledToolCount: item.tools?.filter((tool) => tool.mode).length ?? 0,
-      })
-    }
     if (item.name === 'model_response') {
       if (item.outcome === 'tool_call') {
         return t('ai_chat.timeline.phases.model_response.tool_call')
@@ -164,26 +157,21 @@ function getTimelineLabel(item: AiChatTimelineItem, timeline: AiChatTimelineItem
   const toolKey = `ai_chat.timeline.tools.${activity.name}`
   const awaitingConfirmation = activity.phase === 'awaiting_confirmation'
   const cancelledConfirmation = activity.phase === 'cancelled'
-  const awaitingMcpTool = awaitingConfirmation && activity.detail?.toolName
+  const awaitingConfirmedTool = awaitingConfirmation && activity.detail?.toolName
   const actionKey = `ai_chat.actions.${activity.detail?.action ?? ''}`
   const actionLabel = activity.detail?.action
     ? localizedOrFallback(actionKey, activity.detail.action)
     : localizedOrFallback(toolKey, t('ai_chat.timeline.tools.generic'))
   const confirmedToolName =
-    activity.detail?.toolName &&
-    (activity.name === 'confirmation_execution' || activity.name.startsWith('mcp_'))
-      ? activity.detail.toolName
-      : undefined
-  const toolNotRegistered =
-    activity.errorCode === 'tool_not_registered' ||
-    (activity.name.startsWith('mcp_') && activity.message === `Tool ${activity.name} not found`)
+    activity.name === 'confirmation_execution' ? activity.detail?.toolName : undefined
+  const toolNotRegistered = activity.errorCode === 'tool_not_registered'
   const toolLabel =
     toolNotRegistered && !activity.displayName
-      ? t('ai_chat.timeline.tools.unregistered_mcp')
+      ? t('ai_chat.timeline.tool_not_registered')
       : cancelledConfirmation
         ? t('ai_chat.timeline.tools.action_cancelled', { action: actionLabel })
         : activity.displayName
-          ? t('ai_chat.timeline.tools.mcp_tool_named', { name: activity.displayName })
+          ? activity.displayName
           : activity.detail?.skillCode
             ? t('ai_chat.timeline.tools.skill_named', {
                 name: activity.detail.skillName ?? activity.detail.skillCode,
@@ -192,9 +180,9 @@ function getTimelineLabel(item: AiChatTimelineItem, timeline: AiChatTimelineItem
               ? t('ai_chat.timeline.tools.confirmation_execution_with_tool', {
                   toolName: confirmedToolName,
                 })
-              : awaitingMcpTool
-                ? t('ai_chat.timeline.tools.mcp_tool_named', {
-                    name: activity.displayName ?? activity.detail?.toolName,
+              : awaitingConfirmedTool
+                ? t('ai_chat.timeline.tools.confirmation_execution_with_tool', {
+                    toolName: activity.detail?.toolName,
                   })
                 : awaitingConfirmation
                   ? actionLabel
@@ -439,7 +427,6 @@ function getTimelineSections(timeline: AiChatTimelineItem[]) {
     }
     if (item.kind === 'confirmation') continue
     if (item.kind === 'run' && props.message.status === 'streaming') continue
-    if (item.kind === 'phase' && item.name === 'mcp_discovery' && item.state !== 'error') continue
     const turn = item.kind === 'plan' && item.turn ? item.turn : Math.max(currentTurn, 1)
     const items = turns.get(turn) ?? []
     items.push(item)

@@ -163,6 +163,5 @@ export async function createAiAgentStream(
     models: stream.models,
     nextModelCallSequence,
     getNextModelCallSequence: () => callSequence,
-    toolLabels: stream.toolLabels,
   }
 }

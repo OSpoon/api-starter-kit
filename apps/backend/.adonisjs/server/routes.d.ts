@@ -43,12 +43,6 @@ export type ScannedRoutes = {
     'agent_configurations.install_skills': { paramsTuple?: []; params?: {} }
     'agent_configurations.update_skill': { paramsTuple: [ParamValue]; params: {'code': ParamValue} }
     'agent_configurations.remove_skill': { paramsTuple: [ParamValue]; params: {'code': ParamValue} }
-    'agent_configurations.mcp_servers': { paramsTuple?: []; params?: {} }
-    'agent_configurations.mcp_configuration': { paramsTuple?: []; params?: {} }
-    'agent_configurations.update_mcp_configuration': { paramsTuple?: []; params?: {} }
-    'agent_configurations.update_mcp_server': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
-    'agent_configurations.test_mcp_connection': { paramsTuple?: []; params?: {} }
-    'agent_configurations.discover_mcp_tools': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'im_configurations.show': { paramsTuple?: []; params?: {} }
     'im_configurations.update': { paramsTuple?: []; params?: {} }
     'knowledge_documents.index': { paramsTuple?: []; params?: {} }
@@ -110,8 +104,6 @@ export type ScannedRoutes = {
     'agent_configurations.show': { paramsTuple?: []; params?: {} }
     'agent-config.llm.show': { paramsTuple?: []; params?: {} }
     'agent_configurations.skills': { paramsTuple?: []; params?: {} }
-    'agent_configurations.mcp_servers': { paramsTuple?: []; params?: {} }
-    'agent_configurations.mcp_configuration': { paramsTuple?: []; params?: {} }
     'im_configurations.show': { paramsTuple?: []; params?: {} }
     'knowledge_documents.index': { paramsTuple?: []; params?: {} }
     'system_status.show': { paramsTuple?: []; params?: {} }
@@ -142,8 +134,6 @@ export type ScannedRoutes = {
     'agent_configurations.show': { paramsTuple?: []; params?: {} }
     'agent-config.llm.show': { paramsTuple?: []; params?: {} }
     'agent_configurations.skills': { paramsTuple?: []; params?: {} }
-    'agent_configurations.mcp_servers': { paramsTuple?: []; params?: {} }
-    'agent_configurations.mcp_configuration': { paramsTuple?: []; params?: {} }
     'im_configurations.show': { paramsTuple?: []; params?: {} }
     'knowledge_documents.index': { paramsTuple?: []; params?: {} }
     'system_status.show': { paramsTuple?: []; params?: {} }
@@ -181,8 +171,6 @@ export type ScannedRoutes = {
     'llm-config.legacy.test': { paramsTuple?: []; params?: {} }
     'agent-config.llm.test': { paramsTuple?: []; params?: {} }
     'agent_configurations.install_skills': { paramsTuple?: []; params?: {} }
-    'agent_configurations.test_mcp_connection': { paramsTuple?: []; params?: {} }
-    'agent_configurations.discover_mcp_tools': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'knowledge_documents.metadata_preview': { paramsTuple?: []; params?: {} }
     'knowledge_documents.store': { paramsTuple?: []; params?: {} }
     'knowledge_documents.store_batch': { paramsTuple?: []; params?: {} }
@@ -213,8 +201,6 @@ export type ScannedRoutes = {
     'agent_configurations.update_configuration': { paramsTuple?: []; params?: {} }
     'agent-config.llm.update': { paramsTuple?: []; params?: {} }
     'agent_configurations.update_skill': { paramsTuple: [ParamValue]; params: {'code': ParamValue} }
-    'agent_configurations.update_mcp_configuration': { paramsTuple?: []; params?: {} }
-    'agent_configurations.update_mcp_server': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'im_configurations.update': { paramsTuple?: []; params?: {} }
     'knowledge_documents.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'users.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }

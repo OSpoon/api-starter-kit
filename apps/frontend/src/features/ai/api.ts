@@ -129,27 +129,16 @@ export interface AiChatAgentActivity {
     skillNames?: string[]
     inputPreview?: string
     outputPreview?: string
-    resultSummary?: AiChatMcpResultSummary
   }
-}
-
-export interface AiChatMcpResultSummary {
-  contentTypes: string[]
-  textCharacters: number
-  structuredType?: 'array' | 'object' | 'string' | 'number' | 'boolean' | 'null'
-  structuredCount?: number
 }
 
 export interface AiChatRunPhase {
   kind: 'phase'
-  name: 'preparing_agent' | 'mcp_discovery' | 'model_response'
+  name: 'preparing_agent' | 'model_response'
   state: 'running' | 'done' | 'error'
   callId: string
   startedAt: number
   durationMs?: number
-  serverName?: string
-  toolCount?: number
-  tools?: Array<{ name: string; mode?: 'read' | 'confirm' }>
   outcome?: 'tool_call' | 'final_response'
 }
 

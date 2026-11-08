@@ -189,7 +189,7 @@ test.group('AI agent confirmations', (group) => {
       conversation,
       assistantMessage,
       userId: user.id,
-      result: { mcpToolName: 'search_logs', mcpToolResult: '' },
+      result: { agentToolName: 'search_knowledge', agentToolResult: '' },
       onEvent: (event, data) => {
         events.push({ event, data })
       },
