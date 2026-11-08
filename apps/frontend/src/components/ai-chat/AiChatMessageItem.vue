@@ -388,6 +388,7 @@ function getTimelineSummary(timeline: AiChatTimelineItem[]) {
 }
 
 function shouldOpenTimeline(message: AiChatMessageItemData) {
+  if (!message.status || message.status === 'done') return false
   if (message.timeline?.some((item) => item.kind === 'tool' || item.kind === 'model_text')) {
     return true
   }
@@ -409,6 +410,7 @@ watch(
   () => [props.message.status, props.message.timeline] as const,
   () => {
     if (shouldOpenTimeline(props.message)) timelineOpen.value = true
+    else if (!props.message.status || props.message.status === 'done') timelineOpen.value = false
   },
   { immediate: true }
 )
