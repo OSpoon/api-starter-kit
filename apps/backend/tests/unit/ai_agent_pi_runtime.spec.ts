@@ -3,10 +3,10 @@ import { test } from '@japa/runner'
 
 import {
   buildAiAgentSummaryBatch,
-  type PiAgentMessage,
-  shouldStopPiAfterTurn,
   trimPiContextToTokenBudget,
-} from '#ai/runtime/ai_agent_pi_runtime'
+} from '#ai/runtime/pi/ai_agent_context_compaction'
+import { shouldStopPiAfterTurn } from '#ai/runtime/pi/ai_agent_pi_runtime'
+import type { PiAgentMessage } from '#ai/runtime/pi/ai_agent_pi_types'
 
 test.group('Pi agent runtime', () => {
   test('keeps complete persistence history separate from the token-bounded model context', ({

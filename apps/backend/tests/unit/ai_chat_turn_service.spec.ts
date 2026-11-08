@@ -1,9 +1,7 @@
 import { test } from '@japa/runner'
 
-import {
-  buildAiChatHistoryQuery,
-  getTerminalToolAssistantContent,
-} from '#ai/chat/ai_chat_turn_service'
+import { buildAiChatHistoryQuery } from '#ai/chat/turn/ai_chat_turn_context'
+import { getTerminalToolAssistantContent } from '#ai/chat/turn/ai_chat_turn_service'
 
 test.group('AI chat terminal tool response', () => {
   test('omits the summary boundary filter when a new conversation has no boundary yet', ({

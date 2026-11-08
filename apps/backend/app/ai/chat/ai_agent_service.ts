@@ -9,13 +9,13 @@ import type { AiAgentToolRequestContext } from '#ai/core/ai_agent_tool_context'
 import type { AiAgentMessage } from '#ai/core/ai_agent_types'
 import type { AiAgentPageContext } from '#ai/policy/ai_agent_prompt_policy'
 import { getPendingAiQueryContext } from '#ai/registry/ai_agent_query_registry'
-import type { PiModelUsage } from '#ai/runtime/ai_agent_pi_runtime'
-import { createAiAgentPiStream } from '#ai/runtime/ai_agent_pi_stream'
 import { registerAiAgentRun } from '#ai/runtime/ai_agent_run_registry'
 import {
   exportAiAgentTraceToLangfuse,
   hasLangfuseTelemetryDestination,
 } from '#ai/runtime/ai_agent_telemetry_exporter'
+import { createAiAgentPiStream } from '#ai/runtime/pi/ai_agent_pi_stream'
+import type { PiModelUsage } from '#ai/runtime/pi/ai_agent_pi_types'
 import AiChatConversation from '#models/ai_chat_conversation'
 import { recordAiUsageEvent } from '#services/ai_usage_service'
 

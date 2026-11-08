@@ -14,12 +14,9 @@ import {
   createAiAgentSystemPrompt,
 } from '#ai/policy/ai_agent_prompt_policy'
 import { createConfiguredAiAgentTools } from '#ai/registry/ai_agent_tool_registry'
-import {
-  createPiAgent,
-  type PiAgentMessage,
-  type PiModelUsage,
-} from '#ai/runtime/ai_agent_pi_runtime'
 import { isAiTelemetryEnabled } from '#ai/runtime/ai_agent_telemetry_exporter'
+import { createPiAgent } from '#ai/runtime/pi/ai_agent_pi_runtime'
+import type { PiAgentMessage, PiModelUsage } from '#ai/runtime/pi/ai_agent_pi_types'
 import { listEnabledAiAgentSkills } from '#services/ai_agent_skill_service'
 
 export type PiAgentControl = {

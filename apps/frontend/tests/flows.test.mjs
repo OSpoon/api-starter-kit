@@ -16,6 +16,9 @@ const { validatePasswordChange } = await jiti.import(
 const { streamAiAgentActionConfirmation, streamAiChatMessage } = await jiti.import(
   `${root}/src/features/ai/api.ts`
 )
+const { applyAiChatStreamEvent } = await jiti.import(
+  `${root}/src/features/ai/stream/ai_chat_stream_event_reducer.ts`
+)
 const { useAiChatStream } = await jiti.import(
   `${root}/src/features/ai/composables/useAiChatStream.ts`
 )
@@ -125,6 +128,51 @@ test('AI stream delivers model and safe built-in tool details', async () => {
   } finally {
     globalThis.fetch = originalFetch
   }
+})
+
+test('AI stream reducer shares tool details and final text across send and confirmation streams', () => {
+  const assistantMessage = { id: 'stream-1', role: 'assistant', content: '', timeline: [] }
+  const state = { runMeta: ref(null), credentialDisclosure: ref(null) }
+  const confirmations = []
+  let updates = 0
+  const updateAssistantMessage = () => updates++
+  const onConfirmation = (confirmation) => confirmations.push(confirmation)
+
+  for (const event of [
+    { type: 'agent_status', name: 'tool', state: 'running', callId: 'tool-1' },
+    { type: 'agent_status', name: 'tool', state: 'done', callId: 'tool-1' },
+    {
+      type: 'agent_model_text',
+      callId: 'model-1',
+      text: 'Calling tool',
+      streaming: false,
+      append: false,
+    },
+    { type: 'agent_model_text', callId: 'model-1', text: '…', streaming: false, append: true },
+    { type: 'delta', content: 'Final answer' },
+    { type: 'agent_confirmation', id: 7, action: 'test' },
+  ]) {
+    assert.equal(
+      applyAiChatStreamEvent(
+        event,
+        assistantMessage,
+        state,
+        updateAssistantMessage,
+        onConfirmation
+      ),
+      true
+    )
+  }
+
+  assert.equal(assistantMessage.content, 'Final answer')
+  assert.equal(assistantMessage.timeline.filter((item) => item.kind === 'tool').length, 1)
+  assert.equal(
+    assistantMessage.timeline.find((item) => item.kind === 'model_text').text,
+    'Calling tool…'
+  )
+  assert.equal(assistantMessage.timeline.find((item) => item.kind === 'tool').state, 'done')
+  assert.deepEqual(confirmations, [{ type: 'agent_confirmation', id: 7, action: 'test' }])
+  assert.equal(updates, 5)
 })
 
 test('confirmation stream delivers status and assistant text before completion', async () => {

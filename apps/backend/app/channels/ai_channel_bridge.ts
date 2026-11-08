@@ -1,8 +1,8 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import logger from '@adonisjs/core/services/logger'
 
-import { runAiChatAssistantTurn } from '#ai/chat/ai_chat_turn_service'
 import { summarizeConfirmedToolResult } from '#ai/chat/confirmed_tool_result_summary'
+import { runAiChatAssistantTurn } from '#ai/chat/turn/ai_chat_turn_service'
 import {
   AiAgentConfirmationError,
   cancelAiAgentAction,
@@ -30,6 +30,7 @@ import {
   findChannelConversation,
   findOrCreateChannelConversation,
   startNewChannelConversation,
+  updateChannelConversationTitle,
 } from '#services/channel_conversation_service'
 import { getChannelGuestUser } from '#services/channel_guest_principal'
 import { findActiveChannelIdentity } from '#services/channel_identity_service'
@@ -206,6 +207,7 @@ export class AiChannelBridge implements ReloadableBotRuntime {
       role: 'user',
       content: message.content,
     })
+    await updateChannelConversationTitle({ conversation, channel: message.channel })
 
     let assistantContent = ''
     let streamedContent = ''
@@ -226,49 +228,41 @@ export class AiChannelBridge implements ReloadableBotRuntime {
         capabilityMode: isVisitor ? 'knowledge-only' : 'channel',
         signal: new AbortController().signal,
         ctx: createChannelHttpContext(user, message.channel),
-        onEvent: async (event, data) => {
+        onEvent: async ({ event, data }) => {
           if (
             message.channel !== 'wecom' &&
             event === 'channel_candidate_delta' &&
-            data &&
-            typeof data === 'object'
+            typeof data.content === 'string'
           ) {
-            const content = (data as Record<string, unknown>).content
-            if (typeof content === 'string') await publishStreamContent(content)
+            await publishStreamContent(data.content)
           }
           if (message.channel !== 'wecom' && event === 'channel_candidate_clear') {
             await publishStreamContent('正在输入……')
           }
-          if (event === 'delta' && data && typeof data === 'object') {
-            const content = (data as Record<string, unknown>).content
-            if (typeof content === 'string') {
-              assistantContent += content
-              await publishStreamContent(assistantContent)
-            }
+          if (event === 'delta') {
+            assistantContent += data.content
+            await publishStreamContent(assistantContent)
           }
-          if (event === 'done' && data && typeof data === 'object') {
-            const finalContent = getAssistantContentFromDoneEvent(data as Record<string, unknown>)
+          if (event === 'done') {
+            const finalContent = getAssistantContentFromDoneEvent(data)
             if (finalContent !== null) {
               assistantContent = finalContent
               await publishStreamContent(finalContent)
             }
-            const confirmations = (data as Record<string, unknown>).confirmations
             log.info(
               {
                 messageId: message.messageId,
                 conversationKey: message.conversationKey,
                 conversationId: conversation.id,
-                confirmationCount: Array.isArray(confirmations) ? confirmations.length : 0,
+                confirmationCount: data.confirmations.length,
               },
               'Channel AI turn completed'
             )
-            if (Array.isArray(confirmations) && confirmations[0]) {
-              confirmation = confirmations[0] as Record<string, unknown>
-            }
+            if (data.confirmations[0]) confirmation = data.confirmations[0]
           }
-          if (event === 'agent_confirmation' && data && typeof data === 'object') {
+          if (event === 'agent_confirmation') {
             managedActionResult = 'pending'
-            confirmation = data as Record<string, unknown>
+            confirmation = data
             await publishStreamContent('等待确认操作…')
             log.info(
               {
@@ -280,8 +274,8 @@ export class AiChannelBridge implements ReloadableBotRuntime {
               'Channel agent confirmation event received'
             )
           }
-          if (event === 'tool_completed' && data && typeof data === 'object') {
-            const output = (data as Record<string, unknown>).output
+          if (event === 'tool_completed') {
+            const output = data.output
             if (output && typeof output === 'object') {
               const artifact = output as Record<string, unknown>
               log.info(

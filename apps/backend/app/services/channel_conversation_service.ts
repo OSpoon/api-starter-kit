@@ -1,6 +1,8 @@
 import crypto from 'node:crypto'
 
+import { createAiChatConversationTitle } from '#ai/chat/ai_chat_conversation_title'
 import AiChatConversation from '#models/ai_chat_conversation'
+import AiChatMessage from '#models/ai_chat_message'
 import ChannelConversation from '#models/channel_conversation'
 import type { ChannelName } from '#models/channel_identity'
 
@@ -13,6 +15,23 @@ export function createVisitorConversationKey(input: {
     .update(`${input.externalConversationKey}\u0000${input.externalUserId}`)
     .digest('hex')
   return `visitor:${digest}`
+}
+
+export async function updateChannelConversationTitle(input: {
+  conversation: AiChatConversation
+  channel: ChannelName
+}) {
+  if (input.conversation.title !== `${input.channel} assistant`) return
+
+  const firstUserMessage = await AiChatMessage.query()
+    .where('conversation_id', input.conversation.id)
+    .where('role', 'user')
+    .orderBy('id', 'asc')
+    .first()
+  if (!firstUserMessage) return
+
+  input.conversation.title = createAiChatConversationTitle(firstUserMessage.content)
+  await input.conversation.save()
 }
 
 export async function findOrCreateChannelConversation(input: {

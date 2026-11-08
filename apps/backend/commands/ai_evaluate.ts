@@ -6,7 +6,7 @@ import { createAiAgentSystemPrompt } from '#ai/chat/ai_agent_service'
 import { isAiAgentTerminalToolResult } from '#ai/core/ai_agent_tool_errors'
 import { aiAssistantEvaluationCases, evaluateAiAssistantTurn } from '#ai/evaluation/ai_evaluation'
 import { aiQueryTemplateInstructions } from '#ai/registry/ai_agent_query_registry'
-import { createPiAgent } from '#ai/runtime/ai_agent_pi_runtime'
+import { createPiAgent } from '#ai/runtime/pi/ai_agent_pi_runtime'
 
 function evaluationTool(
   name: string,

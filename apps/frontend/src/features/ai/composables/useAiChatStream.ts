@@ -15,6 +15,7 @@ import {
   streamAiChatMessage,
 } from '../api'
 import { mergeAiChatMessages } from '../conversation-state'
+import { applyAiChatStreamEvent } from '../stream/ai_chat_stream_event_reducer'
 import type { LocalAiChatMessage } from '../types'
 import type { AiChatConversationState } from './useAiChatConversations'
 
@@ -26,38 +27,6 @@ function createStreamingAssistantMessage(): LocalAiChatMessage {
     status: 'pending',
     timeline: [],
   }
-}
-
-function updateModelText(
-  message: LocalAiChatMessage,
-  callId: string,
-  text: string,
-  streaming: boolean,
-  append: boolean
-) {
-  const timeline = message.timeline ?? []
-  const modelTextIndex = timeline.findIndex(
-    (item) => item.kind === 'model_text' && item.callId === callId
-  )
-  if (modelTextIndex >= 0) {
-    const item = timeline[modelTextIndex]
-    if (item?.kind === 'model_text') {
-      timeline[modelTextIndex] = {
-        ...item,
-        text: append ? item.text + text : text,
-        streaming,
-      }
-    }
-  } else {
-    timeline.push({ kind: 'model_text', callId, text, streaming })
-  }
-  message.timeline = [...timeline]
-}
-
-function removeModelText(message: LocalAiChatMessage, callId: string) {
-  message.timeline = message.timeline?.filter(
-    (item) => !(item.kind === 'model_text' && item.callId === callId)
-  )
 }
 
 export function useAiChatStream(
@@ -144,38 +113,6 @@ export function useAiChatStream(
             )
           }
 
-          if (event.type === 'delta') {
-            assistantMessage.content += event.content
-            assistantMessage.status = 'streaming'
-            updateAssistantMessage()
-          }
-
-          if (event.type === 'agent_candidate_delta') {
-            assistantMessage.candidateCallId = event.callId
-            assistantMessage.candidateContent = `${assistantMessage.candidateContent ?? ''}${event.content}`
-            assistantMessage.status = 'streaming'
-            updateAssistantMessage()
-          }
-
-          if (
-            event.type === 'agent_candidate_clear' &&
-            assistantMessage.candidateCallId === event.callId
-          ) {
-            assistantMessage.candidateContent = ''
-            assistantMessage.candidateCallId = undefined
-            updateAssistantMessage()
-          }
-
-          if (
-            event.type === 'agent_candidate_commit' &&
-            assistantMessage.candidateCallId === event.callId
-          ) {
-            assistantMessage.content += assistantMessage.candidateContent ?? ''
-            assistantMessage.candidateContent = ''
-            assistantMessage.candidateCallId = undefined
-            updateAssistantMessage()
-          }
-
           if (event.type === 'assistant_segment_start') {
             if (assistantMessage.content.trim()) {
               assistantMessage.status = 'done'
@@ -190,128 +127,18 @@ export function useAiChatStream(
             state.streamingMessages.value = [...state.streamingMessages.value, assistantMessage]
           }
 
-          if (event.type === 'agent_status') {
-            assistantMessage.activity = {
-              name: event.name,
-              state: event.state,
-              callId: event.callId,
-              startedAt: event.startedAt,
-              displayName: event.displayName,
-              durationMs: event.durationMs,
-              message: event.message,
-              errorCode: event.errorCode,
-              phase: event.phase,
-              detail: event.detail,
-            }
-            const timeline = assistantMessage.timeline ?? []
-            const existingIndex = timeline.findIndex(
-              (item) =>
-                item.kind === 'tool' && item.callId === event.callId && event.callId !== undefined
-            )
-            const activity = { ...assistantMessage.activity }
-            if (existingIndex >= 0) timeline[existingIndex] = { kind: 'tool', ...activity }
-            else timeline.push({ kind: 'tool', ...activity })
-            assistantMessage.timeline = [...timeline]
-            updateAssistantMessage()
-          }
-
-          if (event.type === 'agent_plan') {
-            assistantMessage.plan = event.steps
-            const planType = event.planType ?? 'confirmation'
-            const timeline = assistantMessage.timeline ?? []
-            const turn = Math.max(
-              1,
-              timeline.filter((item) => item.kind === 'phase' && item.name === 'preparing_agent')
-                .length
-            )
-            const planIndex = timeline.findIndex(
-              (item) =>
-                item.kind === 'plan' &&
-                (item.planType ?? 'confirmation') === planType &&
-                (item.turn === turn || (turn === 1 && item.turn === undefined))
-            )
-            const plan = { kind: 'plan' as const, turn, planType, steps: event.steps }
-            if (planIndex >= 0) timeline[planIndex] = plan
-            else timeline.push(plan)
-            assistantMessage.timeline = [...timeline]
-            updateAssistantMessage()
-          }
-
-          if (event.type === 'agent_phase') {
-            const timeline = assistantMessage.timeline ?? []
-            if (event.name === 'model_response' && event.outcome === 'final_response') {
-              assistantMessage.timeline = timeline.filter(
-                (item) => !(item.kind === 'phase' && item.callId === event.callId)
-              )
-              updateAssistantMessage()
-            } else {
-              const phaseIndex = timeline.findIndex(
-                (item) => item.kind === 'phase' && item.callId === event.callId
-              )
-              const phase = {
-                kind: 'phase' as const,
-                name: event.name,
-                state: event.state,
-                callId: event.callId,
-                startedAt: event.startedAt,
-                durationMs: event.durationMs,
-                outcome: event.outcome,
-              }
-              if (phaseIndex >= 0) timeline[phaseIndex] = phase
-              else timeline.push(phase)
-              assistantMessage.timeline = [...timeline]
-              updateAssistantMessage()
-            }
-          }
-
-          if (event.type === 'agent_model_text') {
-            updateModelText(
+          if (
+            applyAiChatStreamEvent(
+              event,
               assistantMessage,
-              event.callId,
-              event.text,
-              event.streaming,
-              event.append
+              state,
+              updateAssistantMessage,
+              (confirmation) => {
+                streamedConfirmation = confirmation
+              }
             )
-            assistantMessage.status = 'streaming'
-            updateAssistantMessage()
-          }
-
-          if (event.type === 'agent_model_text_clear') {
-            removeModelText(assistantMessage, event.callId)
-            updateAssistantMessage()
-          }
-
-          if (event.type === 'agent_citations') {
-            assistantMessage.citations = event.citations
-            updateAssistantMessage()
-          }
-
-          if (event.type === 'run') {
-            state.runMeta.value = {
-              agentRunId: event.agentRunId,
-              usage: event.usage,
-              durationMs: event.durationMs,
-            }
-            assistantMessage.timeline = [
-              ...(assistantMessage.timeline ?? []).filter((item) => item.kind !== 'run'),
-              { kind: 'run', durationMs: event.durationMs, usage: event.usage },
-            ]
-            updateAssistantMessage()
-          }
-
-          if (event.type === 'agent_confirmation') {
-            streamedConfirmation = {
-              id: event.id,
-              action: event.action,
-              impact: event.impact,
-              targetType: event.targetType,
-              targetId: event.targetId,
-              targetSummary: event.targetSummary,
-              changeSummary: event.changeSummary,
-              expiresAt: event.expiresAt,
-              presentation: event.presentation,
-            }
-          }
+          )
+            return
 
           if (event.type === 'done') {
             completedAssistantMessageId = event.message.id
@@ -546,135 +373,18 @@ export function useAiChatStream(
             }
           }
 
-          if (event.type === 'delta') {
-            assistantMessage.content += event.content
-            assistantMessage.status = 'streaming'
-            updateAssistantMessage()
-          }
-
-          if (event.type === 'agent_status') {
-            assistantMessage.activity = {
-              name: event.name,
-              state: event.state,
-              callId: event.callId,
-              startedAt: event.startedAt,
-              displayName: event.displayName,
-              durationMs: event.durationMs,
-              message: event.message,
-              errorCode: event.errorCode,
-              phase: event.phase,
-              detail: event.detail,
-            }
-            assistantMessage.timeline = [
-              ...(assistantMessage.timeline ?? []).filter(
-                (item) => item.kind !== 'tool' || item.callId !== event.callId
-              ),
-              { kind: 'tool', ...assistantMessage.activity },
-            ]
-            updateAssistantMessage()
-          }
-
-          if (event.type === 'agent_phase') {
-            const timeline = assistantMessage.timeline ?? []
-            if (event.name === 'model_response' && event.outcome === 'final_response') {
-              assistantMessage.timeline = timeline.filter(
-                (item) => !(item.kind === 'phase' && item.callId === event.callId)
-              )
-              updateAssistantMessage()
-            } else {
-              const phaseIndex = timeline.findIndex(
-                (item) => item.kind === 'phase' && item.callId === event.callId
-              )
-              const phase = {
-                kind: 'phase' as const,
-                name: event.name,
-                state: event.state,
-                callId: event.callId,
-                startedAt: event.startedAt,
-                durationMs: event.durationMs,
-                outcome: event.outcome,
-              }
-              if (phaseIndex >= 0) timeline[phaseIndex] = phase
-              else timeline.push(phase)
-              assistantMessage.timeline = [...timeline]
-              updateAssistantMessage()
-            }
-          }
-
-          if (event.type === 'agent_model_text') {
-            updateModelText(
+          if (
+            applyAiChatStreamEvent(
+              event,
               assistantMessage,
-              event.callId,
-              event.text,
-              event.streaming,
-              event.append
+              state,
+              updateAssistantMessage,
+              (confirmation) => {
+                streamedConfirmation = confirmation
+              }
             )
-            assistantMessage.status = 'streaming'
-            updateAssistantMessage()
-          }
-
-          if (event.type === 'agent_model_text_clear') {
-            removeModelText(assistantMessage, event.callId)
-            updateAssistantMessage()
-          }
-
-          if (event.type === 'agent_plan') {
-            assistantMessage.plan = event.steps
-            const planType = event.planType ?? 'confirmation'
-            const timeline = assistantMessage.timeline ?? []
-            const turn = Math.max(
-              1,
-              timeline.filter((item) => item.kind === 'phase' && item.name === 'preparing_agent')
-                .length
-            )
-            const planIndex = timeline.findIndex(
-              (item) =>
-                item.kind === 'plan' &&
-                (item.planType ?? 'confirmation') === planType &&
-                (item.turn === turn || (turn === 1 && item.turn === undefined))
-            )
-            const plan = { kind: 'plan' as const, turn, planType, steps: event.steps }
-            if (planIndex >= 0) timeline[planIndex] = plan
-            else timeline.push(plan)
-            assistantMessage.timeline = [...timeline]
-            updateAssistantMessage()
-          }
-
-          if (event.type === 'agent_citations') {
-            assistantMessage.citations = event.citations
-            updateAssistantMessage()
-          }
-
-          if (event.type === 'credential_disclosure' && state.credentialDisclosure) {
-            state.credentialDisclosure.value = event.credential
-          }
-
-          if (event.type === 'run') {
-            state.runMeta.value = {
-              agentRunId: event.agentRunId,
-              usage: event.usage,
-              durationMs: event.durationMs,
-            }
-            assistantMessage.timeline = [
-              ...(assistantMessage.timeline ?? []).filter((item) => item.kind !== 'run'),
-              { kind: 'run', durationMs: event.durationMs, usage: event.usage },
-            ]
-            updateAssistantMessage()
-          }
-
-          if (event.type === 'agent_confirmation') {
-            streamedConfirmation = {
-              id: event.id,
-              action: event.action,
-              impact: event.impact,
-              targetType: event.targetType,
-              targetId: event.targetId,
-              targetSummary: event.targetSummary,
-              changeSummary: event.changeSummary,
-              expiresAt: event.expiresAt,
-              presentation: event.presentation,
-            }
-          }
+          )
+            return
 
           if (event.type === 'done') {
             state.conversation.value = {

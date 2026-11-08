@@ -12,10 +12,14 @@ import {
   writeAiChatSse,
 } from '#ai/chat/ai_chat_sse_adapter'
 import { resetAiConversationState } from '#ai/chat/ai_conversation_state'
+import { buildAiChatTurnContext } from '#ai/chat/turn/ai_chat_turn_context'
+import type { AiChatTurnEvent, AiChatTurnEventMap } from '#ai/chat/turn/ai_chat_turn_events'
 import {
-  attachAgentRunConfirmations,
-  failUnattachedAgentRunConfirmations,
-} from '#ai/core/ai_agent_confirmation'
+  failUnattachedConfirmationsWithRetry,
+  getSafeAiErrorMessage,
+  shouldPreserveInterruptedRun,
+} from '#ai/chat/turn/ai_chat_turn_recovery'
+import { attachAgentRunConfirmations } from '#ai/core/ai_agent_confirmation'
 import {
   isAiAgentReadTool,
   isRecoverableAiAgentReadToolError,
@@ -25,7 +29,6 @@ import {
 import { releaseAiAgentRun } from '#ai/runtime/ai_agent_run_registry'
 import {
   createAiAgentFinalResponseContext,
-  restoreAiAgentSessionContext,
   snapshotAiAgentSessionContext,
 } from '#ai/runtime/ai_agent_session_context'
 import type AiChatConversation from '#models/ai_chat_conversation'
@@ -38,18 +41,6 @@ import {
   serializeAiChatConversation,
   serializeAiChatMessage,
 } from '#transformers/ai_chat_transformer'
-
-const MAX_CONFIRMATION_CLEANUP_ATTEMPTS = 3
-const CONFIRMATION_CLEANUP_RETRY_DELAY_MS = 150
-
-function isAbortError(error: unknown) {
-  return error instanceof DOMException && error.name === 'AbortError'
-}
-
-function getSafeAiErrorMessage(error: unknown) {
-  if (isAbortError(error)) return '已停止生成本次回复。'
-  return '本次 AI 请求未完成，请稍后重试。'
-}
 
 export function getTerminalToolAssistantContent(
   output: unknown,
@@ -66,51 +57,6 @@ export function getTerminalToolAssistantContent(
   return null
 }
 
-export function shouldPreserveInterruptedRun(error: unknown) {
-  return isAbortError(error)
-}
-
-export function buildAiChatHistoryQuery(
-  conversationId: number,
-  summaryBoundary: number | null | undefined
-) {
-  const query = AiChatMessage.query().where('conversation_id', conversationId)
-  if (summaryBoundary !== null && summaryBoundary !== undefined) {
-    query.where('id', '>', summaryBoundary)
-  }
-  return query.orderBy('id', 'asc')
-}
-
-async function failUnattachedConfirmationsWithRetry(input: {
-  conversationId: number
-  userId: number
-  agentRunId: string
-  ctx: HttpContext
-}) {
-  const attributes = {
-    conversationId: input.conversationId,
-    userId: input.userId,
-    agentRunId: input.agentRunId,
-  }
-  for (let attempt = 1; attempt <= MAX_CONFIRMATION_CLEANUP_ATTEMPTS; attempt += 1) {
-    try {
-      await failUnattachedAgentRunConfirmations(input)
-      return
-    } catch (error) {
-      if (attempt === MAX_CONFIRMATION_CLEANUP_ATTEMPTS) {
-        logger.error(
-          { err: error, ...attributes },
-          'AI unattached confirmation cleanup failed after retries'
-        )
-        return
-      }
-      await new Promise((resolve) =>
-        setTimeout(resolve, CONFIRMATION_CLEANUP_RETRY_DELAY_MS * attempt)
-      )
-    }
-  }
-}
-
 export async function runAiChatAssistantTurn(input: {
   conversation: AiChatConversation
   userId: number
@@ -124,13 +70,16 @@ export async function runAiChatAssistantTurn(input: {
   signal: AbortSignal
   response?: HttpContext['response']
   ctx: HttpContext
-  onEvent?: (event: string, data: unknown) => void | Promise<void>
+  onEvent?: (event: AiChatTurnEvent) => void | Promise<void>
 }) {
   const { conversation, userId, userMessage, regeneration, response } = input
   const runtimePhaseId = crypto.randomBytes(6).toString('hex')
-  const emit = (event: string, data: unknown) => {
+  const emit = async <Event extends keyof AiChatTurnEventMap>(
+    event: Event,
+    data: AiChatTurnEventMap[Event]
+  ) => {
     if (response) writeAiChatSse(response, event, data)
-    return input.onEvent?.(event, data)
+    return input.onEvent?.({ event, data } as AiChatTurnEvent)
   }
   let assistantContent = input.assistantMessage?.content ?? ''
   let agentRunId: string | null = null
@@ -292,35 +241,11 @@ export async function runAiChatAssistantTurn(input: {
       })
     }
 
-    const regenerate = regeneration !== null
-    const summaryBoundary = conversation.contextSummaryMessageId ?? null
-    const historyMessages = regenerate
-      ? regeneration.messages.filter(
-          (message) => summaryBoundary === null || message.id > summaryBoundary
-        )
-      : await buildAiChatHistoryQuery(conversation.id, summaryBoundary)
-    const history = [
-      ...historyMessages
-        .filter(
-          (message) =>
-            message.id !== userMessage.id &&
-            (message.role !== 'assistant' || message.content.trim())
-        )
-        .map((message) => ({
-          role: message.role,
-          content: message.content,
-          id: message.id,
-        })),
-      { role: userMessage.role, content: userMessage.content, id: userMessage.id },
-    ]
-    const contextSourceMessages = regenerate ? regeneration.messages : historyMessages
-    const previousAgentContext = contextSourceMessages.findLast(
-      (message) => message.role === 'assistant' && message.agentContext
-    )?.agentContext
-    const agentContext = restoreAiAgentSessionContext(
-      previousAgentContext,
-      conversation.contextSummary ? summaryBoundary : null
-    )
+    const { history, agentContext } = await buildAiChatTurnContext({
+      conversation,
+      userMessage,
+      regeneration,
+    })
     const usage = {
       inputTokens: 0,
       outputTokens: 0,

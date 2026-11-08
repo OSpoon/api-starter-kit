@@ -264,7 +264,7 @@ export async function transcribeAiChatAudio(token: string | null, audio: Blob, f
   return readItem(response).text
 }
 
-type AiChatStreamEvent =
+export type AiChatStreamEvent =
   | { type: 'user'; conversation: AiChatConversationSummary; message: AiChatMessage }
   | { type: 'delta'; content: string }
   | { type: 'agent_candidate_delta'; callId: string; content: string }

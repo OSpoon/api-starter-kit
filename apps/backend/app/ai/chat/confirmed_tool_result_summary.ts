@@ -2,7 +2,7 @@ import type { HttpContext } from '@adonisjs/core/http'
 import { DateTime } from 'luxon'
 
 import { writeAiChatSse } from '#ai/chat/ai_chat_sse_adapter'
-import { runAiChatAssistantTurn } from '#ai/chat/ai_chat_turn_service'
+import { runAiChatAssistantTurn } from '#ai/chat/turn/ai_chat_turn_service'
 import { getAiRequestTimeout } from '#ai/core/ai_agent_config'
 import { listConversationConfirmations } from '#ai/core/ai_agent_confirmation'
 import type AiChatConversation from '#models/ai_chat_conversation'
@@ -110,7 +110,7 @@ export async function summarizeConfirmedToolResult(input: {
         signal: abortController.signal,
         ctx: input.ctx,
         response: undefined,
-        onEvent: async (event, data) => {
+        onEvent: async ({ event, data }) => {
           if (event === 'delta' && data && typeof data === 'object') {
             const content = (data as Record<string, unknown>).content
             if (typeof content === 'string') {
