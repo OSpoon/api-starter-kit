@@ -117,18 +117,10 @@ test('AI stream delivers model and safe built-in tool details', async () => {
     await streamAiChatMessage(null, 1, 'Find a user', (event) => events.push(event))
     assert.deepEqual(
       events.map(({ type }) => type),
-      [
-        'agent_phase',
-        'agent_phase',
-        'agent_status',
-        'agent_status',
-        'done',
-      ]
+      ['agent_phase', 'agent_phase', 'agent_status', 'agent_status', 'done']
     )
     assert.equal(events[1].durationMs, 8400)
-    assert.deepEqual(events[2].detail.parameterSummary, [
-      { name: 'templateCode', type: 'string' },
-    ])
+    assert.deepEqual(events[2].detail.parameterSummary, [{ name: 'templateCode', type: 'string' }])
     assert.equal(events[3].detail.resultCount, 1)
   } finally {
     globalThis.fetch = originalFetch
@@ -158,7 +150,7 @@ test('confirmation stream delivers status and assistant text before completion',
     )
     assert.equal(events[0].callId, 'tool-call-2')
     assert.equal(events[1].callId, events[0].callId)
-    assert.equal(events[1].detail.toolName, 'search_logs')
+    assert.equal(events[1].detail.toolName, 'run_registered_query')
     assert.equal(events[2].content, '操作完成')
   } finally {
     globalThis.fetch = originalFetch

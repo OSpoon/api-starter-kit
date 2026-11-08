@@ -121,7 +121,7 @@ function getAgentStatusDetail(
   const values = input as Record<string, unknown>
   const outputRecord =
     output && typeof output === 'object' ? (output as Record<string, unknown>) : null
-  if (name === 'run_registered_query' && typeof values.templateCode === 'string') {
+  if (name === 'run_registered_query' && typeof values.templateCode === 'string' && !confirmation) {
     return {
       templateCode: values.templateCode,
       parameterSummary: summarizeAiAgentToolParameters(values),
@@ -162,6 +162,9 @@ function getAgentStatusDetail(
       targetType: confirmation.targetType,
       targetId: confirmation.targetId,
       confirmationId: confirmation.id,
+      ...(name === 'run_registered_query' && typeof values.templateCode === 'string'
+        ? { templateCode: values.templateCode }
+        : {}),
       ...(targetLabel ? { targetLabel } : {}),
       ...(typeof targetSummary.toolName === 'string' ? { toolName: targetSummary.toolName } : {}),
     }
