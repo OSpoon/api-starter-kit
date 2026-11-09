@@ -1,8 +1,8 @@
 import {
   Agent,
-  type AgentLoopTurnUpdate,
   type AgentTool,
   type AgentTurnContext,
+  type PrepareRequest,
 } from '@earendil-works/pi-agent-core'
 import type { AssistantMessageEventStream } from '@earendil-works/pi-ai'
 import type { TelemetrySpan } from '@earendil-works/pi-telemetry'
@@ -82,6 +82,33 @@ export function shouldStopPiAfterTurn(
     input.toolResults.length > 0 &&
     input.toolResults.every((result) => isTerminalToolResult(result))
   )
+}
+
+export function createRuntimeContextPreparer(input: {
+  initialRuntimeContext?: string
+  refreshRuntimeContext?: () => Promise<string | undefined>
+}): PrepareRequest {
+  let initialRuntimeContextPending = input.initialRuntimeContext !== undefined
+
+  return async ({ context }, signal) => {
+    if (signal?.aborted || !input.refreshRuntimeContext) return undefined
+    const runtimeContext = initialRuntimeContextPending
+      ? input.initialRuntimeContext
+      : await input.refreshRuntimeContext()
+    initialRuntimeContextPending = false
+    if (signal?.aborted || runtimeContext === undefined) return undefined
+
+    const systemMessageIndex = context.messages.findIndex((message) => message.role === 'system')
+    if (systemMessageIndex < 0) return undefined
+    const messages = context.messages.slice()
+    const systemMessage = messages[systemMessageIndex]
+    if (systemMessage.role !== 'system') return undefined
+    messages[systemMessageIndex] = {
+      ...systemMessage,
+      sections: { ...systemMessage.sections, runtime_context: runtimeContext },
+    }
+    return { context: { ...context, messages } }
+  }
 }
 
 export async function createPiAgent(input: {
@@ -228,25 +255,7 @@ export async function createPiAgent(input: {
       )
         ? { action: 'end' }
         : undefined,
-    prepareNextTurnWithContext: async (
-      _context,
-      signal
-    ): Promise<AgentLoopTurnUpdate | undefined> => {
-      if (signal?.aborted || !input.refreshRuntimeContext) return undefined
-      const runtimeContext = await input.refreshRuntimeContext()
-      return runtimeContext === undefined
-        ? undefined
-        : {
-            messages: [
-              {
-                role: 'system',
-                content: '',
-                sections: { runtime_context: runtimeContext },
-                timestamp: Date.now(),
-              },
-            ],
-          }
-    },
+    prepareRequest: createRuntimeContextPreparer(input),
     beforeToolCall: async ({ toolCall, args }) => {
       if (!args || typeof args !== 'object' || Array.isArray(args)) {
         return { block: true, terminate: true, reason: '工具参数必须是对象' }

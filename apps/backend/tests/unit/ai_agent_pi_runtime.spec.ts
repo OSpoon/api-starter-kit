@@ -1,3 +1,4 @@
+import type { AgentContext } from '@earendil-works/pi-agent-core'
 import { estimateContextTokens, estimateMessageTokens } from '@earendil-works/pi-ai/utils/estimate'
 import { test } from '@japa/runner'
 
@@ -5,10 +6,68 @@ import {
   buildAiAgentSummaryBatch,
   trimPiContextToTokenBudget,
 } from '#ai/runtime/pi/ai_agent_context_compaction'
-import { shouldStopPiAfterTurn } from '#ai/runtime/pi/ai_agent_pi_runtime'
+import {
+  createRuntimeContextPreparer,
+  shouldStopPiAfterTurn,
+} from '#ai/runtime/pi/ai_agent_pi_runtime'
 import type { PiAgentMessage } from '#ai/runtime/pi/ai_agent_pi_types'
 
 test.group('Pi agent runtime', () => {
+  test('refreshes runtime context through prepareRequest and preserves the transcript', async ({
+    assert,
+  }) => {
+    let refreshCount = 0
+    const prepareRequest = createRuntimeContextPreparer({
+      initialRuntimeContext: 'initial context',
+      refreshRuntimeContext: async () => `refreshed context ${++refreshCount}`,
+    })
+    const context: AgentContext = {
+      messages: [
+        {
+          role: 'system',
+          content: 'System policy',
+          sections: { runtime_context: 'stale context' },
+          timestamp: 0,
+        },
+        { role: 'user', content: 'Current request', timestamp: 1 },
+        {
+          role: 'toolResult',
+          toolCallId: 'call-1',
+          toolName: 'read_profile',
+          content: [{ type: 'text', text: 'Tool result' }],
+          details: {},
+          isError: false,
+          timestamp: 2,
+        },
+      ],
+      tools: [],
+    }
+    const request = (requestContext: AgentContext) => ({
+      context: requestContext,
+      model: {} as never,
+      thinkingLevel: 'off' as const,
+    })
+    const getRuntimeContext = (value: AgentContext | undefined) => {
+      const systemMessage = value?.messages.find((message) => message.role === 'system')
+      return systemMessage?.role === 'system' ? systemMessage.sections?.runtime_context : undefined
+    }
+
+    const first = await prepareRequest(request(context))
+    assert.equal(refreshCount, 0)
+    assert.equal(getRuntimeContext(first?.context), 'initial context')
+    assert.deepEqual(first?.context?.messages.slice(1), context.messages.slice(1))
+
+    const second = await prepareRequest(request(first?.context ?? context))
+    assert.equal(refreshCount, 1)
+    assert.equal(getRuntimeContext(second?.context), 'refreshed context 1')
+    assert.deepEqual(second?.context?.messages.slice(1), context.messages.slice(1))
+
+    const third = await prepareRequest(request(second?.context ?? context))
+    assert.equal(refreshCount, 2)
+    assert.equal(getRuntimeContext(third?.context), 'refreshed context 2')
+    assert.equal(getRuntimeContext(context), 'stale context')
+  })
+
   test('keeps complete persistence history separate from the token-bounded model context', ({
     assert,
   }) => {
