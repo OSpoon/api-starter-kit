@@ -302,7 +302,6 @@
     "api_docs": "API integration",
     "github_repository": "GitHub",
     "help": "Help",
-    "grafana": "Grafana monitoring",
     "language": "Language",
     "language_switched": "Language switched",
     "schema_builder": "Schema Builder",
@@ -728,7 +727,7 @@
     "create_failed": "Failed to create key",
     "fetch_failed": "Failed to load API keys",
     "dialog_create_title": "Generate new key",
-    "dialog_create_desc": "Give the key a recognizable name (e.g. \"monitoring script\").",
+    "dialog_create_desc": "Give the key a recognizable name (e.g. \"deployment script\").",
     "key_name_placeholder": "Key name",
     "validation": {
       "name_required": "Enter a key name",

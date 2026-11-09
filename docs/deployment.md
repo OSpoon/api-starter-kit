@@ -1,6 +1,6 @@
 # 部署指南
 
-Compose 按用途拆分：基础文件只定义 PostgreSQL；应用、IM Bot 和监控分别使用独立 overlay 按需叠加。
+Compose 按用途拆分：基础文件只定义 PostgreSQL；应用和 IM Bot 使用独立 overlay 按需叠加。
 本地开发默认只启动数据库，backend 与管理端仍由 `pnpm dev` 运行。桌面安装包和 Chrome 扩展
 单独构建，不作为 Compose 服务运行。认证、授权、迁移和运行时配置仍由 backend 负责。
 
@@ -21,7 +21,6 @@ docker/docker-compose.yml
 docker/docker-compose.app.yml
 docker/docker-compose.assistant-web.yml
 docker/docker-compose.im.yml
-docker/docker-compose.monitoring.yml
 docker/Dockerfile
 apps/backend/.env
 apps/frontend/.env
@@ -143,7 +142,7 @@ docker compose --env-file apps/backend/.env \
   -f docker/docker-compose.app.yml up -d --build
 ```
 
-也可以通过 `pnpm docker` 打开交互菜单，多选要启动的服务组。选择应用会自动启动 PostgreSQL；选择独立助手 Web 或 IM Bot 会自动启动 backend 和 PostgreSQL；监控可独立启动。选择独立助手 Web 不会启动管理端 frontend。菜单启动会构建所选应用镜像。需要在 CI 或自动化部署中启动时，继续使用下面的 Compose 命令：
+也可以通过 `pnpm docker` 打开交互菜单，多选要启动的服务组。选择应用会自动启动 PostgreSQL；选择独立助手 Web 或 IM Bot 会自动启动 backend 和 PostgreSQL。选择独立助手 Web 不会启动管理端 frontend。菜单启动会构建所选应用镜像。需要在 CI 或自动化部署中启动时，继续使用下面的 Compose 命令：
 
 ```bash
 # 单独添加 assistant-web
@@ -158,12 +157,6 @@ docker compose --env-file apps/backend/.env \
   -f docker/docker-compose.app.yml \
   -f docker/docker-compose.im.yml up -d
 
-# 添加 Prometheus、Grafana 和 cAdvisor
-docker compose --env-file apps/backend/.env \
-  --env-file docker/monitoring/.env \
-  -f docker/docker-compose.yml \
-  -f docker/docker-compose.app.yml \
-  -f docker/docker-compose.monitoring.yml up -d
 ```
 
 backend 与三个 Bot 共用 `api-starter-kit-backend:latest` 运行镜像；frontend
@@ -196,7 +189,6 @@ healthcheck，因此按需启动时 Compose 会等待依赖就绪。
 | `docker-compose.app.yml`           | `backend`、`frontend`                     | API `13333`、管理端 `18080`                                    |
 | `docker-compose.assistant-web.yml` | `assistant-web`                           | 独立助手 Web `17070`                                           |
 | `docker-compose.im.yml`            | `wecom-bot`、`feishu-bot`、`dingtalk-bot` | 各渠道独立 worker，不映射宿主机端口                            |
-| `docker-compose.monitoring.yml`    | `prometheus`、`grafana`、`cadvisor`       | Prometheus `9090`、Grafana `3000`；默认只绑定 loopback         |
 
 管理端入口默认为 `http://localhost:18080`。Nginx 将 `/api/` 转发到
 `http://backend:13333`。独立助手 Web 默认为 `http://localhost:17070`，也通过 Compose
@@ -205,35 +197,9 @@ healthcheck，因此按需启动时 Compose 会等待依赖就绪。
 
 PostgreSQL 始终将宿主机端口绑定到 loopback：默认 `127.0.0.1:5432`，可通过 `POSTGRES_PORT` 修改。宿主机开发服务可连接该地址，局域网无法直接访问；容器内应用继续使用 `postgres:5432`。
 
-### Grafana 与 Prometheus 容器监控
+帮助子菜单仅在开发模式显示；生产构建（包括 Docker frontend 镜像）会隐藏整个子菜单，包括 API 文档和开发工具入口；账户、语言、主题和退出菜单保持可用。
 
-监控服务单独定义在 `docker-compose.monitoring.yml`。cAdvisor 只采集 Docker 容器指标，不采集宿主机进程；容器资源仪表盘按 Compose project 和 service 标签筛选。AI 对话统计仪表盘则由 Grafana 通过只读 PostgreSQL 数据源直接查询应用表，不经过 Prometheus。
-
-首次启动监控前创建本地配置并设置 Grafana 管理员密码：
-
-```bash
-cp docker/monitoring/.env.example docker/monitoring/.env
-```
-
-与 Docker 应用一起启动监控：
-
-```bash
-docker compose --env-file apps/backend/.env \
-  --env-file docker/monitoring/.env \
-  -f docker/docker-compose.yml \
-  -f docker/docker-compose.app.yml \
-  -f docker/docker-compose.monitoring.yml up -d
-```
-
-启动前请在 `docker/monitoring/.env` 中分别设置 Grafana 管理员密码和唯一的 `GRAFANA_DB_READONLY_PASSWORD`。监控 overlay 会在 PostgreSQL 健康后创建只读角色 `grafana_reader`，仅授予对话、用户消息和模型调用统计所需字段的读取权限。启动监控前，backend 必须已完成数据库迁移；否则角色初始化会因统计表不存在而失败。
-
-Grafana 的 `系统监控` 仪表盘展示容器资源；`业务监控` 仪表盘每分钟查询一次 PostgreSQL，默认显示最近 30 天的每日对话数、用户提问数和模型调用数。业务统计基于数据库中仍保留的记录；删除对话时，关联消息和模型调用会级联删除，历史计数也会随之变化。
-
-Grafana 和 Prometheus 默认只绑定宿主机 loopback；远程访问 Grafana 应通过 VPN、SSH 隧道或带认证的反向代理。不要将 Prometheus 或 cAdvisor 采集端口直接暴露到公网。Prometheus 默认保留 15 天数据，Grafana 和 Prometheus 数据分别保存在命名 volume 中。
-
-帮助子菜单仅在开发模式显示；生产构建（包括 Docker frontend 镜像）会隐藏整个子菜单，包括 Grafana、API 文档和开发工具入口，账户、语言、主题和退出菜单保持可用。开发模式下 Grafana 入口默认打开 `http://localhost:3000`；`VITE_MONITORING_PROJECT` 必须与 Compose project 名称一致，默认为 `api-starter-kit`。
-
-Compose project 名称为 `api-starter-kit`。PostgreSQL、Grafana 和 Prometheus 使用各自的命名 volume；`docker compose down` 保留数据，`down -v` 删除所选 Compose 文件声明的 volume。
+Compose project 名称为 `api-starter-kit`。`docker compose down` 保留数据，`down -v` 删除所选 Compose 文件声明的 volume。
 
 ## 5. 更新、停止和数据持久化
 
@@ -258,7 +224,7 @@ docker compose --env-file apps/backend/.env \
   -f docker/docker-compose.assistant-web.yml up -d --build assistant-web
 ```
 
-IM Bot 和监控按需叠加各自文件；启动命令见首次部署章节。查看核心服务：
+IM Bot 按需叠加各自文件；启动命令见首次部署章节。查看核心服务：
 
 ```bash
 docker compose --env-file apps/backend/.env \

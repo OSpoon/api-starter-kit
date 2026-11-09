@@ -41,13 +41,6 @@ const serviceGroups = {
     envFiles: ['apps/backend/.env'],
     services: ['wecom-bot', 'feishu-bot', 'dingtalk-bot'],
   },
-  monitoring: {
-    label: '监控（Prometheus、Grafana、cAdvisor）',
-    hint: '自动启动 PostgreSQL；需先迁移应用数据库并配置 Grafana 密码',
-    files: ['docker/docker-compose.yml', 'docker/docker-compose.monitoring.yml'],
-    envFiles: ['apps/backend/.env', 'docker/monitoring/.env'],
-    services: ['prometheus', 'grafana', 'cadvisor'],
-  },
 }
 
 function run(command, args, options = {}) {

@@ -302,7 +302,6 @@
     "api_docs": "API 集成文档",
     "github_repository": "GitHub",
     "help": "帮助",
-    "grafana": "Grafana 监控",
     "language": "语言",
     "language_switched": "语言已切换",
     "schema_builder": "Schema 构建器",
@@ -728,7 +727,7 @@
     "create_failed": "密钥生成失败",
     "fetch_failed": "获取密钥列表失败",
     "dialog_create_title": "生成新密钥",
-    "dialog_create_desc": "请为密钥起一个名称以供识别（如「监控脚本」）。",
+    "dialog_create_desc": "请为密钥起一个名称以供识别（如「部署脚本」）。",
     "key_name_placeholder": "密钥名称",
     "validation": {
       "name_required": "请输入密钥名称",

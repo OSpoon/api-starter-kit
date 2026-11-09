@@ -38,8 +38,6 @@ services:
       target: frontend
       args:
         NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmmirror.com/}
-        VITE_GRAFANA_URL: ${VITE_GRAFANA_URL:-}
-        VITE_MONITORING_PROJECT: ${VITE_MONITORING_PROJECT:-api-starter-kit}
     ports:
       - '${FRONTEND_PORT:-18080}:18080'
     env_file:
