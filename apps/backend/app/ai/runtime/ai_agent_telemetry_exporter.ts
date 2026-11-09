@@ -1,14 +1,16 @@
 import { createHash } from 'node:crypto'
 
 import type { AttributeValue, StoredSpan, StoredTrace } from '@earendil-works/pi-telemetry'
+import * as api from '@opentelemetry/api'
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http'
-import { api, NodeSDK } from '@opentelemetry/sdk-node'
+import { resourceFromAttributes } from '@opentelemetry/resources'
+import { BatchSpanProcessor, TracerProvider } from '@opentelemetry/sdk-trace'
 
 import env from '#start/env'
 
 const serviceName = 'api-starter-kit-backend'
 const instrumentationName = '@earendil-works/pi-telemetry'
-let telemetrySdk: NodeSDK | undefined
+let tracerProvider: TracerProvider | undefined
 
 type TelemetryAttribute = AttributeValue | undefined
 
@@ -31,27 +33,28 @@ export function hasLangfuseTelemetryDestination() {
 
 export function startAiAgentTelemetry() {
   const config = getLangfuseConfig()
-  if (!isAiTelemetryEnabled() || !config || telemetrySdk) return
+  if (!isAiTelemetryEnabled() || !config || tracerProvider) return
 
-  telemetrySdk = new NodeSDK({
-    serviceName,
-    traceExporter: new OTLPTraceExporter({
-      url: `${config.baseUrl}/api/public/otel/v1/traces`,
-      headers: {
-        Authorization: `Basic ${Buffer.from(`${config.publicKey}:${config.secretKey}`).toString('base64')}`,
-        'x-langfuse-ingestion-version': '4',
-      },
-    }),
-    metricReaders: [],
-    logRecordProcessors: [],
-    textMapPropagator: null,
+  tracerProvider = new TracerProvider({
+    resource: resourceFromAttributes({ 'service.name': serviceName }),
+    spanProcessors: [
+      new BatchSpanProcessor({
+        exporter: new OTLPTraceExporter({
+          url: `${config.baseUrl}/api/public/otel/v1/traces`,
+          headers: {
+            Authorization: `Basic ${Buffer.from(`${config.publicKey}:${config.secretKey}`).toString('base64')}`,
+            'x-langfuse-ingestion-version': '4',
+          },
+        }),
+      }),
+    ],
   })
-  telemetrySdk.start()
+  api.trace.setGlobalTracerProvider(tracerProvider)
 }
 
 export async function shutdownAiAgentTelemetry() {
-  await telemetrySdk?.shutdown()
-  telemetrySdk = undefined
+  await tracerProvider?.shutdown()
+  tracerProvider = undefined
 }
 
 function toOpenTelemetryId(value: string, bytes: number) {
@@ -137,7 +140,7 @@ function toOpenTelemetryLinks(
 }
 
 export async function exportAiAgentTraceToLangfuse(trace: StoredTrace, conversationId: number) {
-  if (!isAiTelemetryEnabled() || !hasLangfuseTelemetryDestination() || !telemetrySdk) return
+  if (!isAiTelemetryEnabled() || !hasLangfuseTelemetryDestination() || !tracerProvider) return
   if (trace.spans.length === 0) return
 
   const tracer = api.trace.getTracer(instrumentationName, '1.4.0')
