@@ -69,6 +69,8 @@ function copySafeMessage(message: AgentSessionMessage): AgentSessionMessage {
       }
       return redactSensitiveFields(part)
     }) as AgentContentPart[]
+  } else if (copy.role === 'user' && Array.isArray(copy.content)) {
+    copy.content = copy.content.filter((part) => !isRecord(part) || part.type !== 'image')
   }
   return copy
 }
@@ -166,6 +168,11 @@ export function createFinalResponseState(value: unknown, userMessageId: number) 
   )
   if (finalDraftIndex >= 0) state.messages.splice(finalDraftIndex, 1)
   state.messages.splice(userIndex, 1)
+  for (const message of state.messages) {
+    if (message.role === 'user' && Array.isArray(message.content)) {
+      message.content = message.content.filter((part) => !isRecord(part) || part.type !== 'image')
+    }
+  }
   return state
 }
 

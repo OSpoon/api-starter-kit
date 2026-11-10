@@ -350,6 +350,16 @@
       "too_large": "The recording cannot exceed 10 MB",
       "transcribe_failed": "Voice transcription failed. Please try again."
     },
+    "image": {
+      "attach": "Attach an image",
+      "remove": "Remove image",
+      "preview": "Message image",
+      "open_preview": "Open image preview",
+      "load_failed": "The image could not be loaded",
+      "unsupported_type": "Choose a JPEG, PNG, or WebP image",
+      "too_large": "Images cannot exceed 2 MB",
+      "queue_unavailable": "Send image questions after the current response finishes"
+    },
     "response_disclaimer": "For reference only. Verify important details with system data and project docs.",
     "thinking": "Thinking...",
     "waiting": "Waiting for response...",

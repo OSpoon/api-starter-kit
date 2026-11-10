@@ -32,6 +32,10 @@ function registerAiChatRoutes(mode: 'user' | 'api-key') {
       router.get('conversations/:id', [AiChatController, 'show'])
       router.post('transcribe', [AiChatController, 'transcribe'])
       router.post('conversations/:id/messages', [AiChatController, 'sendMessage'])
+      router.get('conversations/:id/messages/:messageId/image', [
+        AiChatController,
+        'showMessageImage',
+      ])
       router.post('conversations/:id/steer', [AiChatController, 'steer'])
       router.post('conversations/:id/follow-up', [AiChatController, 'followUp'])
       router.post('conversations/:id/confirmations/:confirmationId/confirm', [

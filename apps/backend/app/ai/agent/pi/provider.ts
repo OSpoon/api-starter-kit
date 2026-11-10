@@ -18,7 +18,7 @@ export async function createPiModels(config: AgentModelConfig) {
     provider: config.providerId,
     baseUrl: config.baseUrl,
     reasoning: config.reasoning,
-    input: ['text'],
+    input: ['text', 'image'],
     cost: config.cost,
     contextWindow: config.contextWindow,
     maxTokens: config.maxTokens,

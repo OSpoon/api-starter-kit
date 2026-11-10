@@ -41,9 +41,14 @@ export function useAiChatStream(
   async function send(
     message: string,
     mode: AiChatQueueMode = 'steer',
-    regenerateAssistantMessageId?: number
+    regenerateAssistantMessageId?: number,
+    image?: File
   ) {
     if (state.loading.value && state.conversation.value && !regenerateAssistantMessageId) {
+      if (image) {
+        toast.error(translate('ai_chat.image.queue_unavailable'))
+        return
+      }
       try {
         const queued = await queueAiChatMessage(token(), state.conversation.value.id, message, mode)
         state.streamingMessages.value = [
@@ -70,7 +75,12 @@ export function useAiChatStream(
     }
     const userMessage = regenerateAssistantMessageId
       ? null
-      : { id: `local-user-${Date.now()}`, role: 'user' as const, content: message }
+      : {
+          id: `local-user-${Date.now()}`,
+          role: 'user' as const,
+          content: message,
+          ...(image ? { image: { mimeType: image.type }, localImageFile: image } : {}),
+        }
     let assistantMessage: LocalAiChatMessage = createStreamingAssistantMessage()
     state.streamingMessageId.value = assistantMessage.id
     state.streamingMessages.value = regenerateAssistantMessageId
@@ -202,6 +212,7 @@ export function useAiChatStream(
           signal: abortController.signal,
           context: pageContext.value,
           regenerateAssistantMessageId,
+          image,
         }
       )
       const persistedConversation = await getAiChatConversation(token(), conversation.id)

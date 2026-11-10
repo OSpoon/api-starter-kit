@@ -835,6 +835,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['sendMessage']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
+  'ai_chat.show_message_image': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/ai-chat/conversations/:id/messages/:messageId/image'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue, ParamValue]
+      params: { id: ParamValue; messageId: ParamValue }
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/ai_chat').aiChatMessageImageRouteValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['showMessageImage']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['showMessageImage']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
   'ai_chat.steer': {
     methods: ["POST"]
     pattern: '/api/v1/ai-chat/conversations/:id/steer'
@@ -977,6 +989,18 @@ export interface Registry {
       query: ExtractQuery<InferInput<(typeof import('#validators/ai_chat').sendAiChatMessageValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['sendMessage']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['sendMessage']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'integrations.ai_chat.ai_chat.show_message_image': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/integrations/ai-chat/conversations/:id/messages/:messageId/image'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue, ParamValue]
+      params: { id: ParamValue; messageId: ParamValue }
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/ai_chat').aiChatMessageImageRouteValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['showMessageImage']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['showMessageImage']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
   'integrations.ai_chat.ai_chat.steer': {

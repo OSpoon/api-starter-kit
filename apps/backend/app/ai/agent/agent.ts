@@ -15,6 +15,7 @@ export type AgentChatMessage = {
   role: 'user' | 'assistant' | 'system'
   content: string
   id?: number
+  image?: { data: string; mimeType: string }
 }
 
 export type AgentToolResult = {
@@ -181,7 +182,11 @@ export type AgentSession = {
   traceStore?: {
     findTraces(input: { limit: number }): Promise<{ traces: readonly AgentTrace[] }>
   }
-  prompt(content: string, sourceMessageId?: number): Promise<void>
+  prompt(
+    content: string,
+    sourceMessageId?: number,
+    image?: { data: string; mimeType: string }
+  ): Promise<void>
   hasQueuedMessages(): boolean
   getSessionState(): AgentSessionState
 }
@@ -194,6 +199,7 @@ export type AgentRunOptions = {
   sessionState?: unknown
   initialPrompt?: string
   initialPromptMessageId?: number
+  initialImage?: { data: string; mimeType: string }
   sessionId: string
   signal?: AbortSignal
   runtimeContext?: {

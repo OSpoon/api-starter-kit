@@ -97,7 +97,12 @@ function toPiMessages(messages: AgentRunOptions['messages'], providerId: string)
       return [
         {
           role: 'user',
-          content: message.content,
+          content: message.image
+            ? [
+                { type: 'text', text: message.content },
+                { type: 'image', data: message.image.data, mimeType: message.image.mimeType },
+              ]
+            : message.content,
           timestamp: Date.now(),
           ...(message.id !== undefined ? { sourceMessageId: message.id } : {}),
         },
@@ -117,6 +122,19 @@ function toPiMessages(messages: AgentRunOptions['messages'], providerId: string)
       },
     ]
   }) as PiAgentMessage[]
+}
+
+function redactImagesForTelemetry(messages: unknown) {
+  if (!Array.isArray(messages)) return messages
+  return messages.map((message) => {
+    if (!isRecord(message) || !Array.isArray(message.content)) return message
+    return {
+      ...message,
+      content: message.content.map((part) =>
+        isRecord(part) && part.type === 'image' ? { type: 'image', mimeType: part.mimeType } : part
+      ),
+    }
+  })
 }
 
 function instrumentTool(
@@ -265,8 +283,29 @@ export const piAgentEngine: AgentEngine = {
     const hasPiState =
       Array.isArray(input.sessionState) ||
       (isRecord(input.sessionState) && input.sessionState.engineId === this.id)
+    const historicalMessages = new Map<number, AgentRunOptions['messages'][number]>()
+    for (const message of input.messages) {
+      if (message.id !== undefined) historicalMessages.set(message.id, message)
+    }
     const priorMessages = hasPiState
-      ? (sessionState.messages.filter((message) => message.role !== 'system') as PiAgentMessage[])
+      ? (sessionState.messages
+          .filter((message) => message.role !== 'system')
+          .map((message) => {
+            if (message.role !== 'user' || message.sourceMessageId === undefined) return message
+            const historyMessage = historicalMessages.get(message.sourceMessageId)
+            if (!historyMessage?.image) return message
+            return {
+              ...message,
+              content: [
+                { type: 'text', text: messageText(message.content) || historyMessage.content },
+                {
+                  type: 'image',
+                  data: historyMessage.image.data,
+                  mimeType: historyMessage.image.mimeType,
+                },
+              ],
+            }
+          }) as PiAgentMessage[])
       : toPiMessages(input.messages, input.model.providerId)
     const summaryOptions = input.summary ?? {
       enabled: false,
@@ -320,7 +359,9 @@ export const piAgentEngine: AgentEngine = {
                 attributes: {
                   'langfuse.observation.type': 'generation',
                   'langfuse.observation.model.name': requestModel.id,
-                  'langfuse.observation.input': JSON.stringify(context.messages),
+                  'langfuse.observation.input': JSON.stringify(
+                    redactImagesForTelemetry(context.messages)
+                  ),
                 },
               },
               async (span) => {
@@ -455,10 +496,15 @@ export const piAgentEngine: AgentEngine = {
         contextWindow: model.contextWindow,
         maxTokens: model.maxTokens,
       },
-      prompt: async (content, sourceMessageId) => {
+      prompt: async (content, sourceMessageId, image) => {
         await agent.prompt({
           role: 'user',
-          content,
+          content: image
+            ? [
+                { type: 'text', text: content },
+                { type: 'image', data: image.data, mimeType: image.mimeType },
+              ]
+            : content,
           timestamp: Date.now(),
           ...(sourceMessageId !== undefined ? { sourceMessageId } : {}),
         })
@@ -496,7 +542,7 @@ export const piAgentEngine: AgentEngine = {
         async (span) => {
           activeSpan = span
           try {
-            await session.prompt(initialPrompt, input.initialPromptMessageId)
+            await session.prompt(initialPrompt, input.initialPromptMessageId, input.initialImage)
             const response = agent.state.messages.findLast(
               (message) => message.role === 'assistant'
             )

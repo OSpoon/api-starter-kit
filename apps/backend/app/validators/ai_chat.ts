@@ -8,8 +8,10 @@ export const createConversationValidator = vine.compile(
 
 export const sendAiChatMessageValidator = vine.compile(
   vine.object({
-    content: vine.string().trim().minLength(1).maxLength(8000),
+    content: vine.string().trim().minLength(1).maxLength(8000).optional(),
     regenerateAssistantMessageId: vine.number().positive().optional(),
+    contextRoute: vine.string().trim().maxLength(200).optional(),
+    contextTitle: vine.string().trim().maxLength(160).optional(),
     context: vine
       .object({
         route: vine.string().trim().maxLength(200),
@@ -36,5 +38,12 @@ export const aiChatConfirmationRouteValidator = vine.compile(
   vine.object({
     id: positiveRouteId(),
     confirmationId: positiveRouteId(),
+  })
+)
+
+export const aiChatMessageImageRouteValidator = vine.compile(
+  vine.object({
+    id: positiveRouteId(),
+    messageId: positiveRouteId(),
   })
 )

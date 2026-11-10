@@ -43,8 +43,28 @@ export async function buildAiChatTurnContext(input: {
         role: message.role,
         content: message.content,
         id: message.id,
+        ...(message.imageData && message.imageMimeType
+          ? {
+              image: {
+                data: message.imageData.toString('base64'),
+                mimeType: message.imageMimeType,
+              },
+            }
+          : {}),
       })),
-    { role: userMessage.role, content: userMessage.content, id: userMessage.id },
+    {
+      role: userMessage.role,
+      content: userMessage.content,
+      id: userMessage.id,
+      ...(userMessage.imageData && userMessage.imageMimeType
+        ? {
+            image: {
+              data: userMessage.imageData.toString('base64'),
+              mimeType: userMessage.imageMimeType,
+            },
+          }
+        : {}),
+    },
   ]
   const contextSourceMessages = regeneration ? regeneration.messages : historyMessages
   const previousAgentContext = contextSourceMessages.findLast(

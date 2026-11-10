@@ -304,6 +304,10 @@ export function useAiChat() {
     }
   }
 
+  function handleAiSendImage(message: string, image: File) {
+    return handleAiSend(message, 'steer', undefined, image)
+  }
+
   const { send: handleAiSend, confirmAction: streamAiConfirmation } = useAiChatStream(
     () => auth.token,
     (key) => t(key),
@@ -401,6 +405,7 @@ export function useAiChat() {
     confirmAiConfirmation,
     handleAiRetryMessage,
     handleAiSend,
+    handleAiSendImage,
     handleAiVoiceSend,
   }
 }

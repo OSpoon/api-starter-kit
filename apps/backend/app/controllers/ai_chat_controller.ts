@@ -1,9 +1,20 @@
+import { readFile } from 'node:fs/promises'
+
 import type { HttpContext } from '@adonisjs/core/http'
 import logger from '@adonisjs/core/services/logger'
-import { ApiOperation, ApiQuery, ApiResponse, ApiSecurity } from '@foadonis/openapi/decorators'
+import {
+  ApiBody,
+  ApiOperation,
+  ApiQuery,
+  ApiResponse,
+  ApiSecurity,
+} from '@foadonis/openapi/decorators'
 
 import { upsertAgentToolResult } from '#ai/agent'
-import { createAiChatConversationTitle } from '#ai/chat/ai_chat_conversation_title'
+import {
+  createAiChatConversationTitle,
+  generateAiChatConversationTitleFromImage,
+} from '#ai/chat/ai_chat_conversation_title'
 import { resolveAiChatRegeneration } from '#ai/chat/ai_chat_regeneration'
 import { startAiChatSseKeepalive, writeAiChatSse } from '#ai/chat/ai_chat_sse_adapter'
 import { resetAiConversationState } from '#ai/chat/ai_conversation_state'
@@ -39,6 +50,7 @@ import {
 } from '#transformers/ai_chat_transformer'
 import {
   aiChatConfirmationRouteValidator,
+  aiChatMessageImageRouteValidator,
   createConversationValidator,
   queueAiChatMessageValidator,
   sendAiChatMessageValidator,
@@ -54,6 +66,17 @@ function conversationsFor(ctx: HttpContext, userId: number) {
   return ctx.integrationApiKey
     ? query.where('api_key_id', ctx.integrationApiKey.id)
     : query.whereNull('api_key_id')
+}
+
+function getImageMimeType(data: Buffer) {
+  if (data.subarray(0, 3).equals(Buffer.from([0xff, 0xd8, 0xff]))) return 'image/jpeg'
+  if (data.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) {
+    return 'image/png'
+  }
+  if (data.toString('ascii', 0, 4) === 'RIFF' && data.toString('ascii', 8, 12) === 'WEBP') {
+    return 'image/webp'
+  }
+  return undefined
 }
 
 @ApiSecurity('bearerAuth')
@@ -173,6 +196,17 @@ export default class AiChatController {
 
     const confirmations = await listConversationConfirmations(conversation.id, user.id)
     const paginator = await AiChatMessage.query()
+      .select([
+        'id',
+        'conversationId',
+        'role',
+        'content',
+        'imageMimeType',
+        'citations',
+        'runtimeDetails',
+        'createdAt',
+        'updatedAt',
+      ])
       .where('conversation_id', conversation.id)
       .orderBy('created_at', 'desc')
       .orderBy('id', 'desc')
@@ -185,20 +219,67 @@ export default class AiChatController {
     })
   }
 
+  @ApiBody({
+    mediaType: 'multipart/form-data',
+    required: true,
+    schema: {
+      type: 'object',
+      anyOf: [{ required: ['content'] }, { required: ['image'] }],
+      properties: {
+        content: { type: 'string', maxLength: 8000 },
+        image: { type: 'string', format: 'binary' },
+        contextRoute: { type: 'string', maxLength: 200 },
+        contextTitle: { type: 'string', maxLength: 160 },
+      },
+    },
+  })
   @ApiOperation({
     summary: '发送 AI 聊天消息',
-    description: '保存用户消息，调用 OpenAI 兼容接口，并保存助手回复。',
+    description:
+      '保存用户消息，调用 OpenAI 兼容接口，并保存助手回复。支持 JSON 文本请求或包含单张 JPEG、PNG、WebP 图片的 multipart/form-data 请求。',
   })
   @ApiResponse({
     status: 200,
     description: 'SSE 流包含 Agent 准备阶段、工具状态和不含参数值的调用摘要。',
   })
   @ApiResponse({ status: 409, description: '当前会话已有 AI 请求正在运行' })
+  @ApiResponse({ status: 422, description: '消息或图片校验失败' })
   async sendMessage(ctx: HttpContext) {
     const { params, request, response } = ctx
     const user = currentUser(ctx)
     const payload = await request.validateUsing(sendAiChatMessageValidator)
+    const content = payload.content?.trim() ?? ''
     const conversation = await conversationsFor(ctx, user.id).where('id', params.id).firstOrFail()
+    const imageFile = request.file('image', {
+      size: '2mb',
+      extnames: ['jpg', 'jpeg', 'png', 'webp'],
+    })
+
+    if (imageFile && (!imageFile.isValid || !imageFile.tmpPath)) {
+      return response.unprocessableEntity({
+        message: imageFile.errors[0]?.message ?? '请上传不超过 2 MB 的有效图片',
+      })
+    }
+
+    if (!content && !imageFile && !payload.regenerateAssistantMessageId) {
+      return response.unprocessableEntity({ message: '请输入问题或附加一张图片' })
+    }
+
+    if (payload.regenerateAssistantMessageId && imageFile) {
+      return response.unprocessableEntity({ message: '重新生成消息不能附带新图片' })
+    }
+
+    let imageData: Buffer | undefined
+    let imageMimeType: string | undefined
+    if (imageFile?.tmpPath) {
+      imageData = await readFile(imageFile.tmpPath)
+      imageMimeType = getImageMimeType(imageData)
+      if (!imageMimeType) {
+        return response.unprocessableEntity({
+          message: '图片格式无效，请使用 JPEG、PNG 或 WebP 图片',
+        })
+      }
+    }
 
     if (!claimAiAgentConversation(conversation.id, user.id)) {
       return response.conflict({ message: '当前会话已有 AI 请求正在运行，请稍后再试' })
@@ -230,18 +311,20 @@ export default class AiChatController {
         (await AiChatMessage.create({
           conversationId: conversation.id,
           role: 'user',
-          content: payload.content,
+          content,
+          ...(imageData && imageMimeType ? { imageData, imageMimeType } : {}),
         }))
 
       const messageCount = await AiChatMessage.query()
         .where('conversation_id', conversation.id)
         .count('* as total')
-      if (
+      const isFirstMessage =
         !payload.regenerateAssistantMessageId &&
         Number(messageCount[0].$extras.total) === 1 &&
         conversation.title === 'New chat'
-      ) {
-        conversation.title = createAiChatConversationTitle(payload.content)
+      const shouldGenerateImageTitle = isFirstMessage && Boolean(imageData && imageMimeType)
+      if (isFirstMessage && !shouldGenerateImageTitle) {
+        conversation.title = createAiChatConversationTitle(content)
         await conversation.save()
       }
 
@@ -256,12 +339,43 @@ export default class AiChatController {
       const requestTimeout = setTimeout(() => abortController.abort(), await getAiRequestTimeout())
 
       try {
+        if (shouldGenerateImageTitle && imageData && imageMimeType) {
+          const stopTitleKeepalive = startAiChatSseKeepalive(response)
+          try {
+            conversation.title =
+              (await generateAiChatConversationTitleFromImage({
+                content,
+                imageData,
+                imageMimeType,
+                userId: user.id,
+                conversationId: conversation.id,
+                pageTitle: payload.contextTitle,
+                signal: abortController.signal,
+              })) || createAiChatConversationTitle(content || payload.contextTitle || '图片提问')
+          } catch (error) {
+            logger.warn(
+              { err: error, conversationId: conversation.id },
+              'AI chat image title generation failed'
+            )
+            conversation.title = createAiChatConversationTitle(
+              content || payload.contextTitle || '图片提问'
+            )
+          } finally {
+            stopTitleKeepalive()
+          }
+          await conversation.save()
+        }
+
         await runAiChatAssistantTurn({
           conversation,
           userId: user.id,
           userMessage,
           regeneration,
-          context: payload.context,
+          context:
+            payload.context ??
+            (payload.contextRoute && payload.contextTitle
+              ? { route: payload.contextRoute, title: payload.contextTitle }
+              : undefined),
           signal: abortController.signal,
           response,
           ctx,
@@ -274,6 +388,30 @@ export default class AiChatController {
     } finally {
       releaseAiAgentConversation(conversation.id, user.id)
     }
+  }
+
+  @ApiOperation({ summary: '获取 AI 聊天图片附件' })
+  @ApiResponse({ status: 200, description: '图片二进制数据' })
+  @ApiResponse({ status: 404, description: '图片不存在或不属于当前会话' })
+  async showMessageImage(ctx: HttpContext) {
+    const { params, request, response } = ctx
+    const user = currentUser(ctx)
+    const route = await request.validateUsing(aiChatMessageImageRouteValidator, { data: params })
+    const conversation = await conversationsFor(ctx, user.id).where('id', route.id).firstOrFail()
+    const message = await AiChatMessage.query()
+      .where('conversation_id', conversation.id)
+      .where('id', route.messageId)
+      .firstOrFail()
+
+    if (!message.imageData || !message.imageMimeType) {
+      return response.notFound()
+    }
+
+    response.header('Content-Type', message.imageMimeType)
+    response.header('Content-Disposition', 'inline')
+    response.header('X-Content-Type-Options', 'nosniff')
+    response.header('Cache-Control', 'private, no-store')
+    return response.send(message.imageData)
   }
 
   @ApiOperation({

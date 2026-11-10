@@ -6,6 +6,7 @@ import {
   Copy,
   History,
   ImageDown,
+  ImagePlus,
   ListChecks,
   LoaderCircle,
   MessageCircle,
@@ -118,6 +119,7 @@ const props = withDefaults(
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
   send: [message: string]
+  sendImage: [message: string, image: File]
   voiceSend: [audio: Blob, fileName: string]
   clear: []
   selectConversation: [id: string | number]
@@ -136,6 +138,20 @@ const emit = defineEmits<{
 }>()
 
 const { t, te, locale } = useI18n()
+
+const imageInputRef = ref<HTMLInputElement | null>(null)
+const attachedImage = ref<File | null>(null)
+const attachedImagePreview = ref<string | null>(null)
+
+watch(attachedImage, (file, _previous, onCleanup) => {
+  if (!file) {
+    attachedImagePreview.value = null
+    return
+  }
+  const preview = URL.createObjectURL(file)
+  attachedImagePreview.value = preview
+  onCleanup(() => URL.revokeObjectURL(preview))
+})
 
 const internalOpen = ref(false)
 const input = ref('')
@@ -336,6 +352,17 @@ const isOpen = computed({
   },
 })
 
+watch(isOpen, (open) => {
+  if (!open) attachedImage.value = null
+})
+
+watch(
+  () => props.currentConversationId,
+  (currentId, previousId) => {
+    if (currentId !== previousId) attachedImage.value = null
+  }
+)
+
 const welcomeMessage = computed(() => props.welcomeMessage || t('ai_chat.welcome'))
 const displayMessages = computed(() => {
   if (props.messages) {
@@ -411,21 +438,60 @@ function openAssistant() {
 }
 
 function closeAssistant() {
+  attachedImage.value = null
   isOpen.value = false
 }
 
 function clearChat() {
+  attachedImage.value = null
   emit('clear')
+}
+
+function selectConversation(id: string | number) {
+  if (String(id) !== String(props.currentConversationId)) attachedImage.value = null
+  emit('selectConversation', id)
 }
 
 function sendMessage(message = input.value) {
   const content = message.trim()
-  if (!content || props.disabled) {
+  if ((!content && !attachedImage.value) || props.disabled) {
     return
   }
 
-  emit('send', content)
+  if (props.loading) {
+    if (!content) return
+    emit('send', content)
+  } else if (attachedImage.value) {
+    emit('sendImage', content, attachedImage.value)
+    attachedImage.value = null
+  } else {
+    emit('send', content)
+  }
   input.value = ''
+}
+
+function openImagePicker() {
+  imageInputRef.value?.click()
+}
+
+function attachImage(file: File) {
+  if (!file) return
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+    toast.error(t('ai_chat.image.unsupported_type'))
+    return
+  }
+  if (file.size > 2 * 1024 * 1024) {
+    toast.error(t('ai_chat.image.too_large'))
+    return
+  }
+  attachedImage.value = file
+}
+
+function selectImage(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (file) attachImage(file)
 }
 
 function stopGeneration() {
@@ -474,6 +540,21 @@ function handleCompositionEnd() {
 }
 
 function handlePaste(event: ClipboardEvent) {
+  const clipboardImage = Array.from(event.clipboardData?.items ?? [])
+    .find((item) => item.kind === 'file' && item.type.startsWith('image/'))
+    ?.getAsFile()
+  if (clipboardImage) {
+    const extension =
+      clipboardImage.type === 'image/jpeg'
+        ? 'jpg'
+        : clipboardImage.type === 'image/webp'
+          ? 'webp'
+          : 'png'
+    attachImage(
+      new File([clipboardImage], `clipboard-image.${extension}`, { type: clipboardImage.type })
+    )
+  }
+
   const text = event.clipboardData?.getData('text/plain')
 
   if (!text || !/[\r\n\u2028\u2029]/.test(text)) {
@@ -720,7 +801,7 @@ watch(
                 v-for="conversation in conversations"
                 :key="conversation.id"
                 class="group flex min-w-0 items-center justify-between gap-2"
-                @click="emit('selectConversation', conversation.id)"
+                @click="selectConversation(conversation.id)"
               >
                 <span
                   class="min-w-0 flex-1 truncate"
@@ -821,7 +902,7 @@ watch(
                     'bg-sidebar-accent font-medium text-sidebar-accent-foreground':
                       conversation.id === currentConversationId,
                   }"
-                  @click="emit('selectConversation', conversation.id)"
+                  @click="selectConversation(conversation.id)"
                 >
                   <MessageCircle class="size-3.5 shrink-0" aria-hidden="true" />
                   <span class="min-w-0 flex-1 truncate">{{ conversation.title }}</span>
@@ -930,7 +1011,9 @@ watch(
             >
               <MessageScroller>
                 <MessageScrollerViewport @reach-start="loadOlderMessagesAtStart">
-                  <MessageScrollerContent :class="isSelectingMessages ? 'gap-y-9 px-3' : 'px-3'">
+                  <MessageScrollerContent
+                    :class="isSelectingMessages ? 'gap-y-9 px-3' : 'gap-y-6 px-3'"
+                  >
                     <div
                       v-if="loadingOlderMessages"
                       class="flex items-center justify-center gap-2 py-3 text-xs text-muted-foreground"
@@ -1010,6 +1093,22 @@ watch(
               @approve="emit('approveConfirmation')"
               @dismiss="emit('dismissConfirmation')"
             />
+            <div v-if="attachedImage && attachedImagePreview" class="mb-2 flex justify-end">
+              <div class="relative h-20 w-28 overflow-hidden rounded-lg border bg-muted/40">
+                <img :src="attachedImagePreview" alt="" class="size-full object-contain" />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="icon-sm"
+                  class="absolute top-1 right-1 bg-background/90"
+                  :title="t('ai_chat.image.remove')"
+                  :aria-label="t('ai_chat.image.remove')"
+                  @click="attachedImage = null"
+                >
+                  <X class="size-4" aria-hidden="true" />
+                </Button>
+              </div>
+            </div>
             <div
               v-if="isRecording || voiceTranscribing"
               class="flex h-12 items-center gap-2 rounded-full border bg-background px-2"
@@ -1078,17 +1177,38 @@ watch(
             <form v-else class="flex items-end gap-2" @submit.prevent="handleSubmit">
               <div class="min-w-0 flex-1">
                 <div class="relative">
+                  <input
+                    ref="imageInputRef"
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    class="sr-only"
+                    :aria-label="t('ai_chat.image.attach')"
+                    @change="selectImage"
+                  />
                   <Textarea
                     v-model="input"
                     rows="1"
                     :placeholder="inputPlaceholder"
-                    class="ai-chat-composer-input w-full resize-none pr-20"
+                    class="ai-chat-composer-input w-full resize-none pr-28"
                     :disabled="disabled"
                     @compositionstart="handleCompositionStart"
                     @compositionend="handleCompositionEnd"
                     @keydown="handleKeydown"
                     @paste="handlePaste"
                   />
+                  <Button
+                    v-if="!loading"
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    class="absolute right-20 bottom-2"
+                    :disabled="disabled"
+                    :title="t('ai_chat.image.attach')"
+                    :aria-label="t('ai_chat.image.attach')"
+                    @click="openImagePicker"
+                  >
+                    <ImagePlus class="size-3.5" aria-hidden="true" />
+                  </Button>
                   <Button
                     v-if="!loading"
                     type="button"
@@ -1111,7 +1231,7 @@ watch(
                     :type="loading ? 'button' : 'submit'"
                     size="icon-sm"
                     class="absolute right-2 bottom-2"
-                    :disabled="(!input.trim() && !loading) || disabled"
+                    :disabled="(!input.trim() && !attachedImage && !loading) || disabled"
                     :title="
                       loading
                         ? input.trim()

@@ -350,6 +350,16 @@
       "too_large": "录音文件不能超过 10 MB",
       "transcribe_failed": "语音转写失败，请稍后重试"
     },
+    "image": {
+      "attach": "附加图片",
+      "remove": "移除图片",
+      "preview": "消息图片",
+      "open_preview": "放大查看图片",
+      "load_failed": "图片加载失败",
+      "unsupported_type": "请选择 JPEG、PNG 或 WebP 图片",
+      "too_large": "图片不能超过 2 MB",
+      "queue_unavailable": "当前回复完成后再发送带图片的问题"
+    },
     "response_disclaimer": "AI 回复仅供参考；重要信息请核对系统数据和项目文档。",
     "thinking": "正在思考...",
     "waiting": "正在输入……",

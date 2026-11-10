@@ -73,6 +73,7 @@ export type ScannedRoutes = {
     'ai_chat.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'ai_chat.transcribe': { paramsTuple?: []; params?: {} }
     'ai_chat.send_message': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'ai_chat.show_message_image': { paramsTuple: [ParamValue,ParamValue]; params: {'id': ParamValue,'messageId': ParamValue} }
     'ai_chat.steer': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'ai_chat.follow_up': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'ai_chat.confirm_ai_agent_action': { paramsTuple: [ParamValue,ParamValue]; params: {'id': ParamValue,'confirmationId': ParamValue} }
@@ -85,6 +86,7 @@ export type ScannedRoutes = {
     'integrations.ai_chat.ai_chat.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'integrations.ai_chat.ai_chat.transcribe': { paramsTuple?: []; params?: {} }
     'integrations.ai_chat.ai_chat.send_message': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'integrations.ai_chat.ai_chat.show_message_image': { paramsTuple: [ParamValue,ParamValue]; params: {'id': ParamValue,'messageId': ParamValue} }
     'integrations.ai_chat.ai_chat.steer': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'integrations.ai_chat.ai_chat.follow_up': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'integrations.ai_chat.ai_chat.confirm_ai_agent_action': { paramsTuple: [ParamValue,ParamValue]; params: {'id': ParamValue,'confirmationId': ParamValue} }
@@ -117,9 +119,11 @@ export type ScannedRoutes = {
     'ai_chat.index': { paramsTuple?: []; params?: {} }
     'ai_chat.usage': { paramsTuple?: []; params?: {} }
     'ai_chat.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'ai_chat.show_message_image': { paramsTuple: [ParamValue,ParamValue]; params: {'id': ParamValue,'messageId': ParamValue} }
     'integrations.ai_chat.ai_chat.index': { paramsTuple?: []; params?: {} }
     'integrations.ai_chat.ai_chat.usage': { paramsTuple?: []; params?: {} }
     'integrations.ai_chat.ai_chat.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'integrations.ai_chat.ai_chat.show_message_image': { paramsTuple: [ParamValue,ParamValue]; params: {'id': ParamValue,'messageId': ParamValue} }
   }
   HEAD: {
     'openapi.html': { paramsTuple?: []; params?: {} }
@@ -147,9 +151,11 @@ export type ScannedRoutes = {
     'ai_chat.index': { paramsTuple?: []; params?: {} }
     'ai_chat.usage': { paramsTuple?: []; params?: {} }
     'ai_chat.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'ai_chat.show_message_image': { paramsTuple: [ParamValue,ParamValue]; params: {'id': ParamValue,'messageId': ParamValue} }
     'integrations.ai_chat.ai_chat.index': { paramsTuple?: []; params?: {} }
     'integrations.ai_chat.ai_chat.usage': { paramsTuple?: []; params?: {} }
     'integrations.ai_chat.ai_chat.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'integrations.ai_chat.ai_chat.show_message_image': { paramsTuple: [ParamValue,ParamValue]; params: {'id': ParamValue,'messageId': ParamValue} }
   }
   POST: {
     'auth.signup': { paramsTuple?: []; params?: {} }

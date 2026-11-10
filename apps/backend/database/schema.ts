@@ -168,6 +168,8 @@ export class AiChatMessageSchema extends BaseModel {
     'conversationId',
     'createdAt',
     'id',
+    'imageData',
+    'imageMimeType',
     'role',
     'runtimeDetails',
     'updatedAt',
@@ -185,6 +187,10 @@ export class AiChatMessageSchema extends BaseModel {
   declare createdAt: DateTime
   @column({ isPrimary: true })
   declare id: number
+  @column()
+  declare imageData: Buffer | null
+  @column()
+  declare imageMimeType: string | null
   @column()
   declare role: string
   @column()

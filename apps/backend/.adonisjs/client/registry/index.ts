@@ -420,6 +420,12 @@ const routes = {
     tokens: [{"old":"/api/v1/ai-chat/conversations/:id/messages","type":0,"val":"api","end":""},{"old":"/api/v1/ai-chat/conversations/:id/messages","type":0,"val":"v1","end":""},{"old":"/api/v1/ai-chat/conversations/:id/messages","type":0,"val":"ai-chat","end":""},{"old":"/api/v1/ai-chat/conversations/:id/messages","type":0,"val":"conversations","end":""},{"old":"/api/v1/ai-chat/conversations/:id/messages","type":1,"val":"id","end":""},{"old":"/api/v1/ai-chat/conversations/:id/messages","type":0,"val":"messages","end":""}],
     types: placeholder as Registry['ai_chat.send_message']['types'],
   },
+  'ai_chat.show_message_image': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/v1/ai-chat/conversations/:id/messages/:messageId/image',
+    tokens: [{"old":"/api/v1/ai-chat/conversations/:id/messages/:messageId/image","type":0,"val":"api","end":""},{"old":"/api/v1/ai-chat/conversations/:id/messages/:messageId/image","type":0,"val":"v1","end":""},{"old":"/api/v1/ai-chat/conversations/:id/messages/:messageId/image","type":0,"val":"ai-chat","end":""},{"old":"/api/v1/ai-chat/conversations/:id/messages/:messageId/image","type":0,"val":"conversations","end":""},{"old":"/api/v1/ai-chat/conversations/:id/messages/:messageId/image","type":1,"val":"id","end":""},{"old":"/api/v1/ai-chat/conversations/:id/messages/:messageId/image","type":0,"val":"messages","end":""},{"old":"/api/v1/ai-chat/conversations/:id/messages/:messageId/image","type":1,"val":"messageId","end":""},{"old":"/api/v1/ai-chat/conversations/:id/messages/:messageId/image","type":0,"val":"image","end":""}],
+    types: placeholder as Registry['ai_chat.show_message_image']['types'],
+  },
   'ai_chat.steer': {
     methods: ["POST"],
     pattern: '/api/v1/ai-chat/conversations/:id/steer',
@@ -491,6 +497,12 @@ const routes = {
     pattern: '/api/v1/integrations/ai-chat/conversations/:id/messages',
     tokens: [{"old":"/api/v1/integrations/ai-chat/conversations/:id/messages","type":0,"val":"api","end":""},{"old":"/api/v1/integrations/ai-chat/conversations/:id/messages","type":0,"val":"v1","end":""},{"old":"/api/v1/integrations/ai-chat/conversations/:id/messages","type":0,"val":"integrations","end":""},{"old":"/api/v1/integrations/ai-chat/conversations/:id/messages","type":0,"val":"ai-chat","end":""},{"old":"/api/v1/integrations/ai-chat/conversations/:id/messages","type":0,"val":"conversations","end":""},{"old":"/api/v1/integrations/ai-chat/conversations/:id/messages","type":1,"val":"id","end":""},{"old":"/api/v1/integrations/ai-chat/conversations/:id/messages","type":0,"val":"messages","end":""}],
     types: placeholder as Registry['integrations.ai_chat.ai_chat.send_message']['types'],
+  },
+  'integrations.ai_chat.ai_chat.show_message_image': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/v1/integrations/ai-chat/conversations/:id/messages/:messageId/image',
+    tokens: [{"old":"/api/v1/integrations/ai-chat/conversations/:id/messages/:messageId/image","type":0,"val":"api","end":""},{"old":"/api/v1/integrations/ai-chat/conversations/:id/messages/:messageId/image","type":0,"val":"v1","end":""},{"old":"/api/v1/integrations/ai-chat/conversations/:id/messages/:messageId/image","type":0,"val":"integrations","end":""},{"old":"/api/v1/integrations/ai-chat/conversations/:id/messages/:messageId/image","type":0,"val":"ai-chat","end":""},{"old":"/api/v1/integrations/ai-chat/conversations/:id/messages/:messageId/image","type":0,"val":"conversations","end":""},{"old":"/api/v1/integrations/ai-chat/conversations/:id/messages/:messageId/image","type":1,"val":"id","end":""},{"old":"/api/v1/integrations/ai-chat/conversations/:id/messages/:messageId/image","type":0,"val":"messages","end":""},{"old":"/api/v1/integrations/ai-chat/conversations/:id/messages/:messageId/image","type":1,"val":"messageId","end":""},{"old":"/api/v1/integrations/ai-chat/conversations/:id/messages/:messageId/image","type":0,"val":"image","end":""}],
+    types: placeholder as Registry['integrations.ai_chat.ai_chat.show_message_image']['types'],
   },
   'integrations.ai_chat.ai_chat.steer': {
     methods: ["POST"],

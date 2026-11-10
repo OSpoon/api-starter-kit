@@ -4,8 +4,11 @@ import type { AiChatAgentActivity, AiChatCitation, AiChatPlanStep, AiChatTimelin
 
 export type DisplayAiChatMessage = {
   id?: string | number
+  conversationId?: number
   role: 'user' | 'assistant'
   content: string
+  image?: { mimeType: string }
+  localImageFile?: File
   candidateContent?: string
   candidateCallId?: string
   status?: AiMessageContentStatus

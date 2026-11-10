@@ -36,6 +36,7 @@ const {
   dismissAiConfirmation,
   handleAiCopyCredential,
   handleAiSend,
+  handleAiSendImage,
   handleAiVoiceSend,
   handleAiSelectConversation,
   handleAiStop,
@@ -99,6 +100,7 @@ const breadcrumbs = computed(() => {
         @dismiss-credential="aiCredentialDisclosure = null"
         @copy-credential="handleAiCopyCredential"
         @send="handleAiSend"
+        @send-image="handleAiSendImage"
         @voice-send="handleAiVoiceSend"
         @select-conversation="handleAiSelectConversation"
         @stop="handleAiStop"

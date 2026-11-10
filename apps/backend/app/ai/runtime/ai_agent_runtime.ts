@@ -16,7 +16,11 @@ import {
 } from '#ai/core/ai_agent_tool_errors'
 import type { AiAgentMessage } from '#ai/core/ai_agent_types'
 import type { AiAgentPageContext } from '#ai/policy/ai_agent_prompt_policy'
-import { aiAgentSummaryPrompt, createAiAgentSystemPrompt } from '#ai/policy/ai_agent_prompt_policy'
+import {
+  aiAgentImageOnlyPrompt,
+  aiAgentSummaryPrompt,
+  createAiAgentSystemPrompt,
+} from '#ai/policy/ai_agent_prompt_policy'
 import { createConfiguredAiAgentTools } from '#ai/registry/ai_agent_tool_registry'
 import { isAiTelemetryEnabled } from '#ai/runtime/ai_agent_telemetry_exporter'
 import { listEnabledAiAgentSkills } from '#services/ai_agent_skill_service'
@@ -108,7 +112,11 @@ export async function createAiAgentRuntime(
     messages: history,
     sessionState: input.agentContext,
     ...(lastMessage?.role === 'user'
-      ? { initialPrompt: lastMessage.content, initialPromptMessageId: lastMessage.id }
+      ? {
+          initialPrompt: lastMessage.content || (lastMessage.image ? aiAgentImageOnlyPrompt : ''),
+          initialPromptMessageId: lastMessage.id,
+          ...(lastMessage.image ? { initialImage: lastMessage.image } : {}),
+        }
       : {}),
     sessionId: `ai-chat:${input.conversationId}`,
     signal: input.signal,

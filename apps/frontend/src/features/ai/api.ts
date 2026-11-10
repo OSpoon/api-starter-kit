@@ -9,6 +9,7 @@ export interface AiChatMessage {
   conversationId: number
   role: AiChatRole
   content: string
+  image?: { mimeType: string }
   citations: AiChatCitation[]
   createdAt: string
   updatedAt: string
@@ -90,6 +91,7 @@ export interface AiChatStreamOptions {
   signal?: AbortSignal
   context?: AiChatPageContext
   regenerateAssistantMessageId?: number
+  image?: File
 }
 
 // The backend limits a complete AI run to five minutes at most. Keep a small
@@ -327,7 +329,13 @@ async function streamAiChatRequest(
 
   const headers = new Headers(init.headers)
   headers.set('Accept', 'text/event-stream')
-  if (init.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json')
+  if (
+    init.body &&
+    !headers.has('Content-Type') &&
+    !(typeof FormData !== 'undefined' && init.body instanceof FormData)
+  ) {
+    headers.set('Content-Type', 'application/json')
+  }
 
   if (token) headers.set('Authorization', `Bearer ${token}`)
 
@@ -399,20 +407,54 @@ export function streamAiChatMessage(
   onEvent: (event: AiChatStreamEvent) => void,
   options: AiChatStreamOptions = {}
 ) {
+  const body = options.image ? new FormData() : undefined
+  if (body) {
+    if (content.trim()) body.append('content', content)
+    body.append('image', options.image!)
+    if (options.context) {
+      body.append('contextRoute', options.context.route)
+      body.append('contextTitle', options.context.title)
+    }
+    if (options.regenerateAssistantMessageId) {
+      body.append('regenerateAssistantMessageId', String(options.regenerateAssistantMessageId))
+    }
+  }
+
   return streamAiChatRequest(
     token,
     `/api/v1/ai-chat/conversations/${id}/messages`,
     {
       method: 'POST',
-      body: JSON.stringify({
-        content,
-        context: options.context,
-        regenerateAssistantMessageId: options.regenerateAssistantMessageId,
-      }),
+      body:
+        body ??
+        JSON.stringify({
+          ...(content.trim() ? { content } : {}),
+          context: options.context,
+          regenerateAssistantMessageId: options.regenerateAssistantMessageId,
+        }),
     },
     onEvent,
     options.signal
   )
+}
+
+export async function getAiChatMessageImage(
+  token: string | null,
+  conversationId: number,
+  messageId: number,
+  signal?: AbortSignal
+) {
+  const headers = new Headers()
+  if (token) headers.set('Authorization', `Bearer ${token}`)
+  const response = await fetch(
+    apiUrl(`/api/v1/ai-chat/conversations/${conversationId}/messages/${messageId}/image`),
+    { credentials: 'include', headers, signal }
+  )
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null)
+    throw new ApiError(payload?.message ?? 'Unable to load image attachment', response.status)
+  }
+  return response.blob()
 }
 
 export function streamAiAgentActionConfirmation(

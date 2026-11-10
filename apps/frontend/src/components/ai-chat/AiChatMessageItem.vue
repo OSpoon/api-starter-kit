@@ -15,11 +15,19 @@ import {
   RotateCcw,
   Search,
   ShieldCheck,
+  X,
 } from '@lucide/vue'
 
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
-import type { AiChatAgentActivity, AiChatPlanStep, AiChatTimelineItem } from '@/features/ai/api'
+import { Dialog, DialogClose, DialogContent, DialogTitle } from '@/components/ui/dialog'
+import {
+  type AiChatAgentActivity,
+  type AiChatPlanStep,
+  type AiChatTimelineItem,
+  getAiChatMessageImage,
+} from '@/features/ai/api'
+import { useAuthStore } from '@/stores/auth'
 
 import AiChatLogo from './AiChatLogo.vue'
 import AiMessageContent from './AiMessageContent.vue'
@@ -28,8 +36,11 @@ export type AiChatMessageItemStatus = 'pending' | 'streaming' | 'done' | 'error'
 
 export interface AiChatMessageItemData {
   id?: string | number
+  conversationId?: number
   role: 'assistant' | 'user'
   content: string
+  image?: { mimeType: string }
+  localImageFile?: File
   candidateContent?: string
   status?: AiChatMessageItemStatus
   activity?: AiChatAgentActivity
@@ -66,7 +77,54 @@ defineEmits<{
 }>()
 
 const { t, te } = useI18n()
+const auth = useAuthStore()
 const timelineOpen = ref(false)
+const imageSource = ref<string | null>(null)
+const imageLoadFailed = ref(false)
+const imagePreviewOpen = ref(false)
+
+watch(
+  () =>
+    [
+      props.message.conversationId,
+      props.message.id,
+      props.message.image?.mimeType,
+      props.message.localImageFile,
+      auth.token,
+    ] as const,
+  async ([conversationId, messageId], _previous, onCleanup) => {
+    imageSource.value = null
+    imageLoadFailed.value = false
+    if (props.message.localImageFile) {
+      const objectUrl = URL.createObjectURL(props.message.localImageFile)
+      imageSource.value = objectUrl
+      onCleanup(() => URL.revokeObjectURL(objectUrl))
+      return
+    }
+    if (!props.message.image || !conversationId || !Number.isSafeInteger(Number(messageId))) return
+
+    const controller = new AbortController()
+    let objectUrl: string | undefined
+    onCleanup(() => {
+      controller.abort()
+      if (objectUrl) URL.revokeObjectURL(objectUrl)
+    })
+
+    try {
+      const image = await getAiChatMessageImage(
+        auth.token,
+        conversationId,
+        Number(messageId),
+        controller.signal
+      )
+      objectUrl = URL.createObjectURL(image)
+      imageSource.value = objectUrl
+    } catch {
+      if (!controller.signal.aborted) imageLoadFailed.value = true
+    }
+  },
+  { immediate: true }
+)
 
 const actionMarker = /\[\[action:([A-Za-z0-9_-]+)\]\]/g
 const legacyConfirmationNotice = '此操作需要确认，请在确认卡片中确认后继续。'
@@ -498,9 +556,48 @@ function getTimelineSections(timeline: AiChatTimelineItem[]) {
           "
         />
         <template v-else>
-          {{ message.content }}
+          <button
+            v-if="imageSource"
+            type="button"
+            class="mb-2 block max-w-full cursor-zoom-in rounded-md focus-visible:ring-2 focus-visible:ring-ring"
+            :aria-label="t('ai_chat.image.open_preview')"
+            @click="imagePreviewOpen = true"
+          >
+            <img
+              :src="imageSource"
+              :alt="t('ai_chat.image.preview')"
+              class="max-h-60 max-w-full rounded-md object-contain sm:max-w-[320px]"
+            />
+          </button>
+          <p v-else-if="imageLoadFailed" class="mb-2 text-xs text-muted-foreground" role="status">
+            {{ t('ai_chat.image.load_failed') }}
+          </p>
+          <p class="whitespace-pre-wrap">{{ message.content }}</p>
         </template>
       </div>
+      <Dialog v-model:open="imagePreviewOpen">
+        <DialogContent class="max-h-[90vh] max-w-[85vw] p-3 sm:max-w-xl" :show-close-button="false">
+          <DialogClose as-child>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              class="absolute top-1 right-1 z-10"
+              :title="t('common.cancel')"
+              :aria-label="t('common.cancel')"
+            >
+              <X class="size-4" aria-hidden="true" />
+            </Button>
+          </DialogClose>
+          <DialogTitle class="sr-only">{{ t('ai_chat.image.preview') }}</DialogTitle>
+          <img
+            v-if="imageSource"
+            :src="imageSource"
+            :alt="t('ai_chat.image.preview')"
+            class="max-h-[82vh] max-w-full object-contain"
+          />
+        </DialogContent>
+      </Dialog>
       <details
         v-if="
           message.role === 'assistant' &&
