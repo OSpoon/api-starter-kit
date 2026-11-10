@@ -1,8 +1,8 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import logger from '@adonisjs/core/services/logger'
-import { upsertAgentToolResult } from '@api-starter-kit/ai-agent'
 import { ApiOperation, ApiQuery, ApiResponse, ApiSecurity } from '@foadonis/openapi/decorators'
 
+import { upsertAgentToolResult } from '#ai/agent'
 import { createAiChatConversationTitle } from '#ai/chat/ai_chat_conversation_title'
 import { resolveAiChatRegeneration } from '#ai/chat/ai_chat_regeneration'
 import { startAiChatSseKeepalive, writeAiChatSse } from '#ai/chat/ai_chat_sse_adapter'

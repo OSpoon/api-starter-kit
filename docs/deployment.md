@@ -13,7 +13,7 @@ Compose 按用途拆分：基础文件只定义 PostgreSQL；应用和 IM Bot �
 - 至少能持久化 Docker volume 的磁盘空间；知识库和 AI 会话数据都存储在 PostgreSQL 中。
 
 仓库要求的 Node.js `>= 24.12.0` 和 pnpm `11.9.0` 主要用于本地开发与运维命令；纯 Docker 生产启动由镜像中的 Node.js `24.15.0` 执行。
-Docker backend 构建会先编译 `packages/ai-agent`，并将其产物打包进 backend runtime 依赖。
+Docker backend 构建会将 Agent runtime 与 backend 一起编译；Pi Agent 依赖作为 backend 生产依赖安装。
 
 部署目录应为仓库根目录，因为 Compose 文件中的路径均相对于仓库根目录解析：
 

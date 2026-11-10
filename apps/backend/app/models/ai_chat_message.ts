@@ -1,6 +1,7 @@
 import { BaseModel, column } from '@adonisjs/lucid/orm'
-import type { AgentSessionState } from '@api-starter-kit/ai-agent'
 import { DateTime } from 'luxon'
+
+import type { AgentSessionState } from '#ai/agent'
 
 export type AiChatRole = 'user' | 'assistant'
 

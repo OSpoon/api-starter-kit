@@ -1,7 +1,7 @@
 import type { StoredTrace } from '@earendil-works/pi-telemetry'
-import { describe, expect, it } from 'vitest'
+import { test } from '@japa/runner'
 
-import { toAgentTrace } from '../../src/pi/trace.js'
+import { toAgentTrace } from '#ai/agent/pi/trace'
 
 function makeSpan(name: string): StoredTrace['spans'][number] {
   return {
@@ -17,8 +17,8 @@ function makeSpan(name: string): StoredTrace['spans'][number] {
   }
 }
 
-describe('Pi trace adapter', () => {
-  it('exposes agent traces without redundant Pi request spans', () => {
+test.group('Pi trace adapter', () => {
+  test('exposes agent traces without redundant Pi request spans', ({ assert }) => {
     const trace: StoredTrace = {
       traceId: 'trace-1',
       spans: [
@@ -30,10 +30,9 @@ describe('Pi trace adapter', () => {
       ],
     }
 
-    expect(toAgentTrace(trace).spans.map((span) => span.name)).toEqual([
-      'api-starter.ai.agent_run',
-      'api-starter.ai.model_call',
-      'api-starter.ai.tool',
-    ])
+    assert.deepEqual(
+      toAgentTrace(trace).spans.map((span) => span.name),
+      ['api-starter.ai.agent_run', 'api-starter.ai.model_call', 'api-starter.ai.tool']
+    )
   })
 })

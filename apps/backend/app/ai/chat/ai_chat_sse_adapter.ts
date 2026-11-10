@@ -1,6 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http'
-import type { AgentAssistantMessage } from '@api-starter-kit/ai-agent'
 
+import type { AgentAssistantMessage } from '#ai/agent'
 import type { createAiAgentStream } from '#ai/chat/ai_agent_service'
 import type { AiAgentConfirmationSummary } from '#ai/core/ai_agent_confirmation'
 import { sanitizeAiAgentToolErrorMessage } from '#ai/core/ai_agent_tool_errors'

@@ -17,7 +17,6 @@ RUN pnpm config set registry "$NPM_REGISTRY" \
 FROM base AS deps
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
 COPY apps/backend/package.json apps/backend/package.json
-COPY packages/ai-agent/package.json packages/ai-agent/package.json
 COPY apps/frontend/package.json apps/frontend/package.json
 COPY apps/assistant-web/package.json apps/assistant-web/package.json
 RUN --mount=type=cache,id=api-starter-kit-pnpm-store,target=/pnpm/store \
@@ -25,11 +24,9 @@ RUN --mount=type=cache,id=api-starter-kit-pnpm-store,target=/pnpm/store \
 
 FROM deps AS backend-build
 COPY . .
-RUN pnpm --filter @api-starter-kit/ai-agent build
 RUN pnpm --filter @api-starter-kit/backend exec node ace build --package-manager=pnpm
 
 FROM deps AS backend-deps
-COPY --from=backend-build /app/packages/ai-agent/dist packages/ai-agent/dist
 RUN pnpm deploy --legacy --filter=@api-starter-kit/backend --prod --ignore-scripts /tmp/backend-runtime
 
 FROM node:24.15.0-bookworm-slim AS backend

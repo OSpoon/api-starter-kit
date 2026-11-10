@@ -1,7 +1,7 @@
 import type { HttpContext } from '@adonisjs/core/http'
-import type { AgentEvent, AgentToolResult } from '@api-starter-kit/ai-agent'
 import { test } from '@japa/runner'
 
+import type { AgentEvent, AgentToolResult } from '#ai/agent'
 import type { createAiAgentStream } from '#ai/chat/ai_agent_service'
 import type { AiAgentTurnEvent } from '#ai/chat/ai_chat_sse_adapter'
 import {

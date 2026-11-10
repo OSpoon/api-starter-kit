@@ -1,15 +1,11 @@
 import { createHash } from 'node:crypto'
 
-import type {
-  AgentTrace,
-  AgentTraceAttributeValue,
-  AgentTraceSpan,
-} from '@api-starter-kit/ai-agent'
 import * as api from '@opentelemetry/api'
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http'
 import { resourceFromAttributes } from '@opentelemetry/resources'
 import { BatchSpanProcessor, TracerProvider } from '@opentelemetry/sdk-trace'
 
+import type { AgentTrace, AgentTraceAttributeValue, AgentTraceSpan } from '#ai/agent'
 import env from '#start/env'
 
 const serviceName = 'api-starter-kit-backend'

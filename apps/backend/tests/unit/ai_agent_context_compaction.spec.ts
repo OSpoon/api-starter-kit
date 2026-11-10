@@ -1,18 +1,18 @@
-import assert from 'node:assert/strict'
-
 import type { AgentMessage } from '@earendil-works/pi-agent-core'
 import { estimateContextTokens, estimateMessageTokens } from '@earendil-works/pi-ai/utils/estimate'
-import { describe, it } from 'vitest'
+import { test } from '@japa/runner'
 
 import {
   buildAiAgentSummaryBatch,
   trimPiContextToTokenBudget,
-} from '../../src/pi/context_compaction.js'
-import { createRequestContextSectionPreparer } from '../../src/pi/engine.js'
-import type { PiAgentMessage } from '../../src/pi/types.js'
+} from '#ai/agent/pi/context_compaction'
+import { createRequestContextSectionPreparer } from '#ai/agent/pi/engine'
+import type { PiAgentMessage } from '#ai/agent/pi/types'
 
-describe('Pi context preparation', () => {
-  it('refreshes runtime context without changing the conversation transcript', async () => {
+test.group('Pi context preparation', () => {
+  test('refreshes runtime context without changing the conversation transcript', async ({
+    assert,
+  }) => {
     let refreshCount = 0
     const prepareRequest = createRequestContextSectionPreparer({
       initialValue: 'initial context',
@@ -64,7 +64,7 @@ describe('Pi context preparation', () => {
     assert.equal(getRuntimeContext(context), 'stale context')
   })
 
-  it('keeps complete persistence history separate from bounded model context', () => {
+  test('keeps complete persistence history separate from bounded model context', ({ assert }) => {
     const messages = Array.from({ length: 10 }, (_, index) => ({
       role: 'user' as const,
       content: `message-${index}`,
@@ -73,12 +73,12 @@ describe('Pi context preparation', () => {
 
     const transformed = trimPiContextToTokenBudget(messages, 12)
 
-    assert.ok(transformed.length < messages.length)
+    assert.isTrue(transformed.length < messages.length)
     assert.equal((transformed.at(-1) as { content: string }).content, 'message-9')
     assert.equal(messages.length, 10)
   })
 
-  it('bounds summary input and advances only through included source messages', () => {
+  test('bounds summary input and advances only through included source messages', ({ assert }) => {
     const messages: PiAgentMessage[] = [
       { role: 'user', content: 'history '.repeat(1000), timestamp: 0, sourceMessageId: 12 },
       { role: 'user', content: 'later history', timestamp: 0, sourceMessageId: 13 },
@@ -86,13 +86,19 @@ describe('Pi context preparation', () => {
 
     const batch = buildAiAgentSummaryBatch(messages, 'prior summary', 120)
 
-    assert.ok(batch)
-    assert.ok(estimateMessageTokens({ role: 'user', content: batch.content, timestamp: 0 }) <= 120)
+    assert.isDefined(batch)
+    if (!batch) return
+    assert.isAtMost(
+      estimateMessageTokens({ role: 'user', content: batch.content, timestamp: 0 }),
+      120
+    )
     assert.equal(batch.coveredThroughMessageId, 12)
-    assert.ok(!batch.content.includes('later history'))
+    assert.isFalse(batch.content.includes('later history'))
   })
 
-  it('keeps an oversized latest user message within budget without changing history', () => {
+  test('keeps an oversized latest user message within budget without changing history', ({
+    assert,
+  }) => {
     const original = {
       role: 'user' as const,
       content: 'long prompt '.repeat(2000),
@@ -101,8 +107,8 @@ describe('Pi context preparation', () => {
 
     const transformed = trimPiContextToTokenBudget([original], 40)
 
-    assert.ok(estimateContextTokens(transformed as AgentMessage[]).tokens <= 40)
-    assert.ok((transformed[0] as { content: string }).content.length < original.content.length)
+    assert.isAtMost(estimateContextTokens(transformed as AgentMessage[]).tokens, 40)
+    assert.isTrue((transformed[0] as { content: string }).content.length < original.content.length)
     assert.equal(original.content.length, 'long prompt '.repeat(2000).length)
   })
 })

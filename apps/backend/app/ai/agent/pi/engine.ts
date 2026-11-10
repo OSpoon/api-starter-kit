@@ -12,17 +12,13 @@ import {
 
 import type {
   AgentAssistantMessage,
-  AgentContentPart,
   AgentEngine,
   AgentEvent,
-  AgentModelUsage,
   AgentRunOptions,
   AgentSession,
   AgentSessionMessage,
-  AgentSessionState,
   AgentTool,
   AgentToolResult,
-  AgentTrace,
   AgentUsage,
 } from '../agent.js'
 import { restoreAgentSessionState } from '../session_state.js'

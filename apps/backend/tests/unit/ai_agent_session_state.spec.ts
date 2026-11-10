@@ -1,14 +1,13 @@
-import assert from 'node:assert/strict'
+import { test } from '@japa/runner'
 
 import {
   createFinalResponseState,
   restoreAgentSessionState,
   upsertAgentToolResult,
-} from '@api-starter-kit/ai-agent'
-import { describe, it } from 'vitest'
+} from '#ai/agent'
 
-describe('agent session state', () => {
-  it('restores legacy message arrays into the versioned Pi session state', () => {
+test.group('agent session state', () => {
+  test('restores legacy message arrays into the versioned Pi session state', ({ assert }) => {
     assert.deepEqual(
       restoreAgentSessionState([
         { role: 'user', content: 'hello', timestamp: 1, sourceMessageId: 10 },
@@ -21,7 +20,7 @@ describe('agent session state', () => {
     )
   })
 
-  it('upserts a bounded tool result and redacts sensitive output', () => {
+  test('upserts a bounded tool result and redacts sensitive output', ({ assert }) => {
     const state = upsertAgentToolResult(
       [
         {
@@ -56,11 +55,13 @@ describe('agent session state', () => {
       isError: false,
     }).messages[0]
     const truncatedText = oversized.content[0] as { type: 'text'; text: string }
-    assert.ok(truncatedText.text.endsWith('[结果已截断]'))
-    assert.ok(truncatedText.text.length <= 20_020)
+    assert.isTrue(truncatedText.text.endsWith('[结果已截断]'))
+    assert.isAtMost(truncatedText.text.length, 20_020)
   })
 
-  it('removes the latest user message and final draft while retaining tool results', () => {
+  test('removes the latest user message and final draft while retaining tool results', ({
+    assert,
+  }) => {
     const state = createFinalResponseState(
       [
         { role: 'user', content: 'check disk', timestamp: 1, sourceMessageId: 42 },

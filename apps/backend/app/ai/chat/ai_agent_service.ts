@@ -1,8 +1,8 @@
 import crypto from 'node:crypto'
 
 import logger from '@adonisjs/core/services/logger'
-import type { AgentModelUsage } from '@api-starter-kit/ai-agent'
 
+import type { AgentModelUsage } from '#ai/agent'
 import { listConversationConfirmations } from '#ai/core/ai_agent_confirmation'
 import { serializeAiAgentRuntimeContext } from '#ai/core/ai_agent_runtime_context'
 import type { AiAgentToolRequestContext } from '#ai/core/ai_agent_tool_context'

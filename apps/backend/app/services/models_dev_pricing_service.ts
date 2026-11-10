@@ -1,4 +1,4 @@
-import type { AgentModelCost } from '@api-starter-kit/ai-agent'
+import type { AgentModelCost } from '#ai/agent'
 
 const MODELS_DEV_API_URL = 'https://models.dev/api.json'
 const CATALOG_CACHE_TTL_MS = 60 * 60 * 1000

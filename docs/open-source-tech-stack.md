@@ -6,18 +6,18 @@
 
 ## 后端与 AI
 
-| 项目                      | 本项目用途                                                | 使用位置                                       | GitHub                                                                                                            |
-| ------------------------- | --------------------------------------------------------- | ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| AdonisJS                  | TypeScript 后端 Web/API 框架                              | [`apps/backend`](../apps/backend/package.json) | [adonisjs/core](https://github.com/adonisjs/core)                                                                 |
-| Lucid ORM                 | SQL 查询、模型、迁移和数据库访问                          | `apps/backend`                                 | [adonisjs/lucid](https://github.com/adonisjs/lucid)                                                               |
-| Bouncer                   | 后端授权与能力策略                                        | `apps/backend`                                 | [adonisjs/bouncer](https://github.com/adonisjs/bouncer)                                                           |
-| VineJS                    | 后端请求与数据验证                                        | `apps/backend`                                 | [vinejs/vine](https://github.com/vinejs/vine)                                                                     |
-| Friends of Adonis OpenAPI | OpenAPI 描述与 API 文档生成                               | `apps/backend`                                 | [FriendsOfAdonis/packages/openapi](https://github.com/FriendsOfAdonis/FriendsOfAdonis/tree/main/packages/openapi) |
-| Tuyau                     | AdonisJS 路由注册与类型信息生成，为类型安全客户端提供基础 | `apps/backend`                                 | [Julien-R44/tuyau](https://github.com/Julien-R44/tuyau)                                                           |
-| Pi Agent Core / Pi AI     | 当前 Agent adapter、模型 API、Pi hooks 与遥测实现         | [`packages/ai-agent`](../packages/ai-agent)    | [earendil-works/pi](https://github.com/earendil-works/pi)                                                         |
-| OpenAI Node SDK           | OpenAI 兼容服务调用，例如语音和知识元数据处理             | `apps/backend`                                 | [openai/openai-node](https://github.com/openai/openai-node)                                                       |
-| node-postgres (`pg`)      | PostgreSQL Node.js 驱动                                   | `apps/backend`                                 | [brianc/node-postgres](https://github.com/brianc/node-postgres)                                                   |
-| Japa                      | 后端单元与集成测试运行器                                  | `apps/backend`                                 | [japa/runner](https://github.com/japa/runner)                                                                     |
+| 项目                      | 本项目用途                                                | 使用位置                                                    | GitHub                                                                                                            |
+| ------------------------- | --------------------------------------------------------- | ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| AdonisJS                  | TypeScript 后端 Web/API 框架                              | [`apps/backend`](../apps/backend/package.json)              | [adonisjs/core](https://github.com/adonisjs/core)                                                                 |
+| Lucid ORM                 | SQL 查询、模型、迁移和数据库访问                          | `apps/backend`                                              | [adonisjs/lucid](https://github.com/adonisjs/lucid)                                                               |
+| Bouncer                   | 后端授权与能力策略                                        | `apps/backend`                                              | [adonisjs/bouncer](https://github.com/adonisjs/bouncer)                                                           |
+| VineJS                    | 后端请求与数据验证                                        | `apps/backend`                                              | [vinejs/vine](https://github.com/vinejs/vine)                                                                     |
+| Friends of Adonis OpenAPI | OpenAPI 描述与 API 文档生成                               | `apps/backend`                                              | [FriendsOfAdonis/packages/openapi](https://github.com/FriendsOfAdonis/FriendsOfAdonis/tree/main/packages/openapi) |
+| Tuyau                     | AdonisJS 路由注册与类型信息生成，为类型安全客户端提供基础 | `apps/backend`                                              | [Julien-R44/tuyau](https://github.com/Julien-R44/tuyau)                                                           |
+| Pi Agent Core / Pi AI     | 当前 Agent adapter、模型 API、Pi hooks 与遥测实现         | [`apps/backend/app/ai/agent`](../apps/backend/app/ai/agent) | [earendil-works/pi](https://github.com/earendil-works/pi)                                                         |
+| OpenAI Node SDK           | OpenAI 兼容服务调用，例如语音和知识元数据处理             | `apps/backend`                                              | [openai/openai-node](https://github.com/openai/openai-node)                                                       |
+| node-postgres (`pg`)      | PostgreSQL Node.js 驱动                                   | `apps/backend`                                              | [brianc/node-postgres](https://github.com/brianc/node-postgres)                                                   |
+| Japa                      | 后端单元与集成测试运行器                                  | `apps/backend`                                              | [japa/runner](https://github.com/japa/runner)                                                                     |
 
 ## Web 客户端与 UI
 

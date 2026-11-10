@@ -368,9 +368,6 @@ importers:
 
   apps/backend:
     dependencies:
-      '@api-starter-kit/ai-agent':
-        specifier: workspace:*
-        version: link:../../packages/ai-agent
       '@adonisjs/auth':
         specifier: ^10.1.0
         version: 10.1.0(371f9ba264d381724bf469d88a916ff3)
@@ -395,6 +392,15 @@ importers:
       '@adonisjs/shield':
         specifier: ^9.0.0
         version: 9.0.0(5dcc3fe7b7c7fd487aab066b6685daf0)
+      '@earendil-works/pi-agent-core':
+        specifier: ^1.4.0
+        version: 1.4.0(@aws-sdk/credential-provider-node@3.972.88)(@modelcontextprotocol/sdk@1.32.2(zod@3.25.76))(@smithy/signature-v4@5.7.4)(ws@8.21.3)(zod@3.25.76)
+      '@earendil-works/pi-ai':
+        specifier: ^1.4.0
+        version: 1.4.0(@aws-sdk/credential-provider-node@3.972.88)(@modelcontextprotocol/sdk@1.32.2(zod@3.25.76))(@smithy/signature-v4@5.7.4)(ws@8.21.3)(zod@3.25.76)
+      '@earendil-works/pi-telemetry':
+        specifier: 1.4.0
+        version: 1.4.0
       '@foadonis/openapi':
         specifier: ^1.0.1
         version: 1.0.1(@adonisjs/core@7.3.4(@adonisjs/assembler@8.4.0(babel-plugin-macros@3.1.0)(typescript@6.0.3))(@vinejs/vine@4.4.0)(pino-pretty@13.2.0)(supports-color@5.5.0)(youch@4.1.1))(@adonisjs/lucid@22.4.2(@adonisjs/assembler@8.4.0(babel-plugin-macros@3.1.0)(typescript@6.0.3))(@adonisjs/core@7.3.4(@adonisjs/assembler@8.4.0(babel-plugin-macros@3.1.0)(typescript@6.0.3))(@vinejs/vine@4.4.0)(pino-pretty@13.2.0)(supports-color@5.5.0)(youch@4.1.1))(@vinejs/vine@4.4.0)(luxon@3.7.2)(pg@8.22.0)(supports-color@5.5.0))(@vinejs/vine@4.4.0)(luxon@3.7.2)(reflect-metadata@0.2.2)
@@ -706,40 +712,6 @@ importers:
       vue-tsc:
         specifier: ^3.3.5
         version: 3.3.5(typescript@6.0.3)
-
-  packages/ai-agent:
-    dependencies:
-      '@earendil-works/pi-agent-core':
-        specifier: ^1.4.0
-        version: 1.4.0(@aws-sdk/credential-provider-node@3.972.88)(@modelcontextprotocol/sdk@1.32.2(zod@3.25.76))(@smithy/signature-v4@5.7.4)(ws@8.21.3)(zod@3.25.76)
-      '@earendil-works/pi-ai':
-        specifier: ^1.4.0
-        version: 1.4.0(@aws-sdk/credential-provider-node@3.972.88)(@modelcontextprotocol/sdk@1.32.2(zod@3.25.76))(@smithy/signature-v4@5.7.4)(ws@8.21.3)(zod@3.25.76)
-      '@earendil-works/pi-telemetry':
-        specifier: 1.4.0
-        version: 1.4.0
-    devDependencies:
-      '@adonisjs/eslint-config':
-        specifier: ^3.1.0
-        version: 3.1.0(eslint-plugin-vue@10.12.0(@stylistic/eslint-plugin@5.10.0(eslint@10.5.0(jiti@2.7.0)))(@typescript-eslint/parser@8.62.0(eslint@10.5.0(jiti@2.7.0))(supports-color@5.5.0)(typescript@6.0.3))(eslint@10.5.0(jiti@2.7.0))(vue-eslint-parser@10.4.1(eslint@10.5.0(jiti@2.7.0))))(eslint@10.5.0(jiti@2.7.0))(prettier@3.8.4)(supports-color@5.5.0)(typescript@6.0.3)
-      '@types/node':
-        specifier: ~24.13.2
-        version: 24.13.2
-      eslint:
-        specifier: ^10.5.0
-        version: 10.5.0(jiti@2.7.0)
-      eslint-plugin-simple-import-sort:
-        specifier: ^13.0.0
-        version: 13.0.0(eslint@10.5.0(jiti@2.7.0))
-      tsdown:
-        specifier: ^0.23.7
-        version: 0.23.7(@volar/typescript@2.4.28)(@vue/language-core@3.3.5)(typescript@6.0.3)(vue-tsc@3.3.5(typescript@6.0.3))
-      typescript:
-        specifier: ~6.0.3
-        version: 6.0.3
-      vitest:
-        specifier: ^5.1.0
-        version: 5.1.0(@opentelemetry/api@1.9.1)(@types/node@24.13.2)(vite@8.1.0(@types/node@24.13.2)(jiti@2.7.0)(less@4.9.1)(terser@5.51.2)(yaml@2.9.1))
 
 packages:
 

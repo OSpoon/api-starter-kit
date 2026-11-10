@@ -1,11 +1,11 @@
 import crypto from 'node:crypto'
 
 import testUtils from '@adonisjs/core/services/test_utils'
-import type { AgentTool } from '@api-starter-kit/ai-agent'
 import { test } from '@japa/runner'
 import { DateTime } from 'luxon'
 import { ZodError } from 'zod'
 
+import type { AgentTool } from '#ai/agent'
 import {
   getConfirmedToolResultFallback,
   summarizeConfirmedToolResult,

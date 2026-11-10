@@ -4,9 +4,8 @@ import type {
   AgentModelConfig,
   AgentModelUsage,
   AgentSession,
-} from '@api-starter-kit/ai-agent'
-import { piAgentEngine } from '@api-starter-kit/ai-agent/pi'
-
+} from '#ai/agent'
+import { piAgentEngine } from '#ai/agent/pi'
 import { getAiAgentSummarizationOptions } from '#ai/core/ai_agent_config'
 import type { AiAgentToolRequestContext } from '#ai/core/ai_agent_tool_context'
 import {

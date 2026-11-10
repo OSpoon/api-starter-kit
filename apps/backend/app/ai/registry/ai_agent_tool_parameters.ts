@@ -1,5 +1,4 @@
-import type { AgentToolParameters } from '@api-starter-kit/ai-agent'
-
+import type { AgentToolParameters } from '#ai/agent'
 import {
   channelProposalActionNames,
   genericProposalActionNames,

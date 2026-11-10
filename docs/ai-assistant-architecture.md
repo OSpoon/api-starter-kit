@@ -21,11 +21,11 @@ flowchart TB
   D --> K["Agent control"]
 ```
 
-- `packages/ai-agent` 定义可替换的 Agent/Tool/Event/Session 契约，当前 Pi adapter 位于 `packages/ai-agent/src/pi`。backend 继续维护会话编排、提示词策略、授权、审计、工具注册与持久化；可复用的领域逻辑仍位于 `apps/backend/app/services`。
+- `apps/backend/app/ai/agent` 定义 Agent/Tool/Event/Session 契约并实现当前 Pi adapter。backend 在同一应用内维护会话编排、提示词策略、授权、审计、工具注册与持久化；可复用的领域逻辑仍位于 `apps/backend/app/services`。
 - `ai_chat_controller.ts` 只负责会话归属、输入校验、消息持久化和 HTTP/SSE 生命周期。
 - `ai_chat_controller.ts` 的 `transcribe` 处理管理端 Web、独立助手 Web 和桌面 WebView 的 multipart 音频上传；`ai_speech_service.ts` 使用运行时 LLM 配置调用 OpenAI-compatible ASR 服务，并只返回转写文本。转写接口不直接创建聊天消息，客户端拿到文本后复用普通消息 SSE 链路。
 - `ai_chat_sse_adapter.ts` 消费通用 `AgentEvent` 并转换为 SSE、keepalive、工具状态详情、阶段和确认事件。助手文本按单次模型响应暂存；响应包含工具调用时丢弃其中的说明文字，纯文本响应结束后再发送，工具进度仍实时发送。
-- `ai_agent_service.ts` 负责 backend 的运行记录、用量和遥测；`ai_agent_runtime.ts` 是 Agent 组合点，加载模型配置、构造 backend 工具并选择 `@api-starter-kit/ai-agent/pi`。替换 Agent 时只需替换这个 adapter 选择，授权、审计和领域工具留在 backend。
+- `ai_agent_service.ts` 负责 backend 的运行记录、用量和遥测；`ai_agent_runtime.ts` 是 Agent 组合点，加载模型配置、构造 backend 工具并选择 `#ai/agent/pi`。替换 Agent 时只需替换这个 adapter 选择，授权、审计和领域工具留在 backend。
 - `ai_agent_tool_registry.ts` 返回核心包定义的 `AgentTool[]`；工具 schema、执行逻辑和业务服务调用仍由 backend 维护。
 - `ai_agent_skill_service.ts` 通过固定版本的 Vercel `skills` CLI 安装和移除技能，工作目录由 `AI_AGENT_SKILLS_DIR` 指定，默认使用 `apps/backend/storage`，技能文件位于其 `.agents/skills/` 下。助手配置页是管理入口；新技能默认停用，启用状态是技能运行的唯一管理开关。`list_agent_skills` 和 `load_agent_skill` 只暴露启用技能的说明和受限资源读取。`bash` 只接受启用技能目录内的 JavaScript 文件，并在助手服务进程所在环境直接执行。
 - Pi adapter 使用 Pi hooks 完成请求前的上下文刷新、上下文压缩、轮次结束判断及工具调用前后处理；业务侧策略由 backend 回调提供。

@@ -1,6 +1,6 @@
-import type { AgentTool, AgentToolParameters } from '@api-starter-kit/ai-agent'
 import { type z, ZodError } from 'zod'
 
+import type { AgentTool, AgentToolParameters } from '#ai/agent'
 import {
   type AiAgentActionName,
   executeAiAgentActionImmediately,

@@ -2,8 +2,8 @@ import crypto from 'node:crypto'
 
 import type { HttpContext } from '@adonisjs/core/http'
 import logger from '@adonisjs/core/services/logger'
-import { createFinalResponseState, snapshotAgentSessionState } from '@api-starter-kit/ai-agent'
 
+import { createFinalResponseState, snapshotAgentSessionState } from '#ai/agent'
 import { type AiAgentPageContext, createAiAgentStream } from '#ai/chat/ai_agent_service'
 import type { AiChatResolvedRegeneration } from '#ai/chat/ai_chat_regeneration'
 import {

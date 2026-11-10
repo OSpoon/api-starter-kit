@@ -1,7 +1,7 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import logger from '@adonisjs/core/services/logger'
-import { upsertAgentToolResult } from '@api-starter-kit/ai-agent'
 
+import { upsertAgentToolResult } from '#ai/agent'
 import { summarizeConfirmedToolResult } from '#ai/chat/confirmed_tool_result_summary'
 import { runAiChatAssistantTurn } from '#ai/chat/turn/ai_chat_turn_service'
 import {

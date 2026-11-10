@@ -1,6 +1,6 @@
 import { BaseCommand } from '@adonisjs/core/ace'
-import type { AgentTool } from '@api-starter-kit/ai-agent'
 
+import type { AgentTool } from '#ai/agent'
 import { createAiAgentSystemPrompt } from '#ai/chat/ai_agent_service'
 import { isAiAgentTerminalToolResult } from '#ai/core/ai_agent_tool_errors'
 import { aiAssistantEvaluationCases, evaluateAiAssistantTurn } from '#ai/evaluation/ai_evaluation'

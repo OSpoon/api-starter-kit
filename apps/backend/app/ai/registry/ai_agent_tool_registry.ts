@@ -1,5 +1,4 @@
-import type { AgentTool } from '@api-starter-kit/ai-agent'
-
+import type { AgentTool } from '#ai/agent'
 import { proposeAiAgentAction } from '#ai/core/ai_agent_confirmation'
 import type { AiAgentToolContext } from '#ai/core/ai_agent_tool_context'
 import { createAiAgentToolSupport } from '#ai/registry/ai_agent_tool_helpers'

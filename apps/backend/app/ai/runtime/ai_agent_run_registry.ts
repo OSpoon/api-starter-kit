@@ -1,4 +1,4 @@
-import type { AgentControl } from '@api-starter-kit/ai-agent'
+import type { AgentControl } from '#ai/agent'
 
 type RegisteredRun = {
   conversationId: number

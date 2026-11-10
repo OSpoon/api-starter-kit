@@ -11,7 +11,7 @@ apps/frontend/    Vue 应用、路由、页面、feature、状态和共享 UI
 apps/assistant-web/     独立 AI 助手 Web 客户端，复用 frontend 的 AI 实现
 apps/assistant-desktop/ Tauri 原生桌面壳，内置 assistant-web 的生产构建产物
 apps/assistant-extension/ Chrome MV3 侧边栏，复用 assistant-web 的客户端实现
-packages/ai-agent/        Agent/Tool/Event/Session 契约与当前 Pi adapter
+apps/backend/app/ai/agent/ Agent/Tool/Event/Session 契约与当前 Pi adapter
 docs/             使用、开发、部署和能力参考
 docker/           本地与生产 Compose、镜像和 Nginx 配置
 ```

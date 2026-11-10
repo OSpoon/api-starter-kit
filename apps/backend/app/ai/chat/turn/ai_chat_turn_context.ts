@@ -1,6 +1,5 @@
-import type { AgentSessionState } from '@api-starter-kit/ai-agent'
-import { restoreAgentSessionState } from '@api-starter-kit/ai-agent'
-
+import type { AgentSessionState } from '#ai/agent'
+import { restoreAgentSessionState } from '#ai/agent'
 import type { AiChatResolvedRegeneration } from '#ai/chat/ai_chat_regeneration'
 import type { AiAgentMessage } from '#ai/core/ai_agent_types'
 import type AiChatConversation from '#models/ai_chat_conversation'

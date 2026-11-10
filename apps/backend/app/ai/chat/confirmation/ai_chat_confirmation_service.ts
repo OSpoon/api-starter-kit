@@ -1,6 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http'
-import { upsertAgentToolResult } from '@api-starter-kit/ai-agent'
 
+import { upsertAgentToolResult } from '#ai/agent'
 import { writeAiChatSse } from '#ai/chat/ai_chat_sse_adapter'
 import { summarizeConfirmedToolResult } from '#ai/chat/confirmed_tool_result_summary'
 import {
