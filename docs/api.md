@@ -109,4 +109,12 @@ Embedding 向量维度固定为 `1024`。`PUT /system/llm-config` 的 `embedding
 
 ## 特殊接口
 
-知识文档上传、LLM 元数据预览、批量处理和 AI 语音转写等接口包含 multipart 和文件大小限制；实施或调整这些能力前，以当前 OpenAPI schema 和对应 feature/service 为准。AI 查询与有副作用的操作还必须遵循[系统架构中的 AI 扩展边界](architecture.md#ai-扩展边界)。
+### AI 聊天图片消息
+
+`POST /api/v1/ai-chat/conversations/{id}/messages` 支持普通 JSON 文本消息；图片消息使用 `multipart/form-data`，字段 `image` 接受单张 JPEG、PNG 或 WebP 图片，最大 2 MB。可同时传入 `content`；仅图片提问时可以省略 `content`。发送成功后仍使用现有 SSE 响应，消息对象只含图片 MIME 元数据，不包含图片字节。配置了 API Key 集成时，可通过 `/api/v1/integrations/ai-chat/conversations/{id}/messages` 使用相同契约。
+
+图片原始数据保存在 `ai_chat_messages.image_data`。客户端通过需要 Bearer Token 或 API Key 的 `GET /api/v1/ai-chat/conversations/{id}/messages/{messageId}/image` 读取图片；集成接口前缀为 `/api/v1/integrations/ai-chat/...`。服务端会校验消息属于当前用户或 API Key 的会话，并以图片 MIME 类型返回二进制响应。会话历史分页不会读取或返回图片字节。
+
+新会话首条图片消息会额外调用视觉模型生成会话标题；此调用不使用 Agent 工具，模型用量会单独记录。实际图片提问仍通过原有 Agent、注册工具和权限/确认流程处理。所选聊天模型需支持视觉输入。
+
+知识文档上传、LLM 元数据预览、批量处理和 AI 语音转写等接口也包含 multipart 和文件大小限制；实施或调整这些能力前，以当前 OpenAPI schema 和对应 feature/service 为准。AI 查询与有副作用的操作还必须遵循[系统架构中的 AI 扩展边界](architecture.md#ai-扩展边界)。

@@ -10,7 +10,7 @@ Compose 按用途拆分：基础文件只定义 PostgreSQL；应用和 IM Bot �
 
 - Docker Engine 或 Docker Desktop，以及 Docker Compose v2；
 - 能够访问镜像仓库、npm registry 和所需外部 AI/渠道服务的网络；
-- 至少能持久化 Docker volume 的磁盘空间；知识库和 AI 会话数据都存储在 PostgreSQL 中。
+- 至少能持久化 Docker volume 的磁盘空间；知识库、AI 会话和图片附件都存储在 PostgreSQL 中。每张图片最多 2 MB，数据库备份会包含这些图片数据，应按实际上传量预留数据库和备份空间。
 
 仓库要求的 Node.js `>= 24.12.0` 和 pnpm `11.9.0` 主要用于本地开发与运维命令；纯 Docker 生产启动由镜像中的 Node.js `24.15.0` 执行。
 Docker backend 构建会将 Agent runtime 与 backend 一起编译；Pi Agent 依赖作为 backend 生产依赖安装。

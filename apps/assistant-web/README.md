@@ -1,9 +1,9 @@
 # AI Assistant Web
 
 `assistant-web` is the independent Web client for the AI Assistant. It provides a
-full-screen conversation workspace with conversation history, voice input,
-confirmation flows, usage details, login, 2FA, password-expiration handling,
-and account logout.
+full-screen conversation workspace with conversation history, single-image and
+text-plus-image questions, voice input, confirmation flows, usage details,
+login, 2FA, password-expiration handling, and account logout.
 
 The client does not implement a second AI stack. It reuses the AI chat
 components, API client, authentication store, locale files, UI primitives, and
