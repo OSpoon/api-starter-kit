@@ -1012,7 +1012,7 @@ watch(
             />
             <div
               v-if="isRecording || voiceTranscribing"
-              class="flex min-h-10 items-center gap-2 rounded-full border bg-background px-2 py-1.5"
+              class="flex h-12 items-center gap-2 rounded-full border bg-background px-2"
               role="status"
               :aria-label="
                 voiceTranscribing ? t('ai_chat.voice.transcribing') : t('ai_chat.voice.recording')
@@ -1043,8 +1043,8 @@ watch(
                 <span
                   v-for="index in 56"
                   :key="index"
-                  class="w-1 rounded-full bg-muted-foreground/25 transition-[height] duration-75"
-                  :style="{ height: `${waveformHeights[index - 1]}px` }"
+                  class="h-9 w-1 origin-center rounded-full bg-muted-foreground/25 transition-transform duration-75"
+                  :style="{ transform: `scaleY(${(waveformHeights[index - 1] ?? 8) / 36})` }"
                 />
               </div>
               <Button
