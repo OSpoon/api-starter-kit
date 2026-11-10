@@ -107,7 +107,7 @@
     "reflect-metadata": "^0.2.2",
     "skills": "1.7.6",
     "yaml": "^2.9.0",
-    "zod": "3.25.76"
+    "zod": "4.6.6"
   },
   "hotHook": {
     "boundaries": [
