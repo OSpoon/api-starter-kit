@@ -1,5 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import logger from '@adonisjs/core/services/logger'
+import { upsertAgentToolResult } from '@api-starter-kit/ai-agent'
 
 import { summarizeConfirmedToolResult } from '#ai/chat/confirmed_tool_result_summary'
 import { runAiChatAssistantTurn } from '#ai/chat/turn/ai_chat_turn_service'
@@ -13,7 +14,6 @@ import {
   listConversationConfirmations,
 } from '#ai/core/ai_agent_confirmation'
 import { listPendingConversationConfirmations } from '#ai/core/ai_agent_confirmation'
-import { upsertAiAgentToolResult } from '#ai/runtime/ai_agent_session_context'
 import type {
   ChannelAdapter,
   ChannelCardActionEvent,
@@ -455,7 +455,7 @@ export class AiChannelBridge implements ReloadableBotRuntime {
             typeof result?.agentToolResult === 'string'
               ? result.agentToolResult
               : 'Tool completed without a text result.'
-          message.agentContext = upsertAiAgentToolResult(message.agentContext, {
+          message.agentContext = upsertAgentToolResult(message.agentContext, {
             assistantMessageId: message.id,
             toolCallId:
               (pendingTool?.kind === 'tool' ? pendingTool.callId : undefined) ??
@@ -549,7 +549,7 @@ export class AiChannelBridge implements ReloadableBotRuntime {
         })
         if (isToolAction && proposalMessage) {
           const message = await AiChatMessage.findOrFail(proposalMessage.id)
-          message.agentContext = upsertAiAgentToolResult(message.agentContext, {
+          message.agentContext = upsertAgentToolResult(message.agentContext, {
             assistantMessageId: message.id,
             toolCallId:
               (pendingTool?.kind === 'tool' ? pendingTool.callId : undefined) ??

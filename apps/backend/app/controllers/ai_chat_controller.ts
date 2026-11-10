@@ -1,5 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import logger from '@adonisjs/core/services/logger'
+import { upsertAgentToolResult } from '@api-starter-kit/ai-agent'
 import { ApiOperation, ApiQuery, ApiResponse, ApiSecurity } from '@foadonis/openapi/decorators'
 
 import { createAiChatConversationTitle } from '#ai/chat/ai_chat_conversation_title'
@@ -25,7 +26,6 @@ import {
   getAiAgentRun,
   releaseAiAgentConversation,
 } from '#ai/runtime/ai_agent_run_registry'
-import { upsertAiAgentToolResult } from '#ai/runtime/ai_agent_session_context'
 import AiAgentConfirmation from '#models/ai_agent_confirmation'
 import AiChatConversation from '#models/ai_chat_conversation'
 import AiChatMessage from '#models/ai_chat_message'
@@ -402,7 +402,7 @@ export default class AiChatController {
           const toolCallId =
             (pendingTool?.kind === 'tool' ? pendingTool.callId : undefined) ??
             `confirmation-${route.confirmationId}`
-          assistantMessage.agentContext = upsertAiAgentToolResult(assistantMessage.agentContext, {
+          assistantMessage.agentContext = upsertAgentToolResult(assistantMessage.agentContext, {
             assistantMessageId: assistantMessage.id,
             toolCallId,
             toolName:

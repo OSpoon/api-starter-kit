@@ -1,10 +1,10 @@
-import type { PiAgentControl } from '#ai/runtime/pi/ai_agent_pi_stream'
+import type { AgentControl } from '@api-starter-kit/ai-agent'
 
 type RegisteredRun = {
   conversationId: number
   userId: number
   agentRunId: string
-  control: PiAgentControl
+  control: AgentControl
 }
 
 const activeRuns = new Map<string, RegisteredRun>()

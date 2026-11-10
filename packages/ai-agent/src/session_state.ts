@@ -1,37 +1,25 @@
-import type { AgentMessage } from '@earendil-works/pi-agent-core'
-
-type SessionMessage = Extract<AgentMessage, { role: 'user' | 'assistant' | 'toolResult' }> & {
-  sourceMessageId?: number
-  isContextSummary?: boolean
-}
+import type { AgentContentPart, AgentSessionMessage, AgentSessionState } from './agent.js'
 
 type ChatMessage = { id: number; role: 'user' | 'assistant'; content: string }
-const maxSessionToolResultChars = 20_000
+const maxToolResultChars = 20_000
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
 }
 
-function isSessionMessage(value: unknown): value is SessionMessage {
-  if (!isRecord(value) || !['user', 'assistant', 'toolResult'].includes(String(value.role))) {
+function isSessionMessage(value: unknown): value is AgentSessionMessage {
+  if (
+    !isRecord(value) ||
+    !['system', 'user', 'assistant', 'toolResult'].includes(String(value.role)) ||
+    typeof value.timestamp !== 'number'
+  ) {
     return false
   }
-  if (typeof value.timestamp !== 'number') return false
   if (value.role === 'toolResult') {
     return (
       Array.isArray(value.content) &&
       typeof value.toolName === 'string' &&
       typeof value.toolCallId === 'string'
-    )
-  }
-  if (value.role === 'assistant') {
-    return (
-      Array.isArray(value.content) &&
-      typeof value.api === 'string' &&
-      typeof value.provider === 'string' &&
-      typeof value.model === 'string' &&
-      typeof value.stopReason === 'string' &&
-      isRecord(value.usage)
     )
   }
   return typeof value.content === 'string' || Array.isArray(value.content)
@@ -68,24 +56,46 @@ function redactToolText(value: string) {
   }
 }
 
-function copySafeMessage(message: SessionMessage): SessionMessage {
-  const copy = JSON.parse(JSON.stringify(message)) as SessionMessage
+function copySafeMessage(message: AgentSessionMessage): AgentSessionMessage {
+  const copy = JSON.parse(JSON.stringify(message)) as AgentSessionMessage
   if (copy.role === 'assistant' && Array.isArray(copy.content)) {
     copy.content = copy.content
       .filter((part) => !isRecord(part) || part.type !== 'thinking')
-      .map((part) => redactSensitiveFields(part)) as typeof copy.content
-  } else if (copy.role === 'toolResult') {
+      .map((part) => redactSensitiveFields(part)) as AgentContentPart[]
+  } else if (copy.role === 'toolResult' && Array.isArray(copy.content)) {
     copy.content = copy.content.map((part) => {
       if (isRecord(part) && part.type === 'text' && typeof part.text === 'string') {
         return { ...part, text: redactToolText(part.text) }
       }
       return redactSensitiveFields(part)
-    }) as typeof copy.content
+    }) as AgentContentPart[]
   }
   return copy
 }
 
-export function upsertAiAgentToolResult(
+export function restoreAgentSessionState(
+  value: unknown,
+  coveredThroughMessageId?: number | null,
+  legacyEngineId = 'pi'
+): AgentSessionState {
+  const engineId =
+    isRecord(value) && value.version === 1 && typeof value.engineId === 'string'
+      ? value.engineId
+      : legacyEngineId
+  const rawMessages = Array.isArray(value) ? value : isRecord(value) ? value.messages : undefined
+  const messages = Array.isArray(rawMessages)
+    ? rawMessages.filter(isSessionMessage).filter((message) => {
+        if (message.isContextSummary) return false
+        if (coveredThroughMessageId && message.sourceMessageId !== undefined) {
+          return message.sourceMessageId > coveredThroughMessageId
+        }
+        return true
+      })
+    : []
+  return { engineId, version: 1, messages }
+}
+
+export function upsertAgentToolResult(
   value: unknown,
   input: {
     assistantMessageId: number
@@ -95,10 +105,10 @@ export function upsertAiAgentToolResult(
     isError: boolean
   }
 ) {
-  const messages = restoreAiAgentSessionContext(value)
+  const state = restoreAgentSessionState(value)
   const text =
-    input.text.length > maxSessionToolResultChars
-      ? `${input.text.slice(0, maxSessionToolResultChars)}\n[结果已截断]`
+    input.text.length > maxToolResultChars
+      ? `${input.text.slice(0, maxToolResultChars)}\n[结果已截断]`
       : input.text
   const result = copySafeMessage({
     role: 'toolResult',
@@ -109,15 +119,15 @@ export function upsertAiAgentToolResult(
     timestamp: Date.now(),
     sourceMessageId: input.assistantMessageId,
   })
-  const existingIndex = messages.findIndex(
+  const existingIndex = state.messages.findIndex(
     (message) => message.role === 'toolResult' && message.toolCallId === input.toolCallId
   )
-  if (existingIndex >= 0) messages[existingIndex] = result
-  else messages.push(result)
-  return messages
+  if (existingIndex >= 0) state.messages[existingIndex] = result
+  else state.messages.push(result)
+  return state
 }
 
-function getUserText(message: SessionMessage) {
+function getUserText(message: AgentSessionMessage) {
   if (message.role !== 'user') return undefined
   if (typeof message.content === 'string') return message.content
   return message.content
@@ -138,44 +148,34 @@ function getAssistantIdForUser(chatMessages: ChatMessage[], userId: number) {
   return assistant?.id
 }
 
-export function restoreAiAgentSessionContext(
-  value: unknown,
-  coveredThroughMessageId?: number | null
-) {
-  if (!Array.isArray(value)) return []
-  return value.filter(isSessionMessage).filter((message) => {
-    if (message.isContextSummary) return false
-    if (coveredThroughMessageId && message.sourceMessageId !== undefined) {
-      return message.sourceMessageId > coveredThroughMessageId
-    }
-    return true
-  })
-}
-
-export function createAiAgentFinalResponseContext(value: unknown, userMessageId: number) {
-  const messages = restoreAiAgentSessionContext(value)
-  const userIndex = messages.findLastIndex(
+export function createFinalResponseState(value: unknown, userMessageId: number) {
+  const state = restoreAgentSessionState(value)
+  const userIndex = state.messages.findLastIndex(
     (message) => message.role === 'user' && message.sourceMessageId === userMessageId
   )
-  if (userIndex < 0) return messages
+  if (userIndex < 0) return state
 
-  const finalDraftIndex = messages.findLastIndex(
+  const finalDraftIndex = state.messages.findLastIndex(
     (message, index) =>
       index > userIndex &&
       message.role === 'assistant' &&
-      !message.content.some((part) => isRecord(part) && part.type === 'toolCall')
+      !(
+        Array.isArray(message.content) &&
+        message.content.some((part) => isRecord(part) && part.type === 'toolCall')
+      )
   )
-  if (finalDraftIndex >= 0) messages.splice(finalDraftIndex, 1)
-  messages.splice(userIndex, 1)
-  return messages
+  if (finalDraftIndex >= 0) state.messages.splice(finalDraftIndex, 1)
+  state.messages.splice(userIndex, 1)
+  return state
 }
 
-export function snapshotAiAgentSessionContext(
-  messages: AgentMessage[],
+export function snapshotAgentSessionState(
+  value: unknown,
   chatMessages: ChatMessage[],
   fallbackAssistantId: number
 ) {
-  const availableUserIds = new Map<string, number[]>([])
+  const state = restoreAgentSessionState(value)
+  const availableUserIds = new Map<string, number[]>()
   for (const message of chatMessages) {
     if (message.role !== 'user') continue
     const ids = availableUserIds.get(message.content) ?? []
@@ -185,9 +185,8 @@ export function snapshotAiAgentSessionContext(
 
   const usedUserIds = new Set<number>()
   let currentUserId: number | undefined
-  const snapshot: SessionMessage[] = []
-  for (const message of messages) {
-    if (!isSessionMessage(message)) continue
+  const snapshot: AgentSessionMessage[] = []
+  for (const message of state.messages) {
     if (message.isContextSummary) continue
     const copy = copySafeMessage(message)
     if (copy.role === 'user') {
@@ -196,10 +195,9 @@ export function snapshotAiAgentSessionContext(
           ? copy.sourceMessageId
           : undefined
       if (!sourceMessageId) {
-        const match = availableUserIds
+        sourceMessageId = availableUserIds
           .get(getUserText(copy) ?? '')
           ?.find((id) => !usedUserIds.has(id))
-        sourceMessageId = match
       }
       if (!sourceMessageId) continue
       usedUserIds.add(sourceMessageId)
@@ -219,5 +217,5 @@ export function snapshotAiAgentSessionContext(
       fallbackAssistantId
     snapshot.push(copy)
   }
-  return snapshot
+  return { ...state, messages: snapshot }
 }

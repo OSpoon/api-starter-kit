@@ -1,14 +1,14 @@
-import type { AgentMessage } from '@earendil-works/pi-agent-core'
+import type { AgentSessionState } from '@api-starter-kit/ai-agent'
+import { restoreAgentSessionState } from '@api-starter-kit/ai-agent'
 
 import type { AiChatResolvedRegeneration } from '#ai/chat/ai_chat_regeneration'
 import type { AiAgentMessage } from '#ai/core/ai_agent_types'
-import { restoreAiAgentSessionContext } from '#ai/runtime/ai_agent_session_context'
 import type AiChatConversation from '#models/ai_chat_conversation'
 import AiChatMessage from '#models/ai_chat_message'
 
 export type AiChatTurnContext = {
   history: AiAgentMessage[]
-  agentContext?: AgentMessage[]
+  agentContext?: AgentSessionState
 }
 
 export function buildAiChatHistoryQuery(
@@ -51,7 +51,7 @@ export async function buildAiChatTurnContext(input: {
   const previousAgentContext = contextSourceMessages.findLast(
     (message) => message.role === 'assistant' && message.agentContext
   )?.agentContext
-  const agentContext = restoreAiAgentSessionContext(
+  const agentContext = restoreAgentSessionState(
     previousAgentContext,
     conversation.contextSummary ? summaryBoundary : null
   )

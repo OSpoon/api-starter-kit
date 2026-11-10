@@ -2,7 +2,7 @@ import crypto from 'node:crypto'
 
 import type { HttpContext } from '@adonisjs/core/http'
 import logger from '@adonisjs/core/services/logger'
-import type { AgentMessage } from '@earendil-works/pi-agent-core'
+import { createFinalResponseState, snapshotAgentSessionState } from '@api-starter-kit/ai-agent'
 
 import { type AiAgentPageContext, createAiAgentStream } from '#ai/chat/ai_agent_service'
 import type { AiChatResolvedRegeneration } from '#ai/chat/ai_chat_regeneration'
@@ -27,10 +27,6 @@ import {
   sanitizeAiAgentToolErrorMessage,
 } from '#ai/core/ai_agent_tool_errors'
 import { releaseAiAgentRun } from '#ai/runtime/ai_agent_run_registry'
-import {
-  createAiAgentFinalResponseContext,
-  snapshotAiAgentSessionContext,
-} from '#ai/runtime/ai_agent_session_context'
 import type AiChatConversation from '#models/ai_chat_conversation'
 import AiChatMessage, {
   type AiChatCitation,
@@ -620,10 +616,7 @@ export async function runAiChatAssistantTurn(input: {
         userId,
         auditContext: input.ctx,
         messages: history,
-        agentContext: createAiAgentFinalResponseContext(
-          run.stream.getSessionMessages() as AgentMessage[],
-          userMessage.id
-        ),
+        agentContext: createFinalResponseState(run.session.getSessionState(), userMessage.id),
         capabilityMode: input.capabilityMode,
         enabledToolNames: [],
         context: input.context,
@@ -734,8 +727,8 @@ export async function runAiChatAssistantTurn(input: {
       logger.error({ err: error, conversationId: conversation.id }, 'AI conversation reload failed')
     }
     try {
-      assistantMessage.agentContext = snapshotAiAgentSessionContext(
-        sessionRun.stream.getSessionMessages() as AgentMessage[],
+      assistantMessage.agentContext = snapshotAgentSessionState(
+        sessionRun.session.getSessionState(),
         chatMessages,
         assistantMessage.id
       )

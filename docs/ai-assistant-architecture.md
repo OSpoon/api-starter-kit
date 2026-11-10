@@ -10,27 +10,27 @@ flowchart TB
   B --> ASR["ASR 转写服务"]
   B --> C["ai_chat_sse_adapter"]
   B --> D["ai_agent_service"]
-  D --> E["Pi Agent"]
-  E --> F["Pi Agent tools"]
+  D --> E["Agent Engine contract"]
+  E --> P["Pi adapter (current)"]
+  P --> F["registered tools"]
   F --> G["注册查询"]
   F --> H["知识源目录检索"]
   H --> H2["限定文档正文精检索"]
   F --> I["变更提议"]
   I --> J["确认 API"]
-  D --> K["Pi steering / follow-up queues"]
+  D --> K["Agent control"]
 ```
 
-- `app/ai` 集中维护 Pi runtime、会话编排、SSE 适配、提示词策略和工具注册；可复用的领域逻辑仍位于 `app/services`。
+- `packages/ai-agent` 定义可替换的 Agent/Tool/Event/Session 契约，当前 Pi adapter 位于 `packages/ai-agent/src/pi`。backend 继续维护会话编排、提示词策略、授权、审计、工具注册与持久化；可复用的领域逻辑仍位于 `apps/backend/app/services`。
 - `ai_chat_controller.ts` 只负责会话归属、输入校验、消息持久化和 HTTP/SSE 生命周期。
 - `ai_chat_controller.ts` 的 `transcribe` 处理管理端 Web、独立助手 Web 和桌面 WebView 的 multipart 音频上传；`ai_speech_service.ts` 使用运行时 LLM 配置调用 OpenAI-compatible ASR 服务，并只返回转写文本。转写接口不直接创建聊天消息，客户端拿到文本后复用普通消息 SSE 链路。
-- `ai_chat_sse_adapter.ts` 只负责把单一 Pi `AgentEvent` 流转换为 SSE、keepalive、工具状态详情、阶段和确认事件。助手文本按单次模型响应暂存；响应包含工具调用时丢弃其中的说明文字，纯文本响应结束后再发送，工具进度仍实时发送。
-- `ai_agent_service.ts` 创建 Pi Agent，配置模型、上下文和工具事件流；每个会话使用稳定的 Pi `sessionId`，并显式使用 Pi 的 steer/follow-up 单条队列策略。
-- `ai_agent_pi_stream.ts` 负责创建 Pi Agent、订阅原始事件并暴露控制句柄；消息流和工具流统一通过 Pi 事件处理。
-- `ai_agent_tool_registry.ts` 直接返回 Pi `AgentTool[]`；工具 schema、执行逻辑和业务服务调用在同一注册边界内维护。
+- `ai_chat_sse_adapter.ts` 消费通用 `AgentEvent` 并转换为 SSE、keepalive、工具状态详情、阶段和确认事件。助手文本按单次模型响应暂存；响应包含工具调用时丢弃其中的说明文字，纯文本响应结束后再发送，工具进度仍实时发送。
+- `ai_agent_service.ts` 负责 backend 的运行记录、用量和遥测；`ai_agent_runtime.ts` 是 Agent 组合点，加载模型配置、构造 backend 工具并选择 `@api-starter-kit/ai-agent/pi`。替换 Agent 时只需替换这个 adapter 选择，授权、审计和领域工具留在 backend。
+- `ai_agent_tool_registry.ts` 返回核心包定义的 `AgentTool[]`；工具 schema、执行逻辑和业务服务调用仍由 backend 维护。
 - `ai_agent_skill_service.ts` 通过固定版本的 Vercel `skills` CLI 安装和移除技能，工作目录由 `AI_AGENT_SKILLS_DIR` 指定，默认使用 `apps/backend/storage`，技能文件位于其 `.agents/skills/` 下。助手配置页是管理入口；新技能默认停用，启用状态是技能运行的唯一管理开关。`list_agent_skills` 和 `load_agent_skill` 只暴露启用技能的说明和受限资源读取。`bash` 只接受启用技能目录内的 JavaScript 文件，并在助手服务进程所在环境直接执行。
-- Pi 生命周期钩子在工具调用前校验输入，在调用后识别错误和终止结果；确认提议及终止性业务错误使用原生 `terminate` 结束本轮。
-- Pi 的 `prepareCompaction`/`compact` 按 token 预算压缩长上下文，摘要写入 `AiChatConversation.contextSummary`，完整消息历史不变；`shouldStopAfterTurn` 防止终态工具结果触发无意义的下一轮推理。
-- Pi 的 `prepareNextTurnWithContext` 在每轮模型调用前刷新待确认提议和 pending query 上下文；`tool_execution_update` 仅转发白名单进度字段到 `agent_status` SSE 事件。
+- Pi adapter 使用 Pi hooks 完成请求前的上下文刷新、上下文压缩、轮次结束判断及工具调用前后处理；业务侧策略由 backend 回调提供。
+- 上下文按 token 预算压缩，摘要写入 `AiChatConversation.contextSummary`，完整消息历史不变；终态工具结果不会触发无意义的下一轮推理。
+- 工具进度经核心事件契约归一化后，仅白名单字段转发到 `agent_status` SSE 事件。
 - Pi 使用并行调度器，并由各工具声明执行模式：权限诊断和注册查询可并行；任务计划更新、知识目录到正文的依赖检索、变更提议和需要确认的内置工具保持串行。注册查询会维护待补参数状态；正文精检索只能使用本轮目录返回的文档 ID。
 
 ## 工具边界
@@ -63,15 +63,15 @@ flowchart TB
 
 ## 状态与持久化
 
-- `AiChatConversation`、`AiChatMessage`：保存完整用户可见历史、引用和脱敏后的 `runtime_details`；后端私有的 `agent_context` 保存 Pi 会话快照，用于恢复工具调用上下文。快照排除思考内容并脱敏敏感字段；确认工具的结果或取消状态按原 tool-call ID 写回，单条结果最多保存 20,000 字符。
-- 每次新请求根据 `AiChatMessage` 构造初始上下文；运行中的人工介入使用当前 Pi Agent 的 `steer` 或 `followUp` 队列，不重新构造 Agent。
-- 恢复历史时由 Pi 的 compaction 与 `transformContext` 按模型 `contextWindow` 和输出预算进行 token 级上下文处理，`convertToLlm` 负责模型消息过滤；数据库仍保存完整历史，滚动摘要存储在会话上并在下一次请求注入动态上下文。
+- `AiChatConversation`、`AiChatMessage`：保存完整用户可见历史、引用和脱敏后的 `runtime_details`；后端私有的 `agent_context` 保存带 `engineId` 和 `version` 的会话快照，用于恢复工具调用上下文。旧 Pi 消息数组仍可读取；快照排除思考内容并脱敏敏感字段，确认工具的结果或取消状态按原 tool-call ID 写回，单条结果最多保存 20,000 字符。
+- 每次新请求根据 `AiChatMessage` 构造初始上下文；运行中的人工介入使用 Agent control 的 `steer` 或 `followUp` 队列，不重新构造 Agent。
+- 当前 Pi adapter 按模型 `contextWindow` 和输出预算进行 token 级上下文处理；数据库仍保存完整历史，滚动摘要存储在会话上并在下一次请求注入动态上下文。
 - `AiAgentPendingQuery`：保存多轮查询的缺参状态，不保存原始查询结果。
 - `AiAgentConfirmation`：保存待确认提议及安全摘要，不向普通消息暴露 payload 或密钥。
 - 同一助手消息关联多个工具确认时，逐项处理确认或取消；只要还有待处理项，就暂缓模型结论。全部决策完成后再基于已保存的工具结果生成一次汇总，已取消的操作不会再次执行。
 - `ai_conversation_state.ts`：统一清理 pending query；重新生成和会话删除通过此入口处理。
 
-客户端断开、用户停止生成或请求超时会调用 Pi Agent 的 `abort`；系统保留已持久化消息，下一次用户消息会创建新的 Agent 运行。运行中的人工输入使用 `steer` 或 `followUp`，受控管理操作仍必须经过结构化确认。
+客户端断开、用户停止生成或请求超时会调用 Agent control 的 `abort`；系统保留已持久化消息，下一次用户消息会创建新的 Agent 运行。运行中的人工输入使用 `steer` 或 `followUp`，受控管理操作仍必须经过结构化确认。
 
 AI 请求的审计与运行状态由现有审计日志和运行状态记录；模型调用链路的开发遥测见下文。知识库目录和正文检索分别记录 `knowledge.catalog_searched` 与 `knowledge.searched`，只保存查询哈希、授权结果、数量和耗时，不保存原始查询或正文摘录。
 

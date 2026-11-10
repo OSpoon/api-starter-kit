@@ -1,7 +1,7 @@
 import crypto from 'node:crypto'
 
 import logger from '@adonisjs/core/services/logger'
-import type { AgentMessage } from '@earendil-works/pi-agent-core'
+import type { AgentModelUsage } from '@api-starter-kit/ai-agent'
 
 import { listConversationConfirmations } from '#ai/core/ai_agent_confirmation'
 import { serializeAiAgentRuntimeContext } from '#ai/core/ai_agent_runtime_context'
@@ -10,12 +10,11 @@ import type { AiAgentMessage } from '#ai/core/ai_agent_types'
 import type { AiAgentPageContext } from '#ai/policy/ai_agent_prompt_policy'
 import { getPendingAiQueryContext } from '#ai/registry/ai_agent_query_registry'
 import { registerAiAgentRun } from '#ai/runtime/ai_agent_run_registry'
+import { createAiAgentRuntime } from '#ai/runtime/ai_agent_runtime'
 import {
   exportAiAgentTraceToLangfuse,
   hasLangfuseTelemetryDestination,
 } from '#ai/runtime/ai_agent_telemetry_exporter'
-import { createAiAgentPiStream } from '#ai/runtime/pi/ai_agent_pi_stream'
-import type { PiModelUsage } from '#ai/runtime/pi/ai_agent_pi_types'
 import AiChatConversation from '#models/ai_chat_conversation'
 import { recordAiUsageEvent } from '#services/ai_usage_service'
 
@@ -66,9 +65,9 @@ async function buildLiveSessionContext(conversationId: number, userId: number) {
 export async function createAiAgentStream(
   input: AiAgentToolRequestContext & {
     messages: AiAgentMessage[]
-    agentContext?: AgentMessage[]
+    agentContext?: unknown
     context?: AiAgentPageContext
-    onCompactionUsage?: (usage: PiModelUsage) => void
+    onCompactionUsage?: (usage: AgentModelUsage) => void
     finalResponseOnly?: boolean
     agentRunId?: string
     modelCallSequenceStart?: number
@@ -87,7 +86,7 @@ export async function createAiAgentStream(
         context_summary_message_id: coveredThroughMessageId || null,
       })
   }
-  const stream = await createAiAgentPiStream({
+  const session = await createAiAgentRuntime({
     ...input,
     agentRunId,
     finalResponseOnly: input.finalResponseOnly,
@@ -138,9 +137,9 @@ export async function createAiAgentStream(
     conversationId: input.conversationId,
     userId: input.userId,
     agentRunId,
-    control: stream.control,
+    control: session.control,
   })
-  const telemetryStore = stream.telemetryStore
+  const telemetryStore = session.traceStore
   if (hasLangfuseTelemetryDestination() && telemetryStore) {
     const logTelemetryTrace = async () => {
       try {
@@ -154,13 +153,12 @@ export async function createAiAgentStream(
         logger.warn({ err: error, agentRunId }, 'AI agent telemetry trace could not be exported')
       }
     }
-    void stream.completion.then(logTelemetryTrace, logTelemetryTrace)
+    void session.completion.then(logTelemetryTrace, logTelemetryTrace)
   }
   return {
-    stream,
+    session,
     agentRunId,
-    model: stream.model,
-    models: stream.models,
+    model: session.model,
     nextModelCallSequence,
     getNextModelCallSequence: () => callSequence,
   }

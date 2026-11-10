@@ -1,4 +1,4 @@
-import type { ModelCost } from '@earendil-works/pi-ai'
+import type { AgentModelCost } from '@api-starter-kit/ai-agent'
 
 const MODELS_DEV_API_URL = 'https://models.dev/api.json'
 const CATALOG_CACHE_TTL_MS = 60 * 60 * 1000
@@ -24,7 +24,7 @@ type ModelsDevProvider = {
 
 export type ModelsDevPricing = {
   modelId: string
-  cost: ModelCost
+  cost: AgentModelCost
   version: string | null
 }
 
@@ -158,7 +158,7 @@ export function calculateModelsDevCost(
     cacheRead: number
     cacheWrite: number
   },
-  cost: ModelCost
+  cost: AgentModelCost
 ) {
   return (
     (usage.input * cost.input +

@@ -9,7 +9,7 @@ import {
   validateRegisteredAiQueryParameters,
 } from '#ai/registry/ai_agent_query_registry'
 import { type AiAgentToolSupport, createAiAgentTool } from '#ai/registry/ai_agent_tool_helpers'
-import { piToolParameters } from '#ai/registry/ai_agent_tool_parameters'
+import { aiAgentToolParameters } from '#ai/registry/ai_agent_tool_parameters'
 
 export function createRunRegisteredQueryTool(
   input: AiAgentToolContext,
@@ -44,7 +44,7 @@ export function createRunRegisteredQueryTool(
         templateCode: z.enum(aiQueryTemplateCodes),
         params: z.record(z.unknown()).default({}),
       }),
-      parameters: piToolParameters.runRegisteredQuery,
+      parameters: aiAgentToolParameters.runRegisteredQuery,
       prepareConfirmation: async ({ templateCode, params }) => {
         validateRegisteredAiQueryParameters(templateCode, params)
         await ensureRegisteredAiQueryPermission(templateCode, input.userId)

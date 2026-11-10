@@ -1,4 +1,4 @@
-import { type TSchema, Type } from '@earendil-works/pi-ai'
+import type { AgentToolParameters } from '@api-starter-kit/ai-agent'
 
 import {
   channelProposalActionNames,
@@ -6,70 +6,109 @@ import {
 } from '#ai/core/ai_agent_action_contracts'
 import { aiQueryTemplateCodes } from '#ai/registry/ai_agent_query_registry'
 
-export const piToolParameters = {
-  diagnoseMyAccess: Type.Object({ permissionCode: Type.Optional(Type.String()) }),
-  runRegisteredQuery: Type.Object({
-    templateCode: Type.Union(
-      aiQueryTemplateCodes.map((code) => Type.Literal(code)) as unknown as [
-        TSchema,
-        TSchema,
-        ...TSchema[],
-      ]
-    ),
-    params: Type.Optional(
-      Type.Object(
-        { page: Type.Optional(Type.Integer({ minimum: 1 })) },
-        { additionalProperties: true }
-      )
-    ),
-  }),
-  searchKnowledge: Type.Object({
-    query: Type.String(),
-    documentIds: Type.Array(Type.Integer({ minimum: 1 }), { minItems: 1, maxItems: 10 }),
-  }),
-  searchKnowledgeCatalog: Type.Object({ query: Type.String() }),
-  taskPlan: Type.Object({
-    steps: Type.Array(
-      Type.Object({
-        label: Type.String({ minLength: 1, maxLength: 240 }),
-        state: Type.Union([Type.Literal('pending'), Type.Literal('running'), Type.Literal('done')]),
-      }),
-      { minItems: 1, maxItems: 8 }
-    ),
-  }),
-  apiKeyTarget: Type.Union([
-    Type.Object({ apiKeyId: Type.Integer({ minimum: 1 }) }),
-    Type.Object({ id: Type.Integer({ minimum: 1 }) }),
-    Type.Object({ name: Type.String({ minLength: 1, maxLength: 120 }) }),
-  ]),
-  systemManagementChange: Type.Object({
-    action: Type.Union(
-      genericProposalActionNames.map((action) => Type.Literal(action)) as unknown as [
-        TSchema,
-        TSchema,
-        ...TSchema[],
-      ]
-    ),
-    input: Type.Record(Type.String(), Type.Unknown()),
-  }),
-  channelSystemManagementChange: Type.Object({
-    action: Type.Union(
-      channelProposalActionNames.map((action) => Type.Literal(action)) as unknown as [
-        TSchema,
-        TSchema,
-        ...TSchema[],
-      ]
-    ),
-    input: Type.Record(Type.String(), Type.Unknown()),
-  }),
-  apiKeyCreation: Type.Object({
-    name: Type.String(),
-    expiresIn: Type.Optional(Type.String()),
-  }),
-  wecomMessageSend: Type.Object({
-    templateId: Type.Integer({ minimum: 1 }),
-    params: Type.Optional(Type.Record(Type.String(), Type.String())),
-    mentionedList: Type.Optional(Type.Array(Type.String())),
-    mentionedMobileList: Type.Optional(Type.Array(Type.String())),
-  }),
-} satisfies Record<string, TSchema>
+export const aiAgentToolParameters = {
+  diagnoseMyAccess: {
+    type: 'object',
+    properties: { permissionCode: { type: 'string' } },
+  },
+  runRegisteredQuery: {
+    type: 'object',
+    properties: {
+      templateCode: { type: 'string', enum: aiQueryTemplateCodes },
+      params: {
+        type: 'object',
+        properties: { page: { type: 'integer', minimum: 1 } },
+        additionalProperties: true,
+      },
+    },
+    required: ['templateCode'],
+  },
+  searchKnowledge: {
+    type: 'object',
+    properties: {
+      query: { type: 'string' },
+      documentIds: {
+        type: 'array',
+        items: { type: 'integer', minimum: 1 },
+        minItems: 1,
+        maxItems: 10,
+      },
+    },
+    required: ['query', 'documentIds'],
+  },
+  searchKnowledgeCatalog: {
+    type: 'object',
+    properties: { query: { type: 'string' } },
+    required: ['query'],
+  },
+  taskPlan: {
+    type: 'object',
+    properties: {
+      steps: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            label: { type: 'string', minLength: 1, maxLength: 240 },
+            state: { type: 'string', enum: ['pending', 'running', 'done'] },
+          },
+          required: ['label', 'state'],
+        },
+        minItems: 1,
+        maxItems: 8,
+      },
+    },
+    required: ['steps'],
+  },
+  apiKeyTarget: {
+    anyOf: [
+      {
+        type: 'object',
+        properties: { apiKeyId: { type: 'integer', minimum: 1 } },
+        required: ['apiKeyId'],
+      },
+      {
+        type: 'object',
+        properties: { id: { type: 'integer', minimum: 1 } },
+        required: ['id'],
+      },
+      {
+        type: 'object',
+        properties: { name: { type: 'string', minLength: 1, maxLength: 120 } },
+        required: ['name'],
+      },
+    ],
+    type: 'object',
+  },
+  systemManagementChange: {
+    type: 'object',
+    properties: {
+      action: { type: 'string', enum: genericProposalActionNames },
+      input: { type: 'object', additionalProperties: true },
+    },
+    required: ['action', 'input'],
+  },
+  channelSystemManagementChange: {
+    type: 'object',
+    properties: {
+      action: { type: 'string', enum: channelProposalActionNames },
+      input: { type: 'object', additionalProperties: true },
+    },
+    required: ['action', 'input'],
+  },
+  apiKeyCreation: {
+    type: 'object',
+    properties: { name: { type: 'string' }, expiresIn: { type: 'string' } },
+    required: ['name'],
+  },
+  wecomMessageSend: {
+    type: 'object',
+    properties: {
+      templateId: { type: 'integer', minimum: 1 },
+      params: { type: 'object', additionalProperties: { type: 'string' } },
+      mentionedList: { type: 'array', items: { type: 'string' } },
+      mentionedMobileList: { type: 'array', items: { type: 'string' } },
+    },
+    required: ['templateId'],
+  },
+} satisfies Record<string, AgentToolParameters>

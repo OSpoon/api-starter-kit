@@ -12,19 +12,20 @@
     "./registry": "./.adonisjs/client/registry/index.ts"
   },
   "scripts": {
+    "build:ai-agent": "pnpm --dir ../../packages/ai-agent build",
     "start": "node bin/server.js",
-    "build": "node ace build",
+    "build": "pnpm run build:ai-agent && node ace build",
     "dev": "node ace serve --hmr",
-    "bot:wecom": "nodemon --config nodemon.wecom.json",
-    "bot:feishu": "nodemon --config nodemon.feishu.json",
-    "bot:dingtalk": "nodemon --config nodemon.dingtalk.json",
-    "test": "node ace test",
-    "test:agent-workflows": "node ace test",
+    "bot:wecom": "pnpm run build:ai-agent && nodemon --config nodemon.wecom.json",
+    "bot:feishu": "pnpm run build:ai-agent && nodemon --config nodemon.feishu.json",
+    "bot:dingtalk": "pnpm run build:ai-agent && nodemon --config nodemon.dingtalk.json",
+    "test": "pnpm run build:ai-agent && node ace test",
+    "test:agent-workflows": "pnpm run build:ai-agent && node ace test",
     "lint": "eslint . --fix --cache",
     "lint:check": "eslint . --max-warnings=0",
     "format": "prettier --write --config ../../prettier.config.cjs --ignore-path ../../.prettierignore .",
     "format:check": "prettier --check --config ../../prettier.config.cjs --ignore-path ../../.prettierignore .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "pnpm run build:ai-agent && tsc --noEmit"
   },
   "imports": {
     "#controllers/*": "./app/controllers/*.js",
@@ -75,6 +76,7 @@
     "youch": "^4.1.1"
   },
   "dependencies": {
+    "@api-starter-kit/ai-agent": "workspace:*",
     "@adonisjs/auth": "^10.1.0",
     "@adonisjs/bouncer": "^4.0.0",
     "@adonisjs/core": "^7.3.3",
@@ -83,9 +85,6 @@
     "@adonisjs/lucid": "^22.4.2",
     "@adonisjs/session": "^8.1.0",
     "@adonisjs/shield": "^9.0.0",
-    "@earendil-works/pi-agent-core": "^1.4.0",
-    "@earendil-works/pi-ai": "^1.4.0",
-    "@earendil-works/pi-telemetry": "1.4.0",
     "@foadonis/openapi": "^1.0.1",
     "@larksuiteoapi/node-sdk": "^1.73.0",
     "@opentelemetry/api": "1.9.1",

@@ -1,0 +1,44 @@
+{
+  "name": "@api-starter-kit/ai-agent",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24.12.0"
+  },
+  "license": "MIT",
+  "sideEffects": false,
+  "files": [
+    "dist"
+  ],
+  "types": "./dist/index.d.mts",
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch",
+    "test": "pnpm run build && vitest run",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "eslint --fix --cache .",
+    "lint:check": "eslint . --max-warnings=0",
+    "format": "prettier --write --config ../../prettier.config.cjs --ignore-path ../../.prettierignore .",
+    "format:check": "prettier --check --config ../../prettier.config.cjs --ignore-path ../../.prettierignore ."
+  },
+  "dependencies": {
+    "@earendil-works/pi-agent-core": "^1.4.0",
+    "@earendil-works/pi-ai": "^1.4.0",
+    "@earendil-works/pi-telemetry": "1.4.0"
+  },
+  "devDependencies": {
+    "@adonisjs/eslint-config": "^3.1.0",
+    "@types/node": "~24.13.2",
+    "eslint": "^10.5.0",
+    "eslint-plugin-simple-import-sort": "^13.0.0",
+    "tsdown": "^0.23.7",
+    "typescript": "~6.0.3",
+    "vitest": "^5.1.0"
+  },
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./pi": "./dist/pi/index.mjs",
+    "./package.json": "./package.json"
+  }
+}

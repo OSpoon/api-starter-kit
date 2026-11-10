@@ -63,7 +63,7 @@ test.group('models.dev pricing', () => {
     assert.isNull(pricing)
   })
 
-  test('scopes a short model name to the provider matching the Pi endpoint', ({ assert }) => {
+  test('scopes a short model name to the configured provider endpoint', ({ assert }) => {
     const pricing = findModelsDevPricing(
       {
         openai: {

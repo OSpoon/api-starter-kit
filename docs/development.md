@@ -10,11 +10,16 @@ apps/frontend/  Vue 应用、路由、页面、feature、状态和共享 UI
 apps/assistant-web/  独立 AI 助手 Web 客户端，复用 frontend 的 AI 实现
 apps/assistant-desktop/  Tauri 桌面壳，复用 assistant-web 的页面和 AI 能力
 apps/assistant-extension/  Extension.js + Vue 3 的 Chrome MV3 侧边栏客户端，复用 assistant-web
+packages/ai-agent/  provider-neutral Agent 契约与当前 Pi engine adapter
 docs/           项目使用、开发、部署和能力参考
 docker/         Compose、镜像和 Nginx 配置
 ```
 
 根工作区使用 pnpm 与 Turborepo。修改代码前阅读根目录 [AGENTS.md](../AGENTS.md) 以及目标目录最近的 `AGENTS.md`；独立助手的 [AGENTS.md](../apps/assistant-web/AGENTS.md) 引用共享前端约束并补充客户端边界，桌面壳的 [AGENTS.md](../apps/assistant-desktop/AGENTS.md) 只约束 Tauri 与 Rust 边界。
+
+### TypeScript workspace packages
+
+新增 `packages/*` TypeScript library 时，参照 [antfu/starter-ts](https://github.com/antfu/starter-ts) 的 library 结构：源码放在 `src/`，测试放在 `test/`，通过 `package.json` 明确公开入口和发布文件，使用 `tsdown` 生成 ESM 与声明文件，使用 Vitest 测包内行为，并提供 `build`、`test`、`typecheck`、`lint` 和 `format` 脚本。lint 和格式化继续复用仓库 Adonis ESLint 与 Prettier 配置，保持所有 workspace 一致。内部包保持 `private`，不引入 release、publish 和包专属 CI 流程。
 
 ## 常用命令
 
@@ -35,7 +40,8 @@ pnpm lint
 
 各应用的职责边界如下：
 
-- `apps/backend`：认证、授权、数据、AI 编排、SSE、语音转写和 Bot worker。
+- `apps/backend`：认证、授权、数据、AI 组合与业务策略、SSE、语音转写和 Bot worker。
+- `packages/ai-agent`：Agent/Tool/Event/Session 契约和当前 Pi adapter。根 `pnpm dev` 通过 Turbo 先构建依赖包，再启动包和 backend 的 watch 流程；backend 的 build、test、typecheck 和 nodemon bot 命令独立运行时也会先构建该 workspace package。生产 `start` 直接消费已构建的 `dist`，不会在运行时启动 TypeScript 构建。
 - `apps/frontend`：管理平台 Web 客户端，包含系统管理页面和浮动 AI 助手。
 - `apps/assistant-web`：独立 AI 助手 Web 客户端，复用管理端的 AI 组件、API、认证和 locale。
 - `apps/assistant-desktop`：Tauri 原生壳，只负责窗口、原生权限、Rust 命令和安装包。

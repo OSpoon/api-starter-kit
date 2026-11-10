@@ -1,4 +1,3 @@
-import { Type } from '@earendil-works/pi-ai'
 import { z } from 'zod'
 
 import type { AiAgentToolContext } from '#ai/core/ai_agent_tool_context'
@@ -26,7 +25,7 @@ export function createListAgentSkillsTool(_input: AiAgentToolContext) {
       description:
         'List enabled administrator-installed skills and their descriptions. Use a relevant skill only when it matches the task; then load its instructions with load_agent_skill.',
       schema: z.object({}),
-      parameters: Type.Object({}),
+      parameters: { type: 'object', properties: {} },
       executionMode: 'sequential',
     }
   )
@@ -54,17 +53,20 @@ export function createLoadAgentSkillTool(_input: AiAgentToolContext) {
           .optional()
           .describe('Omit when first loading a skill; defaults to SKILL.md.'),
       }),
-      parameters: Type.Object({
-        code: Type.String({ minLength: 1, maxLength: 128 }),
-        resourcePath: Type.Optional(
-          Type.String({
+      parameters: {
+        type: 'object',
+        properties: {
+          code: { type: 'string', minLength: 1, maxLength: 128 },
+          resourcePath: {
+            type: 'string',
             minLength: 1,
             maxLength: 512,
             description:
               'Omit on the first load to read SKILL.md; use only supporting paths referenced there.',
-          })
-        ),
-      }),
+          },
+        },
+        required: ['code'],
+      },
       executionMode: 'sequential',
     }
   )
@@ -134,16 +136,25 @@ export function createAgentSkillBashTool(input: AiAgentToolContext) {
           ),
         args: z.array(z.string().max(4096)).max(32).default([]),
       }),
-      parameters: Type.Object({
-        code: Type.String({ minLength: 1, maxLength: 128 }),
-        scriptPath: Type.String({
-          minLength: 1,
-          maxLength: 512,
-          description:
-            'Exact script path relative to the skill directory, taken from SKILL.md; e.g. scripts/index.mjs.',
-        }),
-        args: Type.Optional(Type.Array(Type.String({ maxLength: 4096 }), { maxItems: 32 })),
-      }),
+      parameters: {
+        type: 'object',
+        properties: {
+          code: { type: 'string', minLength: 1, maxLength: 128 },
+          scriptPath: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 512,
+            description:
+              'Exact script path relative to the skill directory, taken from SKILL.md; e.g. scripts/index.mjs.',
+          },
+          args: {
+            type: 'array',
+            items: { type: 'string', maxLength: 4096 },
+            maxItems: 32,
+          },
+        },
+        required: ['code', 'scriptPath'],
+      },
       executionMode: 'sequential',
     }
   )

@@ -1,12 +1,11 @@
 import { BaseCommand } from '@adonisjs/core/ace'
-import type { AgentTool } from '@earendil-works/pi-agent-core'
-import { Type } from '@earendil-works/pi-ai'
+import type { AgentTool } from '@api-starter-kit/ai-agent'
 
 import { createAiAgentSystemPrompt } from '#ai/chat/ai_agent_service'
 import { isAiAgentTerminalToolResult } from '#ai/core/ai_agent_tool_errors'
 import { aiAssistantEvaluationCases, evaluateAiAssistantTurn } from '#ai/evaluation/ai_evaluation'
 import { aiQueryTemplateInstructions } from '#ai/registry/ai_agent_query_registry'
-import { createPiAgent } from '#ai/runtime/pi/ai_agent_pi_runtime'
+import { getAiAgentEngine, getAiAgentModelConfig } from '#ai/runtime/ai_agent_runtime'
 
 function evaluationTool(
   name: string,
@@ -18,7 +17,7 @@ function evaluationTool(
     name,
     label: name,
     description,
-    parameters: Type.Any(),
+    parameters: { type: 'object', properties: {} },
     async execute() {
       calledTools.push(name)
       const details = output()
@@ -66,7 +65,8 @@ export default class AiEvaluate extends BaseCommand {
       const calledTools: string[] = []
       let toolOutputs: Record<string, unknown> = {}
       const output = (name: string, fallback: unknown) => () => toolOutputs[name] ?? fallback
-      const { agent } = await createPiAgent({
+      const session = await getAiAgentEngine().createSession({
+        model: await getAiAgentModelConfig(),
         systemPrompt: createAiAgentSystemPrompt(
           undefined,
           ' <live-session-state>{"pendingConfirmations":[]}</live-session-state>'
@@ -135,6 +135,9 @@ export default class AiEvaluate extends BaseCommand {
             calledTools
           ),
         ],
+        messages: [],
+        sessionId: `ai-evaluate:${evaluation.name}`,
+        telemetry: { enabled: false },
       })
 
       for (const [turnIndex, turn] of evaluation.turns.entries()) {
@@ -143,12 +146,12 @@ export default class AiEvaluate extends BaseCommand {
         const calledBeforeTurn = calledTools.length
         toolOutputs = turn.toolOutputs ?? {}
         try {
-          await agent.prompt(turn.question)
+          await session.prompt(turn.question)
           const turnTools = calledTools.slice(calledBeforeTurn)
           const result = evaluateAiAssistantTurn({
             evaluation: turn,
             calledTools: turnTools,
-            assistantText: getLatestAssistantText(agent.state.messages),
+            assistantText: getLatestAssistantText(session.getSessionState().messages),
           })
           const expectedCalls =
             turn.expectedToolSequence?.join(' -> ') ||

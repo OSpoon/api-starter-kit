@@ -14,7 +14,7 @@
   },
   "scripts": {
     "docker": "node scripts/docker.mjs",
-    "dev": "turbo dev --filter=@api-starter-kit/backend --filter=@api-starter-kit/frontend",
+    "dev": "turbo dev --filter=@api-starter-kit/backend... --filter=@api-starter-kit/frontend",
     "bot:wecom": "pnpm --dir apps/backend bot:wecom",
     "bot:feishu": "pnpm --dir apps/backend bot:feishu",
     "bot:dingtalk": "pnpm --dir apps/backend bot:dingtalk",

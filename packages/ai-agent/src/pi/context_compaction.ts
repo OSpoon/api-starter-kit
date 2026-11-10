@@ -4,8 +4,8 @@ import { estimateContextTokens, estimateMessageTokens } from '@earendil-works/pi
 import { getCurrentSystemMessage } from '@earendil-works/pi-ai/utils/transcript'
 import type { TelemetrySpan } from '@earendil-works/pi-telemetry'
 
-import { aiAgentSummaryPrompt } from '#ai/policy/ai_agent_prompt_policy'
-import type { PiAgentMessage, PiModelUsage } from '#ai/runtime/pi/ai_agent_pi_types'
+import type { AgentModelUsage } from '../agent.js'
+import type { PiAgentMessage } from './types.js'
 
 export function estimatePiMessages(messages: AgentMessage[]) {
   return estimateContextTokens(getPiContextMessages(messages)).tokens
@@ -192,12 +192,13 @@ export async function compactPiContext(input: {
   model: Model<Api>
   tokenBudget: number
   previousSummary: string
+  summaryPrompt: string
   coveredThroughMessageId: number
   summaryInputTokenBudget: number
   summaryOutputTokenBudget: number
   signal?: AbortSignal
   onCompaction?: (summary: string, coveredThroughMessageId: number) => Promise<void>
-  onUsage?: (usage: PiModelUsage) => void | Promise<void>
+  onUsage?: (usage: AgentModelUsage) => void | Promise<void>
   getTelemetrySpan?: () => TelemetrySpan | undefined
 }) {
   const allMessages = convertPiMessages(input.messages)
@@ -237,7 +238,7 @@ export async function compactPiContext(input: {
 
   const telemetry = input.getTelemetrySpan?.()
   const summaryContext = {
-    systemPrompt: aiAgentSummaryPrompt,
+    systemPrompt: input.summaryPrompt,
     messages: [
       {
         role: 'user' as const,

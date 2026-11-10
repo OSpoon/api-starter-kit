@@ -1,5 +1,6 @@
 import { test } from '@japa/runner'
 
+import { aiAgentToolParameters } from '#ai/registry/ai_agent_tool_parameters'
 import {
   createAiAgentTools,
   createConfiguredAiAgentTools,
@@ -18,18 +19,30 @@ test.group('AI agent tool registry', () => {
 
     assert.include(loadTool.description, 'omit resourcePath to read SKILL.md')
     assert.include(
-      (loadTool.parameters as { properties: { resourcePath: { description: string } } }).properties
-        .resourcePath.description,
+      (loadTool.parameters.properties?.resourcePath as { description: string }).description,
       'Omit on the first load to read SKILL.md'
     )
     assert.include(
-      (bashTool.parameters as { properties: { scriptPath: { description: string } } }).properties
-        .scriptPath.description,
+      (bashTool.parameters.properties?.scriptPath as { description: string }).description,
       'scripts/index.mjs'
     )
   })
 
-  test('registers every Pi tool with an explicit name and description', ({ assert }) => {
+  test('uses JSON Schema for Agent tool parameters and keeps optional fields optional', ({
+    assert,
+  }) => {
+    const queryParameters = aiAgentToolParameters.runRegisteredQuery
+    assert.equal(queryParameters.type, 'object')
+    assert.deepEqual(queryParameters.required, ['templateCode'])
+    assert.deepEqual(
+      (queryParameters.properties?.params as { additionalProperties: boolean })
+        .additionalProperties,
+      true
+    )
+    assert.equal(aiAgentToolParameters.apiKeyTarget.anyOf?.length, 3)
+  })
+
+  test('registers every Agent tool with an explicit name and description', ({ assert }) => {
     const tools = createAiAgentTools({
       userId: 1,
       conversationId: 1,

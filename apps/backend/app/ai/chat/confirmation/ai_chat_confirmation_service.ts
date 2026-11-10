@@ -1,4 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http'
+import { upsertAgentToolResult } from '@api-starter-kit/ai-agent'
 
 import { writeAiChatSse } from '#ai/chat/ai_chat_sse_adapter'
 import { summarizeConfirmedToolResult } from '#ai/chat/confirmed_tool_result_summary'
@@ -11,7 +12,6 @@ import {
   listConversationConfirmations,
 } from '#ai/core/ai_agent_confirmation'
 import { sanitizeAiAgentToolErrorMessage } from '#ai/core/ai_agent_tool_errors'
-import { upsertAiAgentToolResult } from '#ai/runtime/ai_agent_session_context'
 import AiAgentConfirmation from '#models/ai_agent_confirmation'
 import type AiChatConversation from '#models/ai_chat_conversation'
 import AiChatMessage from '#models/ai_chat_message'
@@ -175,7 +175,7 @@ export async function executeAiChatConfirmationAndCreateMessage(input: {
       typeof actionResult?.agentToolResult === 'string'
         ? actionResult.agentToolResult
         : 'Tool completed without a text result.'
-    assistantMessage.agentContext = upsertAiAgentToolResult(assistantMessage.agentContext, {
+    assistantMessage.agentContext = upsertAgentToolResult(assistantMessage.agentContext, {
       assistantMessageId: assistantMessage.id,
       toolCallId: activityCallId,
       toolName: pendingTool?.kind === 'tool' ? pendingTool.name : executionName,

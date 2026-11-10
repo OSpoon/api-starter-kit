@@ -1,4 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http'
+import type { AgentEvent, AgentToolResult } from '@api-starter-kit/ai-agent'
 import { test } from '@japa/runner'
 
 import type { createAiAgentStream } from '#ai/chat/ai_agent_service'
@@ -21,17 +22,17 @@ type FakeToolCall = {
 }
 
 function createFakeRun(toolCalls: FakeToolCall[]) {
-  async function* generate() {
+  async function* generate(): AsyncGenerator<AgentEvent> {
     for (const toolCall of toolCalls) {
       yield {
-        type: 'tool_execution_start',
+        type: 'tool_start',
         toolCallId: toolCall.callId,
         toolName: toolCall.name,
         args: toolCall.input,
       }
       if (toolCall.confirmation) {
         yield {
-          type: 'app_confirmation_requested',
+          type: 'confirmation_requested',
           toolCallId: toolCall.callId,
           confirmation: toolCall.confirmation,
         }
@@ -39,40 +40,95 @@ function createFakeRun(toolCalls: FakeToolCall[]) {
       const state = await toolCall.status
       for (const partialResult of toolCall.updates ?? []) {
         yield {
-          type: 'tool_execution_update',
+          type: 'tool_update',
           toolCallId: toolCall.callId,
           toolName: toolCall.name,
           args: toolCall.input,
           partialResult,
         }
       }
+      const result: AgentToolResult = {
+        content: [],
+        details:
+          state === 'error' && toolCall.errorOutput !== undefined
+            ? toolCall.errorOutput
+            : state === 'finished' && !toolCall.confirmation
+              ? await toolCall.output
+              : undefined,
+      }
       yield {
-        type: 'tool_execution_end',
+        type: 'tool_end',
         toolCallId: toolCall.callId,
         toolName: toolCall.name,
-        result:
-          state === 'error' && toolCall.errorOutput !== undefined
-            ? { details: toolCall.errorOutput }
-            : state === 'finished' && !toolCall.confirmation
-              ? { details: await toolCall.output }
-              : null,
+        result,
         isError: state === 'error' || Boolean(toolCall.confirmation),
       }
     }
   }
-  return {
-    agentRunId: 'agent-run-1',
-    stream: { events: generate() },
-  } as unknown as Awaited<ReturnType<typeof createAiAgentStream>>
+  return createFakeEventRun(generate())
 }
 
-function createFakeEventRun(events: unknown[]) {
-  async function* generate() {
-    yield* events
+const testUsage = {
+  input: 1,
+  output: 1,
+  cacheRead: 0,
+  cacheWrite: 0,
+  totalTokens: 2,
+  cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+}
+
+function assistantMessage(text: string, hasToolCall = false, stopReason = 'stop'): AgentEvent {
+  return {
+    type: 'message_end',
+    message: {
+      providerId: 'test-provider',
+      modelId: 'test-model',
+      text,
+      hasToolCall,
+      usage: testUsage,
+      stopReason,
+    },
+  }
+}
+
+function messageStart(): AgentEvent {
+  return { type: 'message_start', role: 'assistant' }
+}
+
+function textDelta(delta: string): AgentEvent {
+  return { type: 'text_delta', delta }
+}
+
+function toolCallStart(): AgentEvent {
+  return { type: 'tool_call_start' }
+}
+
+function toolStart(toolCallId: string, toolName: string, args: unknown): AgentEvent {
+  return { type: 'tool_start', toolCallId, toolName, args }
+}
+
+function toolEnd(
+  toolCallId: string,
+  toolName: string,
+  details: unknown,
+  isError = false
+): AgentEvent {
+  return {
+    type: 'tool_end',
+    toolCallId,
+    toolName,
+    result: { content: [], details },
+    isError,
+  }
+}
+
+function createFakeEventRun(events: Iterable<AgentEvent> | AsyncIterable<AgentEvent>) {
+  async function* generate(): AsyncGenerator<AgentEvent> {
+    for await (const event of events) yield event
   }
   return {
     agentRunId: 'agent-run-1',
-    stream: { events: generate() },
+    session: { events: generate() },
     model: { baseUrl: 'https://chat.example' },
   } as unknown as Awaited<ReturnType<typeof createAiAgentStream>>
 }
@@ -116,60 +172,17 @@ test.group('AI chat SSE adapter', () => {
   test('routes tool-call text to details and final text to the assistant response', async ({
     assert,
   }) => {
-    const usage = { input: 1, output: 1, cacheRead: 0, cacheWrite: 0, totalTokens: 2 }
-    const toolCallMessage = {
-      role: 'assistant',
-      content: [
-        { type: 'text', text: '抱歉，我重新查一下。' },
-        { type: 'toolCall', id: 'call-skill', name: 'bash', arguments: {} },
-      ],
-      provider: 'test-provider',
-      model: 'test-model',
-      usage,
-      stopReason: 'toolUse',
-    }
-    const finalMessage = {
-      role: 'assistant',
-      content: [{ type: 'text', text: '可用空间是 72 GiB。' }],
-      provider: 'test-provider',
-      model: 'test-model',
-      usage,
-      stopReason: 'stop',
-    }
-    const events = [
-      { type: 'message_start', message: { role: 'assistant' } },
-      {
-        type: 'message_update',
-        assistantMessageEvent: { type: 'text_delta', delta: '抱歉，我重新查一下。' },
-      },
-      {
-        type: 'message_update',
-        assistantMessageEvent: { type: 'toolcall_start', contentIndex: 1 },
-      },
-      { type: 'message_end', message: toolCallMessage },
-      {
-        type: 'tool_execution_start',
-        toolCallId: 'call-skill',
-        toolName: 'bash',
-        args: {},
-      },
-      {
-        type: 'tool_execution_end',
-        toolCallId: 'call-skill',
-        toolName: 'bash',
-        result: { details: { kind: 'skill_script_result' } },
-        isError: false,
-      },
-      { type: 'message_start', message: { role: 'assistant' } },
-      {
-        type: 'message_update',
-        assistantMessageEvent: { type: 'text_delta', delta: '可用空间是 ' },
-      },
-      {
-        type: 'message_update',
-        assistantMessageEvent: { type: 'text_delta', delta: '72 GiB。' },
-      },
-      { type: 'message_end', message: finalMessage },
+    const events: AgentEvent[] = [
+      messageStart(),
+      textDelta('抱歉，我重新查一下。'),
+      toolCallStart(),
+      assistantMessage('抱歉，我重新查一下。', true, 'toolUse'),
+      toolStart('call-skill', 'bash', {}),
+      toolEnd('call-skill', 'bash', { kind: 'skill_script_result' }),
+      messageStart(),
+      textDelta('可用空间是 '),
+      textDelta('72 GiB。'),
+      assistantMessage('可用空间是 72 GiB。'),
     ]
     const output: AiAgentTurnEvent[] = []
 
@@ -222,24 +235,10 @@ test.group('AI chat SSE adapter', () => {
   test('streams tool-enabled final text to the assistant response without exposing it as intermediate', async ({
     assert,
   }) => {
-    const usage = { input: 1, output: 1, cacheRead: 0, cacheWrite: 0, totalTokens: 2 }
-    const events = [
-      { type: 'message_start', message: { role: 'assistant' } },
-      {
-        type: 'message_update',
-        assistantMessageEvent: { type: 'text_delta', delta: '直接回答。' },
-      },
-      {
-        type: 'message_end',
-        message: {
-          role: 'assistant',
-          content: [{ type: 'text', text: '直接回答。' }],
-          provider: 'test-provider',
-          model: 'test-model',
-          usage,
-          stopReason: 'stop',
-        },
-      },
+    const events: AgentEvent[] = [
+      messageStart(),
+      textDelta('直接回答。'),
+      assistantMessage('直接回答。'),
     ]
     const output: AiAgentTurnEvent[] = []
 
@@ -267,28 +266,11 @@ test.group('AI chat SSE adapter', () => {
   })
 
   test('streams text deltas directly for a tool-free final response', async ({ assert }) => {
-    const usage = { input: 1, output: 2, cacheRead: 0, cacheWrite: 0, totalTokens: 3 }
-    const events = [
-      { type: 'message_start', message: { role: 'assistant' } },
-      {
-        type: 'message_update',
-        assistantMessageEvent: { type: 'text_delta', delta: '磁盘 ' },
-      },
-      {
-        type: 'message_update',
-        assistantMessageEvent: { type: 'text_delta', delta: '可用空间 72 GiB。' },
-      },
-      {
-        type: 'message_end',
-        message: {
-          role: 'assistant',
-          content: [{ type: 'text', text: '磁盘 可用空间 72 GiB。' }],
-          provider: 'test-provider',
-          model: 'test-model',
-          usage,
-          stopReason: 'stop',
-        },
-      },
+    const events: AgentEvent[] = [
+      messageStart(),
+      textDelta('磁盘 '),
+      textDelta('可用空间 72 GiB。'),
+      assistantMessage('磁盘 可用空间 72 GiB。'),
     ]
     const output: AiAgentTurnEvent[] = []
 
@@ -318,41 +300,13 @@ test.group('AI chat SSE adapter', () => {
   test('streams the post-tool final answer as candidate deltas before the model response ends', async ({
     assert,
   }) => {
-    const usage = { input: 1, output: 2, cacheRead: 0, cacheWrite: 0, totalTokens: 3 }
-    const events = [
-      {
-        type: 'tool_execution_start',
-        toolCallId: 'call-read',
-        toolName: 'read_system_info',
-        args: {},
-      },
-      {
-        type: 'tool_execution_end',
-        toolCallId: 'call-read',
-        toolName: 'read_system_info',
-        result: { details: { kind: 'system_info' } },
-        isError: false,
-      },
-      { type: 'message_start', message: { role: 'assistant' } },
-      {
-        type: 'message_update',
-        assistantMessageEvent: { type: 'text_delta', delta: '可用空间 ' },
-      },
-      {
-        type: 'message_update',
-        assistantMessageEvent: { type: 'text_delta', delta: '为 72 GiB。' },
-      },
-      {
-        type: 'message_end',
-        message: {
-          role: 'assistant',
-          content: [{ type: 'text', text: '可用空间 为 72 GiB。' }],
-          provider: 'test-provider',
-          model: 'test-model',
-          usage,
-          stopReason: 'stop',
-        },
-      },
+    const events: AgentEvent[] = [
+      toolStart('call-read', 'read_system_info', {}),
+      toolEnd('call-read', 'read_system_info', { kind: 'system_info' }),
+      messageStart(),
+      textDelta('可用空间 '),
+      textDelta('为 72 GiB。'),
+      assistantMessage('可用空间 为 72 GiB。'),
     ]
     const output: AiAgentTurnEvent[] = []
 
@@ -382,44 +336,13 @@ test.group('AI chat SSE adapter', () => {
   test('reclassifies streamed pre-tool text into runtime details if another tool call starts', async ({
     assert,
   }) => {
-    const usage = { input: 1, output: 1, cacheRead: 0, cacheWrite: 0, totalTokens: 2 }
-    const events = [
-      {
-        type: 'tool_execution_start',
-        toolCallId: 'call-first',
-        toolName: 'read_first',
-        args: {},
-      },
-      {
-        type: 'tool_execution_end',
-        toolCallId: 'call-first',
-        toolName: 'read_first',
-        result: { details: { kind: 'read_result' } },
-        isError: false,
-      },
-      { type: 'message_start', message: { role: 'assistant' } },
-      {
-        type: 'message_update',
-        assistantMessageEvent: { type: 'text_delta', delta: '先读取配置。' },
-      },
-      {
-        type: 'message_update',
-        assistantMessageEvent: { type: 'toolcall_start', contentIndex: 1 },
-      },
-      {
-        type: 'message_end',
-        message: {
-          role: 'assistant',
-          content: [
-            { type: 'text', text: '先读取配置。' },
-            { type: 'toolCall', id: 'call-second', name: 'read_second', arguments: {} },
-          ],
-          provider: 'test-provider',
-          model: 'test-model',
-          usage,
-          stopReason: 'toolUse',
-        },
-      },
+    const events: AgentEvent[] = [
+      toolStart('call-first', 'read_first', {}),
+      toolEnd('call-first', 'read_first', { kind: 'read_result' }),
+      messageStart(),
+      textDelta('先读取配置。'),
+      toolCallStart(),
+      assistantMessage('先读取配置。', true, 'toolUse'),
     ]
     const output: AiAgentTurnEvent[] = []
 
@@ -450,20 +373,13 @@ test.group('AI chat SSE adapter', () => {
       stdout: '{"availableBytes":123}',
       runtimeContext: { token: 'must not be displayed' },
     }
-    const events = [
-      {
-        type: 'tool_execution_start',
-        toolCallId: 'call-skill-script',
-        toolName: 'bash',
-        args: { code: 'system-info', scriptPath: 'scripts/index.mjs', args: ['disk'] },
-      },
-      {
-        type: 'tool_execution_end',
-        toolCallId: 'call-skill-script',
-        toolName: 'bash',
-        result: { details: output },
-        isError: false,
-      },
+    const events: AgentEvent[] = [
+      toolStart('call-skill-script', 'bash', {
+        code: 'system-info',
+        scriptPath: 'scripts/index.mjs',
+        args: ['disk'],
+      }),
+      toolEnd('call-skill-script', 'bash', output),
     ]
     const frames: Array<Extract<AiAgentTurnEvent, { source: 'frame' }>['value']> = []
 
@@ -573,7 +489,7 @@ test.group('AI chat SSE adapter', () => {
     assert.isTrue(result.has('run_registered_query'))
   })
 
-  test('maps Pi tool progress to bounded agent_status details', async ({ assert }) => {
+  test('maps Agent tool progress to bounded agent_status details', async ({ assert }) => {
     const { writes, response } = createFakeResponse()
     const run = createFakeRun([
       {

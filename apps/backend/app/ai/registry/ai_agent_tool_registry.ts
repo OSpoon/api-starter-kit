@@ -1,4 +1,4 @@
-import type { AgentTool } from '@earendil-works/pi-agent-core'
+import type { AgentTool } from '@api-starter-kit/ai-agent'
 
 import { proposeAiAgentAction } from '#ai/core/ai_agent_confirmation'
 import type { AiAgentToolContext } from '#ai/core/ai_agent_tool_context'

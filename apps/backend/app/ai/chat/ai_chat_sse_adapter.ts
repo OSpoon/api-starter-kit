@@ -1,5 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http'
-import type { AssistantMessage } from '@earendil-works/pi-ai'
+import type { AgentAssistantMessage } from '@api-starter-kit/ai-agent'
 
 import type { createAiAgentStream } from '#ai/chat/ai_agent_service'
 import type { AiAgentConfirmationSummary } from '#ai/core/ai_agent_confirmation'
@@ -319,15 +319,12 @@ function getToolErrorMessage(result: unknown, output: unknown) {
   return sanitizeAiAgentToolErrorMessage(artifact?.message || resultContent)
 }
 
-function assistantText(message: AssistantMessage) {
-  return message.content
-    .filter((part): part is { type: 'text'; text: string } => part.type === 'text')
-    .map((part) => part.text)
-    .join('')
+function assistantText(message: AgentAssistantMessage) {
+  return message.text
 }
 
-function assistantMessageHasToolCall(message: AssistantMessage) {
-  return message.content.some((part) => part.type === 'toolCall')
+function assistantMessageHasToolCall(message: AgentAssistantMessage) {
+  return message.hasToolCall
 }
 
 function getAssistantTextDeltas(finalText: string, streamedText: string, deltas: string[]) {
@@ -380,10 +377,11 @@ export async function* streamAiAgentTurnEvents(
   let toolExecuted = false
   let candidateTextStreamed = false
   let userMessagesSeen = 0
-  for await (const event of run.stream.events) {
+  for await (const event of run.session.events) {
     if (signal.aborted) throw new DOMException('AI request was cancelled', 'AbortError')
-    if (event.type === 'app_confirmation_requested') {
-      pendingConfirmations.set(event.toolCallId, event.confirmation)
+    if (event.type === 'confirmation_requested') {
+      const confirmation = event.confirmation as AiAgentConfirmationSummary
+      pendingConfirmations.set(event.toolCallId, confirmation)
       const requestedAt = Date.now()
       finishPlanStep(0, requestedAt)
       finishPlanStep(1, requestedAt)
@@ -391,18 +389,21 @@ export async function* streamAiAgentTurnEvents(
       yield { source: 'frame', value: planFrame() }
       yield {
         source: 'frame',
-        value: { event: 'agent_confirmation', data: event.confirmation },
+        value: { event: 'agent_confirmation', data: confirmation },
       }
       continue
     }
-    if (event.type === 'app_task_plan_updated') {
+    if (event.type === 'task_plan_updated') {
       yield {
         source: 'frame',
-        value: { event: 'agent_plan', data: { planType: 'task', steps: event.steps } },
+        value: {
+          event: 'agent_plan',
+          data: { planType: 'task', steps: event.steps as AiAgentPlanStep[] },
+        },
       }
       continue
     }
-    if (event.type === 'message_start' && event.message.role === 'user') {
+    if (event.type === 'message_start' && event.role === 'user') {
       userMessagesSeen += 1
       if (userMessagesSeen > 1) {
         toolExecuted = false
@@ -410,7 +411,7 @@ export async function* streamAiAgentTurnEvents(
       }
       continue
     }
-    if (event.type === 'message_start' && event.message.role === 'assistant') {
+    if (event.type === 'message_start' && event.role === 'assistant') {
       assistantTextBuffer = ''
       assistantTextDeltas = []
       toolCallStarted = false
@@ -419,12 +420,7 @@ export async function* streamAiAgentTurnEvents(
       yield { source: 'message_start' }
       continue
     }
-    if (
-      event.type === 'message_update' &&
-      event.assistantMessageEvent.type === 'toolcall_start' &&
-      options.captureModelText &&
-      !toolCallStarted
-    ) {
+    if (event.type === 'tool_call_start' && options.captureModelText && !toolCallStarted) {
       if (candidateTextStreamed) {
         yield { source: 'message_candidate_clear' }
         candidateTextStreamed = false
@@ -436,21 +432,21 @@ export async function* streamAiAgentTurnEvents(
       }
       continue
     }
-    if (event.type === 'message_update' && event.assistantMessageEvent.type === 'text_delta') {
-      assistantTextBuffer += event.assistantMessageEvent.delta
-      assistantTextDeltas.push(event.assistantMessageEvent.delta)
+    if (event.type === 'text_delta') {
+      assistantTextBuffer += event.delta
+      assistantTextDeltas.push(event.delta)
       if (options.streamText) {
-        yield { source: 'message_delta', value: event.assistantMessageEvent.delta }
+        yield { source: 'message_delta', value: event.delta }
       } else if (options.streamTextAfterToolExecution && toolExecuted && !toolCallStarted) {
         candidateTextStreamed = true
-        yield { source: 'message_candidate_delta', value: event.assistantMessageEvent.delta }
+        yield { source: 'message_candidate_delta', value: event.delta }
       } else if (options.captureModelText && toolCallStarted) {
         emittedModelTextDeltas = assistantTextDeltas.length
-        yield { source: 'model_text_delta', value: event.assistantMessageEvent.delta }
+        yield { source: 'model_text_delta', value: event.delta }
       }
       continue
     }
-    if (event.type === 'message_end' && event.message.role === 'assistant') {
+    if (event.type === 'message_end') {
       const hasToolCall = assistantMessageHasToolCall(event.message)
       const finalText = assistantText(event.message)
       if (hasToolCall && candidateTextStreamed) {
@@ -495,8 +491,8 @@ export async function* streamAiAgentTurnEvents(
       yield {
         source: 'message_end',
         value: {
-          providerId: event.message.provider,
-          modelId: event.message.model,
+          providerId: event.message.providerId,
+          modelId: event.message.modelId,
           baseUrl: run.model.baseUrl,
           hasToolCall,
           text: assistantText(event.message),
@@ -516,7 +512,7 @@ export async function* streamAiAgentTurnEvents(
       }
       continue
     }
-    if (event.type === 'tool_execution_start') {
+    if (event.type === 'tool_start') {
       if (event.toolName === 'update_task_plan') continue
       const startedAt = Date.now()
       toolStartedAt.set(event.toolCallId, startedAt)
@@ -544,7 +540,7 @@ export async function* streamAiAgentTurnEvents(
       }
       continue
     }
-    if (event.type === 'tool_execution_update') {
+    if (event.type === 'tool_update') {
       if (event.toolName === 'update_task_plan') continue
       const progressDetail = getToolProgressDetail(event.partialResult)
       const runningDetail = getAgentStatusDetail(event.toolName, event.args)
@@ -566,7 +562,7 @@ export async function* streamAiAgentTurnEvents(
       }
       continue
     }
-    if (event.type === 'tool_execution_end') {
+    if (event.type === 'tool_end') {
       if (event.toolName === 'update_task_plan') continue
       toolExecuted = true
       const output = event.result?.details ?? event.result

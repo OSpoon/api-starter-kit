@@ -1,6 +1,10 @@
 import { createHash } from 'node:crypto'
 
-import type { AttributeValue, StoredSpan, StoredTrace } from '@earendil-works/pi-telemetry'
+import type {
+  AgentTrace,
+  AgentTraceAttributeValue,
+  AgentTraceSpan,
+} from '@api-starter-kit/ai-agent'
 import * as api from '@opentelemetry/api'
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http'
 import { resourceFromAttributes } from '@opentelemetry/resources'
@@ -9,10 +13,10 @@ import { BatchSpanProcessor, TracerProvider } from '@opentelemetry/sdk-trace'
 import env from '#start/env'
 
 const serviceName = 'api-starter-kit-backend'
-const instrumentationName = '@earendil-works/pi-telemetry'
+const instrumentationName = 'api-starter-kit.ai'
 let tracerProvider: TracerProvider | undefined
 
-type TelemetryAttribute = AttributeValue | undefined
+type TelemetryAttribute = AgentTraceAttributeValue | undefined
 
 function getLangfuseConfig() {
   const baseUrl = env.get('LANGFUSE_BASE_URL')?.trim().replace(/\/+$/, '')
@@ -67,7 +71,7 @@ function getSpanContextKey(traceId: string, spanId: string) {
   return `${traceId}:${spanId}`
 }
 
-function toLangfuseAttributes(span: StoredSpan, conversationId: number) {
+function toLangfuseAttributes(span: AgentTraceSpan, conversationId: number) {
   const attributes: Record<string, TelemetryAttribute> = {
     ...span.attributes,
     'langfuse.observation.type':
@@ -117,13 +121,13 @@ function toLangfuseAttributes(span: StoredSpan, conversationId: number) {
 
   return Object.fromEntries(
     Object.entries(attributes).filter(
-      (entry): entry is [string, AttributeValue] => entry[1] !== undefined
+      (entry): entry is [string, AgentTraceAttributeValue] => entry[1] !== undefined
     )
   ) as api.Attributes
 }
 
 function toOpenTelemetryLinks(
-  span: StoredSpan,
+  span: AgentTraceSpan,
   recordedSpanContexts: ReadonlyMap<string, api.SpanContext>
 ): api.Link[] {
   return span.links.map((link) => ({
@@ -139,15 +143,15 @@ function toOpenTelemetryLinks(
   }))
 }
 
-export async function exportAiAgentTraceToLangfuse(trace: StoredTrace, conversationId: number) {
+export async function exportAiAgentTraceToLangfuse(trace: AgentTrace, conversationId: number) {
   if (!isAiTelemetryEnabled() || !hasLangfuseTelemetryDestination() || !tracerProvider) return
   if (trace.spans.length === 0) return
 
-  const tracer = api.trace.getTracer(instrumentationName, '1.4.0')
+  const tracer = api.trace.getTracer(instrumentationName)
   const recordedSpans = new Map<string, api.Span>()
   const recordedSpanContexts = new Map<string, api.SpanContext>()
 
-  for (const storedSpan of getExportableTraceSpans(trace)) {
+  for (const storedSpan of trace.spans) {
     const parentSpan = storedSpan.parentId ? recordedSpans.get(storedSpan.parentId) : undefined
     const parentContext = parentSpan
       ? api.trace.setSpan(api.context.active(), parentSpan)
@@ -184,8 +188,4 @@ export async function exportAiAgentTraceToLangfuse(trace: StoredTrace, conversat
       span.spanContext()
     )
   }
-}
-
-export function getExportableTraceSpans(trace: Pick<StoredTrace, 'spans'>) {
-  return trace.spans.filter((span) => span.name !== 'pi.ai.request' && span.name !== 'pi.ai.poll')
 }

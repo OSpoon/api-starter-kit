@@ -1,5 +1,4 @@
-import type { AgentTool } from '@earendil-works/pi-agent-core'
-import type { TSchema } from '@earendil-works/pi-ai'
+import type { AgentTool, AgentToolParameters } from '@api-starter-kit/ai-agent'
 import { type z, ZodError } from 'zod'
 
 import {
@@ -24,7 +23,7 @@ export function createAiAgentTool<TZodSchema extends z.ZodTypeAny, TResult>(
     name: string
     description: string
     schema: TZodSchema
-    parameters: TSchema
+    parameters: AgentToolParameters
     executionMode?: 'parallel' | 'sequential'
     prepareConfirmation?: (input: z.infer<TZodSchema>) => Promise<AiAgentConfirmationSummary>
   }
