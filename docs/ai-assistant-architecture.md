@@ -22,6 +22,7 @@ flowchart TB
 ```
 
 - `apps/backend/app/ai/agent` 定义 Agent/Tool/Event/Session 契约并实现当前 Pi adapter。backend 在同一应用内维护会话编排、提示词策略、授权、审计、工具注册与持久化；可复用的领域逻辑仍位于 `apps/backend/app/services`。
+- `AiChannelBridge` 将各 IM Bot 解析后的单张图片和文字保存为同一条 `AiChatMessage`，并调用现有 Agent turn；平台适配器负责下载或解密，不创建独立视觉模型流程。
 - `ai_chat_controller.ts` 只负责会话归属、输入校验、消息持久化和 HTTP/SSE 生命周期。
 - `ai_chat_controller.ts` 的 `transcribe` 处理管理端 Web、独立助手 Web 和桌面 WebView 的 multipart 音频上传；`ai_speech_service.ts` 使用运行时 LLM 配置调用 OpenAI-compatible ASR 服务，并只返回转写文本。转写接口不直接创建聊天消息，客户端拿到文本后复用普通消息 SSE 链路。
 - `ai_chat_sse_adapter.ts` 消费通用 `AgentEvent` 并转换为 SSE、keepalive、工具状态详情、阶段和确认事件。助手文本按单次模型响应暂存；响应包含工具调用时丢弃其中的说明文字，纯文本响应结束后再发送，工具进度仍实时发送。

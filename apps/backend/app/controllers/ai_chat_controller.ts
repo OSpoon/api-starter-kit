@@ -40,6 +40,7 @@ import {
 import AiAgentConfirmation from '#models/ai_agent_confirmation'
 import AiChatConversation from '#models/ai_chat_conversation'
 import AiChatMessage from '#models/ai_chat_message'
+import { getAiChatImageMimeType } from '#services/ai_chat_image_service'
 import { getAudioMimeType, transcribeAudio } from '#services/ai_speech_service'
 import { getAiUsageSummary } from '#services/ai_usage_service'
 import { clampLimit } from '#support/pagination'
@@ -66,17 +67,6 @@ function conversationsFor(ctx: HttpContext, userId: number) {
   return ctx.integrationApiKey
     ? query.where('api_key_id', ctx.integrationApiKey.id)
     : query.whereNull('api_key_id')
-}
-
-function getImageMimeType(data: Buffer) {
-  if (data.subarray(0, 3).equals(Buffer.from([0xff, 0xd8, 0xff]))) return 'image/jpeg'
-  if (data.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) {
-    return 'image/png'
-  }
-  if (data.toString('ascii', 0, 4) === 'RIFF' && data.toString('ascii', 8, 12) === 'WEBP') {
-    return 'image/webp'
-  }
-  return undefined
 }
 
 @ApiSecurity('bearerAuth')
@@ -273,7 +263,7 @@ export default class AiChatController {
     let imageMimeType: string | undefined
     if (imageFile?.tmpPath) {
       imageData = await readFile(imageFile.tmpPath)
-      imageMimeType = getImageMimeType(imageData)
+      imageMimeType = getAiChatImageMimeType(imageData)
       if (!imageMimeType) {
         return response.unprocessableEntity({
           message: '图片格式无效，请使用 JPEG、PNG 或 WebP 图片',

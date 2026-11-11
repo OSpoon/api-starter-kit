@@ -24,6 +24,10 @@ import type { ReloadableBotRuntime } from '#channels/reloadable_ai_channel_runti
 import AiAgentConfirmation from '#models/ai_agent_confirmation'
 import AiChatMessage from '#models/ai_chat_message'
 import User from '#models/user'
+import {
+  getAiChatImageValidationMessage,
+  validateAiChatImage,
+} from '#services/ai_chat_image_service'
 import { createChannelBindingChallenge } from '#services/channel_binding_service'
 import {
   createVisitorConversationKey,
@@ -129,6 +133,7 @@ export class AiChannelBridge implements ReloadableBotRuntime {
     emit?: (content: string) => Promise<void>
   ): Promise<OutboundMessage> {
     const log = logger.child({ channel: message.channel })
+    let imageMimeType: string | undefined
     const isVisitor = message.conversationType === 'group'
     let user: User
     let conversationKey = message.conversationKey
@@ -178,7 +183,17 @@ export class AiChannelBridge implements ReloadableBotRuntime {
       user = activeUser
     }
 
-    if (message.content.trim().toLowerCase() === '/new') {
+    if (message.imageData) {
+      try {
+        imageMimeType = validateAiChatImage(message.imageData)
+      } catch (error) {
+        return textReply(getAiChatImageValidationMessage(error) ?? '图片处理失败，请稍后重试。')
+      }
+    } else if (message.messageType === 'image') {
+      return textReply('未能读取图片，请重新发送。')
+    }
+
+    if (!message.imageData && message.content.trim().toLowerCase() === '/new') {
       await startNewChannelConversation({
         channel: message.channel,
         externalTenantId: message.externalTenantId,
@@ -206,6 +221,9 @@ export class AiChannelBridge implements ReloadableBotRuntime {
       conversationId: conversation.id,
       role: 'user',
       content: message.content,
+      ...(message.imageData && imageMimeType
+        ? { imageData: message.imageData, imageMimeType }
+        : {}),
     })
     await updateChannelConversationTitle({ conversation, channel: message.channel })
 

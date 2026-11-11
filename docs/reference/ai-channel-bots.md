@@ -21,11 +21,24 @@ AiChannelBridge
 受控操作确认卡片显示操作标题、目标、服务端生成的变更摘要和影响提示；原始操作参数不会发送到 IM 渠道。
 飞书优先使用 CardKit 流式卡片显示“正在输入……”和 AI 回复；缺少 `cardkit:card:write` 权限时，回退为普通文本状态提示和最终回复。确认操作仍发送独立的确认卡片。
 
-## 2. 官方文档
+## 2. 入站图片
+
+三个 Bot 都支持每条消息一张图片，图片可单独发送，也可和文字一起发送。渠道适配器使用各平台的消息字段下载或解密图片，验证文件签名后交给 `AiChannelBridge`；图片按与 UI 聊天相同的方式保存到 `ai_chat_messages` 并进入视觉模型请求。仅接受 JPEG、PNG、WebP，最大 2 MB。Agent 回复保持文本和现有确认卡片形式。
+
+| 渠道     | 图片消息                             | 图片下载方式                                                                                                                                   |
+| -------- | ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| 企业微信 | `image` 和 `mixed`（图文混排）事件   | 使用官方 SDK 的 `downloadFile(url, aeskey)` 下载并解密；群聊需按平台规则 @ 机器人，单独图片消息以私聊为准。                                    |
+| 飞书     | `image` 消息和含图片的 `post` 富文本 | 使用消息 ID 与 `image_key` 调用 `im.v1.messageResource.get({ type: 'image' })`，读取消息资源流；不使用仅适用于应用自己上传图片的图片下载 API。 |
+| 钉钉     | `picture` 消息和 `richText` 富文本   | 使用消息中的 `downloadCode` 调用 `/v1.0/robot/messageFiles/download`，再从 HTTPS 临时下载地址读取图片；群聊须 @ 机器人。                       |
+
+多图消息会提示用户拆开发送。图片超过 2 MB、格式不支持或平台下载失败时，Bot 会返回可操作的错误提示。机器人图片与聊天消息一并存储，因此会包含在数据库备份中。
+
+## 3. 官方文档
 
 ### 企业微信
 
 - [企业微信智能机器人 API：WebSocket 长连接](https://open.work.weixin.qq.com/help2/pc/21704)
+- [企业微信智能机器人：接收消息](https://developer.work.weixin.qq.com/document/path/100719)
 - [企业微信官方 Node.js SDK：`@wecom/aibot-node-sdk`](https://github.com/WecomTeam/aibot-node-sdk)
 
 官方 SDK README 说明了智能机器人 WebSocket 的认证、心跳、断线重连、流式回复、模板卡片和事件回调能力。企业微信普通 Webhook 机器人仍适合通知推送；本项目的双向 AI 对话使用智能机器人 API 的 WebSocket 长连接。
@@ -35,6 +48,7 @@ AiChannelBridge
 - [飞书服务端 SDK：Node.js SDK 与长连接](https://open.feishu.cn/document/server-docs/server-side-sdk)
 - [飞书发送消息 API](https://open.feishu.cn/document/server-docs/im-v1/message/create)
 - [飞书更新应用发送的消息卡片](https://open.feishu.cn/document/server-docs/im-v1/message-card/patch)
+- [飞书消息资源概述](https://open.feishu.cn/document/uAjLw4CM/ukTMukTMukTM/reference/im-v1)
 - [飞书消息卡片概述](https://open.feishu.cn/document/common-capabilities/message-card/overview)
 - [飞书官方 Node.js SDK：`@larksuiteoapi/node-sdk`](https://github.com/larksuite/node-sdk)
 
@@ -43,6 +57,7 @@ AiChannelBridge
 ### 钉钉
 
 - [钉钉 Stream 模式概述](https://opensource.dingtalk.com/developerpedia/docs/learn/stream/overview)
+- [钉钉机器人接收消息类型](https://opensource.dingtalk.com/developerpedia/docs/learn/bot/message/)
 - [钉钉 Stream 开发教程](https://opensource.dingtalk.com/developerpedia/docs/explore/tutorials/stream/overview)
 - [钉钉官方 Node.js Stream SDK](https://github.com/open-dingtalk/dingtalk-stream-sdk-nodejs)
 - [钉钉互动卡片示例](https://github.com/open-dingtalk/dingtalk-card-examples)
@@ -52,7 +67,7 @@ AiChannelBridge
 
 钉钉机器人使用官方 Stream WebSocket 接收机器人消息和卡片回调，普通文本/Markdown 回复使用消息中的会话 Webhook。受控操作使用钉钉互动卡片模板投放，模板回调再转换为系统统一的确认事件。流式回复产生确认提案时，确认或取消后的结果会更新回原流式卡片；卡片更新失败时回退为普通回复。一个 Client ID 只运行一个 Stream worker；卡片模板投放必须使用 `STREAM` 回调类型。
 
-## 3. 运行时配置
+## 4. 运行时配置
 
 机器人凭据统一在系统管理的「Agent 配置 → IM 渠道」页面维护。敏感字段由后端加密保存，保存后对应 Bot worker 会自动重新加载运行时配置；模型、ASR 和 Embedding 配置也在「Agent 配置」页面维护。
 
@@ -88,7 +103,7 @@ AiChannelBridge
 pnpm --dir apps/backend exec node ace migration:status
 ```
 
-## 4. 企业微信配置
+## 5. 企业微信配置
 
 1. 在企业微信管理后台创建或打开智能机器人。
 2. 进入智能机器人 API 配置，取得 Bot ID、Secret、Tenant ID 和 WebSocket 地址。
@@ -106,7 +121,7 @@ pnpm --dir apps/backend exec node ace migration:status
 - 重新发送未绑定消息时会轮换绑定码，旧码立即失效；
 - 绑定成功后可在个人设置中使用密码确认解绑。
 
-## 5. 飞书配置
+## 6. 飞书配置
 
 1. 在[飞书开放平台](https://open.feishu.cn/)创建企业自建应用。
 2. 启用机器人能力。
@@ -134,18 +149,19 @@ pnpm --dir apps/backend exec node ace migration:status
 
 如果群聊能收到消息、私聊收不到消息，通常是只开通了群聊 @ 机器人权限而未开通单聊权限。
 
-## 6. 钉钉配置
+## 7. 钉钉配置
 
 1. 在[钉钉开放平台](https://open.dingtalk.com/)创建企业内部应用并启用机器人能力。
 2. 按 Stream 文档配置机器人消息接收；本项目使用长连接，不需要公网回调服务器。
-3. 创建并发布受控操作互动卡片模板，模板需要接收 `description`、`confirmLabel`、`cancelLabel`、`confirmActionKey`、`cancelActionKey`、`taskId`、`conversationKey`、`externalUserId` 和 `externalTenantId` 参数，并通过卡片按钮回传 `actionKey`、`taskId`、`conversationKey`、`externalUserId` 和 `externalTenantId` 等私有参数。`description` 应绑定 Markdown 组件；其中会包含操作标题、目标、变更摘要和影响提示。标准示例见 [`dingtalk-controlled-action-confirmation-template.example.json`](./dingtalk-controlled-action-confirmation-template.example.json)。
-4. 如需普通问答流式输出，再创建并发布流式回复互动卡片模板。模板只需要接收 `content`，卡片标题使用模板中的固定文本，系统通过官方卡片更新接口更新 `content`。标准示例见 [`dingtalk-streaming-reply-template.example.json`](./dingtalk-streaming-reply-template.example.json)。
-5. 在本系统「系统管理 → Agent 配置 → IM 渠道 → 钉钉机器人」保存 Client ID、Client Secret，以及对应的受控操作和流式回复卡片模板 ID。
-6. 仅启动一个 `bot:dingtalk` 进程，向机器人发送消息获取一次性绑定码，并在个人设置中绑定。
+3. 开通机器人接收消息文件下载所需的 OpenAPI 权限，并发布应用版本。
+4. 创建并发布受控操作互动卡片模板，模板需要接收 `description`、`confirmLabel`、`cancelLabel`、`confirmActionKey`、`cancelActionKey`、`taskId`、`conversationKey`、`externalUserId` 和 `externalTenantId` 参数，并通过卡片按钮回传 `actionKey`、`taskId`、`conversationKey`、`externalUserId` 和 `externalTenantId` 等私有参数。`description` 应绑定 Markdown 组件；其中会包含操作标题、目标、变更摘要和影响提示。标准示例见 [`dingtalk-controlled-action-confirmation-template.example.json`](./dingtalk-controlled-action-confirmation-template.example.json)。
+5. 如需普通问答流式输出，再创建并发布流式回复互动卡片模板。模板只需要接收 `content`，卡片标题使用模板中的固定文本，系统通过官方卡片更新接口更新 `content`。标准示例见 [`dingtalk-streaming-reply-template.example.json`](./dingtalk-streaming-reply-template.example.json)。
+6. 在本系统「系统管理 → Agent 配置 → IM 渠道 → 钉钉机器人」保存 Client ID、Client Secret，以及对应的受控操作和流式回复卡片模板 ID。
+7. 仅启动一个 `bot:dingtalk` 进程，向机器人发送消息获取一次性绑定码，并在个人设置中绑定。
 
 如果日志显示 Stream 已认证但收不到消息，检查机器人能力、应用发布状态、消息事件订阅和当前用户可见范围；如果普通消息正常但没有确认卡，检查卡片模板 ID、模板发布状态、卡片回调主题和按钮回传参数。
 
-## 7. 开发启动与生产启动
+## 8. 开发启动与生产启动
 
 三个 Bot 必须是独立进程，避免 WebSocket 连接、日志和故障相互影响。
 
@@ -207,7 +223,7 @@ Bot worker 会监听 PostgreSQL 的 IM 配置变更通知。管理员在「Agent
 worker 会保持运行并等待；如果 PostgreSQL 监听连接断开，worker 会自动重连并重新读取
 数据库配置。
 
-## 7. 统一绑定与权限模型
+## 9. 统一绑定与权限模型
 
 绑定记录由渠道、租户和外部用户身份共同确定：
 
@@ -239,7 +255,7 @@ channel + externalTenantId + externalConversationKey + externalUserId
 
 不要把 Bot Secret、API Key、绑定码明文或外部平台令牌写入 AI 消息、普通日志、浏览器状态或普通查询结果。
 
-## 8. 消息、Markdown、卡片与流式输出
+## 10. 消息、Markdown、卡片与流式输出
 
 ### 企业微信
 
@@ -256,7 +272,7 @@ channel + externalTenantId + externalConversationKey + externalUserId
 
 飞书卡片更新不是普通 WebSocket 文本流，而是“卡片消息 + 更新接口”的模拟流式。卡片 Markdown 语法有限，生成内容需要允许降级为纯文本。
 
-## 9. 日志与故障定位
+## 11. 日志与故障定位
 
 ### 企业微信关键日志
 
@@ -303,7 +319,7 @@ contentPreview
 | 机器人回复重复             | 检查消息 ID 去重、是否重复启动两个同渠道 worker                                |
 | 日志只有发送成功没有正文   | 查看 `Feishu message normalized...` 记录中的 `contentPreview`                  |
 
-## 10. 验证清单
+## 12. 验证清单
 
 涉及渠道适配器、绑定、卡片或 AI Bridge 时至少运行：
 

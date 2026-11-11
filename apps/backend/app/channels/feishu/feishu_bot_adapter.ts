@@ -14,6 +14,10 @@ import type {
 } from '#channels/channel_types'
 import { formatConfirmationDetails } from '#channels/confirmation_details'
 import { LatestContentStream } from '#channels/latest_content_stream'
+import {
+  getAiChatImageValidationMessage,
+  readAiChatImageStream,
+} from '#services/ai_chat_image_service'
 import { getAudioMimeType, transcribeAudio } from '#services/ai_speech_service'
 
 export interface FeishuBotAdapterOptions {
@@ -58,6 +62,35 @@ function parseMessageContent(content: string) {
   } catch {
     return {}
   }
+}
+
+function parsePostContent(content: string) {
+  const post = parseMessageContent(content)
+  const textParts: string[] = []
+  const imageKeys: string[] = []
+  let hasImage = false
+  let imageCount = 0
+  if (typeof post.title === 'string' && post.title.trim()) textParts.push(post.title.trim())
+  if (Array.isArray(post.content)) {
+    for (const paragraph of post.content) {
+      if (!Array.isArray(paragraph)) continue
+      for (const value of paragraph) {
+        const node = asRecord(value)
+        if (!node) continue
+        if (node.tag === 'text' && typeof node.text === 'string' && node.text.trim()) {
+          textParts.push(node.text.trim())
+        }
+        if (node.tag === 'img') {
+          hasImage = true
+          imageCount += 1
+          if (typeof node.image_key === 'string' && node.image_key.trim()) {
+            imageKeys.push(node.image_key.trim())
+          }
+        }
+      }
+    }
+  }
+  return { text: textParts.join('\n'), imageKeys, hasImage, imageCount }
 }
 
 function readAudioTranscript(content: Record<string, unknown>) {
@@ -281,7 +314,84 @@ export class FeishuBotAdapter implements ChannelAdapter {
     }
 
     const isAudio = event.message.message_type === 'audio'
-    let content = isAudio ? '' : parseTextContent(event.message.content)
+    const isImage = event.message.message_type === 'image'
+    const isPost = event.message.message_type === 'post'
+    let content = isAudio || isImage ? '' : parseTextContent(event.message.content)
+    let imageKey: string | undefined
+    if (isImage) {
+      const parsed = parseMessageContent(event.message.content)
+      imageKey = typeof parsed.image_key === 'string' ? parsed.image_key : undefined
+    } else if (isPost) {
+      const parsed = parsePostContent(event.message.content)
+      content = parsed.text
+      if (parsed.imageCount > 1) {
+        await this.send(
+          {
+            channel: this.channel,
+            externalTenantId: event.tenant_key ?? this.tenantId,
+            conversationKey: event.message.chat_id,
+          },
+          { kind: 'text', content: '目前每条消息只支持一张图片，请拆开发送。' }
+        )
+        return
+      }
+      imageKey = parsed.imageKeys[0]
+      if (parsed.hasImage && !imageKey) {
+        await this.send(
+          {
+            channel: this.channel,
+            externalTenantId: event.tenant_key ?? this.tenantId,
+            conversationKey: event.message.chat_id,
+          },
+          { kind: 'text', content: '未能读取图片，请重新发送。' }
+        )
+        return
+      }
+    }
+
+    let imageData: Buffer | undefined
+    if (imageKey) {
+      try {
+        const resource = await this.client.im.v1.messageResource.get({
+          params: { type: 'image' },
+          path: { message_id: event.message.message_id, file_key: imageKey },
+        })
+        imageData = await readAiChatImageStream(resource.getReadableStream())
+      } catch (error) {
+        this.log.warn(
+          {
+            messageId: event.message.message_id,
+            conversationKey: event.message.chat_id,
+            ...getSafeFeishuErrorDetails(error),
+          },
+          'Feishu image download failed'
+        )
+        await this.send(
+          {
+            channel: this.channel,
+            externalTenantId: event.tenant_key ?? this.tenantId,
+            conversationKey: event.message.chat_id,
+          },
+          {
+            kind: 'text',
+            content:
+              getAiChatImageValidationMessage(error) ?? '图片获取失败，请重新发送或稍后重试。',
+          }
+        )
+        return
+      }
+    } else if (isImage) {
+      await this.send(
+        {
+          channel: this.channel,
+          externalTenantId: event.tenant_key ?? this.tenantId,
+          conversationKey: event.message.chat_id,
+        },
+        { kind: 'text', content: '未能读取图片，请重新发送。' }
+      )
+      return
+    }
+
     if (isAudio) {
       try {
         content = await this.transcribeAudioMessage(event.message.message_id, event.message.content)
@@ -313,8 +423,9 @@ export class FeishuBotAdapter implements ChannelAdapter {
       externalUserId: senderId,
       conversationKey: event.message.chat_id,
       messageId: event.message.message_id,
-      messageType: isAudio ? 'voice' : 'text',
+      messageType: imageData ? 'image' : isAudio ? 'voice' : 'text',
       content,
+      ...(imageData ? { imageData } : {}),
       receivedAt: new Date(Number(event.message.create_time) || Date.now()),
       raw: event,
     }

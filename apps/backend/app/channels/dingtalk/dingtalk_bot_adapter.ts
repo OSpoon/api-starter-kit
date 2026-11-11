@@ -13,6 +13,10 @@ import type {
 } from '#channels/channel_types'
 import { formatDingTalkConfirmationDescription } from '#channels/confirmation_details'
 import { LatestContentStream } from '#channels/latest_content_stream'
+import {
+  getAiChatImageValidationMessage,
+  readAiChatImageStream,
+} from '#services/ai_chat_image_service'
 
 export interface DingTalkBotAdapterOptions {
   clientId: string
@@ -168,7 +172,14 @@ export class DingTalkBotAdapter implements ChannelAdapter {
     this.client.socketCallBackResponse(event.headers.messageId, EventAck.SUCCESS)
     const messageType = readStringValue(rawMessage.msgtype) ?? 'text'
     const isVoice = messageType === 'voice' || messageType === 'audio'
-    if (!isVoice && (message.msgtype !== 'text' || !message.text?.content)) {
+    const isPicture = messageType === 'picture'
+    const isRichText = messageType === 'richText'
+    if (
+      !isVoice &&
+      !isPicture &&
+      !isRichText &&
+      (messageType !== 'text' || !message.text?.content)
+    ) {
       this.log.info({ messageId: message.msgId }, 'DingTalk non-text message ignored')
       return
     }
@@ -184,7 +195,14 @@ export class DingTalkBotAdapter implements ChannelAdapter {
         event.headers.eventCorpId || message.chatbotCorpId || message.senderCorpId || this.tenantId,
       expiresAt: normalizeSessionWebhookExpiry(message.sessionWebhookExpiredTime),
     })
+    const messageContent =
+      typeof rawMessage.content === 'string'
+        ? parseJson(rawMessage.content)
+        : thisRecord(rawMessage.content)
     let content = message.text?.content?.trim() ?? ''
+    let imageDownloadCode: string | null = null
+    let multipleImages = false
+    let hasImage = isPicture
     if (isVoice) {
       content = readAudioRecognition(message) ?? ''
       this.log.info(
@@ -203,13 +221,76 @@ export class DingTalkBotAdapter implements ChannelAdapter {
         return
       }
     }
-    if (!content) {
+    if (isPicture) {
+      imageDownloadCode = readStringValue(messageContent.downloadCode)
+    } else if (isRichText) {
+      const textParts: string[] = []
+      const downloadCodes: string[] = []
+      let imageCount = 0
+      const richText = Array.isArray(messageContent.richText) ? messageContent.richText : []
+      for (const value of richText) {
+        const item = thisRecord(value)
+        if (typeof item.text === 'string' && item.text.trim()) textParts.push(item.text.trim())
+        if (item.type === 'picture') {
+          hasImage = true
+          imageCount += 1
+          const code =
+            readStringValue(item.downloadCode) ?? readStringValue(item.pictureDownloadCode)
+          if (code) downloadCodes.push(code)
+        }
+      }
+      content = textParts.join('\n')
+      multipleImages = imageCount > 1
+      imageDownloadCode = downloadCodes[0] ?? null
+    }
+    if (!content && !imageDownloadCode && !multipleImages && !hasImage) {
       this.log.warn(
         { messageId: message.msgId, conversationKey },
         'DingTalk message has no usable content'
       )
       return
     }
+    if (multipleImages) {
+      await this.postSessionWebhook(message.sessionWebhook, {
+        msgtype: 'text',
+        text: { content: '目前每条消息只支持一张图片，请拆开发送。' },
+      })
+      return
+    }
+
+    let imageData: Buffer | undefined
+    if (imageDownloadCode) {
+      try {
+        imageData = await this.downloadImage(
+          imageDownloadCode,
+          readStringValue(rawMessage.robotCode) ?? this.options.clientId
+        )
+      } catch (error) {
+        this.log.warn(
+          {
+            messageId: message.msgId,
+            conversationKey,
+            errorName: error instanceof Error ? error.name : 'Error',
+          },
+          'DingTalk image download failed'
+        )
+        await this.postSessionWebhook(message.sessionWebhook, {
+          msgtype: 'text',
+          text: {
+            content:
+              getAiChatImageValidationMessage(error) ?? '图片获取失败，请重新发送或稍后重试。',
+          },
+        })
+        return
+      }
+    } else if (hasImage) {
+      await this.postSessionWebhook(message.sessionWebhook, {
+        msgtype: 'text',
+        text: { content: '未能读取图片，请重新发送。' },
+      })
+      return
+    }
+
     const normalized: NormalizedInboundMessage = {
       channel: this.channel,
       conversationType: message.conversationType === '2' ? 'group' : 'direct',
@@ -218,8 +299,9 @@ export class DingTalkBotAdapter implements ChannelAdapter {
       externalUserId,
       conversationKey,
       messageId: message.msgId,
-      messageType: 'text',
+      messageType: imageData ? 'image' : 'text',
       content,
+      ...(imageData ? { imageData } : {}),
       receivedAt: new Date(message.createAt || Date.now()),
       raw: message,
     }
@@ -464,6 +546,30 @@ export class DingTalkBotAdapter implements ChannelAdapter {
       },
       'DingTalk confirmation card sent'
     )
+  }
+
+  private async downloadImage(downloadCode: string, robotCode: string) {
+    const accessToken = await this.client.getAccessToken()
+    if (!accessToken) throw new Error('Unable to obtain DingTalk access token')
+    const response = await fetch('https://api.dingtalk.com/v1.0/robot/messageFiles/download', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-acs-dingtalk-access-token': accessToken,
+      },
+      body: JSON.stringify({ downloadCode, robotCode }),
+      signal: AbortSignal.timeout(15_000),
+    })
+    const result = await readDingTalkResponse(response)
+    if (!response.ok) throw new Error(formatDingTalkError(response.status, result))
+    const downloadUrl = readStringValue(result.downloadUrl)
+    if (!downloadUrl) throw new Error('DingTalk image download URL is missing')
+    const url = new URL(downloadUrl)
+    if (url.protocol !== 'https:') throw new Error('DingTalk image download URL is not HTTPS')
+    const imageResponse = await fetch(url, { signal: AbortSignal.timeout(15_000) })
+    if (!imageResponse.ok)
+      throw new Error(`DingTalk image download failed: ${imageResponse.status}`)
+    return readAiChatImageStream(imageResponse.body)
   }
 
   private async createStreamingCard(message: RobotMessage, content: string) {

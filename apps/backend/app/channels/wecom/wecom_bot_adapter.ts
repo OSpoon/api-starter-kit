@@ -16,6 +16,7 @@ import type {
   OutboundMessage,
 } from '#channels/channel_types'
 import { LatestContentStream } from '#channels/latest_content_stream'
+import { getAiChatImageValidationMessage } from '#services/ai_chat_image_service'
 
 export interface WecomBotAdapterOptions {
   tenantId: string
@@ -109,6 +110,24 @@ export class WecomBotAdapter implements ChannelAdapter {
       void this.handleText(frame).catch((error) =>
         this.logHandlerError(error, {
           eventType: 'message.text',
+          messageId: frame.body?.msgid ?? null,
+          conversationKey: frame.body?.chatid ?? frame.body?.from?.userid ?? null,
+        })
+      )
+    })
+    this.client.on('message.image', (frame) => {
+      void this.handleImage(frame).catch((error) =>
+        this.logHandlerError(error, {
+          eventType: 'message.image',
+          messageId: frame.body?.msgid ?? null,
+          conversationKey: frame.body?.chatid ?? frame.body?.from?.userid ?? null,
+        })
+      )
+    })
+    this.client.on('message.mixed', (frame) => {
+      void this.handleMixed(frame).catch((error) =>
+        this.logHandlerError(error, {
+          eventType: 'message.mixed',
           messageId: frame.body?.msgid ?? null,
           conversationKey: frame.body?.chatid ?? frame.body?.from?.userid ?? null,
         })
@@ -209,53 +228,180 @@ export class WecomBotAdapter implements ChannelAdapter {
     const body = frame.body
     if (!body?.from?.userid || !body.text?.content) return
 
+    await this.handleNormalizedMessage(
+      frame,
+      this.normalizeMessage(frame, 'text', body.text.content)
+    )
+  }
+
+  private async handleImage(frame: WsFrame) {
+    const body = frame.body
+    if (!body?.from?.userid) return
+    const image = body.image
+    if (typeof image?.url !== 'string' || !image.url) {
+      await this.sendImageError(
+        frame,
+        new Error('WeCom image message has no media URL'),
+        '未能读取图片，请重新发送。'
+      )
+      return
+    }
+
     try {
-      const message: NormalizedInboundMessage = {
-        channel: this.channel,
-        conversationType: body.chatid ? 'group' : 'direct',
-        externalTenantId: this.options.tenantId,
-        externalUserId: body.from.userid,
-        conversationKey: body.chatid ?? body.from.userid,
-        messageId: body.msgid,
-        messageType: 'text',
-        content: body.text.content,
-        receivedAt: new Date(),
-        raw: frame,
+      const { buffer } = await this.client.downloadFile(image.url, image.aeskey)
+      await this.handleNormalizedMessage(frame, this.normalizeMessage(frame, 'image', '', buffer))
+    } catch (error) {
+      this.log.warn(
+        { messageId: body.msgid ?? null, conversationKey: body.chatid ?? body.from.userid },
+        'WeCom image download failed'
+      )
+      await this.sendImageError(frame, error)
+    }
+  }
+
+  private async handleMixed(frame: WsFrame) {
+    const body = frame.body
+    if (!body?.from?.userid) return
+    const mixed = body.mixed as { msg_item?: unknown[] } | undefined
+    const items = Array.isArray(mixed?.msg_item) ? mixed.msg_item : []
+    const textParts: string[] = []
+    const images: Array<{ url: string; aeskey?: string }> = []
+    let hasImage = false
+    for (const value of items) {
+      if (!value || typeof value !== 'object') continue
+      const item = value as Record<string, unknown>
+      if (item.msgtype === 'text') {
+        const text = (item.text as { content?: unknown } | undefined)?.content
+        if (typeof text === 'string' && text.trim()) textParts.push(text.trim())
       }
+      if (item.msgtype === 'image') {
+        hasImage = true
+        const image = item.image as { url?: unknown; aeskey?: unknown } | undefined
+        if (typeof image?.url === 'string' && image.url) {
+          images.push({
+            url: image.url,
+            ...(typeof image.aeskey === 'string' ? { aeskey: image.aeskey } : {}),
+          })
+        }
+      }
+    }
+    if (images.length > 1) {
+      await this.sendImageError(
+        frame,
+        new Error('Only one image is supported per message'),
+        '目前每条消息只支持一张图片，请拆开发送。'
+      )
+      return
+    }
+    if (!images.length) {
+      if (hasImage || !textParts.length) {
+        await this.sendImageError(
+          frame,
+          new Error('WeCom mixed message has no usable image or text'),
+          hasImage ? '未能读取图片，请重新发送。' : '没有收到可处理的消息内容。'
+        )
+        return
+      }
+      await this.handleNormalizedMessage(
+        frame,
+        this.normalizeMessage(frame, 'text', textParts.join('\n'))
+      )
+      return
+    }
+
+    try {
+      const { buffer } = await this.client.downloadFile(images[0].url, images[0].aeskey)
+      await this.handleNormalizedMessage(
+        frame,
+        this.normalizeMessage(frame, 'image', textParts.join('\n'), buffer)
+      )
+    } catch (error) {
+      this.log.warn(
+        { messageId: body.msgid ?? null, conversationKey: body.chatid ?? body.from.userid },
+        'WeCom mixed-message image download failed'
+      )
+      await this.sendImageError(frame, error)
+    }
+  }
+
+  private normalizeMessage(
+    frame: WsFrame,
+    messageType: NormalizedInboundMessage['messageType'],
+    content: string,
+    imageData?: Buffer
+  ): NormalizedInboundMessage {
+    const body = frame.body!
+    const externalUserId = body.from.userid
+    return {
+      channel: this.channel,
+      conversationType: body.chatid ? 'group' : 'direct',
+      externalTenantId: this.options.tenantId,
+      externalUserId,
+      conversationKey: body.chatid ?? externalUserId,
+      messageId: body.msgid,
+      messageType,
+      content,
+      ...(imageData ? { imageData } : {}),
+      receivedAt: new Date(),
+      raw: frame,
+    }
+  }
+
+  private async handleNormalizedMessage(frame: WsFrame, message: NormalizedInboundMessage) {
+    try {
       if (this.options.onMessageStream) {
         await this.handleStreamingReply(frame, message)
         return
       }
       const reply = await this.options.onMessage(message)
-      if (reply) {
-        if (reply.kind === 'confirmation') {
-          await this.client.replyTemplateCard(frame, this.toTemplateCard(reply))
-          return
-        }
-        await this.send(
-          {
-            channel: this.channel,
-            externalTenantId: this.options.tenantId,
-            conversationKey: body.chatid ?? body.from.userid,
-          },
-          reply
-        )
+      if (!reply) return
+      if (reply.kind === 'confirmation') {
+        await this.client.replyTemplateCard(frame, this.toTemplateCard(reply))
+        return
       }
+      await this.send(
+        {
+          channel: this.channel,
+          externalTenantId: this.options.tenantId,
+          conversationKey: message.conversationKey,
+        },
+        reply
+      )
     } catch (error) {
       this.logHandlerError(error, {
-        operation: 'handle_text_message',
-        messageId: body.msgid ?? null,
-        conversationKey: body.chatid ?? body.from.userid,
+        operation: 'handle_inbound_message',
+        messageId: message.messageId,
+        conversationKey: message.conversationKey,
       })
       await this.send(
         {
           channel: this.channel,
           externalTenantId: this.options.tenantId,
-          conversationKey: body.chatid ?? body.from.userid,
+          conversationKey: message.conversationKey,
         },
         { kind: 'text', content: '本次请求处理失败，请稍后重试。' }
       )
     }
+  }
+
+  private async sendImageError(frame: WsFrame, error: unknown, fallbackContent?: string) {
+    const body = frame.body
+    const userId = body?.from?.userid
+    if (!userId) return
+    await this.send(
+      {
+        channel: this.channel,
+        externalTenantId: this.options.tenantId,
+        conversationKey: body.chatid ?? userId,
+      },
+      {
+        kind: 'text',
+        content:
+          getAiChatImageValidationMessage(error) ??
+          fallbackContent ??
+          '图片获取失败，请重新发送或稍后重试。',
+      }
+    )
   }
 
   private async handleStreamingReply(frame: WsFrame, message: NormalizedInboundMessage) {

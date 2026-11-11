@@ -11,6 +11,7 @@ export interface NormalizedInboundMessage {
   messageId: string
   messageType: NormalizedMessageType
   content: string
+  imageData?: Buffer
   receivedAt: Date
   raw?: unknown
 }
