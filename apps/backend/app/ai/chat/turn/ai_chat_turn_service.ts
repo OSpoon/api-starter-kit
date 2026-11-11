@@ -7,6 +7,7 @@ import { createFinalResponseState, snapshotAgentSessionState } from '#ai/agent'
 import { type AiAgentPageContext, createAiAgentStream } from '#ai/chat/ai_agent_service'
 import type { AiChatResolvedRegeneration } from '#ai/chat/ai_chat_regeneration'
 import {
+  collapseRepeatedAssistantResponse,
   startAiChatSseKeepalive,
   streamAiAgentTurnEvents,
   writeAiChatSse,
@@ -313,7 +314,7 @@ export async function runAiChatAssistantTurn(input: {
       run,
       input.signal,
       input.enabledToolNames?.length === 0
-        ? { streamText: true }
+        ? {}
         : {
             captureModelText: true,
             streamTextAfterToolExecution: true,
@@ -487,22 +488,11 @@ export async function runAiChatAssistantTurn(input: {
       }
       if (event.source === 'message_candidate_delta') {
         if (!event.value || !activeModelResponse) continue
+        // Hold tool-backed answers until completion so repeated replies never reach the UI.
         pendingAssistantCandidate += event.value
-        if (isChannelTurn) {
-          await emit('channel_candidate_delta', { content: pendingAssistantCandidate })
-        } else {
-          await emit('agent_candidate_delta', {
-            callId: activeModelResponse.callId,
-            content: event.value,
-          })
-        }
         continue
       }
       if (event.source === 'message_candidate_clear') {
-        if (pendingAssistantCandidate && activeModelResponse) {
-          if (isChannelTurn) await emit('channel_candidate_clear', {})
-          else await emit('agent_candidate_clear', { callId: activeModelResponse.callId })
-        }
         pendingAssistantCandidate = ''
         continue
       }
@@ -567,18 +557,20 @@ export async function runAiChatAssistantTurn(input: {
             pendingModelText.delete(modelCallId)
             if (partialText) await updateModelTextDetail(modelCallId, partialText, false)
           }
-          if (pendingAssistantCandidate && modelCallId) {
-            assistantContent += pendingAssistantCandidate
+          if (pendingAssistantCandidate) {
+            const candidate = collapseRepeatedAssistantResponse(pendingAssistantCandidate)
+            assistantContent += candidate
             pendingAssistantCandidate = ''
-            await emit('agent_candidate_commit', { callId: modelCallId })
+            await emit('delta', { content: candidate })
             await persistAssistantMessage()
           }
           throw event.value.error
         }
-        if (!event.value.hasToolCall && pendingAssistantCandidate && modelCallId) {
-          assistantContent += pendingAssistantCandidate
+        if (!event.value.hasToolCall && pendingAssistantCandidate) {
+          const candidate = collapseRepeatedAssistantResponse(pendingAssistantCandidate)
+          assistantContent += candidate
           pendingAssistantCandidate = ''
-          await emit('agent_candidate_commit', { callId: modelCallId })
+          await emit('delta', { content: candidate })
         }
         if (captureModelText && modelCallId && responseText.trim() && !pendingConfirmation) {
           pendingModelText.delete(modelCallId)
@@ -627,9 +619,7 @@ export async function runAiChatAssistantTurn(input: {
       })
       sessionRun = finalizer
       aiFailureStage = 'final_response_stream'
-      for await (const event of streamAiAgentTurnEvents(finalizer, input.signal, {
-        streamText: true,
-      })) {
+      for await (const event of streamAiAgentTurnEvents(finalizer, input.signal)) {
         if (input.signal.aborted) {
           throw new DOMException('AI request was cancelled', 'AbortError')
         }
@@ -693,6 +683,7 @@ export async function runAiChatAssistantTurn(input: {
       }
     }
     aiFailureStage = 'assistant_message_persistence'
+    assistantContent = collapseRepeatedAssistantResponse(assistantContent)
     const assistantMessage = await persistAssistantMessage()
     if (!assistantMessage) {
       throw new Error('AI response did not contain assistant content')
@@ -776,12 +767,12 @@ export async function runAiChatAssistantTurn(input: {
     })
     return assistantMessage
   } catch (error) {
-    const candidateCallId = activeModelResponse?.callId
     await finishModelResponse('error')
-    if (pendingAssistantCandidate && candidateCallId) {
-      assistantContent += pendingAssistantCandidate
+    if (pendingAssistantCandidate) {
+      const candidate = collapseRepeatedAssistantResponse(pendingAssistantCandidate)
+      assistantContent += candidate
       pendingAssistantCandidate = ''
-      await emit('agent_candidate_commit', { callId: candidateCallId })
+      await emit('delta', { content: candidate })
       await persistAssistantMessage()
     }
     for (const [callId, text] of pendingModelText) {
@@ -798,7 +789,9 @@ export async function runAiChatAssistantTurn(input: {
     // proposal) when a parallel stream fails during finalization. The SSE
     // error event still terminates the request, but the persisted message
     // must not duplicate it with a generic failure sentence.
-    assistantContent = assistantContent.trim() ? assistantContent : message
+    assistantContent = collapseRepeatedAssistantResponse(
+      assistantContent.trim() ? assistantContent : message
+    )
     const failedAssistantMessage = await persistAssistantMessage()
     if (!failedAssistantMessage) {
       throw error

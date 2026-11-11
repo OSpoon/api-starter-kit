@@ -327,6 +327,30 @@ function assistantMessageHasToolCall(message: AgentAssistantMessage) {
   return message.hasToolCall
 }
 
+export function collapseRepeatedAssistantResponse(content: string) {
+  const words = [...content.matchAll(/\S+/g)]
+  for (let copies = words.length; copies >= 2; copies -= 1) {
+    if (words.length % copies !== 0) continue
+    const blockLength = words.length / copies
+    const firstBlock = words
+      .slice(0, blockLength)
+      .map((word) => word[0])
+      .join(' ')
+    // Avoid collapsing short intentional echoes such as “yes, yes”.
+    if (firstBlock.length < 24) continue
+
+    const isRepeated = words.slice(blockLength).every((word, index) => {
+      return word[0] === words[index % blockLength]?.[0]
+    })
+    if (!isRepeated) continue
+
+    const lastWord = words[blockLength - 1]
+    if (lastWord?.index === undefined) continue
+    return content.slice(0, lastWord.index + lastWord[0].length).trimEnd()
+  }
+  return content
+}
+
 function getAssistantTextDeltas(finalText: string, streamedText: string, deltas: string[]) {
   if (deltas.length === 0) return finalText ? [finalText] : []
   if (!finalText.startsWith(streamedText)) return [finalText || streamedText]
@@ -448,7 +472,9 @@ export async function* streamAiAgentTurnEvents(
     }
     if (event.type === 'message_end') {
       const hasToolCall = assistantMessageHasToolCall(event.message)
-      const finalText = assistantText(event.message)
+      const finalText = collapseRepeatedAssistantResponse(
+        assistantText(event.message) || assistantTextBuffer
+      )
       if (hasToolCall && candidateTextStreamed) {
         yield { source: 'message_candidate_clear' }
         candidateTextStreamed = false
