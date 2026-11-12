@@ -500,12 +500,16 @@ test('permission-aware landing picks the first accessible module', () => {
   assert.equal(findFirstAccessibleRoute(routes, ['profile:read']), undefined)
 })
 
-// A help utility must not become the default landing for existing dashboard readers.
-test('Todo board access is independent and preserves the workbench landing', () => {
-  const routes = workbenchRoutes[0].children.filter((route) => route.meta?.permission)
+test('Todo board help example does not require an RBAC permission', () => {
+  const routes = workbenchRoutes[0].children
   const board = routes.find((route) => route.name === 'todo-board')
-  assert.equal(board.meta.permission, 'todo-board:read')
-  assert.equal(findFirstAccessibleRoute(routes, ['dashboard:view'])?.name, 'dashboard')
-  assert.equal(findFirstAccessibleRoute([board], ['dashboard:view']), undefined)
-  assert.equal(findFirstAccessibleRoute([board], ['todo-board:read'])?.name, 'todo-board')
+  assert.equal(board.meta?.permission, undefined)
+  assert.equal(routes.filter((route) => route.meta?.permission).includes(board), false)
+  assert.equal(
+    findFirstAccessibleRoute(
+      routes.filter((route) => route.meta?.permission),
+      ['dashboard:view']
+    )?.name,
+    'dashboard'
+  )
 })

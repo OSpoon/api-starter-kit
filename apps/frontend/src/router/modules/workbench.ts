@@ -155,7 +155,7 @@ const workbenchRootRoute = {
       path: 'help/todo-board',
       name: 'todo-board',
       component: () => import('@/features/todo-board/TodoBoardPage.vue'),
-      meta: { title: 'todo_board.title', pageKind: 'utility', permission: 'todo-board:read' },
+      meta: { title: 'todo_board.title', pageKind: 'utility' },
     },
     {
       path: 'profile',

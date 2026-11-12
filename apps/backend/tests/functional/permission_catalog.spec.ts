@@ -44,10 +44,15 @@ test.group('permission catalog', (group) => {
         'llm-config:read',
         'llm-config:update',
         'llm-config:test',
+        'todo-board:read',
       ])
       .select('code')
 
     assert.isEmpty(retiredPermissions)
+    assert.notInclude(
+      permissionCatalog.map(({ code }) => code),
+      'todo-board:read'
+    )
     assert.deepEqual(
       Object.fromEntries(
         ['工作台', '系统管理', '权限管理', 'Agent管理'].map((groupName) => [

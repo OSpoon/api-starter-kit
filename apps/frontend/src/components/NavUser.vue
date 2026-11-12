@@ -41,8 +41,7 @@ import {
 import { loadLocaleMessages } from '@/i18n'
 import { setStoredLocale } from '@/lib/browser-preferences'
 import { modalLayerVersion } from '@/lib/focus'
-import { usePermission } from '@/lib/permission'
-import { workbenchPermissionRoutes } from '@/router/modules/workbench'
+import { workbenchRoutes } from '@/router/modules/workbench'
 
 defineProps<{
   user: {
@@ -57,8 +56,7 @@ const emit = defineEmits<{
 }>()
 
 const { isMobile } = useSidebar()
-const todoBoardRoute = workbenchPermissionRoutes.find((route) => route.name === 'todo-board')!
-const { can } = usePermission()
+const todoBoardRoute = workbenchRoutes.at(0)?.children?.find((route) => route.name === 'todo-board')
 const router = useRouter()
 const route = useRoute()
 const { t, locale } = useI18n()
@@ -178,7 +176,7 @@ function setTheme(mode: 'light' | 'dark' | 'auto') {
               </DropdownMenuSubTrigger>
               <DropdownMenuSubContent>
                 <DropdownMenuItem
-                  v-if="can(todoBoardRoute.meta?.permission)"
+                  v-if="todoBoardRoute"
                   @click="navigateTo(`/${todoBoardRoute.path}`)"
                 >
                   <LayoutList />{{ t(String(todoBoardRoute.meta?.title)) }}

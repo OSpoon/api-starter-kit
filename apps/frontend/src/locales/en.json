@@ -568,7 +568,6 @@
       "agent-config:read": "view Assistant configuration",
       "agent-config:update": "manage Assistant configuration",
       "ai-usage:read": "view AI usage",
-      "todo-board:read": "view the Todo board",
       "generic": "the specified permission"
     },
     "target_types": {
@@ -1063,6 +1062,8 @@
         "skills_installed": "Assistant skills installed",
         "skill_enabled_state_updated": "Skill enabled state updated",
         "skill_removed": "Assistant skill removed",
+        "skill_script_executed": "Skill script executed",
+        "skill_script_failed": "Skill script failed",
         "skill_created": "Agent skill created",
         "skill_updated": "Agent skill updated",
         "skill_deleted": "Agent skill deleted",

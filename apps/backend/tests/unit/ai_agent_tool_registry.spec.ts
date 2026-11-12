@@ -93,17 +93,22 @@ test.group('AI agent tool registry', () => {
     }).find((registeredTool) => registeredTool.name === 'run_registered_query')
 
     if (!queryTool) throw new Error('Expected registered query tool')
-    assert.include(queryTool.description, 'The only tool for current system data')
+    assert.include(queryTool.description, 'Use this tool only for current application data')
     assert.include(
       queryTool.description,
       'Template codes, including api_key_profile, are values for its templateCode argument'
     )
     assert.include(queryTool.description, 'never call a template code as a separate tool')
     assert.include(queryTool.description, 'not a lookup for one named key')
-    assert.include(queryTool.description, 'pass the exact name under params.name')
-    assert.include(queryTool.description, 'leaving apiKeyId/id unset')
-    assert.include(queryTool.description, 'use revoked_api_keys to list deletion candidates')
-    assert.include(queryTool.description, 'never conclude a revoked key does not exist')
+    assert.include(
+      queryTool.description,
+      'pass the exact name in params.name and leave apiKeyId/id unset'
+    )
+    assert.include(
+      queryTool.description,
+      'If the user wants to delete a key but has not identified it, use revoked_api_keys'
+    )
+    assert.include(queryTool.description, 'omits revoked keys')
   })
 
   test('exposes only public knowledge search in visitor mode', ({ assert }) => {

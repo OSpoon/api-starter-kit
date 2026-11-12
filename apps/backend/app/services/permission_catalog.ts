@@ -1,3 +1,4 @@
+// Kept for the historical seed migration; this help example is not an active permission.
 export const todoBoardReadPermission = {
   code: 'todo-board:read',
   name: '查看 Todo 看板',
@@ -26,7 +27,6 @@ export const permissionCatalog = [
   { code: 'agent-config:read', name: '查看 Agent 配置', groupName: 'Agent管理' },
   { code: 'agent-config:update', name: '管理 Agent 配置', groupName: 'Agent管理' },
   { code: 'ai-usage:read', name: '查看 AI 用量', groupName: 'Agent管理' },
-  todoBoardReadPermission,
 ] as const
 
 export const permissionCatalogCodes = permissionCatalog.map(({ code }) => code)

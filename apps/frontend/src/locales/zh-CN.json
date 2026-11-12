@@ -568,7 +568,6 @@
       "agent-config:read": "查看助手配置",
       "agent-config:update": "管理助手配置",
       "ai-usage:read": "查看 AI 用量",
-      "todo-board:read": "查看 Todo 看板",
       "generic": "指定权限"
     },
     "target_types": {
@@ -1063,6 +1062,8 @@
         "skills_installed": "安装助手技能",
         "skill_enabled_state_updated": "更新技能启用状态",
         "skill_removed": "移除助手技能",
+        "skill_script_executed": "执行技能脚本",
+        "skill_script_failed": "技能脚本执行失败",
         "skill_created": "创建 Agent 技能",
         "skill_updated": "更新 Agent 技能",
         "skill_deleted": "删除 Agent 技能",
