@@ -321,8 +321,12 @@
     "welcome": "你好，我是 AI 助手。可询问系统功能、API 或配置。",
     "welcome_title": "你好，我是 AI 助手",
     "welcome_subtitle": "可询问系统功能、API 或配置。",
-    "input_placeholder": "输入问题（Enter 发送，Shift + Enter 换行）",
-    "input_placeholder_while_generating": "生成中可输入；按 Enter 或点发送调整任务",
+    "input_placeholder": "输入问题…",
+    "sources": {
+      "count": "已引用 {count} 个来源"
+    },
+    "input_placeholder_while_generating": "输入补充要求…",
+    "send_message": "发送消息",
     "adjust_current": "立即调整当前任务",
     "usage": {
       "open": "查看本月用量",
@@ -361,9 +365,16 @@
       "queue_unavailable": "当前回复完成后再发送带图片的问题"
     },
     "response_disclaimer": "AI 回复仅供参考；重要信息请核对系统数据和项目文档。",
+    "suggestions": {
+      "label": "建议问题",
+      "permissions": "查看我的权限",
+      "audit_logs": "查询最近审计记录",
+      "api_keys": "如何管理 API 密钥？"
+    },
     "thinking": "正在思考...",
     "waiting": "正在输入……",
     "waiting_for_confirmation": "等待您确认此操作",
+    "rate_limited": "请求过于频繁，请稍后再试。",
     "new_chat": "新对话",
     "history": "历史会话",
     "no_history": "暂无历史会话",
@@ -477,6 +488,7 @@
       "title": "运行详情",
       "turn_section": "第 {turn} 轮",
       "plan": "执行计划",
+      "plan_progress": "{total} 步中已完成 {completed} 步",
       "run": "运行完成 · {duration} 秒",
       "run_waiting_confirmation": "本轮已暂停 · {duration} 秒",
       "elapsed": "已运行 {duration} 秒",
@@ -499,6 +511,11 @@
         "running": "正在",
         "done": "已完成",
         "error": "执行失败："
+      },
+      "bash_states": {
+        "running": "正在运行技能脚本",
+        "done": "已运行技能脚本",
+        "error": "技能脚本运行失败"
       },
       "error_reason_separator": "：{message}",
       "tools": {
@@ -592,7 +609,6 @@
       "success": "操作已确认并执行"
     },
     "approval": {
-      "source": "此确认由“{source}”产生",
       "approve": "批准",
       "cancel": "取消",
       "target": "影响对象：{target}",

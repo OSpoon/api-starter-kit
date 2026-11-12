@@ -13,6 +13,14 @@
   font-size: inherit;
 }
 
+.assistant-chat-root .assistant-chat-suggestions {
+  scrollbar-width: none;
+}
+
+.assistant-chat-root .assistant-chat-suggestions::-webkit-scrollbar {
+  display: none;
+}
+
 .assistant-chat-root [data-slot='scroll-area-viewport'] {
   scrollbar-width: thin;
   scrollbar-color: hsl(var(--muted-foreground) / 0.2) transparent;
@@ -36,22 +44,56 @@
   line-height: 1.5;
 }
 
-.ai-message-content-waiting {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.375rem;
-  height: 1.25rem;
-  color: var(--muted-foreground);
-  font-size: 12px;
-  line-height: 1;
-}
-
 .ai-message-content-error {
   color: var(--destructive);
 }
 
-.ai-message-content-waiting span {
-  white-space: nowrap;
+@keyframes assistant-chat-shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: 0 0;
+  }
+}
+
+.assistant-chat-root .assistant-chat-shimmer {
+  --assistant-chat-shimmer-spread: calc(3ch + 40px);
+  --assistant-chat-shimmer-highlight: oklch(from currentColor l c h / calc(alpha * 0.2));
+  background-image: linear-gradient(
+    110deg,
+    currentColor calc(50% - var(--assistant-chat-shimmer-spread)),
+    color-mix(in oklch, var(--assistant-chat-shimmer-highlight), currentColor 50%)
+      calc(50% - var(--assistant-chat-shimmer-spread) * 0.5),
+    var(--assistant-chat-shimmer-highlight) 50%,
+    color-mix(in oklch, var(--assistant-chat-shimmer-highlight), currentColor 50%)
+      calc(50% + var(--assistant-chat-shimmer-spread) * 0.5),
+    currentColor calc(50% + var(--assistant-chat-shimmer-spread))
+  );
+  background-repeat: no-repeat;
+  background-size: calc(200% + var(--assistant-chat-shimmer-spread) * 2) 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: assistant-chat-shimmer 2s linear infinite;
+}
+
+.dark .assistant-chat-root .assistant-chat-shimmer {
+  --assistant-chat-shimmer-highlight: oklch(
+    from currentColor max(0.8, calc(l + 0.4)) c h / calc(alpha + 0.4)
+  );
+}
+
+.assistant-chat-root [dir='rtl'] .assistant-chat-shimmer {
+  animation-direction: reverse;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .assistant-chat-root .assistant-chat-shimmer {
+    -webkit-text-fill-color: currentColor;
+    background-image: none;
+    animation: none;
+  }
 }
 
 .ai-message-content-markdown .markstream-vue {

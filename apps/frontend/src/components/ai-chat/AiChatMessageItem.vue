@@ -3,7 +3,6 @@ import {
   Activity,
   BookOpen,
   Check,
-  ChevronRight,
   Circle,
   CircleAlert,
   CircleCheck,
@@ -15,18 +14,34 @@ import {
   RotateCcw,
   Search,
   ShieldCheck,
+  Terminal,
   X,
 } from '@lucide/vue'
 
+import { Bubble, BubbleContent } from '@/components/ui/bubble'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
+import { CodeBlock, CodeBlockContent } from '@/components/ui/code-block'
 import { Dialog, DialogClose, DialogContent, DialogTitle } from '@/components/ui/dialog'
+import { Message, MessageContent } from '@/components/ui/message'
+import {
+  Trace,
+  TraceCollapsible,
+  TraceCollapsibleContent,
+  TraceCollapsibleTrigger,
+  TraceDescription,
+  TraceIcon,
+  TraceLine,
+  TraceTitle,
+} from '@/components/ui/trace'
 import {
   type AiChatAgentActivity,
+  type AiChatCitation,
   type AiChatPlanStep,
   type AiChatTimelineItem,
   getAiChatMessageImage,
 } from '@/features/ai/api'
+import { hasAiChatMessageContent } from '@/features/ai/conversation-state'
 import { useAuthStore } from '@/stores/auth'
 
 import AiChatLogo from './AiChatLogo.vue'
@@ -42,6 +57,7 @@ export interface AiChatMessageItemData {
   image?: { mimeType: string }
   localImageFile?: File
   candidateContent?: string
+  citations?: AiChatCitation[]
   status?: AiChatMessageItemStatus
   activity?: AiChatAgentActivity
   plan?: AiChatPlanStep[]
@@ -263,6 +279,9 @@ function getTimelineLabel(item: AiChatTimelineItem, timeline: AiChatTimelineItem
   if (activity.displayName && !awaitingConfirmation && !cancelledConfirmation) {
     return `${stateLabel.trim()} ${activity.displayName}${errorMessage}`.trim()
   }
+  if (activity.name === 'bash' && !toolNotRegistered) {
+    return `${t(`ai_chat.timeline.bash_states.${activity.state}`)}${errorMessage}`
+  }
   return `${stateLabel}${toolLabel}${errorMessage}`
 }
 
@@ -275,6 +294,7 @@ function getTimelineIcon(item: AiChatTimelineItem) {
   if (item.kind === 'confirmation') return CircleCheck
   if (item.kind === 'run') return Gauge
   if (item.kind === 'model_text') return item.streaming ? LoaderCircle : Activity
+  if (item.name === 'bash') return Terminal
   if (item.name === 'run_registered_query') return Search
   if (item.name === 'search_knowledge_catalog' || item.name === 'search_knowledge') return BookOpen
   if (item.name === 'diagnose_my_access') return ShieldCheck
@@ -410,6 +430,42 @@ function getTimelineDurationLabel(item: AiChatTimelineItem) {
   return t('ai_chat.timeline.duration_seconds', { duration: formatDurationSeconds(durationMs) })
 }
 
+function getTraceStatus(item: AiChatTimelineItem): 'running' | 'error' | 'pending' | undefined {
+  if (item.kind === 'model_text') return item.streaming ? 'running' : undefined
+  if (item.kind === 'phase') {
+    if (item.state === 'error') return 'error'
+    return item.state === 'running' ? 'running' : undefined
+  }
+  if (item.kind !== 'tool') return undefined
+  if (item.state === 'error' || item.errorCode) return 'error'
+  return item.state === 'running' || isMergedToolActive(item) ? 'running' : undefined
+}
+
+function getTimelineStatus(timeline: AiChatTimelineItem[]) {
+  if (
+    timeline.some(
+      (item) =>
+        getTraceStatus(item) === 'running' ||
+        (item.kind === 'plan' && getPlanStatus(item) === 'running')
+    )
+  ) {
+    return 'running'
+  }
+  return timeline.some((item) => getTraceStatus(item) === 'error') ? 'error' : undefined
+}
+
+function getPlanStatus(plan: Extract<AiChatTimelineItem, { kind: 'plan' }>) {
+  if (plan.steps.some((step) => step.state === 'running')) return 'running'
+  return plan.steps.some((step) => step.state === 'pending') ? 'pending' : undefined
+}
+
+function getPlanProgress(plan: Extract<AiChatTimelineItem, { kind: 'plan' }>) {
+  return t('ai_chat.timeline.plan_progress', {
+    completed: plan.steps.filter((step) => step.state === 'done').length,
+    total: plan.steps.length,
+  })
+}
+
 const timelineScrollArea = ref<HTMLDivElement>()
 
 watch(
@@ -438,10 +494,16 @@ function getTimelineSummary(timeline: AiChatTimelineItem[]) {
         : 0),
     0
   )
+  const run = timeline.find((item) => item.kind === 'run')
   const parts = []
   if (toolCount > 0) parts.push(t('ai_chat.timeline.tools_count', { count: toolCount }))
   if (planCount > 0) parts.push(t('ai_chat.timeline.steps_count', { count: planCount }))
   if (resultCount > 0) parts.push(t('ai_chat.timeline.results_count', { count: resultCount }))
+  if (run) {
+    parts.push(
+      t('ai_chat.timeline.duration_seconds', { duration: formatDurationSeconds(run.durationMs) })
+    )
+  }
   return parts.join(' · ')
 }
 
@@ -473,10 +535,6 @@ watch(
   { immediate: true }
 )
 
-function updateTimelineOpen(event: Event) {
-  timelineOpen.value = (event.currentTarget as HTMLDetailsElement).open
-}
-
 function getTimelineSections(timeline: AiChatTimelineItem[]) {
   const turns = new Map<number, AiChatTimelineItem[]>()
   let currentTurn = 0
@@ -485,8 +543,11 @@ function getTimelineSections(timeline: AiChatTimelineItem[]) {
       currentTurn += 1
       if (item.state === 'done') continue
     }
+    if (item.kind === 'phase' && item.name === 'model_response' && item.state === 'done') {
+      continue
+    }
     if (item.kind === 'confirmation') continue
-    if (item.kind === 'run' && props.message.status === 'streaming') continue
+    if (item.kind === 'run') continue
     const turn = item.kind === 'plan' && item.turn ? item.turn : Math.max(currentTurn, 1)
     const items = turns.get(turn) ?? []
     items.push(item)
@@ -500,25 +561,29 @@ function getTimelineSections(timeline: AiChatTimelineItem[]) {
 </script>
 
 <template>
-  <div
-    class="flex gap-2.5 text-sm/5"
-    :class="[
-      message.role === 'user' ? 'flex-row-reverse' : '',
-      isWelcomeMessage ? 'justify-center' : '',
-    ]"
+  <Message
+    :align="message.role === 'user' ? 'end' : 'start'"
+    class="text-sm/5"
+    :class="isWelcomeMessage ? 'justify-center' : ''"
   >
     <Checkbox
-      v-if="selectable && message.id !== 'welcome' && getMessageContent(message)"
+      v-if="selectable && message.id !== 'welcome' && hasAiChatMessageContent(message)"
       :model-value="selected"
       :aria-label="t('ai_chat.select_message')"
       class="mt-1.5"
       @update:model-value="$emit('select', message, $event === true)"
     />
-    <div
-      class="group/message flex max-w-[85%] min-w-0 flex-col gap-1"
-      :class="message.role === 'assistant' ? 'w-full' : ''"
+    <MessageContent
+      class="group/message"
+      :class="
+        isWelcomeMessage
+          ? 'w-full items-center gap-3'
+          : message.role === 'assistant'
+            ? 'w-full gap-3'
+            : 'max-w-[85%] gap-1'
+      "
     >
-      <div
+      <template
         v-if="
           isWelcomeMessage ||
           message.role === 'user' ||
@@ -527,54 +592,65 @@ function getTimelineSections(timeline: AiChatTimelineItem[]) {
             !getMessageContent(message)) ||
           (isAwaitingConfirmation(message) && !getMessageContent(message))
         "
-        class="rounded-lg px-3 py-2 text-sm/5 whitespace-pre-wrap"
-        :class="
-          message.role === 'user'
-            ? 'bg-accent text-accent-foreground'
-            : isWelcomeMessage
-              ? 'px-0 py-0 text-center'
-              : 'bg-background text-foreground dark:bg-input/30'
-        "
       >
-        <div
-          v-if="isWelcomeMessage"
-          class="flex flex-col items-center gap-1.5 px-4 pt-10 pb-4 text-center"
+        <Bubble
+          :align="message.role === 'user' ? 'end' : 'start'"
+          :variant="isWelcomeMessage ? 'ghost' : message.role === 'user' ? 'muted' : 'outline'"
+          :class="message.role === 'assistant' ? 'w-full max-w-full' : ''"
         >
-          <span class="mb-1.5 size-12 shrink-0" aria-hidden="true">
-            <AiChatLogo />
-          </span>
-          <p class="text-base font-semibold text-primary">{{ t('ai_chat.welcome_title') }}</p>
-          <p class="text-xs/5 text-muted-foreground">{{ t('ai_chat.welcome_subtitle') }}</p>
-        </div>
-        <AiMessageContent
-          v-else-if="message.role === 'assistant'"
-          :content="getRenderedMessageContent(message)"
-          :status="message.status ?? 'done'"
-          :streaming="message.status === 'streaming' || message.id === streamingMessageId"
-          :waiting-label="
-            isAwaitingConfirmation(message) ? t('ai_chat.waiting_for_confirmation') : undefined
-          "
-        />
-        <template v-else>
-          <button
-            v-if="imageSource"
-            type="button"
-            class="mb-2 block max-w-full cursor-zoom-in rounded-md focus-visible:ring-2 focus-visible:ring-ring"
-            :aria-label="t('ai_chat.image.open_preview')"
-            @click="imagePreviewOpen = true"
+          <BubbleContent
+            :class="[
+              isWelcomeMessage ? 'p-0 text-center' : 'rounded-lg',
+              message.role === 'assistant'
+                ? 'w-full border-transparent bg-background px-3 py-2 text-foreground dark:bg-input/30'
+                : '',
+            ]"
           >
-            <img
-              :src="imageSource"
-              :alt="t('ai_chat.image.preview')"
-              class="max-h-60 max-w-full rounded-md object-contain sm:max-w-[320px]"
+            <div
+              v-if="isWelcomeMessage"
+              class="flex flex-col items-center gap-1.5 px-4 pt-10 pb-4 text-center"
+            >
+              <span class="mb-1.5 size-12 shrink-0" aria-hidden="true">
+                <AiChatLogo />
+              </span>
+              <p class="text-base font-semibold text-primary">{{ t('ai_chat.welcome_title') }}</p>
+              <p class="text-xs/5 text-muted-foreground">{{ t('ai_chat.welcome_subtitle') }}</p>
+            </div>
+            <AiMessageContent
+              v-else-if="message.role === 'assistant'"
+              :content="getRenderedMessageContent(message)"
+              :status="message.status ?? 'done'"
+              :streaming="message.status === 'streaming' || message.id === streamingMessageId"
+              :waiting-label="
+                isAwaitingConfirmation(message) ? t('ai_chat.waiting_for_confirmation') : undefined
+              "
             />
-          </button>
-          <p v-else-if="imageLoadFailed" class="mb-2 text-xs text-muted-foreground" role="status">
-            {{ t('ai_chat.image.load_failed') }}
-          </p>
-          <p class="whitespace-pre-wrap">{{ message.content }}</p>
-        </template>
-      </div>
+            <template v-else>
+              <button
+                v-if="imageSource"
+                type="button"
+                class="mb-2 block max-w-full cursor-zoom-in rounded-md focus-visible:ring-2 focus-visible:ring-ring"
+                :aria-label="t('ai_chat.image.open_preview')"
+                @click="imagePreviewOpen = true"
+              >
+                <img
+                  :src="imageSource"
+                  :alt="t('ai_chat.image.preview')"
+                  class="max-h-60 max-w-full rounded-md object-contain sm:max-w-[320px]"
+                />
+              </button>
+              <p
+                v-else-if="imageLoadFailed"
+                class="mb-2 text-xs text-muted-foreground"
+                role="status"
+              >
+                {{ t('ai_chat.image.load_failed') }}
+              </p>
+              <p class="whitespace-pre-wrap">{{ message.content }}</p>
+            </template>
+          </BubbleContent>
+        </Bubble>
+      </template>
       <Dialog v-model:open="imagePreviewOpen">
         <DialogContent class="max-h-[90vh] max-w-[85vw] p-3 sm:max-w-xl" :show-close-button="false">
           <DialogClose as-child>
@@ -598,137 +674,261 @@ function getTimelineSections(timeline: AiChatTimelineItem[]) {
           />
         </DialogContent>
       </Dialog>
-      <details
+      <Trace
         v-if="
           message.role === 'assistant' &&
           message.timeline?.length &&
           getTimelineSections(message.timeline).length
         "
-        class="group/timeline mt-1 overflow-hidden rounded-md bg-muted/20 text-xs"
-        :open="timelineOpen"
-        @toggle="updateTimelineOpen"
+        class="mt-1"
       >
-        <summary
-          class="flex cursor-pointer list-none items-center gap-2 px-2.5 py-2 text-muted-foreground transition-colors hover:bg-muted/50 [&::-webkit-details-marker]:hidden"
+        <TraceCollapsible
+          v-model:open="timelineOpen"
+          :unmount-on-hide="false"
+          class="overflow-hidden rounded-md bg-muted/20 text-xs"
         >
-          <ChevronRight class="size-3.5 transition-transform group-open/timeline:rotate-90" />
-          <Activity class="size-3.5" />
-          <span class="font-medium">{{ t('ai_chat.timeline.title') }}</span>
-          <span class="ml-auto">{{ getTimelineSummary(message.timeline) }}</span>
-        </summary>
-        <div
-          ref="timelineScrollArea"
-          class="max-h-[180px] space-y-3 overflow-y-auto overscroll-contain border-t border-border/60 px-2.5 py-2"
-        >
-          <div v-for="section in getTimelineSections(message.timeline)" :key="section.key">
+          <TraceCollapsibleTrigger
+            class="w-full px-2.5 py-2 text-xs text-muted-foreground hover:bg-muted/50"
+          >
+            <TraceLine class="w-full text-xs">
+              <TraceIcon>
+                <Activity v-if="getTimelineStatus(message.timeline) === 'running'" />
+                <CircleAlert v-else-if="getTimelineStatus(message.timeline) === 'error'" />
+                <CircleCheck v-else />
+              </TraceIcon>
+              <TraceTitle class="text-xs font-medium">{{ t('ai_chat.timeline.title') }}</TraceTitle>
+              <TraceDescription class="ml-auto text-xs text-muted-foreground">
+                {{ getTimelineSummary(message.timeline) }}
+              </TraceDescription>
+            </TraceLine>
+          </TraceCollapsibleTrigger>
+          <TraceCollapsibleContent class="my-0 ml-0 border-0 p-0">
             <div
-              v-for="(item, index) in section.items"
-              :key="`${item.kind}-${item.kind === 'tool' ? (item.callId ?? item.name) : index}`"
-              v-show="item.kind !== 'plan' || !isPlanMergedWithTool(item, section.items)"
-              class="flex items-start gap-2 rounded px-1.5 py-0.5"
-              :class="
-                isTimelineActive(item) || (item.kind === 'tool' && isMergedToolActive(item))
-                  ? 'bg-primary/5 text-foreground'
-                  : 'text-muted-foreground'
-              "
+              ref="timelineScrollArea"
+              class="max-h-[180px] overflow-y-auto overscroll-contain border-t border-border/60 px-2.5 py-2"
             >
-              <div v-if="item.kind === 'plan'" class="min-w-0 flex-1 space-y-1">
-                <div
-                  v-for="step in item.steps"
-                  :key="step.key"
-                  class="flex items-start gap-2"
-                  :class="step.state === 'running' ? 'text-foreground' : 'text-muted-foreground'"
+              <Trace class="gap-1 text-xs">
+                <template
+                  v-for="section in getTimelineSections(message.timeline)"
+                  :key="section.key"
                 >
-                  <component
-                    :is="getPlanStepIcon(step)"
-                    class="mt-0.5 size-3.5 shrink-0"
-                    :class="step.state === 'running' ? 'animate-spin text-primary' : ''"
-                    aria-hidden="true"
-                  />
-                  <span class="min-w-0 flex-1 truncate" :title="getPlanStepLabel(step)">
-                    {{ getPlanStepLabel(step) }}
-                  </span>
-                  <span
-                    v-if="getPlanStepDurationMs(step) !== undefined"
-                    class="shrink-0 text-xs text-muted-foreground tabular-nums"
+                  <template
+                    v-for="(item, index) in section.items"
+                    :key="`${item.kind}-${item.kind === 'tool' ? (item.callId ?? item.name) : index}`"
                   >
-                    {{ getPlanStepDurationLabel(step) }}
-                  </span>
-                </div>
-              </div>
-              <div v-else-if="item.kind === 'model_text'" class="min-w-0 flex-1">
-                <p class="break-words whitespace-pre-wrap">{{ item.text }}</p>
-              </div>
-              <template
-                v-else-if="item.kind === 'tool' && getConfirmationPlanForTool(item, section.items)"
-              >
-                <component
-                  :is="getMergedToolIcon(item)"
-                  class="mt-0.5 size-3.5 shrink-0"
-                  :class="isMergedToolActive(item) ? 'animate-spin text-primary' : ''"
-                  aria-hidden="true"
-                />
-                <span class="shrink-0">{{
-                  getMergedToolStatusLabel(item, getConfirmationPlanForTool(item, section.items)!)
-                }}</span>
-                <span
-                  class="min-w-0 flex-1 truncate text-muted-foreground"
-                  :title="item.displayName ?? item.detail?.toolName"
-                >
-                  {{ item.displayName ?? item.detail?.toolName }}
-                </span>
-                <span
-                  v-if="
-                    getMergedToolDurationLabel(
-                      item,
-                      getConfirmationPlanForTool(item, section.items)!
-                    )
-                  "
-                  class="shrink-0 text-xs text-muted-foreground tabular-nums"
-                >
-                  {{
-                    getMergedToolDurationLabel(
-                      item,
-                      getConfirmationPlanForTool(item, section.items)!
-                    )
-                  }}
-                </span>
-              </template>
-              <template v-else>
-                <component
-                  :is="getTimelineIcon(item)"
-                  class="mt-0.5 size-3.5 shrink-0"
-                  :class="isTimelineActive(item) ? 'animate-spin text-primary' : ''"
-                />
-                <div class="min-w-0 flex-1">
-                  <span
-                    class="block truncate"
-                    :title="getTimelineLabel(item, message.timeline ?? [])"
-                  >
-                    {{ getTimelineLabel(item, message.timeline ?? []) }}
-                  </span>
-                  <pre
-                    v-if="item.kind === 'tool' && item.detail?.inputPreview"
-                    class="mt-1 font-sans break-words whitespace-pre-wrap text-muted-foreground"
-                    >{{ item.detail.inputPreview }}</pre
-                  >
-                  <pre
-                    v-if="item.kind === 'tool' && item.detail?.outputPreview"
-                    class="mt-1 rounded bg-background/70 p-1.5 font-mono break-words whitespace-pre-wrap text-muted-foreground"
-                    >{{ item.detail.outputPreview }}</pre
-                  >
-                </div>
-                <span
-                  v-if="getTimelineDurationMs(item) !== undefined"
-                  class="shrink-0 text-xs text-muted-foreground tabular-nums"
-                >
-                  {{ getTimelineDurationLabel(item) }}
-                </span>
-              </template>
+                    <TraceCollapsible
+                      v-if="item.kind === 'plan'"
+                      v-show="!isPlanMergedWithTool(item, section.items)"
+                      default-open
+                    >
+                      <TraceCollapsibleTrigger>
+                        <TraceLine :status="getPlanStatus(item)">
+                          <TraceIcon><ListChecks /></TraceIcon>
+                          <TraceTitle>{{ t('ai_chat.timeline.plan') }}</TraceTitle>
+                          <TraceDescription class="text-xs text-muted-foreground">
+                            {{ getPlanProgress(item) }}
+                          </TraceDescription>
+                        </TraceLine>
+                      </TraceCollapsibleTrigger>
+                      <TraceCollapsibleContent>
+                        <Trace class="gap-1">
+                          <TraceLine
+                            v-for="step in item.steps"
+                            :key="step.key"
+                            :status="step.state === 'done' ? undefined : step.state"
+                            class="w-full text-xs"
+                            :class="
+                              step.state === 'running' ? 'text-foreground' : 'text-muted-foreground'
+                            "
+                          >
+                            <TraceIcon>
+                              <component
+                                :is="getPlanStepIcon(step)"
+                                :class="step.state === 'running' ? 'animate-spin text-primary' : ''"
+                              />
+                            </TraceIcon>
+                            <TraceTitle :title="getPlanStepLabel(step)" class="flex-1">
+                              {{ getPlanStepLabel(step) }}
+                            </TraceTitle>
+                            <TraceDescription
+                              v-if="getPlanStepDurationMs(step) !== undefined"
+                              class="text-xs text-muted-foreground"
+                            >
+                              {{ getPlanStepDurationLabel(step) }}
+                            </TraceDescription>
+                          </TraceLine>
+                        </Trace>
+                      </TraceCollapsibleContent>
+                    </TraceCollapsible>
+                    <TraceLine
+                      v-else-if="item.kind === 'model_text'"
+                      :status="getTraceStatus(item)"
+                      class="w-full text-xs"
+                      :class="item.streaming ? 'text-foreground' : 'text-muted-foreground'"
+                    >
+                      <TraceIcon>
+                        <component
+                          :is="getTimelineIcon(item)"
+                          :class="item.streaming ? 'animate-spin text-primary' : ''"
+                        />
+                      </TraceIcon>
+                      <TraceTitle class="flex-1 whitespace-pre-wrap">{{ item.text }}</TraceTitle>
+                    </TraceLine>
+                    <TraceLine
+                      v-else-if="
+                        item.kind === 'tool' && getConfirmationPlanForTool(item, section.items)
+                      "
+                      :status="getTraceStatus(item)"
+                      class="w-full text-xs"
+                      :class="
+                        isMergedToolActive(item) ? 'text-foreground' : 'text-muted-foreground'
+                      "
+                    >
+                      <TraceIcon>
+                        <component
+                          :is="getMergedToolIcon(item)"
+                          :class="isMergedToolActive(item) ? 'animate-spin text-primary' : ''"
+                        />
+                      </TraceIcon>
+                      <TraceTitle>
+                        {{
+                          getMergedToolStatusLabel(
+                            item,
+                            getConfirmationPlanForTool(item, section.items)!
+                          )
+                        }}
+                      </TraceTitle>
+                      <TraceDescription
+                        class="flex-1 truncate text-xs text-muted-foreground"
+                        :title="item.displayName ?? item.detail?.toolName"
+                      >
+                        {{ item.displayName ?? item.detail?.toolName }}
+                      </TraceDescription>
+                      <TraceDescription
+                        v-if="
+                          getMergedToolDurationLabel(
+                            item,
+                            getConfirmationPlanForTool(item, section.items)!
+                          )
+                        "
+                        class="text-xs text-muted-foreground"
+                      >
+                        {{
+                          getMergedToolDurationLabel(
+                            item,
+                            getConfirmationPlanForTool(item, section.items)!
+                          )
+                        }}
+                      </TraceDescription>
+                    </TraceLine>
+                    <TraceCollapsible
+                      v-else-if="
+                        item.kind === 'tool' &&
+                        (item.detail?.inputPreview || item.detail?.outputPreview)
+                      "
+                      class="min-w-0 flex-1"
+                    >
+                      <TraceCollapsibleTrigger class="w-full">
+                        <TraceLine
+                          :status="getTraceStatus(item)"
+                          class="w-full text-xs"
+                          :class="
+                            isTimelineActive(item) ? 'text-foreground' : 'text-muted-foreground'
+                          "
+                        >
+                          <TraceIcon>
+                            <component
+                              :is="getTimelineIcon(item)"
+                              :class="isTimelineActive(item) ? 'animate-spin text-primary' : ''"
+                            />
+                          </TraceIcon>
+                          <TraceTitle
+                            :title="getTimelineLabel(item, message.timeline ?? [])"
+                            class="flex-1"
+                          >
+                            {{ getTimelineLabel(item, message.timeline ?? []) }}
+                          </TraceTitle>
+                          <TraceDescription
+                            v-if="getTimelineDurationMs(item) !== undefined"
+                            class="text-xs text-muted-foreground"
+                          >
+                            {{ getTimelineDurationLabel(item) }}
+                          </TraceDescription>
+                        </TraceLine>
+                      </TraceCollapsibleTrigger>
+                      <TraceCollapsibleContent>
+                        <CodeBlock
+                          size="sm"
+                          :variant="item.state === 'error' ? 'destructive' : 'default'"
+                        >
+                          <CodeBlockContent :wrap="true" class="max-h-64">{{
+                            item.detail?.outputPreview ?? item.detail?.inputPreview
+                          }}</CodeBlockContent>
+                        </CodeBlock>
+                      </TraceCollapsibleContent>
+                    </TraceCollapsible>
+                    <TraceLine
+                      v-else
+                      :status="getTraceStatus(item)"
+                      class="w-full text-xs"
+                      :class="isTimelineActive(item) ? 'text-foreground' : 'text-muted-foreground'"
+                    >
+                      <TraceIcon>
+                        <component
+                          :is="getTimelineIcon(item)"
+                          :class="isTimelineActive(item) ? 'animate-spin text-primary' : ''"
+                        />
+                      </TraceIcon>
+                      <TraceTitle
+                        :title="getTimelineLabel(item, message.timeline ?? [])"
+                        class="flex-1"
+                      >
+                        {{ getTimelineLabel(item, message.timeline ?? []) }}
+                      </TraceTitle>
+                      <TraceDescription
+                        v-if="getTimelineDurationMs(item) !== undefined"
+                        class="text-xs text-muted-foreground"
+                      >
+                        {{ getTimelineDurationLabel(item) }}
+                      </TraceDescription>
+                    </TraceLine>
+                  </template>
+                </template>
+              </Trace>
             </div>
-          </div>
-        </div>
-      </details>
+          </TraceCollapsibleContent>
+        </TraceCollapsible>
+      </Trace>
+      <TraceCollapsible
+        v-if="message.role === 'assistant' && message.citations?.length"
+        class="mt-1 rounded-md bg-muted/20 text-xs"
+      >
+        <TraceCollapsibleTrigger class="w-full px-2.5 py-1.5">
+          <TraceLine class="w-full">
+            <TraceIcon><BookOpen /></TraceIcon>
+            <TraceTitle>
+              {{ t('ai_chat.sources.count', { count: message.citations.length }) }}
+            </TraceTitle>
+          </TraceLine>
+        </TraceCollapsibleTrigger>
+        <TraceCollapsibleContent>
+          <Trace class="gap-1">
+            <TraceLine
+              v-for="citation in message.citations"
+              :key="`${citation.documentId}:${citation.chunkId}`"
+              class="w-full items-start"
+            >
+              <TraceIcon><BookOpen /></TraceIcon>
+              <div class="min-w-0 flex-1 space-y-0.5">
+                <TraceTitle :title="citation.title">{{ citation.title }}</TraceTitle>
+                <TraceDescription class="min-w-0 flex-1 shrink break-words whitespace-normal">
+                  {{ citation.excerpt }}
+                </TraceDescription>
+              </div>
+            </TraceLine>
+          </Trace>
+        </TraceCollapsibleContent>
+      </TraceCollapsible>
       <div
         v-if="showMessageActions && message.id !== 'welcome' && getMessageContent(message)"
         class="relative z-10 flex h-8 items-center gap-1 opacity-0 transition-opacity group-hover/message:opacity-100 focus-within:opacity-100"
@@ -740,6 +940,7 @@ function getTimelineSections(timeline: AiChatTimelineItem[]) {
           size="icon-sm"
           class="text-muted-foreground"
           :title="t('ai_chat.copy_message')"
+          :aria-label="t('ai_chat.copy_message')"
           @click="$emit('copy', { ...message, content: getMessageContent(message) })"
         >
           <Copy class="size-3.5" />
@@ -751,12 +952,13 @@ function getTimelineSections(timeline: AiChatTimelineItem[]) {
           size="icon-sm"
           class="text-muted-foreground"
           :title="t('ai_chat.retry_message')"
+          :aria-label="t('ai_chat.retry_message')"
           :disabled="loading"
           @click="$emit('retry', message)"
         >
           <RotateCcw class="size-3.5" />
         </Button>
       </div>
-    </div>
-  </div>
+    </MessageContent>
+  </Message>
 </template>

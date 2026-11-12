@@ -20,6 +20,7 @@ import { useAiChatConversations } from '@/features/ai/composables/useAiChatConve
 import { useAiChatStream } from '@/features/ai/composables/useAiChatStream'
 import { mergeAiChatMessages } from '@/features/ai/conversation-state'
 import { formatAiChatMessagesAsMarkdown } from '@/features/ai/markdown'
+import { getAiChatMessageImageDataUrl } from '@/features/ai/message-image'
 import type { DisplayAiChatMessage, LocalAiChatMessage } from '@/features/ai/types'
 import { useCopyText } from '@/lib/clipboard'
 import { useAuthStore } from '@/stores/auth'
@@ -151,8 +152,20 @@ export function useAiChat() {
     }
 
     try {
+      const markdownMessages = await Promise.all(
+        messages.map(async (message) => {
+          const imageDataUrl = await getAiChatMessageImageDataUrl(message, auth.token)
+          const imageMarkdown = imageDataUrl
+            ? `![${t('ai_chat.image.preview')}](${imageDataUrl})`
+            : ''
+          return {
+            role: message.role,
+            content: [message.content.trim(), imageMarkdown].filter(Boolean).join('\n\n'),
+          }
+        })
+      )
       await copyText(
-        formatAiChatMessagesAsMarkdown(messages, {
+        formatAiChatMessagesAsMarkdown(markdownMessages, {
           conversation: t('ai_chat.shared_conversation'),
           user: t('ai_chat.user'),
           assistant: t('ai_chat.assistant'),

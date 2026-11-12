@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { inputGroupButtonVariants } from '.'
 
 const props = withDefaults(defineProps<InputGroupButtonProps>(), {
+  type: 'button',
   size: 'xs',
   variant: 'ghost',
 })
@@ -12,7 +13,7 @@ const props = withDefaults(defineProps<InputGroupButtonProps>(), {
 
 <template>
   <Button
-    type="button"
+    :type="props.type"
     :data-size="props.size"
     :variant="props.variant"
     :class="cn(inputGroupButtonVariants({ size: props.size }), props.class)"

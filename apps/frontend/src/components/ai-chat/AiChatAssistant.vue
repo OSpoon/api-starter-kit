@@ -26,6 +26,13 @@ import AiChatCredentialCard from '@/components/ai-chat/AiChatCredentialCard.vue'
 import AiChatLogo from '@/components/ai-chat/AiChatLogo.vue'
 import AiChatMessageItem from '@/components/ai-chat/AiChatMessageItem.vue'
 import AiMessageContent from '@/components/ai-chat/AiMessageContent.vue'
+import {
+  Attachment,
+  AttachmentActions,
+  AttachmentContent,
+  AttachmentMedia,
+  AttachmentTitle,
+} from '@/components/ui/attachment'
 import { Button } from '@/components/ui/button'
 import { ButtonGroup } from '@/components/ui/button-group'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -36,6 +43,12 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupTextarea,
+} from '@/components/ui/input-group'
+import {
   MessageScroller,
   MessageScrollerButton,
   MessageScrollerContent,
@@ -44,7 +57,6 @@ import {
   MessageScrollerViewport,
 } from '@/components/ui/message-scroller'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { Textarea } from '@/components/ui/textarea'
 import type {
   AiChatConfirmation,
   AiChatCredentialDisclosure,
@@ -54,12 +66,16 @@ import type {
 import { useAiChatMessageSelection } from '@/features/ai/composables/useAiChatMessageSelection'
 import { useAiChatResize } from '@/features/ai/composables/useAiChatResize'
 import { useAiChatShareImage } from '@/features/ai/composables/useAiChatShareImage'
+import { getAiChatMessageImageDataUrl } from '@/features/ai/message-image'
 import type { DisplayAiChatMessage } from '@/features/ai/types'
+import { useAuthStore } from '@/stores/auth'
 
 interface ChatConversation {
   id: string | number
   title: string
 }
+
+type AiChatShareImageMessage = DisplayAiChatMessage & { imageDataUrl?: string }
 
 const props = withDefaults(
   defineProps<{
@@ -161,7 +177,8 @@ const isRecording = ref(false)
 const isPreparingRecording = ref(false)
 const usagePopoverOpen = ref(false)
 const shareImageRef = ref<HTMLElement | null>(null)
-const shareImageMessages = ref<DisplayAiChatMessage[]>([])
+const shareImageMessages = ref<AiChatShareImageMessage[]>([])
+const auth = useAuthStore()
 const { isGenerating: isGeneratingImage, generate: generateShareImage } = useAiChatShareImage()
 let mediaRecorder: MediaRecorder | null = null
 let recordingChunks: Blob[] = []
@@ -374,6 +391,24 @@ const displayMessages = computed(() => {
   return []
 })
 
+const suggestions = computed(() => [
+  t('ai_chat.suggestions.permissions'),
+  t('ai_chat.suggestions.audit_logs'),
+  t('ai_chat.suggestions.api_keys'),
+])
+const showSuggestions = computed(
+  () =>
+    displayMessages.value.every((message) => message.id === 'welcome') &&
+    !input.value.trim() &&
+    !attachedImage.value &&
+    !props.loading &&
+    !props.disabled &&
+    !props.approval &&
+    !props.credentialDisclosure &&
+    !isRecording.value &&
+    !props.voiceTranscribing
+)
+
 const assistantTitle = computed(() => props.title || t('ai_chat.title'))
 const inputPlaceholder = computed(
   () =>
@@ -425,9 +460,16 @@ function copySelectedMessagesAsMarkdown() {
 async function generateSelectedMessagesImage() {
   if (selectedMessages.value.length === 0 || isGeneratingImage.value) return
 
-  shareImageMessages.value = [...selectedMessages.value]
   try {
+    shareImageMessages.value = await Promise.all(
+      selectedMessages.value.map(async (message) => ({
+        ...message,
+        imageDataUrl: await getAiChatMessageImageDataUrl(message, auth.token),
+      }))
+    )
     if (await generateShareImage(() => shareImageRef.value)) cancelMessageSelection()
+  } catch {
+    toast.error(t('ai_chat.share_image_failed'))
   } finally {
     shareImageMessages.value = []
   }
@@ -1093,21 +1135,45 @@ watch(
               @approve="emit('approveConfirmation')"
               @dismiss="emit('dismissConfirmation')"
             />
-            <div v-if="attachedImage && attachedImagePreview" class="mb-2 flex justify-end">
-              <div class="relative h-20 w-28 overflow-hidden rounded-lg border bg-muted/40">
-                <img :src="attachedImagePreview" alt="" class="size-full object-contain" />
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="icon-sm"
-                  class="absolute top-1 right-1 bg-background/90"
-                  :title="t('ai_chat.image.remove')"
-                  :aria-label="t('ai_chat.image.remove')"
-                  @click="attachedImage = null"
-                >
-                  <X class="size-4" aria-hidden="true" />
-                </Button>
-              </div>
+            <div
+              v-if="showSuggestions"
+              class="assistant-chat-suggestions mb-2 flex gap-2 overflow-x-auto overscroll-x-contain px-3"
+              role="group"
+              :aria-label="t('ai_chat.suggestions.label')"
+            >
+              <Button
+                v-for="suggestion in suggestions"
+                :key="suggestion"
+                type="button"
+                variant="outline"
+                size="sm"
+                class="h-7 shrink-0 rounded-full border-border/50 bg-transparent px-3 font-normal text-muted-foreground shadow-none hover:text-foreground"
+                @click="sendMessage(suggestion)"
+              >
+                {{ suggestion }}
+              </Button>
+            </div>
+            <div v-if="attachedImage && attachedImagePreview" class="mb-2 flex justify-start pl-3">
+              <Attachment size="sm" class="max-w-full">
+                <AttachmentMedia variant="image">
+                  <img :src="attachedImagePreview" alt="" />
+                </AttachmentMedia>
+                <AttachmentContent>
+                  <AttachmentTitle>{{ attachedImage.name }}</AttachmentTitle>
+                </AttachmentContent>
+                <AttachmentActions>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="icon-sm"
+                    :title="t('ai_chat.image.remove')"
+                    :aria-label="t('ai_chat.image.remove')"
+                    @click="attachedImage = null"
+                  >
+                    <X class="size-4" aria-hidden="true" />
+                  </Button>
+                </AttachmentActions>
+              </Attachment>
             </div>
             <div
               v-if="isRecording || voiceTranscribing"
@@ -1174,47 +1240,43 @@ watch(
                 <ArrowUpIcon v-else class="size-3.5" />
               </Button>
             </div>
-            <form v-else class="flex items-end gap-2" @submit.prevent="handleSubmit">
-              <div class="min-w-0 flex-1">
-                <div class="relative">
-                  <input
-                    ref="imageInputRef"
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    class="sr-only"
-                    :aria-label="t('ai_chat.image.attach')"
-                    @change="selectImage"
-                  />
-                  <Textarea
-                    v-model="input"
-                    rows="1"
-                    :placeholder="inputPlaceholder"
-                    class="ai-chat-composer-input w-full resize-none pr-28"
-                    :disabled="disabled"
-                    @compositionstart="handleCompositionStart"
-                    @compositionend="handleCompositionEnd"
-                    @keydown="handleKeydown"
-                    @paste="handlePaste"
-                  />
-                  <Button
+            <form v-else @submit.prevent="handleSubmit">
+              <input
+                ref="imageInputRef"
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                class="sr-only"
+                :aria-label="t('ai_chat.image.attach')"
+                @change="selectImage"
+              />
+              <InputGroup class="min-h-12 rounded-xl">
+                <InputGroupTextarea
+                  id="ai-chat-composer-input"
+                  v-model="input"
+                  rows="1"
+                  :placeholder="inputPlaceholder"
+                  :aria-label="t('ai_chat.input_placeholder')"
+                  class="ai-chat-composer-input min-h-12 p-3"
+                  :disabled="disabled"
+                  @compositionstart="handleCompositionStart"
+                  @compositionend="handleCompositionEnd"
+                  @keydown="handleKeydown"
+                  @paste="handlePaste"
+                />
+                <InputGroupAddon align="block-end" class="gap-1.5">
+                  <InputGroupButton
                     v-if="!loading"
-                    type="button"
-                    variant="ghost"
                     size="icon-sm"
-                    class="absolute right-20 bottom-2"
                     :disabled="disabled"
                     :title="t('ai_chat.image.attach')"
                     :aria-label="t('ai_chat.image.attach')"
                     @click="openImagePicker"
                   >
                     <ImagePlus class="size-3.5" aria-hidden="true" />
-                  </Button>
-                  <Button
+                  </InputGroupButton>
+                  <InputGroupButton
                     v-if="!loading"
-                    type="button"
-                    variant="ghost"
                     size="icon-sm"
-                    class="absolute right-11 bottom-2"
                     :class="{
                       'text-destructive': isRecording,
                       'text-primary': isPreparingRecording,
@@ -1226,33 +1288,34 @@ watch(
                   >
                     <LoaderCircle v-if="isPreparingRecording" class="size-3.5 animate-spin" />
                     <Mic v-else class="size-3.5" />
-                  </Button>
-                  <Button
+                  </InputGroupButton>
+                  <InputGroupButton
                     :type="loading ? 'button' : 'submit'"
+                    variant="default"
                     size="icon-sm"
-                    class="absolute right-2 bottom-2"
+                    class="ml-auto"
                     :disabled="(!input.trim() && !attachedImage && !loading) || disabled"
                     :title="
                       loading
                         ? input.trim()
                           ? t('ai_chat.adjust_current')
                           : t('ai_chat.stop_generating')
-                        : undefined
+                        : t('ai_chat.send_message')
                     "
                     :aria-label="
                       loading
                         ? input.trim()
                           ? t('ai_chat.adjust_current')
                           : t('ai_chat.stop_generating')
-                        : undefined
+                        : t('ai_chat.send_message')
                     "
                     @click="loading ? (input.trim() ? sendMessage() : stopGeneration()) : undefined"
                   >
                     <Square v-if="loading && !input.trim()" class="size-3.5 fill-current" />
                     <ArrowUpIcon v-else class="size-3.5" />
-                  </Button>
-                </div>
-              </div>
+                  </InputGroupButton>
+                </InputGroupAddon>
+              </InputGroup>
             </form>
             <p class="my-2 px-1 text-center text-[11px] leading-4 text-muted-foreground">
               {{ t('ai_chat.response_disclaimer') }}
@@ -1320,8 +1383,19 @@ watch(
                 : 'border border-slate-200 bg-slate-50 text-slate-900'
             "
           >
-            <AiMessageContent v-if="message.role === 'assistant'" :content="message.content" />
-            <p v-else class="break-words whitespace-pre-wrap">{{ message.content }}</p>
+            <img
+              v-if="message.imageDataUrl"
+              :src="message.imageDataUrl"
+              :alt="t('ai_chat.image.preview')"
+              class="mb-3 max-h-[480px] max-w-full rounded-lg object-contain"
+            />
+            <AiMessageContent
+              v-if="message.role === 'assistant' && message.content.trim()"
+              :content="message.content"
+            />
+            <p v-else-if="message.content.trim()" class="break-words whitespace-pre-wrap">
+              {{ message.content }}
+            </p>
           </div>
         </article>
       </div>

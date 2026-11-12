@@ -321,8 +321,12 @@
     "welcome": "Hi, I’m your AI assistant. Ask about system features, APIs, or setup.",
     "welcome_title": "Hi, I am the AI Assistant",
     "welcome_subtitle": "Ask about system features, APIs, or setup.",
-    "input_placeholder": "Ask a question. Enter to send; Shift+Enter for a new line.",
-    "input_placeholder_while_generating": "Type while generating; press Enter or Send to update the task.",
+    "input_placeholder": "Ask a question…",
+    "sources": {
+      "count": "Used {count} sources"
+    },
+    "input_placeholder_while_generating": "Add an instruction…",
+    "send_message": "Send message",
     "adjust_current": "Adjust the current task now",
     "usage": {
       "open": "View this month's usage",
@@ -361,9 +365,16 @@
       "queue_unavailable": "Send image questions after the current response finishes"
     },
     "response_disclaimer": "For reference only. Verify important details with system data and project docs.",
+    "suggestions": {
+      "label": "Suggested prompts",
+      "permissions": "Check my permissions",
+      "audit_logs": "View recent audit logs",
+      "api_keys": "How do I manage API keys?"
+    },
     "thinking": "Thinking...",
     "waiting": "Waiting for response...",
     "waiting_for_confirmation": "Waiting for your confirmation",
+    "rate_limited": "Too many requests. Please wait a moment and try again.",
     "new_chat": "New chat",
     "history": "History",
     "no_history": "No history yet",
@@ -477,6 +488,7 @@
       "title": "Run details",
       "turn_section": "Turn {turn}",
       "plan": "Execution plan",
+      "plan_progress": "{completed} of {total} steps done",
       "run": "Run completed · {duration}s",
       "run_waiting_confirmation": "Turn paused · {duration}s",
       "elapsed": "running {duration}s",
@@ -499,6 +511,11 @@
         "running": "Running ",
         "done": "Completed ",
         "error": "Failed: "
+      },
+      "bash_states": {
+        "running": "Running skill command",
+        "done": "Ran skill command",
+        "error": "Failed to run skill command"
       },
       "error_reason_separator": ": {message}",
       "tools": {
@@ -592,7 +609,6 @@
       "success": "Operation confirmed and executed"
     },
     "approval": {
-      "source": "This confirmation was created by “{source}”",
       "approve": "Approve",
       "cancel": "Cancel",
       "target": "Affected item: {target}",

@@ -1,7 +1,17 @@
 import type { AiChatMessage } from './api'
 
-export function hasAiChatConversationContent(messages: Array<{ content: string }>) {
-  return messages.some((message) => message.content.trim().length > 0)
+type AiChatMessageContent = {
+  content: string
+  image?: unknown
+  localImageFile?: unknown
+}
+
+export function hasAiChatMessageContent(message: AiChatMessageContent) {
+  return Boolean(message.content.trim() || message.image || message.localImageFile)
+}
+
+export function hasAiChatConversationContent(messages: AiChatMessageContent[]) {
+  return messages.some(hasAiChatMessageContent)
 }
 
 export function mergeAiChatMessages(...groups: AiChatMessage[][]) {

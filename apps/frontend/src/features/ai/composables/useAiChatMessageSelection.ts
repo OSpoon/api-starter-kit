@@ -1,5 +1,6 @@
 import { computed, type ComputedRef, ref } from 'vue'
 
+import { hasAiChatMessageContent } from '../conversation-state'
 import type { DisplayAiChatMessage } from '../types'
 
 export function useAiChatMessageSelection(messages: ComputedRef<DisplayAiChatMessage[]>) {
@@ -12,7 +13,9 @@ export function useAiChatMessageSelection(messages: ComputedRef<DisplayAiChatMes
 
   const selectableCount = computed(
     () =>
-      messages.value.filter((message) => message.id !== 'welcome' && message.content.trim()).length
+      messages.value.filter(
+        (message) => message.id !== 'welcome' && hasAiChatMessageContent(message)
+      ).length
   )
 
   const selectedMessages = computed(() =>
@@ -41,7 +44,7 @@ export function useAiChatMessageSelection(messages: ComputedRef<DisplayAiChatMes
     selectedKeys.value = selected
       ? new Set(
           messages.value.flatMap((message, index) =>
-            message.id !== 'welcome' && message.content.trim()
+            message.id !== 'welcome' && hasAiChatMessageContent(message)
               ? [getMessageKey(message, index)]
               : []
           )

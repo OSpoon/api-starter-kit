@@ -3,6 +3,8 @@ import 'markstream-vue/index.css'
 
 import MarkdownRender from 'markstream-vue'
 
+import { Marker, MarkerContent } from '@/components/ui/marker'
+
 export type AiMessageContentStatus = 'pending' | 'streaming' | 'done' | 'error' | 'interrupted'
 
 const props = withDefaults(
@@ -30,9 +32,11 @@ const isError = computed(() => props.status === 'error')
 </script>
 
 <template>
-  <div v-if="isWaiting" class="ai-message-content-waiting">
-    <span>{{ waitingLabel || t('ai_chat.waiting') }}</span>
-  </div>
+  <Marker v-if="isWaiting" role="status">
+    <MarkerContent :class="{ 'assistant-chat-shimmer': !waitingLabel }">
+      {{ waitingLabel || t('ai_chat.waiting') }}
+    </MarkerContent>
+  </Marker>
   <div v-else class="ai-message-content-markdown" :class="{ 'ai-message-content-error': isError }">
     <MarkdownRender
       custom-id="ai-chat"

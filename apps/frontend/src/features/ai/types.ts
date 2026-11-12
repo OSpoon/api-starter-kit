@@ -12,12 +12,10 @@ export type DisplayAiChatMessage = {
   candidateContent?: string
   candidateCallId?: string
   status?: AiMessageContentStatus
+  citations?: AiChatCitation[]
   activity?: AiChatAgentActivity
   plan?: AiChatPlanStep[]
   timeline?: AiChatTimelineItem[]
 }
 
-export type LocalAiChatMessage = DisplayAiChatMessage & {
-  id: string | number
-  citations?: AiChatCitation[]
-}
+export type LocalAiChatMessage = DisplayAiChatMessage & { id: string | number }

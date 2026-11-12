@@ -1,6 +1,8 @@
 import type { Ref } from 'vue'
 import { toast } from 'vue-sonner'
 
+import { ApiError } from '@/lib/api'
+
 import {
   type AiChatConfirmation,
   type AiChatConversation,
@@ -42,6 +44,7 @@ export function useAiChatConversations(
   presentLatestConfirmation: (confirmations: AiChatConfirmation[]) => void
 ) {
   const getToken = () => (typeof token === 'function' ? token() : token.value)
+  let creatingConversation = false
 
   function applyConversationPage(result: AiChatConversationPage, append: boolean) {
     state.conversations.value = append
@@ -133,16 +136,30 @@ export function useAiChatConversations(
   }
 
   async function createNew() {
-    const shouldReuseEmptyConversation =
-      state.conversation.value &&
-      !hasAiChatConversationContent(state.conversation.value.messages) &&
-      !hasAiChatConversationContent(state.streamingMessages.value)
+    if (creatingConversation) return
+    creatingConversation = true
+    try {
+      const shouldReuseEmptyConversation =
+        state.conversation.value &&
+        !hasAiChatConversationContent(state.conversation.value.messages) &&
+        !hasAiChatConversationContent(state.streamingMessages.value)
 
-    resetCurrentConversation()
-    if (shouldReuseEmptyConversation) return
+      resetCurrentConversation()
+      if (shouldReuseEmptyConversation) return
 
-    state.conversation.value = await createAiChatConversation(getToken())
-    await refresh()
+      state.conversation.value = await createAiChatConversation(getToken())
+      await refresh()
+    } catch (error) {
+      toast.error(
+        error instanceof ApiError && error.status === 429
+          ? translate('ai_chat.rate_limited')
+          : error instanceof Error
+            ? error.message
+            : translate('common.error')
+      )
+    } finally {
+      creatingConversation = false
+    }
   }
 
   async function select(id: string | number) {
