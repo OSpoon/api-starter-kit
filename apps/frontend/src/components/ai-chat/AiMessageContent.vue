@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import 'markstream-vue/index.css'
-
-import MarkdownRender from 'markstream-vue'
+import { Markdown } from '@comark/vue'
+import linkify from '@comark/vue/plugins/linkify'
+import security from '@comark/vue/plugins/security'
+import taskList from '@comark/vue/plugins/task-list'
 
 import { Marker, MarkerContent } from '@/components/ui/marker'
 
@@ -21,6 +22,8 @@ const props = withDefaults(
 )
 
 const { t } = useI18n()
+const markdownOptions = { registerDefaultPlugins: false }
+const markdownPlugins = [linkify(), security(), taskList()]
 
 const isWaiting = computed(
   () =>
@@ -38,20 +41,17 @@ const isError = computed(() => props.status === 'error')
     </MarkerContent>
   </Marker>
   <div v-else class="ai-message-content-markdown" :class="{ 'ai-message-content-error': isError }">
-    <MarkdownRender
-      custom-id="ai-chat"
-      mode="chat"
-      :content="content"
-      :final="!isStreaming"
-      :smooth-streaming="isStreaming ? 'auto' : false"
-      :fade="!isStreaming"
-      :typewriter="isStreaming"
-      :max-live-nodes="isStreaming ? 0 : undefined"
-      :batch-rendering="isStreaming"
-      :render-batch-size="16"
-      :render-batch-delay="8"
-      :render-batch-budget-ms="4"
-      html-policy="escape"
-    />
+    <Suspense>
+      <Markdown
+        :value="content"
+        :options="markdownOptions"
+        :plugins="markdownPlugins"
+        :streaming="isStreaming"
+        :caret="isStreaming"
+      />
+      <template #fallback>
+        <div class="comark-content">{{ content }}</div>
+      </template>
+    </Suspense>
   </div>
 </template>

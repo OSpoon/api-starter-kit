@@ -101,6 +101,7 @@ export async function runAiChatAssistantTurn(input: {
   let activeModelResponse: { callId: string; startedAt: number } | undefined
   const pendingModelText = new Map<string, string>()
   let pendingAssistantCandidate = ''
+  let pendingAssistantCandidateCallId: string | undefined
   const attachedConfirmations: Array<
     Awaited<ReturnType<typeof attachAgentRunConfirmations>>[number] & { messageId: number }
   > = []
@@ -227,6 +228,32 @@ export async function runAiChatAssistantTurn(input: {
     return persistedAssistantMessage
   }
 
+  const clearPendingAssistantCandidate = async () => {
+    if (pendingAssistantCandidateCallId) {
+      await emit('agent_candidate_clear', { callId: pendingAssistantCandidateCallId })
+    }
+    pendingAssistantCandidate = ''
+    pendingAssistantCandidateCallId = undefined
+  }
+
+  const commitPendingAssistantCandidate = async () => {
+    const streamed = pendingAssistantCandidate
+    const callId = pendingAssistantCandidateCallId
+    const candidate = collapseRepeatedAssistantResponse(streamed)
+    pendingAssistantCandidate = ''
+    pendingAssistantCandidateCallId = undefined
+    if (!candidate) return Boolean(streamed)
+
+    assistantContent += candidate
+    if (callId && candidate === streamed) {
+      await emit('agent_candidate_commit', { callId })
+    } else {
+      if (callId) await emit('agent_candidate_clear', { callId })
+      await emit('delta', { content: candidate })
+    }
+    return Boolean(streamed)
+  }
+
   let stopKeepalive: (() => void) | undefined
 
   try {
@@ -314,7 +341,7 @@ export async function runAiChatAssistantTurn(input: {
       run,
       input.signal,
       input.enabledToolNames?.length === 0
-        ? {}
+        ? { streamText: true }
         : {
             captureModelText: true,
             streamTextAfterToolExecution: true,
@@ -457,7 +484,7 @@ export async function runAiChatAssistantTurn(input: {
         knowledgeCitations.clear()
         runtimeDetails.splice(0)
         pendingModelText.clear()
-        pendingAssistantCandidate = ''
+        await clearPendingAssistantCandidate()
         toolActivity = false
         pendingConfirmation = false
         await emit('assistant_segment_start', {})
@@ -488,12 +515,22 @@ export async function runAiChatAssistantTurn(input: {
       }
       if (event.source === 'message_candidate_delta') {
         if (!event.value || !activeModelResponse) continue
-        // Hold tool-backed answers until completion so repeated replies never reach the UI.
+        if (
+          pendingAssistantCandidateCallId &&
+          pendingAssistantCandidateCallId !== activeModelResponse.callId
+        ) {
+          await clearPendingAssistantCandidate()
+        }
+        pendingAssistantCandidateCallId = activeModelResponse.callId
         pendingAssistantCandidate += event.value
+        await emit('agent_candidate_delta', {
+          callId: activeModelResponse.callId,
+          content: event.value,
+        })
         continue
       }
       if (event.source === 'message_candidate_clear') {
-        pendingAssistantCandidate = ''
+        await clearPendingAssistantCandidate()
         continue
       }
       if (event.source === 'message_delta') {
@@ -558,26 +595,23 @@ export async function runAiChatAssistantTurn(input: {
             if (partialText) await updateModelTextDetail(modelCallId, partialText, false)
           }
           if (pendingAssistantCandidate) {
-            const candidate = collapseRepeatedAssistantResponse(pendingAssistantCandidate)
-            assistantContent += candidate
-            pendingAssistantCandidate = ''
-            await emit('delta', { content: candidate })
+            await commitPendingAssistantCandidate()
             await persistAssistantMessage()
           }
           throw event.value.error
         }
-        if (!event.value.hasToolCall && pendingAssistantCandidate) {
-          const candidate = collapseRepeatedAssistantResponse(pendingAssistantCandidate)
-          assistantContent += candidate
-          pendingAssistantCandidate = ''
-          await emit('delta', { content: candidate })
+        const candidateWasStreamed = event.value.hasToolCall
+          ? false
+          : await commitPendingAssistantCandidate()
+        if (event.value.hasToolCall && pendingAssistantCandidate) {
+          await clearPendingAssistantCandidate()
         }
         if (captureModelText && modelCallId && responseText.trim() && !pendingConfirmation) {
           pendingModelText.delete(modelCallId)
           if (event.value.hasToolCall) {
             await updateModelTextDetail(modelCallId, responseText, false)
             await persistAssistantMessage(true)
-          } else if (isChannelTurn) {
+          } else if (isChannelTurn && !candidateWasStreamed) {
             await removeModelTextDetail(modelCallId)
             const separator = assistantContent.trim()
               ? assistantContent.endsWith('\n\n')
@@ -619,7 +653,9 @@ export async function runAiChatAssistantTurn(input: {
       })
       sessionRun = finalizer
       aiFailureStage = 'final_response_stream'
-      for await (const event of streamAiAgentTurnEvents(finalizer, input.signal)) {
+      for await (const event of streamAiAgentTurnEvents(finalizer, input.signal, {
+        streamText: true,
+      })) {
         if (input.signal.aborted) {
           throw new DOMException('AI request was cancelled', 'AbortError')
         }
@@ -769,10 +805,7 @@ export async function runAiChatAssistantTurn(input: {
   } catch (error) {
     await finishModelResponse('error')
     if (pendingAssistantCandidate) {
-      const candidate = collapseRepeatedAssistantResponse(pendingAssistantCandidate)
-      assistantContent += candidate
-      pendingAssistantCandidate = ''
-      await emit('delta', { content: candidate })
+      await commitPendingAssistantCandidate()
       await persistAssistantMessage()
     }
     for (const [callId, text] of pendingModelText) {

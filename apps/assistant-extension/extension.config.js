@@ -23,12 +23,6 @@ export default {
       '@extension': extensionSource,
       // Shared views and the app router must use identical provide/inject keys.
       'vue-router$': sharedVueRouterRuntime,
-      '@antv/infographic': false,
-      '@terrastruct/d2': false,
-      katex: false,
-      mermaid: false,
-      'stream-markdown': false,
-      'stream-monaco': false,
     }
     config.plugins ??= []
     config.plugins.push(

@@ -1,6 +1,10 @@
 import { test } from '@japa/runner'
 
-import { AiChannelBridge, getAssistantContentFromDoneEvent } from '#channels/ai_channel_bridge'
+import {
+  AiChannelBridge,
+  createAiChannelCandidateBuffer,
+  getAssistantContentFromDoneEvent,
+} from '#channels/ai_channel_bridge'
 import type { ChannelAdapter } from '#channels/channel_types'
 import User from '#models/user'
 
@@ -11,6 +15,18 @@ test.group('AI channel bridge', () => {
       '磁盘可用空间为 20 GiB。'
     )
     assert.isNull(getAssistantContentFromDoneEvent({ message: null }))
+  })
+
+  test('accumulates and commits candidate deltas only for their model call', ({ assert }) => {
+    const candidates = createAiChannelCandidateBuffer()
+
+    assert.equal(candidates.append('model-1', '第一段'), '第一段')
+    assert.equal(candidates.append('model-1', '第二段'), '第一段第二段')
+    assert.isFalse(candidates.clear('stale-model'))
+    assert.equal(candidates.commit('model-1'), '第一段第二段')
+    assert.equal(candidates.append('model-2', '新候选'), '新候选')
+    assert.isTrue(candidates.clear('model-2'))
+    assert.isNull(candidates.commit('model-2'))
   })
 
   test('refuses card actions when the guest principal lookup fails', async ({ assert }) => {

@@ -88,7 +88,7 @@ export default defineConfig(({ command, mode }) => {
               return 'form-vendor'
             }
             if (id.includes('@tanstack/vue-table')) return 'table-vendor'
-            if (id.includes('markstream-vue')) return 'markdown-vendor'
+            if (id.includes('/@comark/') || id.includes('/comark/')) return 'markdown-vendor'
             return undefined
           },
         },

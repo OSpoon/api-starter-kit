@@ -685,7 +685,7 @@ function getTimelineSections(timeline: AiChatTimelineItem[]) {
         <TraceCollapsible
           v-model:open="timelineOpen"
           :unmount-on-hide="false"
-          class="overflow-hidden rounded-md bg-muted/20 text-xs"
+          class="overflow-hidden rounded-md border border-border/60 bg-muted/20 text-xs"
         >
           <TraceCollapsibleTrigger
             class="w-full px-2.5 py-2 text-xs text-muted-foreground hover:bg-muted/50"

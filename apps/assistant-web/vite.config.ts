@@ -70,7 +70,7 @@ export default defineConfig({
           ) {
             return 'ui-vendor'
           }
-          if (id.includes('markstream-vue')) return 'markdown-vendor'
+          if (id.includes('/@comark/') || id.includes('/comark/')) return 'markdown-vendor'
           return undefined
         },
       },

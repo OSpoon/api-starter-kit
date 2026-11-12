@@ -78,6 +78,35 @@ export function getAssistantContentFromDoneEvent(data: Record<string, unknown>) 
   return typeof content === 'string' ? content : null
 }
 
+export function createAiChannelCandidateBuffer() {
+  let callId: string | undefined
+  let content = ''
+
+  return {
+    append(nextCallId: string, delta: string) {
+      if (callId !== nextCallId) {
+        callId = nextCallId
+        content = ''
+      }
+      content += delta
+      return content
+    },
+    clear(targetCallId: string) {
+      if (callId !== targetCallId) return false
+      callId = undefined
+      content = ''
+      return true
+    },
+    commit(targetCallId: string) {
+      if (callId !== targetCallId) return null
+      const committed = content
+      callId = undefined
+      content = ''
+      return committed
+    },
+  }
+}
+
 function confirmationReply(value: Record<string, unknown>): OutboundMessage | null {
   const nestedConfirmation = value.confirmation
   const candidate =
@@ -229,6 +258,7 @@ export class AiChannelBridge implements ReloadableBotRuntime {
 
     let assistantContent = ''
     let streamedContent = ''
+    const candidateBuffer = createAiChannelCandidateBuffer()
     let confirmation: Record<string, unknown> | null = null
     let managedActionResult: 'pending' | 'error' | null = null
     const publishStreamContent = async (content: string) => {
@@ -248,14 +278,24 @@ export class AiChannelBridge implements ReloadableBotRuntime {
         ctx: createChannelHttpContext(user, message.channel),
         onEvent: async ({ event, data }) => {
           if (
-            message.channel !== 'wecom' &&
-            event === 'channel_candidate_delta' &&
+            event === 'agent_candidate_delta' &&
+            typeof data.callId === 'string' &&
             typeof data.content === 'string'
           ) {
-            await publishStreamContent(data.content)
+            const candidate = candidateBuffer.append(data.callId, data.content)
+            await publishStreamContent(`${assistantContent}${candidate}`)
           }
-          if (message.channel !== 'wecom' && event === 'channel_candidate_clear') {
-            await publishStreamContent('正在输入……')
+          if (event === 'agent_candidate_clear' && typeof data.callId === 'string') {
+            if (candidateBuffer.clear(data.callId)) {
+              await publishStreamContent(assistantContent || '正在输入……')
+            }
+          }
+          if (event === 'agent_candidate_commit' && typeof data.callId === 'string') {
+            const candidate = candidateBuffer.commit(data.callId)
+            if (candidate !== null) {
+              assistantContent += candidate
+              await publishStreamContent(assistantContent)
+            }
           }
           if (event === 'delta') {
             assistantContent += data.content

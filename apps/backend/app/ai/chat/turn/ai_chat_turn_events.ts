@@ -34,9 +34,7 @@ export type AiChatTurnEventMap = ToolFrameEventMap & {
   delta: { content: string }
   assistant_segment_start: Record<string, never>
   channel_preview: { callId: string; text: string }
-  channel_candidate_delta: { content: string }
   agent_candidate_delta: { callId: string; content: string }
-  channel_candidate_clear: Record<string, never>
   agent_candidate_clear: { callId: string }
   agent_candidate_commit: { callId: string }
   run: { agentRunId: string | null; usage: Record<string, unknown>; durationMs: number }
