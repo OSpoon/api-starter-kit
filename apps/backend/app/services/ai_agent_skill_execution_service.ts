@@ -3,6 +3,7 @@ import { constants } from 'node:fs'
 import { access, lstat, mkdtemp, readdir, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { extname, join, relative, resolve, sep } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 import app from '@adonisjs/core/services/app'
 import { SandboxManager } from '@anthropic-ai/sandbox-runtime'
@@ -17,6 +18,15 @@ const maxSkillSourceBytes = 5 * 1024 * 1024
 const maxSkillFileBytes = 1024 * 1024
 const supportedScriptExtensions = new Set(['.js', '.mjs', '.cjs', '.py', '.sh', '.bash'])
 const runnerPath = '/opt/homebrew/bin:/opt/local/bin:/usr/local/bin:/usr/bin:/bin'
+const seccompHelperPath =
+  process.platform === 'linux' && (process.arch === 'x64' || process.arch === 'arm64')
+    ? fileURLToPath(
+        new URL(
+          `../vendor/seccomp/${process.arch}/apply-seccomp`,
+          import.meta.resolve('@anthropic-ai/sandbox-runtime')
+        )
+      )
+    : undefined
 let sandboxInitialization: Promise<void> | undefined
 
 function getSandboxInitialization() {
@@ -236,7 +246,11 @@ export async function executeAiAgentSkillScript(input: {
       {
         filesystem: {
           denyRead: [appDirectory, getSkillsRoot(), resolve(process.env.HOME ?? '/home/node')],
-          allowRead: [skillDirectory, executable],
+          allowRead: [
+            skillDirectory,
+            executable,
+            ...(seccompHelperPath ? [seccompHelperPath] : []),
+          ],
           allowWrite: [temporaryDirectory],
           denyWrite: [appDirectory, getSkillsRoot(), '/tmp/claude'],
         },
