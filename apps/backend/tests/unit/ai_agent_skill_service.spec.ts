@@ -4,10 +4,10 @@ import { join } from 'node:path'
 
 import { test } from '@japa/runner'
 
-import { findBlockedSkillApi } from '#services/ai_agent_skill_execution_service'
 import {
   getAiAgentSkillCapabilities,
   listAiAgentSkills,
+  listAiAgentSkillScripts,
   listEnabledAiAgentSkills,
   loadAiAgentSkill,
   removeAiAgentSkill,
@@ -109,9 +109,7 @@ test.group('AI agent skill service', (group) => {
     assert.deepEqual(await listEnabledAiAgentSkills(workspace), [])
   })
 
-  test('executes enabled skill scripts directly and rejects common high-risk APIs', async ({
-    assert,
-  }) => {
+  test('executes enabled skill scripts in the OS sandbox', async ({ assert }) => {
     const { workspace, skillPath } = await createSkillWorkspace()
     await mkdir(join(skillPath, 'scripts'), { recursive: true })
     await writeFile(
@@ -127,6 +125,10 @@ test.group('AI agent skill service', (group) => {
 
     await updateAiAgentSkill('summarize', true, workspace)
     assert.deepEqual(await getAiAgentSkillCapabilities('summarize', workspace), [])
+    assert.deepEqual(await listAiAgentSkillScripts('summarize', workspace), [
+      'helpers/ping.mjs',
+      'scripts/index.mjs',
+    ])
     const result = await runAiAgentSkillCommand(
       'summarize',
       'scripts/index.mjs',
@@ -136,12 +138,6 @@ test.group('AI agent skill service', (group) => {
     assert.equal(result.exitCode, 0)
     assert.equal(result.stdout, 'ping|pong\n')
     assert.equal(result.scriptPath, 'scripts/index.mjs')
-    assert.isNotNull(findBlockedSkillApi("import { spawn } from 'node:child_process'"))
-    assert.isNotNull(findBlockedSkillApi('fetch("https://example.com")'))
-    assert.isUndefined(findBlockedSkillApi("import os from 'node:os'"))
-    assert.isUndefined(
-      findBlockedSkillApi("module.exports = {}; const url = 'https://example.com'")
-    )
     await assert.rejects(
       () => runAiAgentSkillCommand('summarize', 'references/guide.md', [], workspace),
       /必须是 JavaScript 文件/
@@ -157,6 +153,35 @@ test.group('AI agent skill service', (group) => {
       workspace
     )
     assert.equal(literalArgumentResult.stdout, 'ping; whoami\n')
+  })
+
+  test('limits skill script filesystem access to its skill and temporary directories', async ({
+    assert,
+  }) => {
+    const { workspace, skillPath } = await createSkillWorkspace()
+    await mkdir(join(skillPath, 'scripts'), { recursive: true })
+    await writeFile(
+      join(skillPath, 'scripts', 'access.mjs'),
+      [
+        "import { readFileSync, writeFileSync } from 'node:fs'",
+        'const checks = []',
+        "try { readFileSync(process.argv[2]); checks.push('outside-readable') } catch { checks.push('outside-denied') }",
+        "try { writeFileSync(process.argv[3], 'changed'); checks.push('skill-writable') } catch { checks.push('skill-write-denied') }",
+        "try { writeFileSync(`${process.env.TMPDIR}/sandbox-check`, 'ok'); checks.push('temp-write-allowed') } catch (error) { checks.push(`temp-denied-${error.permission}-${error.resource}`) }",
+        "console.log(checks.join('|'))",
+      ].join('\n')
+    )
+    await updateAiAgentSkill('summarize', true, workspace)
+
+    const result = await runAiAgentSkillCommand(
+      'summarize',
+      'scripts/access.mjs',
+      [join(process.cwd(), 'package.json'), join(skillPath, 'SKILL.md')],
+      workspace
+    )
+
+    assert.equal(result.exitCode, 0)
+    assert.equal(result.stdout, 'outside-denied|skill-write-denied|temp-write-allowed\n')
   })
 
   test('reads only supported runtime capabilities from enabled skill metadata', async ({

@@ -81,6 +81,8 @@ pnpm test:agent-workflows
 
 在隔离环境用 GitHub 仓库简称、GitHub URL 和 Git remote URL 安装技能，检查 CLI 将文件放入 `AI_AGENT_SKILLS_DIR/.agents/skills`，新技能默认停用；HTTPS ZIP、归档链接和本地路径应被拒绝。启用后确认新对话能列出并加载其 `SKILL.md`，停用后不能再加载。移除操作应通过 `skills remove` 更新 CLI lock 文件并删除目标技能；重启容器后已安装技能和启用状态应保留。验证路径遍历、符号链接越界和超出读取大小限制均被拒绝。
 
+初次加载技能说明时应返回技能目录中可执行 Node 脚本的相对路径；脚本可在任意子目录，不要求 `scripts/` 目录。脚本由 backend 子进程通过 OS sandbox 执行。验证脚本不能访问网络、技能目录之外的应用文件或写入技能目录；参数仍按数组原样传递；无限循环应在 30 秒内结束，超限输出应截断，技能停用后不能执行。Linux/Docker 部署需确认 bubblewrap、socat、ripgrep 已安装且宿主机允许所需 namespace；条件不满足时执行器应失败关闭。运行时只作为隔离层，技能仍需来自管理员认可的可信来源。
+
 技能页面只提交 Git 来源；私有 Git 来源使用后端容器配置的 Git 凭据。通用回归不执行第三方技能脚本。脚本能力必须通过单独注册的工具接入并遵循权限与确认流程。
 
 ## 覆盖文件

@@ -1,47 +1,54 @@
 import { execFile as nodeExecFile } from 'node:child_process'
-import { lstat, open, readdir, realpath } from 'node:fs/promises'
-import { extname, relative, sep } from 'node:path'
+import { lstat, mkdtemp, readdir, realpath, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { extname, join, relative, resolve, sep } from 'node:path'
 import { promisify } from 'node:util'
 
+import app from '@adonisjs/core/services/app'
+import { SandboxManager } from '@anthropic-ai/sandbox-runtime'
+
+import env from '#start/env'
+
 const execFile = promisify(nodeExecFile)
+const maxOutputBytes = 64 * 1024
+const timeoutMs = 30_000
+const maxContextBytes = 64 * 1024
 const maxSkillFiles = 256
 const maxSkillSourceBytes = 5 * 1024 * 1024
 const maxSkillFileBytes = 1024 * 1024
-const maxOutputBytes = 64 * 1024
-const timeoutMs = 30_000
+let sandboxInitialization: Promise<void> | undefined
 
-const blockedPatterns = [
-  /\b(?:from\s*|import\s*|require\s*\(\s*)['"](?:node:)?(?:child_process|worker_threads|cluster|http2?|https|net|tls|dgram|dns|inspector|vm|sqlite|ffi|wasi|undici)(?:\/[^'"]*)?['"]/i,
-  /\b(?:fetch|WebSocket|WebSocketStream|WebTransport|EventSource|XMLHttpRequest)\b/,
-  /\b(?:eval|Function)\s*\(/,
-  /\bimport\s*\(/,
-  /\bprocess\s*\.\s*(?:binding|_linkedBinding|_debugProcess|kill|dlopen|getBuiltinModule|abort|setuid|setgid|setgroups|report)\b/,
-  /\b(?:writeFile|writeFileSync|appendFile|appendFileSync|createWriteStream|writeReport|unlink|unlinkSync|rm|rmSync|rmdir|rmdirSync|mkdir|mkdirSync|rename|renameSync|chmod|chmodSync|chown|chownSync|truncate|truncateSync|copyFile|copyFileSync|symlink|symlinkSync|link|linkSync)\s*\(/,
-]
-
-// shortcut: static checks miss obfuscated API access, use this executor only for trusted skills.
-
-function ensureWithinSkill(root: string, candidate: string) {
-  const path = relative(root, candidate)
-  if (!path || path === '..' || path.startsWith(`..${sep}`)) {
-    throw new Error('技能脚本路径无效')
-  }
+function getSandboxInitialization() {
+  sandboxInitialization ??= SandboxManager.initialize({
+    network: { allowedDomains: [], deniedDomains: [], strictAllowlist: true },
+    filesystem: { denyRead: [], allowWrite: [], denyWrite: [] },
+    enableWeakerNestedSandbox: false,
+  }).catch((error: unknown) => {
+    sandboxInitialization = undefined
+    throw error
+  })
+  return sandboxInitialization
 }
 
-export function findBlockedSkillApi(source: string) {
-  return blockedPatterns.find((pattern) => pattern.test(source))?.source
+function quoteShellArgument(value: string) {
+  return `'${value.replaceAll("'", "'\\''")}'`
+}
+
+function getSkillsRoot() {
+  const workspace = resolve(env.get('AI_AGENT_SKILLS_DIR') ?? app.makePath('storage'))
+  return join(workspace, '.agents', 'skills')
 }
 
 async function validateSkillSources(skillDirectory: string) {
-  const root = await realpath(skillDirectory)
-  const pending = [root]
+  const pending = [skillDirectory]
+  const scripts: string[] = []
   let fileCount = 0
   let totalBytes = 0
 
   while (pending.length) {
     const directory = pending.pop()!
     for (const entry of await readdir(directory, { withFileTypes: true })) {
-      const path = `${directory}${sep}${entry.name}`
+      const path = join(directory, entry.name)
       if (entry.isSymbolicLink()) throw new Error('技能目录不能包含符号链接')
       if (entry.isDirectory()) {
         pending.push(path)
@@ -57,19 +64,15 @@ async function validateSkillSources(skillDirectory: string) {
       }
       totalBytes += fileStat.size
       if (totalBytes > maxSkillSourceBytes) throw new Error('技能脚本总大小超过执行限制')
-      const file = await open(path, 'r')
-      try {
-        const openedFileStat = await file.stat()
-        if (!openedFileStat.isFile()) throw new Error('技能脚本无效')
-        const source = await file.readFile('utf8')
-        if (findBlockedSkillApi(source)) {
-          throw new Error(`技能脚本包含禁止的高危 API：${relative(root, path)}`)
-        }
-      } finally {
-        await file.close()
-      }
+      scripts.push(relative(skillDirectory, path).split(sep).join('/'))
     }
   }
+
+  return scripts.sort()
+}
+
+export async function getAiAgentSkillScriptPaths(skillDirectory: string) {
+  return validateSkillSources(await realpath(skillDirectory))
 }
 
 export async function executeAiAgentSkillScript(input: {
@@ -79,49 +82,78 @@ export async function executeAiAgentSkillScript(input: {
   context: object
   signal?: AbortSignal
 }) {
-  const root = await realpath(input.skillDirectory)
-  const script = await realpath(input.scriptPath)
-  ensureWithinSkill(root, script)
-  await validateSkillSources(root)
+  const contextJson = JSON.stringify(input.context)
+  if (Buffer.byteLength(contextJson) > maxContextBytes) {
+    throw new Error('技能运行时上下文过大')
+  }
   if (input.signal?.aborted) throw new DOMException('AI request was cancelled', 'AbortError')
 
+  const skillDirectory = await resolve(input.skillDirectory)
+  const temporaryDirectory = await mkdtemp(join(tmpdir(), 'ai-agent-skill-'))
   try {
-    const { stdout, stderr } = await execFile(
-      process.execPath,
-      [
-        '--permission',
-        '--max-old-space-size=256',
-        `--allow-fs-read=${root}`,
-        script,
-        ...input.args,
-      ],
+    await validateSkillSources(skillDirectory)
+    await getSandboxInitialization()
+    const appDirectory = resolve(process.cwd())
+    const command = [
+      `TMPDIR=${quoteShellArgument(temporaryDirectory)}`,
+      'exec',
+      quoteShellArgument(process.execPath),
+      quoteShellArgument('--permission'),
+      quoteShellArgument('--max-old-space-size=256'),
+      quoteShellArgument(`--allow-fs-read=${skillDirectory},${temporaryDirectory}`),
+      quoteShellArgument(`--allow-fs-write=${temporaryDirectory}`),
+      quoteShellArgument(join(skillDirectory, input.scriptPath)),
+      ...input.args.map(quoteShellArgument),
+    ].join(' ')
+    const wrapped = await SandboxManager.wrapWithSandboxArgv(
+      command,
+      '/bin/bash',
       {
-        cwd: root,
+        filesystem: {
+          denyRead: [appDirectory, getSkillsRoot(), resolve(process.env.HOME ?? '/home/node')],
+          allowRead: [skillDirectory, process.execPath],
+          allowWrite: [temporaryDirectory],
+          denyWrite: [appDirectory, getSkillsRoot(), '/tmp/claude'],
+        },
+      },
+      input.signal,
+      skillDirectory
+    )
+
+    try {
+      const { stdout, stderr } = await execFile(wrapped.argv[0]!, wrapped.argv.slice(1), {
+        cwd: skillDirectory,
         env: {
-          PATH: '/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin',
+          PATH: '/usr/local/bin:/usr/bin:/bin',
           LANG: 'C.UTF-8',
-          ASSISTANT_SKILL_CONTEXT_JSON: JSON.stringify(input.context),
+          HOME: temporaryDirectory,
+          TMPDIR: temporaryDirectory,
+          ASSISTANT_SKILL_CONTEXT_JSON: contextJson,
         },
         encoding: 'utf8',
         timeout: timeoutMs,
         maxBuffer: maxOutputBytes * 2,
         signal: input.signal,
+      })
+      return {
+        exitCode: 0,
+        timedOut: false,
+        stdout: stdout.slice(0, maxOutputBytes),
+        stderr: stderr.slice(0, maxOutputBytes),
       }
-    )
-    return {
-      exitCode: 0,
-      timedOut: false,
-      stdout: stdout.slice(0, maxOutputBytes),
-      stderr: stderr.slice(0, maxOutputBytes),
+    } catch (error) {
+      if (input.signal?.aborted) throw new DOMException('AI request was cancelled', 'AbortError')
+      const result = error as NodeJS.ErrnoException & { stdout?: unknown; stderr?: unknown }
+      return {
+        exitCode: typeof result.code === 'number' ? result.code : null,
+        timedOut: result.code === 'ETIMEDOUT',
+        stdout: typeof result.stdout === 'string' ? result.stdout.slice(0, maxOutputBytes) : '',
+        stderr: typeof result.stderr === 'string' ? result.stderr.slice(0, maxOutputBytes) : '',
+      }
+    } finally {
+      SandboxManager.cleanupAfterCommand()
     }
-  } catch (error) {
-    if (input.signal?.aborted) throw new DOMException('AI request was cancelled', 'AbortError')
-    const result = error as NodeJS.ErrnoException & { stdout?: unknown; stderr?: unknown }
-    return {
-      exitCode: typeof result.code === 'number' ? result.code : null,
-      timedOut: result.code === 'ETIMEDOUT',
-      stdout: typeof result.stdout === 'string' ? result.stdout.slice(0, maxOutputBytes) : '',
-      stderr: typeof result.stderr === 'string' ? result.stderr.slice(0, maxOutputBytes) : '',
-    }
+  } finally {
+    await rm(temporaryDirectory, { recursive: true, force: true })
   }
 }

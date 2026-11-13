@@ -187,17 +187,19 @@ blocked command as passing.
 
 ### Documentation Ownership
 
+- **Documentation is a record of current state only.** Do not write change
+  history, implementation timelines, task summaries, or acceptance results in
+  authoritative docs. Keep release history only in the generated
+  `CHANGELOG.md` and reusable validation steps in verification guides.
 - Keep the root `README.md` as a concise public entry point. Put operational
   setup, deployment, security, API, and feature detail in the relevant
   authoritative document under `docs/`.
 - Update authoritative documentation when documented setup, environment
   variables, Docker, migrations, API behavior, or template capabilities change.
 - Feature documents describe current user-visible behavior. Keep implementation
-  details only when they help maintain or operate the system; do not turn
-  one-off change notes or acceptance results into feature descriptions.
-- Keep release history in generated `CHANGELOG.md` and reusable validation
-  procedures in verification guides. Do not add development logs, task
-  summaries, or commit-specific notes to the root README.
+  details only when they help maintain or operate the system.
+- Do not add development logs, task summaries, or commit-specific notes to the
+  root README.
 
 The final summary states what changed and where, the verification commands and
 results, any verification not run/failed/blocked and why, and exceptions with

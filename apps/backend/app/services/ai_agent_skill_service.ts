@@ -21,7 +21,10 @@ import type {
   AiAgentSkillCapability,
   AiAgentSkillRuntimeContext,
 } from '#services/ai_agent_skill_context_service'
-import { executeAiAgentSkillScript } from '#services/ai_agent_skill_execution_service'
+import {
+  executeAiAgentSkillScript,
+  getAiAgentSkillScriptPaths,
+} from '#services/ai_agent_skill_execution_service'
 import env from '#start/env'
 
 const execFile = promisify(nodeExecFile)
@@ -215,6 +218,11 @@ async function getEnabledSkillDirectory(code: string, workspace?: string) {
   return realpath(join(getSkillsDirectory(root), code))
 }
 
+export async function listAiAgentSkillScripts(code: string, workspace?: string) {
+  const skillPath = await getEnabledSkillDirectory(code, workspace)
+  return getAiAgentSkillScriptPaths(skillPath)
+}
+
 async function resolveSkillFile(skillPath: string, resourcePath: string, maxBytes: number) {
   if (
     !resourcePath.trim() ||
@@ -350,7 +358,10 @@ export async function loadAiAgentSkill(
   workspace?: string
 ) {
   const skillPath = await getEnabledSkillDirectory(code, workspace)
-  const filePath = await resolveSkillFile(skillPath, resourcePath, skillFileLimit)
+  const fileLimit = ['.js', '.mjs', '.cjs'].includes(extname(resourcePath).toLowerCase())
+    ? skillScriptLimit
+    : skillFileLimit
+  const filePath = await resolveSkillFile(skillPath, resourcePath, fileLimit)
   const fileHandle = await open(filePath, 'r')
   try {
     const realPath = await fileHandle.stat()
@@ -411,7 +422,7 @@ export async function runAiAgentSkillCommand(
   const canonicalScriptPath = relative(skillPath, resolvedScript).split(sep).join('/')
   const result = await executeAiAgentSkillScript({
     skillDirectory: skillPath,
-    scriptPath: resolvedScript,
+    scriptPath: canonicalScriptPath,
     args,
     context,
     signal,

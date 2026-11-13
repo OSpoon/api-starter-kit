@@ -206,8 +206,8 @@ dingtalk-bot
 
 技能由 backend 安装和管理，Compose 会将同一个 `assistant-skills` 持久卷挂载到
 backend 和三个 Bot worker，并统一设置 `AI_AGENT_SKILLS_DIR=/data/assistant-skills`。
-自行部署独立 worker 时，也必须让 backend 与 worker 使用相同的 `AI_AGENT_SKILLS_DIR`
-并挂载同一持久目录，否则 worker 无法读取后台安装的技能。
+脚本由各 backend/Bot 进程通过 OS sandbox 执行，不需要独立 runner 服务。自行部署独立 worker 时，
+也必须挂载相同的技能目录；Linux 部署还需提供 bubblewrap、socat、ripgrep 和可用的 namespace 支持。
 
 ```bash
 docker compose -f docker/docker-compose.yml -f docker/docker-compose.app.yml -f docker/docker-compose.im.yml ps

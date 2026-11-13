@@ -85,6 +85,7 @@
     "@adonisjs/lucid": "^22.4.2",
     "@adonisjs/session": "^8.1.0",
     "@adonisjs/shield": "^9.0.0",
+    "@anthropic-ai/sandbox-runtime": "0.0.81",
     "@earendil-works/pi-agent-core": "^1.4.0",
     "@earendil-works/pi-ai": "^1.4.0",
     "@earendil-works/pi-telemetry": "1.4.0",
