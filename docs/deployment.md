@@ -197,7 +197,7 @@ healthcheck，因此按需启动时 Compose 会等待依赖就绪。
 
 PostgreSQL 始终将宿主机端口绑定到 loopback：默认 `127.0.0.1:5432`，可通过 `POSTGRES_PORT` 修改。宿主机开发服务可连接该地址，局域网无法直接访问；容器内应用继续使用 `postgres:5432`。
 
-技能脚本由 backend/Bot worker 在现有应用容器内通过 Anthropic Sandbox Runtime 启动受限子进程，不新增 runner 服务或 Docker socket 挂载。支持 Node.js、Python 3 和 Bash 脚本；backend 镜像安装了 `bash`、`python3`、`bubblewrap`、`socat` 和 `ripgrep`。宿主机内核及容器 seccomp/AppArmor 配置还必须允许 bubblewrap 创建隔离 namespace；Ubuntu 24.04+ 主机上的 AppArmor user namespace 限制也必须允许 bubblewrap 所需 capability。不满足时脚本执行会失败关闭。部署前应在目标环境验证该能力，不要通过给 backend 开启 `privileged` 或 `seccomp=unconfined` 来绕过限制。当前运行时不启用其较弱的 Docker 嵌套模式；如果目标环境无法提供 namespace 隔离，应禁用技能脚本或改用独立 Docker daemon/VM。
+技能脚本由 backend/Bot worker 在现有应用容器内通过 Anthropic Sandbox Runtime 启动受限子进程，不新增 runner 服务或 Docker socket 挂载。支持 Node.js、Python 3 和 Bash 脚本；backend 镜像安装了 `bash`、`python3`、`bubblewrap`、`socat` 和 `ripgrep`。宿主机内核及容器 seccomp/AppArmor 配置必须允许 bubblewrap 创建隔离 namespace，并让 `apply-seccomp` helper 在其嵌套 namespace 中取得所需的 `CAP_SYS_ADMIN`。Ubuntu 26.04 默认 `bwrap-userns-restrict` AppArmor profile 会移除该 capability；单独设置 `kernel.apparmor_restrict_unprivileged_userns=0` 仍无法运行当前 sandbox runtime。部署前应在目标环境验证该能力；不满足时脚本执行失败关闭。不要通过给 backend 开启 `privileged` 或 `seccomp=unconfined` 来绕过限制。当前运行时不启用其较弱的 Docker 嵌套模式；如果目标环境无法提供 namespace 隔离，应禁用技能脚本或改用独立 Docker daemon/VM。
 
 帮助子菜单仅在开发模式显示；生产构建（包括 Docker frontend 镜像）会隐藏整个子菜单，包括 API 文档和开发工具入口；账户、语言、主题和退出菜单保持可用。
 

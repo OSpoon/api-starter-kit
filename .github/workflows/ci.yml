@@ -9,7 +9,8 @@ on:
 jobs:
   backend:
     name: Backend (format, typecheck, lint, test, build)
-    runs-on: ubuntu-latest
+    # shortcut: current SRT cannot run apply-seccomp under Ubuntu 26's bwrap profile; remove the pin after upstream support lands.
+    runs-on: ubuntu-22.04
     services:
       postgres:
         image: pgvector/pgvector:pg15
@@ -34,7 +35,6 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install --no-install-recommends -y bash bubblewrap python3 ripgrep socat
-          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6.0.10
