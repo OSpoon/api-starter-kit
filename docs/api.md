@@ -1,14 +1,10 @@
 # API 指南
 
-这份文档面向调用现有 API 或新增业务接口的开发者。后端 API 的基础路径为 `/api/v1`，OpenAPI schema 是请求和响应契约的权威来源。
-
-管理端 Web（`apps/frontend`）、独立助手 Web（`apps/assistant-web`）、Tauri 桌面端和 Chrome 扩展均使用这套 API。
-桌面端和扩展复用独立助手客户端实现，不存在单独的客户端 API。新增或修改接口时，需检查受影响客户端的
-API client、类型、认证状态和错误处理是否仍然符合契约；三个 IM Bot 则通过共享渠道 runtime 接入同一套受控能力。
+Backend API 的基础路径为 `/api/v1`。具体 URL、参数、响应 schema 和认证要求以 backend 的 OpenAPI 定义为准；本文只记录通用约定和入口。
 
 ## 查看契约
 
-设置 `OPENAPI_DOCS_ENABLED=true` 后，后端提供：
+设置 `OPENAPI_DOCS_ENABLED=true` 后，可在 backend 查看：
 
 | 资源         | 路径             |
 | ------------ | ---------------- |
@@ -18,103 +14,34 @@ API client、类型、认证状态和错误处理是否仍然符合契约；三�
 
 ## 鉴权与响应
 
-普通业务接口使用管理员 Bearer Token。AI 助手同时提供 Bearer 会话接口和 API Key 集成接口；集成密钥通过 `X-API-Key` 传入。
+普通业务接口使用管理员 Bearer Token。助手集成接口使用 `X-API-Key`；API Key 仅在创建时展示一次，权限和数据范围仍由 backend 决定。
 
-普通成功响应使用：
+普通成功响应使用 `{ "data": ... }` envelope；分页结果在 `data.items` 和 `data.meta` 中。一般错误状态为 `401` 未认证、`403` 无权限、`409` 冲突、`422` 校验失败。健康检查和 SSE 使用各自定义的响应格式。
 
-```json
-{ "data": {} }
-```
+## 接口分组
 
-分页响应把 `items` 和 `meta` 放在 `data` 中。状态码约定为：`401` 未认证、`403` 无权限、`409` 冲突、`422` 校验失败。健康检查和 SSE 流遵循各自的响应格式。
+| 能力        | 路径前缀                  |
+| ----------- | ------------------------- |
+| 健康检查    | `/health`                 |
+| 认证与账户  | `/auth/*`、`/account/*`   |
+| API Key     | `/api-keys/*`             |
+| 系统管理    | `/system/*`               |
+| AI 会话     | `/ai-chat/*`              |
+| AI Key 集成 | `/integrations/ai-chat/*` |
+| 管理台概览  | `/dashboard/*`            |
 
-## 现有接口组
-
-| 接口组     | 相对路径                           |
-| ---------- | ---------------------------------- |
-| 健康检查   | `GET /health`、`GET /health/ready` |
-| 认证       | `/auth/*`                          |
-| 账户与 2FA | `/account/*`                       |
-| API Key    | `/api-keys/*`                      |
-| 系统管理   | `/system/*`                        |
-| AI 会话    | `/ai-chat/*`                       |
-| AI 集成    | `/integrations/ai-chat/*`          |
-| 工作台     | `/dashboard/*`                     |
-
-具体请求参数和响应字段以 OpenAPI 为准。系统管理与 API Key 操作需要对应的命名权限，详见[安全与治理](security.md)。
-
-API Key 是全局助手能力凭证。持有有效密钥的集成可以调用 `/integrations/ai-chat/*`，使用完整注册助手能力，也可以访问企业微信消息发送集成路由。助手会话和用量按 API Key 隔离；敏感变更仍通过助手提案和确认流程执行。创建请求不接受权限范围字段，原始密钥只在创建时返回一次。
-
-### 系统数据概览
-
-`GET /dashboard/overview` 要求 `dashboard:view`。响应包含启用用户、角色、有效 API Key、知识文档、近 7 天审计事件和本月 AI 用量；每个字段还要求对应模块的读取权限。缺少相应权限时统计字段和趋势为 `null`。
-
-| 字段                 | 指标                        | 额外权限             |
-| -------------------- | --------------------------- | -------------------- |
-| `activeUsers`        | 启用用户数                  | `users:read`         |
-| `roles`              | 角色数                      | `roles:read`         |
-| `activeApiKeys`      | 未吊销且未过期的 API Key 数 | `api-keys:read`      |
-| `knowledgeDocuments` | 知识文档数                  | `knowledge:read`     |
-| `auditEvents`        | 近 7 天审计事件数           | `audit-logs:read`    |
-| `aiModelCalls`       | 本月模型调用次数            | `system-status:read` |
-| `aiTokensUsed`       | 本月 token 用量             | `system-status:read` |
-
-`auditTrend` 和 `aiCallTrend` 分别返回最近 7 个自然日的每日审计事件和模型调用数量，权限分别为 `audit-logs:read` 和 `system-status:read`。
-
-### 服务状态与 AI 概览
-
-| 方法  | 路径                  | 权限                 | 说明                                                        |
-| ----- | --------------------- | -------------------- | ----------------------------------------------------------- |
-| `GET` | `/system/status`      | `system-status:read` | 返回 CPU、内存、磁盘和运行时状态                            |
-| `GET` | `/system/ai-overview` | `system-status:read` | 返回当前月份全服务的 token 消耗、模型调用次数和估算消费概览 |
-
-AI 概览的 `estimatedCostUsd` 在没有可用价格信息时为 `null`；`pricingSource` 为 `mixed` 时，`unpricedModelCount` 表示缺少价格信息的模型数量。该接口只提供聚合统计，不返回用户、会话或模型明细。
-
-### LLM 连接测试
-
-`POST /system/llm-config/test` 会并行测试对话模型、ASR 和 Embedding 配置，返回各项失败服务：
-
-```json
-{ "data": { "ok": true, "failedServices": [] } }
-```
-
-`failedServices` 可能包含 `chat`、`asr` 或 `embedding`；即使其中一项失败，其他服务仍会继续测试。
-
-Embedding 向量维度固定为 `1024`。`PUT /system/llm-config` 的 `embeddingDimensions` 只接受 `1024`，其他值会校验失败；替换 Embedding 模型时，模型输出也必须是 1024 维。
-
-## 知识库接口
-
-知识库接口位于 `/api/v1/system/knowledge-documents`，统一要求 Bearer 认证；分页列表使用 `knowledge:read`，元数据预览和所有写操作使用 `knowledge:manage`。列表支持 `page`、`limit` 和 `search` 查询参数；单文件支持 `txt`、`md`、`markdown`、`rst`，大小上限为 5 MB；批量上传最多 20 个文件。知识库 endpoint 清单、处理流程和管理限制见[知识库实现说明](knowledge-base.md)，请求与响应契约以 OpenAPI 为准。
+知识库接口和限制见[知识库实现说明](knowledge-base.md)。AI 图片、语音、渠道和确认接口的详细契约以 OpenAPI 和对应 feature/service 为准。
 
 ## 列表搜索
 
-以下分页列表在服务端分页前应用可选 `search`，避免只在当前页数据中筛选。参数最多 200 个字符，服务端会去除首尾空白，空字符串等同于未传；分页响应 envelope 保持不变。搜索字段以各 endpoint 的 OpenAPI 定义为准。
-
-| Endpoint                                 | 搜索范围                                          |
-| ---------------------------------------- | ------------------------------------------------- |
-| `GET /api/v1/api-keys`                   | API Key 名称和 prefix                             |
-| `GET /api/v1/system/audit-logs`          | 操作、目标、request ID、IP 地址和 actor 姓名/邮箱 |
-| `GET /api/v1/system/knowledge-documents` | 文档标题、摘要和正文                              |
+支持服务端 `search` 的列表会先过滤再分页，避免只搜索当前页。参数限制、搜索字段和具体接口以该 endpoint 的 OpenAPI schema 为准。目前涉及 API Key、审计日志和知识文档列表。
 
 ## 新增或修改接口
 
-1. 在 `apps/backend/start/routes.ts` 声明路径、middleware 和 controller。
-2. 使用 Vine validator 校验所有输入。
-3. 将领域逻辑放入 service，避免 controller 之间互相调用。
-4. 用 `serialize()`、transformer 或明确 DTO 只返回所需字段。
-5. 添加 OpenAPI 装饰器，并同步前端 API client、类型和响应契约测试。
-6. 为认证、权限拒绝、校验失败、资源归属和分页边界补充测试。
+1. 在 `apps/backend/start/routes.ts` 声明路由、middleware 和 controller。
+2. 使用 Vine validator 校验输入；领域逻辑放 service。
+3. 通过 `serialize()`、transformer 或明确 DTO 只返回所需字段。
+4. 更新 OpenAPI 定义、相关前端 API client 和类型。
+5. 覆盖认证、允许/拒绝、校验、资源归属、冲突和分页边界。
 
-前端请求统一使用 `@/lib/api`，不要引入平行 HTTP client。普通读取接口不得返回密钥、密码哈希、加密值或内部模型字段。
-
-## 特殊接口
-
-### AI 聊天图片消息
-
-`POST /api/v1/ai-chat/conversations/{id}/messages` 支持普通 JSON 文本消息；图片消息使用 `multipart/form-data`，字段 `image` 接受单张 JPEG、PNG 或 WebP 图片，最大 2 MB。可同时传入 `content`；仅图片提问时可以省略 `content`。发送成功后仍使用现有 SSE 响应，消息对象只含图片 MIME 元数据，不包含图片字节。配置了 API Key 集成时，可通过 `/api/v1/integrations/ai-chat/conversations/{id}/messages` 使用相同契约。
-
-图片原始数据保存在 `ai_chat_messages.image_data`。客户端通过需要 Bearer Token 或 API Key 的 `GET /api/v1/ai-chat/conversations/{id}/messages/{messageId}/image` 读取图片；集成接口前缀为 `/api/v1/integrations/ai-chat/...`。服务端会校验消息属于当前用户或 API Key 的会话，并以图片 MIME 类型返回二进制响应。会话历史分页不会读取或返回图片字节。
-
-新会话首条图片消息会额外调用视觉模型生成会话标题；此调用不使用 Agent 工具，模型用量会单独记录。实际图片提问仍通过原有 Agent、注册工具和权限/确认流程处理。所选聊天模型需支持视觉输入。
-
-知识文档上传、LLM 元数据预览、批量处理和 AI 语音转写等接口也包含 multipart 和文件大小限制；实施或调整这些能力前，以当前 OpenAPI schema 和对应 feature/service 为准。AI 查询与有副作用的操作还必须遵循[系统架构中的 AI 扩展边界](architecture.md#ai-扩展边界)。
+前端统一通过 `@/lib/api` 请求 backend。不要新增平行 HTTP client；普通读取接口不得返回密钥、密码哈希、加密值或不必要的模型字段。AI 扩展需遵循[系统架构中的 AI 扩展边界](architecture.md#ai-扩展边界)。

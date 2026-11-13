@@ -1,63 +1,25 @@
 # AI Assistant Web
 
-`assistant-web` is the independent Web client for the AI Assistant. It provides a
-full-screen conversation workspace with conversation history, single-image and
-text-plus-image questions, voice input, confirmation flows, usage details,
-login, 2FA, password-expiration handling, and account logout.
-
-The client does not implement a second AI stack. It reuses the AI chat
-components, API client, authentication store, locale files, UI primitives, and
-backend contracts from `apps/frontend`. Authentication, authorization,
-conversation persistence, model calls, tool execution, and sensitive data
-handling remain owned by `apps/backend`.
+`assistant-web` is the standalone, full-screen AI assistant client. It reuses the chat UI, API client, authentication, locale, and UI primitives from `apps/frontend`; authentication, authorization, persistence, and AI execution remain in `apps/backend`.
 
 ## Development
 
-The recommended command from the repository root starts the complete local
-stack, including this Web client and the Tauri desktop client:
+The root `pnpm dev` starts only the backend and management frontend. To run this client, start the backend and then:
 
 ```bash
-pnpm dev
+pnpm --dir apps/assistant-web dev
 ```
 
-The Web client listens on `http://localhost:17070`. It proxies `/api/v1` to
-`http://localhost:13333` by default. Override the proxy target when needed:
+The client listens on `http://localhost:17070` and proxies `/api/v1` to `http://localhost:13333` by default. Set `VITE_DEV_API_PROXY_TARGET` to use another development API.
 
-```bash
-VITE_DEV_API_PROXY_TARGET=http://localhost:13333 pnpm --dir apps/assistant-web dev
-```
+## Production
 
-The desktop client does not start this Vite service itself. It connects to the
-existing `17070` service during development. To run only the Web client, start
-the backend first and then run `pnpm --dir apps/assistant-web dev`.
-
-## Production build
-
-Set `VITE_API_URL` to an API origin reachable by the browser before building a
-standalone deployment:
+Set `VITE_API_URL` before building when the API is not same-origin:
 
 ```bash
 VITE_API_URL=https://api.example.com pnpm --dir apps/assistant-web build
 ```
 
-When Web and API use different origins, add the Web origin to backend
-`CORS_ORIGIN` and use HTTPS. The generated `dist/` directory can be hosted by
-Nginx, a CDN, or another static hosting service.
+For cross-origin deployments, allow the Web origin in backend `CORS_ORIGIN` and use HTTPS. The `dist/` output can be served as a static site or through the production Compose service; see the [deployment guide](../../docs/deployment.md).
 
-The production Docker Compose stack also builds and runs this client as the
-`assistant-web` service at `http://localhost:17070` by default. Its Nginx
-container serves the static build and proxies `/api/` to the backend; see the
-repository [deployment guide](../../docs/deployment.md) for configuration.
-
-The Tauri desktop build consumes this same `dist/` output through
-`apps/assistant-desktop` and does not create a parallel UI implementation.
-Only the Tauri runtime exposes the server connection screen and runtime API
-base URL override; browser deployments continue to use the same-origin default
-or the build-time `VITE_API_URL`.
-
-## Verification
-
-Repository-wide application commands and verification requirements are maintained
-in the [development guide](../../docs/development.md). For this client, the
-relevant checks are `format:check`, `typecheck`, `lint:check`, `test`, and
-`build` from the `apps/assistant-web` package.
+The desktop app packages this same Web build. During desktop development, run assistant-web separately before starting Tauri. App commands and checks are in the [development guide](../../docs/development.md).

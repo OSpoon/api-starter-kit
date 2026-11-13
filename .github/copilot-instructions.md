@@ -3,7 +3,8 @@
 Before making a change, read the repository [AGENTS.md](../AGENTS.md) and the
 closest nested `AGENTS.md` for the target files.
 
-`AGENTS.md` is the canonical project standard. Do not create a parallel page,
-component, security, locale, or verification convention. Follow its required
-planning and verification workflow, and report conflicts rather than relaxing
-the rules.
+The root `AGENTS.md` is the canonical cross-project standard; a nested
+`AGENTS.md` may add rules for its application. Do not create parallel page,
+component, security, locale, or verification conventions. Follow the applicable
+planning and verification rules, and report conflicts rather than relaxing
+them.

@@ -1,73 +1,46 @@
 # 系统架构
 
-API Starter Kit 是一个 pnpm/Turborepo monorepo。模板的边界是提供可复用的系统能力，业务 feature 由使用者按产品需求添加；
-管理端 Web、独立助手 Web、桌面端和 Chrome 扩展是四种正式客户端交付面，共用同一套后端能力。
+API Starter Kit 是 pnpm/Turborepo monorepo。Backend 提供统一的安全和数据边界；各 Web、桌面和扩展客户端通过 API 使用系统能力。业务功能由项目使用者按产品需求扩展。
 
 ## 应用边界
 
-```text
-apps/backend/     AdonisJS API、认证、授权、数据、AI 与渠道 worker
-apps/frontend/    Vue 应用、路由、页面、feature、状态和共享 UI
-apps/assistant-web/     独立 AI 助手 Web 客户端，复用 frontend 的 AI 实现
-apps/assistant-desktop/ Tauri 原生桌面壳，内置 assistant-web 的生产构建产物
-apps/assistant-extension/ Chrome MV3 侧边栏，复用 assistant-web 的客户端实现
-apps/backend/app/ai/agent/ Agent/Tool/Event/Session 契约与当前 Pi adapter
-docs/             使用、开发、部署和能力参考
-docker/           本地与生产 Compose、镜像和 Nginx 配置
-```
+| 应用                        | 职责                                                  |
+| --------------------------- | ----------------------------------------------------- |
+| `apps/backend`              | API、认证授权、持久化、审计、AI runtime 和渠道 worker |
+| `apps/frontend`             | 管理端、共享 AI 助手、共享 UI 和 feature              |
+| `apps/assistant-web`        | 独立助手 Web 入口，复用 frontend 实现                 |
+| `apps/assistant-desktop`    | Tauri 原生窗口，打包 assistant-web                    |
+| `apps/assistant-extension`  | Chrome MV3 side panel，复用 assistant-web             |
+| `apps/authenticator-mobile` | 独立 Capacitor TOTP 应用                              |
 
-后端负责认证、授权、校验、持久化、脱敏、审计和 API 契约。前端不构成安全边界，也不应直接访问数据库或自行决定用户是否有权限。
-四种客户端交付面均通过 `/api/v1` 访问后端；桌面端和扩展复用独立助手客户端，不复制认证、权限判断、AI 编排或领域 service。
-桌面端增加原生窗口和系统集成；扩展增加 Chrome side panel 和按需申请 API host 权限。WeCom、飞书和钉钉 worker 通过各自的渠道 adapter 接入共享 AI runtime。
+企业微信、飞书和钉钉 worker 通过渠道 adapter 调用 backend 的共享 AI runtime。桌面端只负责原生集成；扩展只负责 side panel 和按需申请 API host 权限。
 
-## 后端请求路径
+## 请求路径
 
 ```text
-route
-  → middleware.auth / middleware.permission
-  → controller
-  → validator
-  → service
-  → model / external provider
-  → transformer / serialize
+客户端 → /api/v1 路由 → middleware → controller → validator → service → model/provider
+                                                       ↓
+                                               transformer/serialize
 ```
 
-路由集中在 `apps/backend/start/routes.ts`。controller 只协调 HTTP；validator 负责输入；service 承担领域逻辑和外部副作用；model 负责数据关系；transformer 或 serializer 控制输出字段。
-
-## 前端请求路径
+Backend route 声明 URL 和 middleware；controller 协调 HTTP，validator 校验输入，service 承担领域逻辑和外部副作用，model 管理持久化关系，transformer/serializer 限定输出。
 
 ```text
-route meta
-  → view
-  → feature API / composable
-  → @/lib/api
-  → backend API
+前端 route meta → view → feature API/composable → @/lib/api → backend
 ```
 
-路由是标题、导航、面包屑、权限和页面类型的来源。页面级编排放在 `views/`，领域 API 和组件放在 `features/<feature>/`，跨领域 UI 放在 `components/common/`，共享状态和副作用放在 `composables/`。
+前端路由提供页面标题、导航、面包屑、权限和页面类型。页面编排位于 `views/`，领域代码位于 `features/<feature>/`，跨领域 UI 和状态逻辑复用共享组件与 composable。
 
 ## 系统能力与业务能力
 
-系统能力包括认证、RBAC、API Key、审计、知识库、AI 运行时和外部渠道适配。业务能力应拥有自己的 feature、路由、权限、数据模型和测试，不要挂在 `Templates`、`Examples` 或通用 Dashboard 下。
+认证、RBAC、API Key、审计、知识库和 AI runtime 属于系统能力。新增业务功能应拥有清晰的 feature、数据模型、API、权限和测试；不要把业务能力附加到 starter 的示例导航或演示页面。
 
-新增业务能力时，保持以下关系：
-
-```text
-业务操作
-  ├─ 后端路由与 permission middleware
-  ├─ permission_catalog 中的 resource:action
-  ├─ 前端 route.meta.permission
-  ├─ 前端 usePermission() 操作级显隐
-  └─ allow / deny / contract tests
-```
+一个受保护页面/操作应在后端路由、权限目录、前端 `route.meta.permission`、操作级权限检查和 allow/deny 测试中保持同一权限契约。前端不是安全边界。
 
 ## AI 扩展边界
 
-AI 查询、工具和操作必须使用现有 registry。查询只能使用注册模板，服务端负责参数校验、授权、范围推导、结果限量和脱敏；有副作用的操作只能先创建 proposal，经过确认后重新校验再执行。
-
-AI 的详细运行时分层、持久化和 SSE 说明见[AI 助手架构](ai-assistant-architecture.md)；知识文档字段、目录/正文两阶段检索和审计见[知识库实现说明](knowledge-base.md)；提示词和文案清单见[AI 助手提示词参考](reference/ai-assistant-prompts.md)。
+AI 查询、工具和操作复用 backend 中的 registry。查询使用固定模板；有副作用的操作先创建 proposal，再由确认 API 复核并执行。详细运行时、数据持久化和 SSE 说明见[AI 助手架构](ai-assistant-architecture.md)；知识检索见[知识库实现说明](knowledge-base.md)。
 
 ## 数据与部署
 
-PostgreSQL 是应用数据和知识库/AI 会话数据的持久化边界。数据库变更只能通过新增 migration 完成。生产 Docker Compose 默认运行 PostgreSQL、
-backend、管理端 frontend 和三个渠道 worker；独立助手 Web 作为单独静态客户端部署，桌面端和 Chrome 扩展作为客户端包发布，详见[部署指南](deployment.md)。
+PostgreSQL 保存应用、知识库、会话和图片数据；schema 变更通过新增 migration 完成。Docker Compose 可按需组合 PostgreSQL、backend、管理端、独立助手 Web 和渠道 Bot。桌面安装包与 Chrome 扩展单独构建。端口、环境变量、备份和升级方式见[部署指南](deployment.md)。

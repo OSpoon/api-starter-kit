@@ -1,48 +1,20 @@
 # AI Assistant Desktop
 
-This package is the Tauri desktop shell for the independent AI Assistant
-client. The UI and AI behavior are owned by `apps/assistant-web`; this package
-only owns the native window, desktop permissions, Rust commands, and packaging.
+This Tauri package provides the native window and platform integrations for `assistant-web`. It does not implement a separate UI or AI runtime.
 
-## Commands
+## Development and build
 
-- `pnpm dev` from the repository root starts the Tauri window and the existing Web client on
-  port `17070` together. The desktop task only connects to that Web client and never starts a
-  second Web server.
-- `pnpm build` builds the Web client and packages the desktop application.
-- `pnpm build:app` builds the macOS application bundle without creating a DMG.
-- `pnpm typecheck` runs `cargo check`.
-- `pnpm lint:check` runs `cargo clippy` with warnings denied.
-- `pnpm format:check` verifies Rust formatting.
+Start the backend, then start the Web client and desktop shell in separate terminals:
 
-The desktop app inherits the repository constraints from `../../AGENTS.md` and
-the shared frontend constraints from `../assistant-web/AGENTS.md`.
-The Web client details are documented in [`../assistant-web/README.md`](../assistant-web/README.md).
+```bash
+pnpm --dir apps/assistant-web dev
+pnpm --dir apps/assistant-desktop dev
+```
 
-On macOS, `src-tauri/Info.plist` declares the microphone usage description
-required by the WebView voice-recording flow. The first recording attempt will
-trigger the system microphone permission prompt.
+Tauri connects to the Web client at `http://localhost:17070`. The desktop package commands are `dev`, `build`, and `build:app`; its typecheck, lint, test, and format scripts run the corresponding Cargo checks. See the [development guide](../../docs/development.md).
 
-The desktop client can connect to any HTTPS deployment that implements this
-repository's `/api/v1` contract. On first launch, enter the server origin in the
-connection screen; the client checks `/api/v1/health/ready` before saving it.
-The address is stored locally in the desktop WebView. Changing it clears the
-current login token and requires signing in again. HTTP is accepted only for
-localhost/loopback development servers.
+Production builds package the assistant-web `dist/` output. An API server can be selected on first launch; the app checks `/api/v1/health/ready` before saving the origin. Remote servers must use HTTPS. Changing the origin clears the stored login token.
 
-`VITE_API_URL` remains an optional release default, not a requirement. If it is
-omitted, the packaged client asks for a server address on first launch. The
-Tauri CSP permits HTTPS API connections and local development endpoints; keep
-script and frame sources restricted when changing this policy.
+The packaged app supports email/password and 2FA. GitHub OAuth is hidden until a native callback flow is available. Automatic updates are not configured; releases require platform signing and distribution setup.
 
-The desktop login currently uses email/password and 2FA. GitHub OAuth remains
-available in `assistant-web`; the desktop client hides that option until an
-OAuth callback/deep-link flow can return to the native app.
-
-Automatic updates are intentionally not enabled until the release endpoint,
-signing key, and public updater key are provided.
-
-The desktop bundle contains the production build of `apps/assistant-web`; it
-does not need a local `17070` service after packaging. Build each release on a
-matching supported platform and complete the platform-specific signing,
-notarization, and installer publication process before distributing it.
+On macOS, the app declares the microphone usage description for voice recording. Keep Tauri permissions and the Content Security Policy limited to the integrations the app uses. Desktop constraints are in [`AGENTS.md`](AGENTS.md); shared UI and AI behavior are documented in the [assistant-web README](../assistant-web/README.md).

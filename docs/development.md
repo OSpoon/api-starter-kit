@@ -1,22 +1,21 @@
 # 工程开发指南
 
-这份文档用于日常工程开发和提交前检查。如何新增业务能力，阅读[产品扩展指南](customization.md)；如何理解模块边界，阅读[系统架构](architecture.md)。
+本文整理工作区入口和常用命令。项目工程规范见根目录 [AGENTS.md](../AGENTS.md)；业务功能的组织方式见[产品扩展指南](customization.md)。
 
-## 工作区
+## 应用边界
 
-```text
-apps/backend/   AdonisJS API、模型、迁移、服务和测试
-apps/frontend/  Vue 应用、路由、页面、feature、状态和共享 UI
-apps/assistant-web/  独立 AI 助手 Web 客户端，复用 frontend 的 AI 实现
-apps/assistant-desktop/  Tauri 桌面壳，复用 assistant-web 的页面和 AI 能力
-apps/assistant-extension/  Extension.js + Vue 3 的 Chrome MV3 侧边栏客户端，复用 assistant-web
-docs/           项目使用、开发、部署和能力参考
-docker/         Compose、镜像和 Nginx 配置
-```
+| 路径                        | 职责                                                   |
+| --------------------------- | ------------------------------------------------------ |
+| `apps/backend`              | API、认证授权、数据、AI runtime 和渠道 Bot worker      |
+| `apps/frontend`             | 管理端 Web、共享 UI 和 AI 助手实现                     |
+| `apps/assistant-web`        | 独立助手客户端，复用 `frontend` 的 AI、认证和 API 实现 |
+| `apps/assistant-desktop`    | Tauri 原生窗口和安装包                                 |
+| `apps/assistant-extension`  | Chrome MV3 side panel 和扩展构建                       |
+| `apps/authenticator-mobile` | Capacitor TOTP 身份验证器                              |
 
-根工作区使用 pnpm 与 Turborepo。修改代码前阅读根目录 [AGENTS.md](../AGENTS.md) 以及目标目录最近的 `AGENTS.md`；独立助手的 [AGENTS.md](../apps/assistant-web/AGENTS.md) 引用共享前端约束并补充客户端边界，桌面壳的 [AGENTS.md](../apps/assistant-desktop/AGENTS.md) 只约束 Tauri 与 Rust 边界。
+修改代码前阅读根目录及目标目录最近的 `AGENTS.md`。API 契约以 backend OpenAPI 为准，前端路由和页面规范见 `apps/frontend/AGENTS.md`。
 
-## 常用命令
+## 工作区命令
 
 ```bash
 pnpm install
@@ -26,131 +25,62 @@ pnpm typecheck
 pnpm lint:check
 pnpm format:check
 pnpm test
-pnpm lint
 ```
 
-根目录 `pnpm dev` 只启动 backend 和管理端 frontend。独立助手、渠道 Bot、Tauri 桌面客户端和 Chrome 扩展
-需要调试时再通过各自的应用命令启动。`assistant-web` 使用端口 `17070`；桌面端只连接该服务，不会自行启动
-第二个 Web 服务。`17070` 被占用时 Vite 会直接报错，不会自动切换到 `17071`。
-
-各应用的职责边界如下：
-
-- `apps/backend`：认证、授权、数据、AI runtime 与业务策略、SSE、语音转写和 Bot worker。Agent/Tool/Event/Session 契约和当前 Pi adapter 位于 `app/ai/agent`，随 backend 一起构建和测试。
-- `apps/frontend`：管理平台 Web 客户端，包含系统管理页面和浮动 AI 助手。
-- `apps/assistant-web`：独立 AI 助手 Web 客户端，复用管理端的 AI 组件、API、认证和 locale。
-- `apps/assistant-desktop`：Tauri 原生壳，只负责窗口、原生权限、Rust 命令和安装包。
-- `apps/assistant-extension`：Extension.js 管理 Chrome MV3 清单、侧边栏和构建；复用 `assistant-web` 的 AI 会话、认证和 API 客户端。首次连接时由用户输入 API origin，扩展仅在连接操作中申请该地址的可选主机权限，不注入脚本或读取当前网页内容。
-
-需要调试可选客户端或 Bot 时，使用各自的开发命令：
+根目录 `pnpm dev` 只启动 backend 和管理端 frontend；数据库可通过 `pnpm docker` 菜单启动。其他应用按需运行：
 
 ```bash
 pnpm --dir apps/assistant-web dev
 pnpm --dir apps/assistant-desktop dev # 先启动 assistant-web
 pnpm --dir apps/assistant-extension dev
-pnpm --dir apps/backend bot:wecom
-pnpm --dir apps/backend bot:feishu
-pnpm --dir apps/backend bot:dingtalk
+pnpm bot:wecom
+pnpm bot:feishu
+pnpm bot:dingtalk
 ```
 
-扩展通过 `extension.config.js` 将共享的 `vue-router` 导入统一到
-`assistant-web` 的运行时入口。pnpm 会为不同 peer dependency 上下文安装独立的物理包，
-即使版本一致，`createRouter()` 和自动导入的 `useRoute()` 也必须来自同一模块实例，
-否则路由的 provide/inject key 不匹配。
+assistant-web 默认监听 `17070`，管理端默认监听 `18080`。桌面端开发连接已有的 assistant-web 服务；桌面生产构建会先构建并打包该 Web 客户端。扩展共享样式规则见 `apps/frontend/AGENTS.md`，Vue Router runtime 规则见 `apps/assistant-extension/AGENTS.md`。
 
-#### 扩展共享样式
+## 应用级检查
 
-扩展和独立助手共享 `apps/frontend/src/assets/main.css`。由于当前
-Extension.js/Rspack 构建未能稳定打包共享 Vue SFC 的 `<style>` 块，扩展可达的
-AI 组件样式统一维护在 `apps/frontend/src/assets/assistant-components.css`，由
-`main.css` 单次导入。新增规则应使用组件专属 class 前缀，避免通用选择器和样式泄漏；
-不要在这些共享组件中使用 `<style scoped>` 或 `<style src>`。
+按改动范围运行对应的检查；各包的脚本定义是命令可用性的准据。
 
-修改后构建 `assistant-extension`、`assistant-web` 和 `frontend`，并检查生产扩展
-CSS 中包含新增组件选择器。完整约束和恢复条件见根目录 [AGENTS.md](../AGENTS.md)
-的“Shared assistant styles in the Chrome extension”。
+| 应用                 | 检查命令                                                   |
+| -------------------- | ---------------------------------------------------------- |
+| Backend              | `format:check`、`typecheck`、`lint:check`、`test`、`build` |
+| Frontend             | `format:check`、`typecheck`、`lint:check`、`test`、`build` |
+| Assistant Web        | `format:check`、`typecheck`、`lint:check`、`test`、`build` |
+| Desktop              | `format:check`、`typecheck`、`lint:check`、`test`、`build` |
+| Extension            | `format:check`、`typecheck`、`lint:check`、`build`         |
+| Authenticator Mobile | `typecheck`、`check:totp`、`build`                         |
 
-验证单个应用时：
+修改数据库 schema 时，在目标环境检查迁移状态：
 
 ```bash
-pnpm --dir apps/backend typecheck
-pnpm --dir apps/backend lint:check
-pnpm --dir apps/backend format:check
-pnpm --dir apps/backend test
-pnpm --dir apps/backend build
 pnpm --dir apps/backend exec node ace migration:status
-
-pnpm --dir apps/frontend format:check
-pnpm --dir apps/frontend typecheck
-pnpm --dir apps/frontend lint:check
-pnpm --dir apps/frontend test
-pnpm --dir apps/frontend build
-
-pnpm --dir apps/assistant-web format:check
-pnpm --dir apps/assistant-web typecheck
-pnpm --dir apps/assistant-web lint:check
-pnpm --dir apps/assistant-web test
-pnpm --dir apps/assistant-web build
-
-pnpm --dir apps/assistant-desktop format:check
-pnpm --dir apps/assistant-desktop typecheck
-pnpm --dir apps/assistant-desktop lint:check
-pnpm --dir apps/assistant-desktop test
-pnpm --dir apps/assistant-desktop build
-pnpm --dir apps/assistant-desktop build:app
-
-pnpm --dir apps/assistant-extension format:check
-pnpm --dir apps/assistant-extension typecheck
-pnpm --dir apps/assistant-extension lint:check
-pnpm --dir apps/assistant-extension build
 ```
 
-`apps/assistant-desktop` 的 `dev` 命令只启动 Tauri 窗口并连接 `17070`，不会启动 assistant-web；
-桌面生产构建的 `beforeBuildCommand` 会先生成 `apps/assistant-web/dist`，再把它打进桌面安装包。
-因此桌面端运行时不依赖本地 `17070`，但生产构建必须通过 `VITE_API_URL` 配置可访问的 API 地址。
-
-`lint` 和 `format` 会修改文件；只检查现有改动时使用 `lint:check`。
-首次安装依赖时，根项目的 `prepare` 会安装 `simple-git-hooks`。`pre-commit` 会通过
-`lint-staged` 对暂存文件执行格式化，并按文件所属子项目运行对应的 lint 和 typecheck；
-覆盖 `apps/backend`、`apps/frontend`、`apps/assistant-web`、`apps/assistant-desktop` 和
-`apps/assistant-extension`。未涉及源码的文档、配置文件仍会执行统一的 Prettier 格式化。
-
-## 发布版本
-
-根工作区使用 `bumpp` 统一管理版本发布。执行发布前，确认工作区干净、版本号符合
-SemVer，并且本地 Git 已配置提交、创建 tag 和推送权限：
+修改 AI Agent 工具、查询或确认流程时，可运行专项验证：
 
 ```bash
-pnpm release
+pnpm test:agent-workflows
+pnpm --dir apps/backend exec node ace ai:evaluate
 ```
 
-`bumpp` 会递归更新根工作区、后端和前端的 `package.json` 版本，随后触发 `version`
-生命周期脚本，由 `changelogen` 根据上一个 Git tag 到当前提交之间的 Conventional
-Commits 更新根目录 `CHANGELOG.md`。最后创建 `chore: release v<version>` 提交、带 `v`
-前缀的 annotated tag，并推送提交和 tag。
+`lint` 和 `format` 会写入文件；只做检查时使用 `lint:check` 和 `format:check`。桌面端和扩展的专项开发及发布说明分别见[桌面端 README](../apps/assistant-desktop/README.md)和[扩展 README](../apps/assistant-extension/README.md)。
 
-发布配置位于根目录的 [`bump.config.ts`](../bump.config.ts) 和
-[`changelog.config.ts`](../changelog.config.ts)。发布流程会自动执行一次 `pnpm install`，
-以便在版本或 workspace 清单变化时同步锁文件；`CHANGELOG.md` 的发布条目由工具生成，
-不要手动维护。
+## 发布
 
-## 实现入口
+根目录 `pnpm release` 使用 `bumpp` 更新 workspace 版本并触发 `changelogen` 生成 `CHANGELOG.md`。发布流程会创建提交和 tag 并推送；详细配置见根目录 `bump.config.ts` 与 `changelog.config.ts`。`CHANGELOG.md` 为生成文件，不手动维护。
 
-后端路由集中在 `apps/backend/start/routes.ts`。controller 负责 HTTP 协调，validator 负责输入，service 负责领域逻辑和外部副作用，model 负责持久化关系，transformer 或 serializer 负责输出字段。
+## 提交规范
 
-前端路由集中在 `apps/frontend/src/router/modules/`。页面编排放在 `views/`，领域 API 和组件放在 `features/<feature>/`，共享 UI 放在 `components/common/` 或 `components/ui/`，可复用状态和副作用放在 `composables/`。
+提交信息使用 Conventional Commits：`<type>(<scope>): <subject>`。允许的 type 为 `feat`、`fix`、`docs`、`style`、`refactor`、`perf`、`test`、`build`、`ci`、`chore` 和 `revert`。scope 使用稳定的小写名称；跨仓库改动可以省略。
 
-新增页面时，同时确定 `meta.permission`、`meta.pageKind`、locale key 和对应的后端权限。管理列表使用 `ListPage` + `DataTable`，表单和破坏性操作复用现有共享组件。
+subject 使用简洁的祈使句，以小写开头，不加句号，优先控制在 72 个字符以内；需要说明行为、安全影响、迁移或验证细节时添加正文，正文与 subject 空一行并尽量按 72 字符换行。破坏性变更使用 `!` 并说明迁移方式。每个提交只包含一个连贯改动。
 
-## 提交前检查
-
-- 页面、API、权限目录、导航和测试是否同步更新。
-- 后端是否重新执行授权、校验、脱敏和资源归属检查。
-- 是否覆盖加载、空数据、错误、禁用、无权限和校验失败状态。
-- 是否避免把密钥、密码、恢复码或其他敏感值写入日志和浏览器状态。
-- 是否运行与改动范围匹配的类型检查、lint、测试和构建。
-
-## 仓库维护
-
-仓库未配置 Dependabot 版本更新，因此不会自动创建依赖升级 PR。GitHub 的 Dependabot 安全更新仍启用，用于处理已知漏洞。
-
-完整规则和验证矩阵见 [AGENTS.md](../AGENTS.md)。
+```text
+feat(ai): add confirmed WeCom send action
+fix(auth): prevent last administrator lockout
+docs: document Node.js version requirement
+chore(deps): update AdonisJS packages
+```

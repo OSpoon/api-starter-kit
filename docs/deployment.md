@@ -179,8 +179,7 @@ node ace migration:run --force
 迁移成功后才启动 API。backend 依赖 PostgreSQL healthcheck；IM Bot 又依赖 backend
 healthcheck，因此按需启动时 Compose 会等待依赖就绪。
 
-包含知识库字段收敛的迁移完成后，已有文档正文仍然保留，但旧目录向量可能包含迁移前的元数据。
-升级后应在知识库管理台对已有文档执行一次“重建索引”。
+从较早版本升级且已有知识文档时，完成迁移后在知识库管理台重建索引，使目录向量与当前文档元数据一致。正文内容不会因此删除。
 
 ## 4. 服务、端口和网络
 
@@ -305,10 +304,6 @@ ASR/LLM 地址。渠道平台的应用发布、长连接、权限、绑定和卡
 
 开发环境运行 `pnpm docker` 并选择 PostgreSQL；其端口只绑定在宿主机 loopback，供本机 backend 连接。
 
-# 网页版本更新提示
+### Web 客户端更新文件
 
-管理前端和独立助手网页使用 `@plugin-web-update-notification/vite`，仅在生产构建启用。每次构建生成时间戳版本，首次加载、每 10 分钟、窗口重新获得焦点及脚本加载失败时检查更新。提示复用 Sonner 和中英文语言包，用户选择刷新或稍后，不会自动刷新。刷新前应保存未完成内容。
-
-完整发布 `dist`，包括 `pluginWebUpdateNotice` 目录。HTML 入口和 `/pluginWebUpdateNotice/web_version_by_plugin.json` 禁止缓存；仓库 Nginx 配置已包含规则，其他 CDN 或代理需设置相同策略。带内容哈希的脚本可长期缓存。桌面构建通过 Tauri 的 `TAURI_ENV_PLATFORM` 排除插件，Chrome 扩展不接入网页轮询。
-
-验收：部署构建 A 并保持页面打开，再部署构建 B；回到旧标签页应出现提示。“稍后”忽略当前版本，“刷新”加载新版本。开发服务器不启用更新提示。
+生产环境的管理端和独立助手 Web 包含版本检查资源。部署时完整发布 `dist/`（包括 `pluginWebUpdateNotice` 目录），并禁止缓存 HTML 入口和 `/pluginWebUpdateNotice/web_version_by_plugin.json`；带内容哈希的脚本可长期缓存。仓库 Nginx 配置已包含相应规则，其他 CDN 或代理需设置相同策略。桌面构建排除该检查，Chrome 扩展不使用网页版本轮询。
