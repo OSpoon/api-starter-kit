@@ -122,12 +122,20 @@ test.group('AI agent skill service', (group) => {
     )
     await mkdir(join(skillPath, 'helpers'), { recursive: true })
     await writeFile(join(skillPath, 'helpers', 'ping.mjs'), "console.log('pong')\n")
+    await writeFile(
+      join(skillPath, 'helpers', 'echo.py'),
+      "import sys\nprint('|'.join(sys.argv[1:]))\n"
+    )
+    await writeFile(join(skillPath, 'helpers', 'ignore.txt'), 'not executable')
+    await writeFile(join(skillPath, 'scripts', 'run.bash'), 'printf \'%s\\n\' "$*"\n')
 
     await updateAiAgentSkill('summarize', true, workspace)
     assert.deepEqual(await getAiAgentSkillCapabilities('summarize', workspace), [])
     assert.deepEqual(await listAiAgentSkillScripts('summarize', workspace), [
+      'helpers/echo.py',
       'helpers/ping.mjs',
       'scripts/index.mjs',
+      'scripts/run.bash',
     ])
     const result = await runAiAgentSkillCommand(
       'summarize',
@@ -138,9 +146,25 @@ test.group('AI agent skill service', (group) => {
     assert.equal(result.exitCode, 0)
     assert.equal(result.stdout, 'ping|pong\n')
     assert.equal(result.scriptPath, 'scripts/index.mjs')
+    const pythonResult = await runAiAgentSkillCommand(
+      'summarize',
+      'helpers/echo.py',
+      ['python', 'script'],
+      workspace
+    )
+    assert.equal(pythonResult.exitCode, 0)
+    assert.equal(pythonResult.stdout, 'python|script\n')
+    const bashResult = await runAiAgentSkillCommand(
+      'summarize',
+      'scripts/run.bash',
+      ['bash', 'script'],
+      workspace
+    )
+    assert.equal(bashResult.exitCode, 0)
+    assert.equal(bashResult.stdout, 'bash script\n')
     await assert.rejects(
       () => runAiAgentSkillCommand('summarize', 'references/guide.md', [], workspace),
-      /必须是 JavaScript 文件/
+      /类型不受支持/
     )
     await assert.rejects(
       () => runAiAgentSkillCommand('summarize', '/etc/passwd', [], workspace),

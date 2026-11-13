@@ -32,7 +32,7 @@ RUN pnpm deploy --legacy --filter=@api-starter-kit/backend --prod --ignore-scrip
 FROM node:24.15.0-bookworm-slim AS backend
 ENV NODE_ENV=production
 RUN apt-get update \
-  && apt-get install --no-install-recommends -y bash bubblewrap ripgrep socat \
+  && apt-get install --no-install-recommends -y bash bubblewrap python3 ripgrep socat \
   && rm -rf /var/lib/apt/lists/*
 COPY --from=backend-build /app/apps/backend/build /app
 COPY --from=backend-deps /tmp/backend-runtime/node_modules /app/node_modules

@@ -30,6 +30,7 @@ import env from '#start/env'
 const execFile = promisify(nodeExecFile)
 const skillFileLimit = 128 * 1024
 const skillScriptLimit = 1024 * 1024
+const skillScriptExtensions = new Set(['.js', '.mjs', '.cjs', '.py', '.sh', '.bash'])
 const supportedSkillCapabilities = new Set<AiAgentSkillCapability>(['system-status'])
 
 export type AiAgentSkill = {
@@ -358,7 +359,7 @@ export async function loadAiAgentSkill(
   workspace?: string
 ) {
   const skillPath = await getEnabledSkillDirectory(code, workspace)
-  const fileLimit = ['.js', '.mjs', '.cjs'].includes(extname(resourcePath).toLowerCase())
+  const fileLimit = skillScriptExtensions.has(extname(resourcePath).toLowerCase())
     ? skillScriptLimit
     : skillFileLimit
   const filePath = await resolveSkillFile(skillPath, resourcePath, fileLimit)
@@ -415,14 +416,22 @@ export async function runAiAgentSkillCommand(
     skillRelativeScriptPath,
     skillScriptLimit
   )
-  if (!['.js', '.mjs', '.cjs'].includes(extname(resolvedScript).toLowerCase())) {
-    throw new Error('技能脚本必须是 JavaScript 文件')
-  }
+  const extension = extname(resolvedScript).toLowerCase()
+  const runtime =
+    extension === '.py'
+      ? 'python'
+      : extension === '.sh' || extension === '.bash'
+        ? 'bash'
+        : skillScriptExtensions.has(extension)
+          ? 'node'
+          : undefined
+  if (!runtime) throw new Error('技能脚本类型不受支持')
   if (signal?.aborted) throw new DOMException('AI request was cancelled', 'AbortError')
   const canonicalScriptPath = relative(skillPath, resolvedScript).split(sep).join('/')
   const result = await executeAiAgentSkillScript({
     skillDirectory: skillPath,
     scriptPath: canonicalScriptPath,
+    runtime,
     args,
     context,
     signal,

@@ -22,10 +22,12 @@ test.group('AI agent tool registry', () => {
       (loadTool.parameters.properties?.resourcePath as { description: string }).description,
       'Omit on the first load to read SKILL.md'
     )
-    assert.include(
-      (bashTool.parameters.properties?.scriptPath as { description: string }).description,
-      'scripts/index.mjs'
-    )
+    const scriptDescription = (
+      bashTool.parameters.properties?.scriptPath as { description: string }
+    ).description
+    assert.include(scriptDescription, 'Python 3')
+    assert.include(scriptDescription, 'Bash')
+    assert.include(scriptDescription, 'relative to the skill directory')
   })
 
   test('uses JSON Schema for Agent tool parameters and keeps optional fields optional', ({

@@ -30,6 +30,11 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - name: Install skill sandbox dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y bash bubblewrap python3 ripgrep socat
+
       - name: Setup pnpm
         uses: pnpm/action-setup@v6.0.10
         # Version is read from package.json's "packageManager" field.

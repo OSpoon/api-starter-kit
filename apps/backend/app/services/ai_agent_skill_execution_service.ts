@@ -1,21 +1,22 @@
-import { execFile as nodeExecFile } from 'node:child_process'
-import { lstat, mkdtemp, readdir, realpath, rm } from 'node:fs/promises'
+import { spawn } from 'node:child_process'
+import { constants } from 'node:fs'
+import { access, lstat, mkdtemp, readdir, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { extname, join, relative, resolve, sep } from 'node:path'
-import { promisify } from 'node:util'
 
 import app from '@adonisjs/core/services/app'
 import { SandboxManager } from '@anthropic-ai/sandbox-runtime'
 
 import env from '#start/env'
 
-const execFile = promisify(nodeExecFile)
 const maxOutputBytes = 64 * 1024
 const timeoutMs = 30_000
 const maxContextBytes = 64 * 1024
 const maxSkillFiles = 256
 const maxSkillSourceBytes = 5 * 1024 * 1024
 const maxSkillFileBytes = 1024 * 1024
+const supportedScriptExtensions = new Set(['.js', '.mjs', '.cjs', '.py', '.sh', '.bash'])
+const runnerPath = '/opt/homebrew/bin:/opt/local/bin:/usr/local/bin:/usr/bin:/bin'
 let sandboxInitialization: Promise<void> | undefined
 
 function getSandboxInitialization() {
@@ -54,7 +55,7 @@ async function validateSkillSources(skillDirectory: string) {
         pending.push(path)
         continue
       }
-      if (!entry.isFile() || !['.js', '.mjs', '.cjs'].includes(extname(entry.name).toLowerCase())) {
+      if (!entry.isFile() || !supportedScriptExtensions.has(extname(entry.name).toLowerCase())) {
         continue
       }
 
@@ -75,9 +76,118 @@ export async function getAiAgentSkillScriptPaths(skillDirectory: string) {
   return validateSkillSources(await realpath(skillDirectory))
 }
 
+async function getPythonPath() {
+  for (const directory of runnerPath.split(':')) {
+    const path = join(directory, 'python3')
+    try {
+      await access(path, constants.X_OK)
+      const resolvedPath = await realpath(path)
+      const home = resolve(process.env.HOME ?? '/home/node')
+      if (resolvedPath !== home && !resolvedPath.startsWith(`${home}${sep}`)) return resolvedPath
+    } catch {
+      continue
+    }
+  }
+  throw new Error('未找到可用的 Python 3 解释器')
+}
+
+function createBoundedOutput() {
+  const chunks: Buffer[] = []
+  let size = 0
+  return {
+    append(chunk: Buffer) {
+      const remaining = maxOutputBytes - size
+      if (remaining <= 0) return
+      const boundedChunk = chunk.subarray(0, remaining)
+      chunks.push(boundedChunk)
+      size += boundedChunk.length
+    },
+    toString() {
+      return Buffer.concat(chunks).toString('utf8')
+    },
+  }
+}
+
+function runSandboxProcess(input: {
+  argv: string[]
+  skillDirectory: string
+  temporaryDirectory: string
+  contextJson: string
+  signal?: AbortSignal
+}) {
+  return new Promise<{
+    exitCode: number | null
+    timedOut: boolean
+    stdout: string
+    stderr: string
+  }>((resolveResult, reject) => {
+    const child = spawn(input.argv[0]!, input.argv.slice(1), {
+      cwd: input.skillDirectory,
+      detached: true,
+      env: {
+        PATH: runnerPath,
+        LANG: 'C.UTF-8',
+        HOME: input.temporaryDirectory,
+        TMPDIR: input.temporaryDirectory,
+        ASSISTANT_SKILL_CONTEXT_JSON: input.contextJson,
+      },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    })
+    const stdout = createBoundedOutput()
+    const stderr = createBoundedOutput()
+    let timedOut = false
+    let errorMessage = ''
+    let timeout: NodeJS.Timeout | undefined
+
+    const signalProcessGroup = (signal: NodeJS.Signals) => {
+      // shortcut: process groups miss scripts that deliberately start a new session; use cgroups if that threat becomes in scope.
+      if (child.pid === undefined) return
+      try {
+        process.kill(-child.pid, signal)
+      } catch {
+        // The process group may already have exited.
+      }
+    }
+    const terminateProcessGroup = () => {
+      signalProcessGroup('SIGTERM')
+      const forceKill = setTimeout(() => signalProcessGroup('SIGKILL'), 500)
+      forceKill.unref()
+    }
+    const abort = () => terminateProcessGroup()
+
+    child.stdout.on('data', (chunk: Buffer) => stdout.append(chunk))
+    child.stderr.on('data', (chunk: Buffer) => stderr.append(chunk))
+    child.on('error', (error) => {
+      errorMessage = error.message
+    })
+    child.on('close', (code) => {
+      if (timeout) clearTimeout(timeout)
+      input.signal?.removeEventListener('abort', abort)
+      terminateProcessGroup()
+      if (input.signal?.aborted) {
+        reject(new DOMException('AI request was cancelled', 'AbortError'))
+        return
+      }
+      resolveResult({
+        exitCode: code,
+        timedOut,
+        stdout: stdout.toString(),
+        stderr: stderr.toString() || errorMessage,
+      })
+    })
+
+    input.signal?.addEventListener('abort', abort, { once: true })
+    timeout = setTimeout(() => {
+      timedOut = true
+      terminateProcessGroup()
+    }, timeoutMs)
+  })
+}
+
 export async function executeAiAgentSkillScript(input: {
   skillDirectory: string
   scriptPath: string
+  runtime: 'node' | 'python' | 'bash'
   args: string[]
   context: object
   signal?: AbortSignal
@@ -94,16 +204,31 @@ export async function executeAiAgentSkillScript(input: {
     await validateSkillSources(skillDirectory)
     await getSandboxInitialization()
     const appDirectory = resolve(process.cwd())
+    const executable =
+      input.runtime === 'node'
+        ? process.execPath
+        : input.runtime === 'python'
+          ? await getPythonPath()
+          : '/bin/bash'
+    const scriptPath = join(skillDirectory, input.scriptPath)
+    const runtimeArgs =
+      input.runtime === 'node'
+        ? [
+            '--permission',
+            '--max-old-space-size=256',
+            `--allow-fs-read=${skillDirectory},${temporaryDirectory}`,
+            `--allow-fs-write=${temporaryDirectory}`,
+            scriptPath,
+            ...input.args,
+          ]
+        : input.runtime === 'python'
+          ? ['-I', '-B', scriptPath, ...input.args]
+          : ['--noprofile', '--norc', scriptPath, ...input.args]
     const command = [
       `TMPDIR=${quoteShellArgument(temporaryDirectory)}`,
       'exec',
-      quoteShellArgument(process.execPath),
-      quoteShellArgument('--permission'),
-      quoteShellArgument('--max-old-space-size=256'),
-      quoteShellArgument(`--allow-fs-read=${skillDirectory},${temporaryDirectory}`),
-      quoteShellArgument(`--allow-fs-write=${temporaryDirectory}`),
-      quoteShellArgument(join(skillDirectory, input.scriptPath)),
-      ...input.args.map(quoteShellArgument),
+      quoteShellArgument(executable),
+      ...runtimeArgs.map(quoteShellArgument),
     ].join(' ')
     const wrapped = await SandboxManager.wrapWithSandboxArgv(
       command,
@@ -111,7 +236,7 @@ export async function executeAiAgentSkillScript(input: {
       {
         filesystem: {
           denyRead: [appDirectory, getSkillsRoot(), resolve(process.env.HOME ?? '/home/node')],
-          allowRead: [skillDirectory, process.execPath],
+          allowRead: [skillDirectory, executable],
           allowWrite: [temporaryDirectory],
           denyWrite: [appDirectory, getSkillsRoot(), '/tmp/claude'],
         },
@@ -121,35 +246,13 @@ export async function executeAiAgentSkillScript(input: {
     )
 
     try {
-      const { stdout, stderr } = await execFile(wrapped.argv[0]!, wrapped.argv.slice(1), {
-        cwd: skillDirectory,
-        env: {
-          PATH: '/usr/local/bin:/usr/bin:/bin',
-          LANG: 'C.UTF-8',
-          HOME: temporaryDirectory,
-          TMPDIR: temporaryDirectory,
-          ASSISTANT_SKILL_CONTEXT_JSON: contextJson,
-        },
-        encoding: 'utf8',
-        timeout: timeoutMs,
-        maxBuffer: maxOutputBytes * 2,
+      return await runSandboxProcess({
+        argv: wrapped.argv,
+        skillDirectory,
+        temporaryDirectory,
+        contextJson,
         signal: input.signal,
       })
-      return {
-        exitCode: 0,
-        timedOut: false,
-        stdout: stdout.slice(0, maxOutputBytes),
-        stderr: stderr.slice(0, maxOutputBytes),
-      }
-    } catch (error) {
-      if (input.signal?.aborted) throw new DOMException('AI request was cancelled', 'AbortError')
-      const result = error as NodeJS.ErrnoException & { stdout?: unknown; stderr?: unknown }
-      return {
-        exitCode: typeof result.code === 'number' ? result.code : null,
-        timedOut: result.code === 'ETIMEDOUT',
-        stdout: typeof result.stdout === 'string' ? result.stdout.slice(0, maxOutputBytes) : '',
-        stderr: typeof result.stderr === 'string' ? result.stderr.slice(0, maxOutputBytes) : '',
-      }
     } finally {
       SandboxManager.cleanupAfterCommand()
     }

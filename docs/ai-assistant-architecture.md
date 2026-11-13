@@ -31,7 +31,7 @@ flowchart TB
 
 知识检索按目录与正文两阶段执行；正文检索只能使用本轮目录结果中的文档。字段、角色范围、审计和维护方式见[知识库实现说明](knowledge-base.md)。
 
-技能由管理员从可信 Git 来源安装，新技能默认停用。启用后，Agent 可读取其说明和小型资源；脚本仍由 backend 启动子进程，并通过 OS sandbox 禁用网络、限制写入范围并拒绝访问 backend 应用目录和服务 home 目录，不另建 runner 服务。Node Permission Model 将脚本文件 API 的读取范围限制为技能目录和本次运行的临时目录，并禁用子进程、worker 和 native addons；运行时还限制 V8 heap、执行时间和输出大小。backend 在 Linux 容器中运行时，宿主机必须允许 bubblewrap 建立所需 namespace，否则执行器失败关闭。脚本仍只允许从管理员认可的可信来源安装；该运行时处于 beta 阶段，具体部署条件见[部署指南](deployment.md)。
+技能由管理员从可信 Git 来源安装，新技能默认停用。启用后，Agent 可读取其说明和小型资源；仅执行技能目录中的 `.js`、`.mjs`、`.cjs`、`.py`、`.sh` 和 `.bash` 文件，扩展名分别选择 Node.js、Python 3 或 Bash 解释器。脚本由 backend 启动子进程，并通过 OS sandbox 禁用网络、限制写入范围并拒绝访问 backend 应用目录和服务 home 目录，不另建 runner 服务。Node 脚本还使用 Node Permission Model 限制文件 API 的读取范围，并禁用子进程、worker 和 native addons；Node 运行时限制 V8 heap。所有脚本都有执行时间和输出大小限制，执行结束时清理同进程组的子进程。backend 在 Linux 容器中运行时，宿主机必须允许 bubblewrap 建立所需 namespace，否则执行器失败关闭。脚本仍只允许从管理员认可的可信来源安装；该运行时处于 beta 阶段，具体部署条件见[部署指南](deployment.md)。
 
 ## 会话与持久化
 
