@@ -41,6 +41,14 @@ function getSandboxInitialization() {
   return sandboxInitialization
 }
 
+export async function resetAiAgentSkillSandbox() {
+  try {
+    await SandboxManager.reset()
+  } finally {
+    sandboxInitialization = undefined
+  }
+}
+
 function quoteShellArgument(value: string) {
   return `'${value.replaceAll("'", "'\\''")}'`
 }

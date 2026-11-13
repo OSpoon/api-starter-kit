@@ -8,6 +8,8 @@ import { assert } from '@japa/assert'
 import { pluginAdonisJS } from '@japa/plugin-adonisjs'
 import type { Config } from '@japa/runner/types'
 
+import { resetAiAgentSkillSandbox } from '#services/ai_agent_skill_execution_service'
+
 import type { Registry } from '../.adonisjs/client/registry/schema.d.ts'
 
 /**
@@ -43,7 +45,7 @@ export const plugins: Config['plugins'] = [
  */
 export const runnerHooks: Required<Pick<Config, 'setup' | 'teardown'>> = {
   setup: [],
-  teardown: [],
+  teardown: [resetAiAgentSkillSandbox],
 }
 
 /**
