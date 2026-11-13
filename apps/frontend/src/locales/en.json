@@ -271,7 +271,6 @@
     "skills_template_link": "Skill template",
     "skills_source": "Git repository or GitHub URL",
     "skills_source_placeholder": "owner/repo or https://github.com/owner/repo",
-    "skills_source_hint": "Supports GitHub shorthand, GitHub repository URLs, and Git URLs ending in .git. Skills are stored in the application's dedicated persistent directory.",
     "skills_source_required": "Enter a skill source",
     "skills_source_max": "The source URL must not exceed 2048 characters",
     "install_skill": "Install with skills CLI",

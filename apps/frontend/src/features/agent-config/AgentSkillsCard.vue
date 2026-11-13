@@ -252,9 +252,6 @@ onMounted(() => void load())
           {{ t('agent_config.install_skill') }}
         </Button>
       </form>
-      <p class="shrink-0 text-sm text-muted-foreground">
-        {{ t('agent_config.skills_source_hint') }}
-      </p>
       <DataTable
         class="min-h-0 flex-1"
         :columns="columns"

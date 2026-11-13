@@ -271,7 +271,6 @@
     "skills_template_link": "技能模板",
     "skills_source": "Git 仓库或 GitHub 地址",
     "skills_source_placeholder": "owner/repo 或 https://github.com/owner/repo",
-    "skills_source_hint": "支持 GitHub 仓库简称、GitHub 仓库地址和以 .git 结尾的 Git 地址。技能保存在应用专属持久目录中。",
     "skills_source_required": "请输入技能来源地址",
     "skills_source_max": "来源地址不能超过 2048 个字符",
     "install_skill": "通过 skills CLI 安装",
