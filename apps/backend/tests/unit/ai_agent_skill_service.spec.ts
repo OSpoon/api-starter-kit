@@ -143,7 +143,7 @@ test.group('AI agent skill service', (group) => {
       ['ping', 'pong'],
       workspace
     )
-    assert.equal(result.exitCode, 0)
+    assert.equal(result.exitCode, 0, result.stderr)
     assert.equal(result.stdout, 'ping|pong\n')
     assert.equal(result.scriptPath, 'scripts/index.mjs')
     const pythonResult = await runAiAgentSkillCommand(
@@ -152,7 +152,7 @@ test.group('AI agent skill service', (group) => {
       ['python', 'script'],
       workspace
     )
-    assert.equal(pythonResult.exitCode, 0)
+    assert.equal(pythonResult.exitCode, 0, pythonResult.stderr)
     assert.equal(pythonResult.stdout, 'python|script\n')
     const bashResult = await runAiAgentSkillCommand(
       'summarize',
@@ -160,7 +160,7 @@ test.group('AI agent skill service', (group) => {
       ['bash', 'script'],
       workspace
     )
-    assert.equal(bashResult.exitCode, 0)
+    assert.equal(bashResult.exitCode, 0, bashResult.stderr)
     assert.equal(bashResult.stdout, 'bash script\n')
     await assert.rejects(
       () => runAiAgentSkillCommand('summarize', 'references/guide.md', [], workspace),
@@ -204,7 +204,7 @@ test.group('AI agent skill service', (group) => {
       workspace
     )
 
-    assert.equal(result.exitCode, 0)
+    assert.equal(result.exitCode, 0, result.stderr)
     assert.equal(result.stdout, 'outside-denied|skill-write-denied|temp-write-allowed\n')
   })
 
@@ -234,7 +234,7 @@ test.group('AI agent skill service', (group) => {
     await updateAiAgentSkill('summarize', true, workspace)
 
     const result = await runAiAgentSkillCommand('summarize', 'scripts/index.mjs', [], workspace)
-    assert.equal(result.exitCode, 0)
+    assert.equal(result.exitCode, 0, result.stderr)
     assert.equal(result.stdout, 'should not run\n')
 
     await updateAiAgentSkill('summarize', false, workspace)

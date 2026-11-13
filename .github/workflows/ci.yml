@@ -34,6 +34,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install --no-install-recommends -y bash bubblewrap python3 ripgrep socat
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6.0.10

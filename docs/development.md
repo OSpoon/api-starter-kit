@@ -40,7 +40,7 @@ pnpm bot:dingtalk
 
 assistant-web 默认监听 `17070`，管理端默认监听 `18080`。桌面端开发连接已有的 assistant-web 服务；桌面生产构建会先构建并打包该 Web 客户端。扩展共享样式规则见 `apps/frontend/AGENTS.md`，Vue Router runtime 规则见 `apps/assistant-extension/AGENTS.md`。
 
-本机运行 backend/Bot 技能脚本需提供 Anthropic Sandbox Runtime 的系统依赖和所需解释器：macOS 安装 `ripgrep`（`brew install ripgrep`）并确保 `python3` 可用；Linux 安装 `bash`、`bubblewrap`、`python3`、`ripgrep` 和 `socat`，并允许创建所需 namespace。条件不满足时脚本执行失败关闭。Docker backend 镜像已包含 Linux 依赖，部署限制见[部署指南](deployment.md)。
+本机运行 backend/Bot 技能脚本需提供 Anthropic Sandbox Runtime 的系统依赖和所需解释器：macOS 安装 `ripgrep`（`brew install ripgrep`）并确保 `python3` 可用；Linux 安装 `bash`、`bubblewrap`、`python3`、`ripgrep` 和 `socat`，并允许创建所需 namespace。Ubuntu 24.04+ 还需确保 AppArmor 未移除 bubblewrap 所需的 user namespace capability；受控开发机可设置 `kernel.apparmor_restrict_unprivileged_userns=0`，也可为相关二进制配置允许 user namespace 的 AppArmor profile。条件不满足时脚本执行失败关闭。Docker backend 镜像已包含 Linux 依赖，部署限制见[部署指南](deployment.md)。
 
 ## 应用级检查
 
