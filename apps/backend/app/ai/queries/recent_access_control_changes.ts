@@ -1,5 +1,4 @@
 import {
-  maskName,
   queryPageMessage,
   queryPageParameter,
   queryPageSize,
@@ -10,7 +9,7 @@ import AuditLog from '#models/audit_log'
 export const recentAccessControlChangesQuery: AiQueryTemplate = {
   code: 'recent_access_control_changes',
   permission: 'audit-logs:read',
-  version: 2,
+  version: 3,
   description:
     'List role and historical permission audit events without metadata or unredacted actor details; results can be paginated with params.page.',
   parameters: { page: queryPageParameter },
@@ -34,7 +33,7 @@ export const recentAccessControlChangesQuery: AiQueryTemplate = {
         targetType: log.targetType,
         targetId: log.targetId,
         createdAt: log.createdAt.toISO(),
-        actor: log.actor ? { fullName: maskName(log.actor.fullName ?? '') } : null,
+        actor: log.actor ? { fullName: log.actor.fullName ?? '' } : null,
       })),
       message: queryPageMessage(logs.getMeta()),
     }

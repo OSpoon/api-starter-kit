@@ -13,6 +13,6 @@
 | 助手界面、确认卡片和工具状态文案                       | `apps/frontend/src/locales/zh-CN.json`、`apps/frontend/src/locales/en.json` 及 `apps/frontend/src/components/ai-chat/`  |
 | 行为评估场景与 mock 工具描述                           | `apps/backend/app/ai/evaluation/ai_evaluation.ts`、`apps/backend/commands/ai_evaluate.ts` 和 `apps/backend/tests/`      |
 
-新增或修改内容时，先遵守 [`apps/backend/AGENTS.md`](../../apps/backend/AGENTS.md) 中的 AI 工具、查询、动作和确认契约。系统策略只放稳定行为与安全边界；领域策略负责来源路由和领域级证据要求；工具参数、目标解析、权限、脱敏和错误行为由对应工具描述、注册项、schema 和服务端逻辑负责。摘要、标题、确认和元数据提取提示只保留各自任务要求，不复制主 Agent 策略或工具契约。
+新增或修改内容时，先遵守 [`apps/backend/AGENTS.md`](../../apps/backend/AGENTS.md) 中的 AI 工具、查询、动作和确认契约。系统策略只放稳定行为与安全边界；领域策略负责来源路由和领域级证据要求；工具参数、目标解析、权限、最小 DTO 和错误行为由对应工具描述、注册项、schema 和服务端逻辑负责；个人信息和凭据的出站脱敏、回复及工具参数还原由共享 Pi provider 边界统一处理。摘要、标题、确认和元数据提取提示只保留各自任务要求，不复制主 Agent 策略或工具契约。
 
 行为规则或工具协议发生变化时，更新相应的 backend 测试与评估用例；若改变用户可见文案，更新 locale 源文件。实现分层和验证入口见[AI 助手架构](../ai-assistant-architecture.md)与[工程开发指南](../development.md)。

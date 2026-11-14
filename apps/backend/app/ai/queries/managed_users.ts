@@ -1,6 +1,4 @@
 import {
-  maskEmail,
-  maskName,
   queryPageMessage,
   queryPageParameter,
   queryPageSize,
@@ -15,9 +13,9 @@ import {
 export const managedUsersQuery: AiQueryTemplate = {
   code: 'managed_users',
   permission: 'users:read',
-  version: 2,
+  version: 3,
   description:
-    'List managed users with masked personal information and their roles; results can be paginated with params.page.',
+    'List managed users with their personal information and roles; results can be paginated with params.page.',
   parameters: { page: queryPageParameter },
   async execute(params) {
     const users = await User.query()
@@ -28,8 +26,8 @@ export const managedUsersQuery: AiQueryTemplate = {
     return {
       rows: users.all().map((user) => ({
         id: user.id,
-        fullName: maskName(user.fullName ?? ''),
-        email: maskEmail(user.email),
+        fullName: user.fullName ?? '',
+        email: user.email,
         twoFactorEnabled: user.twoFactorEnabled,
         roles: user.roles.map((role) => ({ id: role.id, code: role.code, name: role.name })),
       })),

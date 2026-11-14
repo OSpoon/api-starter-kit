@@ -254,7 +254,6 @@ export async function compactPiContext(input: {
           attributes: {
             'langfuse.observation.type': 'generation',
             'langfuse.observation.model.name': input.model.id,
-            'langfuse.observation.input': JSON.stringify(summaryContext.messages),
           },
         },
         async (span) => {
@@ -264,7 +263,6 @@ export async function compactPiContext(input: {
             maxTokens: input.summaryOutputTokenBudget,
           })
           span.setAttributes({
-            'langfuse.observation.output': JSON.stringify(result.content),
             'usage.input': result.usage.input,
             'usage.output': result.usage.output,
             'usage.cache_read': result.usage.cacheRead,

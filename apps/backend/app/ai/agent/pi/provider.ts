@@ -9,8 +9,9 @@ import {
 import { openAICompletionsApi } from '@earendil-works/pi-ai/api/openai-completions.lazy'
 
 import type { AgentModelConfig } from '../agent.js'
+import { type AiPrivacySession, withAiPrivacyBoundary } from './privacy_boundary.js'
 
-export async function createPiModels(config: AgentModelConfig) {
+export async function createPiModels(config: AgentModelConfig, privacy: AiPrivacySession) {
   const model: Model<'openai-completions'> = {
     id: config.modelId,
     name: config.modelId,
@@ -52,7 +53,7 @@ export async function createPiModels(config: AgentModelConfig) {
       baseUrl: config.baseUrl,
       auth: { apiKey: auth },
       models: [model],
-      api: openAICompletionsApi(),
+      api: withAiPrivacyBoundary(openAICompletionsApi(), privacy),
     })
   )
   return models

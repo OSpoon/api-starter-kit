@@ -177,8 +177,8 @@ test.group('AI agent registered queries', (group) => {
     assert.deepEqual(completed.rows, [
       {
         id: target.id,
-        fullName: 'S*',
-        email: `s***@example.com`,
+        fullName: target.fullName,
+        email: target.email,
         twoFactorEnabled: false,
         disabled: false,
         roles: [],
@@ -199,7 +199,7 @@ test.group('AI agent registered queries', (group) => {
         authorization: audit.metadata?.authorization,
       },
       {
-        templateVersion: 3,
+        templateVersion: 4,
         parameterNames: ['userId'],
         resultCount: 1,
         authorization: 'allowed',
@@ -228,7 +228,7 @@ test.group('AI agent registered queries', (group) => {
     assert.deepEqual(emailMatch.match, { status: 'matched', field: 'email' })
     assert.equal(emailMatch.rows.length, 1)
     assert.equal((emailMatch.rows[0] as { id: number }).id, first.id)
-    assert.notInclude(JSON.stringify(emailMatch.rows), first.email)
+    assert.include(JSON.stringify(emailMatch.rows), first.email)
 
     const second = await User.create({
       fullName: first.fullName,
@@ -249,8 +249,8 @@ test.group('AI agent registered queries', (group) => {
       [first.id, second.id].sort()
     )
     assert.include(nameMatch.message ?? '', 'choose by ID')
-    assert.notInclude(JSON.stringify(nameMatch.rows), first.email)
-    assert.notInclude(JSON.stringify(nameMatch.rows), second.email)
+    assert.include(JSON.stringify(nameMatch.rows), first.email)
+    assert.include(JSON.stringify(nameMatch.rows), second.email)
   })
 
   test('looks up an API Key profile by ID with status and without the key hash', async ({
@@ -458,7 +458,7 @@ test.group('AI agent registered queries', (group) => {
       .where('target_id', 'managed_user_profile')
       .firstOrFail()
     assert.deepEqual(audit.metadata, {
-      templateVersion: 3,
+      templateVersion: 4,
       parameterNames: ['userId', 'sql'],
       unknownParameterNames: ['sql'],
       authorization: 'allowed',
@@ -506,7 +506,7 @@ test.group('AI agent registered queries', (group) => {
         resultCount: audit.metadata?.resultCount,
       },
       {
-        templateVersion: 2,
+        templateVersion: 3,
         parameterNames: ['page'],
         authorization: 'allowed',
         resultCount: result.kind === 'query_result' ? result.rows.length : 0,
@@ -545,7 +545,7 @@ test.group('AI agent registered queries', (group) => {
         reason: audit.metadata?.reason,
       },
       {
-        templateVersion: 3,
+        templateVersion: 4,
         parameterNames: ['userId'],
         authorization: 'allowed',
         reason: 'invalid_parameters',
@@ -619,7 +619,7 @@ test.group('AI agent registered queries', (group) => {
     assert.notInclude(JSON.stringify(catalogResult.rows), permission.code)
   })
 
-  test('redacts recent access-control change actors and omits metadata', async ({ assert }) => {
+  test('returns access-control actor names and omits metadata', async ({ assert }) => {
     const { user, conversation } = await createAdminConversation()
     const audit = await AuditLog.create({
       actorUserId: user.id,
@@ -645,13 +645,13 @@ test.group('AI agent registered queries', (group) => {
       targetType: 'role',
       targetId: '123',
       createdAt: audit.createdAt.toISO(),
-      actor: { fullName: 'Q*' },
+      actor: { fullName: user.fullName },
     })
     assert.notProperty(row as object, 'metadata')
     assert.notProperty((row as { actor?: object }).actor ?? {}, 'id')
   })
 
-  test('redacts recent audit-log actors and excludes IPs, user agents, and metadata', async ({
+  test('returns audit-log actor names and excludes IPs, user agents, and metadata', async ({
     assert,
   }) => {
     const { user, conversation } = await createAdminConversation()
@@ -681,7 +681,7 @@ test.group('AI agent registered queries', (group) => {
       targetType: 'user',
       targetId: '7',
       createdAt: audit.createdAt.toISO(),
-      actor: { fullName: 'Q*' },
+      actor: { fullName: user.fullName },
     })
     assert.notProperty(auditRow ?? {}, 'metadata')
     assert.notProperty((auditRow as { actor?: object }).actor ?? {}, 'id')

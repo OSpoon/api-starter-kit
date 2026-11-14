@@ -1,6 +1,5 @@
 import { z } from 'zod'
 
-import { maskEmail, maskName } from '#ai/registry/ai_agent_query_helpers'
 import type { AiQueryTemplate } from '#ai/registry/ai_agent_query_types'
 import User from '#models/user'
 import {
@@ -10,7 +9,7 @@ import {
 
 export const managedUserProfileQuery: AiQueryTemplate = {
   code: 'managed_user_profile',
-  version: 3,
+  version: 4,
   permission: 'users:read',
   description:
     'Look up managed users by ID, exact email, or exact full name. Use the exact identifier supplied by the user; exact names can match more than one user, so ask the user to choose by ID when ambiguous.',
@@ -58,8 +57,8 @@ export const managedUserProfileQuery: AiQueryTemplate = {
       },
       rows: users.map((user) => ({
         id: user.id,
-        fullName: maskName(user.fullName ?? ''),
-        email: maskEmail(user.email),
+        fullName: user.fullName ?? '',
+        email: user.email,
         twoFactorEnabled: user.twoFactorEnabled,
         disabled: Boolean(user.disabledAt),
         roles: user.roles.map((role) => ({ id: role.id, code: role.code, name: role.name })),

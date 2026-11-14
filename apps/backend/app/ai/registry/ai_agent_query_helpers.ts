@@ -15,13 +15,3 @@ export function queryPageMessage(meta: { currentPage: number; lastPage: number; 
   if (meta.lastPage <= 1) return undefined
   return `Page ${meta.currentPage} of ${meta.lastPage} (${meta.total} results). ${meta.currentPage < meta.lastPage ? `Request page=${meta.currentPage + 1} to continue.` : 'This is the final page.'}`
 }
-
-export function maskEmail(email: string) {
-  const [local, domain] = email.split('@')
-  if (!domain) return '[redacted]'
-  return `${local.slice(0, 1)}***@${domain}`
-}
-
-export function maskName(name: string) {
-  return name.length <= 1 ? '*' : `${name.slice(0, 1)}*`
-}

@@ -29,6 +29,7 @@ import {
   trimPiContextToTokenBudget,
   truncateTextToTokenBudget,
 } from './context_compaction.js'
+import { createAiPrivacySession } from './privacy_boundary.js'
 import { createPiModels } from './provider.js'
 import { toPiToolParameters } from './tool_parameters.js'
 import { toAgentTrace } from './trace.js'
@@ -124,19 +125,6 @@ function toPiMessages(messages: AgentRunOptions['messages'], providerId: string)
   }) as PiAgentMessage[]
 }
 
-function redactImagesForTelemetry(messages: unknown) {
-  if (!Array.isArray(messages)) return messages
-  return messages.map((message) => {
-    if (!isRecord(message) || !Array.isArray(message.content)) return message
-    return {
-      ...message,
-      content: message.content.map((part) =>
-        isRecord(part) && part.type === 'image' ? { type: 'image', mimeType: part.mimeType } : part
-      ),
-    }
-  })
-}
-
 function instrumentTool(
   tool: AgentTool,
   getTelemetrySpan: () => TelemetrySpan | undefined
@@ -157,9 +145,7 @@ function instrumentTool(
           },
         },
         async (toolSpan) => {
-          toolSpan.setAttributes({ 'langfuse.observation.input': JSON.stringify(params) })
           const result = await tool.execute(toolCallId, params, signal, onUpdate)
-          toolSpan.setAttributes({ 'langfuse.observation.output': JSON.stringify(result) })
           if (result.terminate) toolSpan.setStatus({ status: 'error' })
           return result
         }
@@ -264,7 +250,8 @@ function emitPiEvent(value: unknown, emit: (event: AgentEvent) => void, end: () 
 export const piAgentEngine: AgentEngine = {
   id: 'pi',
   async createSession(input): Promise<AgentSession> {
-    const models = await createPiModels(input.model)
+    const privacy = createAiPrivacySession(input.sessionId)
+    const models = await createPiModels(input.model, privacy)
     const model = models.getModel(input.model.providerId, input.model.modelId)
     if (!model) throw new Error(`Configured Pi model was not found: ${input.model.modelId}`)
 
@@ -280,6 +267,8 @@ export const piAgentEngine: AgentEngine = {
       input.summary?.coveredThroughMessageId,
       this.id
     )
+    // Seed known values before context compaction can remove their structured source.
+    privacy.prepareContext({ messages: [...input.messages, ...sessionState.messages] })
     const hasPiState =
       Array.isArray(input.sessionState) ||
       (isRecord(input.sessionState) && input.sessionState.engineId === this.id)
@@ -359,9 +348,6 @@ export const piAgentEngine: AgentEngine = {
                 attributes: {
                   'langfuse.observation.type': 'generation',
                   'langfuse.observation.model.name': requestModel.id,
-                  'langfuse.observation.input': JSON.stringify(
-                    redactImagesForTelemetry(context.messages)
-                  ),
                 },
               },
               async (span) => {
@@ -372,7 +358,6 @@ export const piAgentEngine: AgentEngine = {
                 resolve(stream)
                 const response = await stream.result()
                 span.setAttributes({
-                  'langfuse.observation.output': JSON.stringify(response.content),
                   'usage.input': response.usage.input,
                   'usage.output': response.usage.output,
                   'usage.cache_read': response.usage.cacheRead,
@@ -536,7 +521,6 @@ export const piAgentEngine: AgentEngine = {
           name: 'api-starter.ai.agent_run',
           attributes: {
             'app.ai.agent_run_id': input.sessionId,
-            'langfuse.observation.input': JSON.stringify({ role: 'user', content: initialPrompt }),
           },
         },
         async (span) => {
@@ -546,11 +530,10 @@ export const piAgentEngine: AgentEngine = {
             const response = agent.state.messages.findLast(
               (message) => message.role === 'assistant'
             )
-            if (response) {
+            if (response?.role === 'assistant')
               span.setAttributes({
-                'langfuse.observation.output': JSON.stringify(response.content),
+                'app.ai.response_character_count': messageText(response.content).length,
               })
-            }
           } finally {
             activeSpan = undefined
           }

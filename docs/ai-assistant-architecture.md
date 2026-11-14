@@ -25,7 +25,7 @@ flowchart TB
 
 ## 查询与操作边界
 
-查询只调用 `ai_agent_query_registry` 中的固定模板。每个模板有稳定标识、参数 schema、权限、服务端范围、脱敏和结果上限；缺参时保存待补参数状态，续问时重新验证用户、权限、有效期和模板。
+查询只调用 `ai_agent_query_registry` 中的固定模板。每个模板定义稳定标识、参数 schema、权限、服务端范围、最小 DTO 和结果上限；缺参时保存待补参数状态，续问时重新验证用户、权限、有效期和模板。所有模型请求在 Pi provider 的共享边界统一脱敏，不在每个查询模板重复维护脱敏字段。结构化字段按通用键名识别个人信息和凭据，文本扫描已识别的邮箱、电话、IPv4、通过 Luhn 校验的卡号和常见凭据格式；结构化 IP 字段也覆盖 IPv6。可逆的个人信息占位符缓存在进程内，并在流式文本和工具调用参数返回 Agent 前还原；后续请求创建 privacy session 时会清理闲置超过 24 小时的映射，缓存上限为 256 个会话。凭据使用不可逆的 `[REDACTED]`，不会恢复。未知的自然语言姓名和图片内容不在扫描范围内；进程重启、切换 backend 副本或映射缓存驱逐后，无法保证从普通历史文本重建这些姓名映射。
 
 有副作用的管理操作只创建持久化提议。确认 API 在执行前复核会话归属、权限、提议状态和目标当前状态，并记录审计。模型生成的文本不参与授权判断。完整规范见 [`apps/backend/AGENTS.md`](../apps/backend/AGENTS.md) 的 AI 章节。
 
@@ -35,7 +35,7 @@ flowchart TB
 
 ## 会话与持久化
 
-- `AiChatConversation` 和 `AiChatMessage` 保存完整用户可见历史与脱敏后的运行详情。
+- `AiChatConversation` 和 `AiChatMessage` 保存完整历史；敏感信息只在发往模型的请求上下文中替换，脱敏映射不写入数据库。
 - 模型上下文压缩只影响请求上下文；滚动摘要持久化在会话上，不能截断历史记录。
 - Agent 私有快照用于恢复工具调用上下文；思考内容与图片二进制不进入该快照。
 - 图片数据与消息关联保存在 PostgreSQL；历史接口只提供必要元数据，授权后的图片接口才返回原始内容。
@@ -61,9 +61,9 @@ Backend 将 Agent 事件转换为 SSE，包括阶段、计划、工具状态、�
 
 ## 开发遥测
 
-Pi telemetry 仅在 `NODE_ENV=development` 时启用。配置 `LANGFUSE_BASE_URL`、`LANGFUSE_PUBLIC_KEY` 和 `LANGFUSE_SECRET_KEY` 后，trace 会导出到 Langfuse；缺少配置时不向外部发送。
+Pi telemetry 仅在 `NODE_ENV=development` 时启用。配置 `LANGFUSE_BASE_URL`、`LANGFUSE_PUBLIC_KEY` 和 `LANGFUSE_SECRET_KEY` 后，trace 会导出到 Langfuse；缺少配置时不向外部发送。Agent trace 记录模型、用量、成本、停止原因和工具标识，不附加原始提示词、回复、工具参数或查询结果。
 
-开发 trace 可能包含模型输入与输出、工具参数与结果、模型名称、用量、成本、耗时和错误。配置导出前，应确认开发环境连接到适合接收这些内容的项目。变量示例见 backend [`.env.example`](../apps/backend/.env.example)。
+变量示例见 backend [`.env.example`](../apps/backend/.env.example)。
 
 ## 验证
 
