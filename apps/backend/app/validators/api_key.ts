@@ -3,7 +3,6 @@ import vine from '@vinejs/vine'
 export const apiKeyValidator = vine.compile(
   vine.object({
     name: vine.string().trim().minLength(1).maxLength(120),
-    kind: vine.enum(['integration', 'embed'] as const).optional(),
     expiresAt: vine.string().optional().nullable(),
     expiresIn: vine.enum(['30d', '90d', '180d', 'long']).optional(),
   })

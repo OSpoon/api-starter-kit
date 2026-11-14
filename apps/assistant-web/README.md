@@ -4,13 +4,13 @@
 
 ## Website embed
 
-Create a **Website embed** API Key in the management app and paste its generated script tag into the site. Replace the example assistant host with the deployed `assistant-web` origin:
+Create an API Key in the management app, then copy its generated script tag into the site. The same key works with API integrations and website embeds. Replace the example assistant host with the deployed `assistant-web` origin:
 
 ```html
 <script async src="https://assistant.example.com/widget.js" data-api-key="id_..."></script>
 ```
 
-The key is visible to site visitors and grants the full AI assistant integration capability. Treat an embed key as public, create a dedicated key for each site, and revoke it from API Key management when the site should lose access. The embedding site's Content Security Policy must allow the assistant host in `script-src` and `frame-src`; the backend CORS allowlist must include the `assistant-web` origin. The `assistant-web` Nginx config allows framing only at the embed routes and keeps its other routes blocked from framing.
+The key is visible to site visitors and grants the full AI assistant integration capability. Use the same API Key for any supported integration; revoke it from API Key management when it should lose access. The embedding site's Content Security Policy must allow the assistant host in `script-src` and `frame-src`; the backend CORS allowlist must include the `assistant-web` origin. The `assistant-web` Nginx config allows framing only at the embed routes and keeps its other routes blocked from framing.
 
 ## Development
 

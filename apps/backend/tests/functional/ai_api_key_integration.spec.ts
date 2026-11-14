@@ -30,14 +30,13 @@ test.group('AI API Key integration', (group) => {
     response.assertStatus(404)
   })
 
-  test('isolates embed conversations by browser session and rejects embed keys on integration routes', async ({
+  test('uses one API key for integration and embed routes while isolating conversations', async ({
     client,
     assert,
   }) => {
     const secret = `id_embed_${Date.now()}`
     const apiKey = await ApiKey.create({
-      name: 'Website embed',
-      kind: 'embed',
+      name: 'Assistant API key',
       prefix: secret.slice(0, 12),
       keyHash: hashApiKey(secret),
     })
@@ -79,11 +78,25 @@ test.group('AI API Key integration', (group) => {
       .header('x-embed-session', sessionB)
     crossSession.assertStatus(404)
 
-    const wrongRoute = await client
+    const integrationRoute = await client
       .post('/api/v1/integrations/ai-chat/conversations')
       .bearerToken(secret)
       .json({})
-    wrongRoute.assertStatus(401)
+    integrationRoute.assertStatus(200)
+    const integrationId = (integrationRoute.body() as unknown as { data: { id: number } }).data.id
+    const integrationConversation = await AiChatConversation.findOrFail(integrationId)
+    assert.isNull(integrationConversation.embedSessionId)
+
+    const integrationList = await client
+      .get('/api/v1/integrations/ai-chat/conversations')
+      .bearerToken(secret)
+    integrationList.assertStatus(200)
+    assert.deepEqual(
+      (integrationList.body() as { data: { items: Array<{ id: number }> } }).data.items.map(
+        ({ id }) => id
+      ),
+      [integrationId]
+    )
 
     const invalidSession = await client
       .post('/api/v1/embed/ai-chat/conversations')
@@ -92,16 +105,12 @@ test.group('AI API Key integration', (group) => {
       .json({})
     invalidSession.assertStatus(422)
     assert.isNotNull(await AiChatConversation.find(secondId))
-  })
 
-  test('does not accept full integration keys on the embed route', async ({ client }) => {
-    const key = await createApiKey('integration-only')
-    const response = await client
+    const unauthenticated = await client
       .post('/api/v1/embed/ai-chat/conversations')
-      .bearerToken(key.secret)
-      .header('x-embed-session', '12f89f6e-5351-4fb3-8374-7b971d1e5975')
+      .header('x-embed-session', sessionA)
       .json({})
-    response.assertStatus(401)
+    unauthenticated.assertStatus(401)
   })
 
   test('gives each global key full assistant access with isolated conversations', async ({

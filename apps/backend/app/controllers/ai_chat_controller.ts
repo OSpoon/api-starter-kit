@@ -68,6 +68,7 @@ function conversationsFor(ctx: HttpContext, userId: number) {
 
   query.where('api_key_id', ctx.integrationApiKey.id)
   if (ctx.embedSessionId) query.where('embed_session_id', ctx.embedSessionId)
+  else query.whereNull('embed_session_id')
   return query
 }
 

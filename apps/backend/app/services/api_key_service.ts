@@ -31,7 +31,6 @@ export async function auditApiKeyMutation(
       metadata: {
         name: input.apiKey.name,
         prefix: input.apiKey.prefix,
-        kind: input.apiKey.kind,
         source: input.source,
       },
     },
@@ -72,7 +71,6 @@ export function serializeApiKey(key: ApiKey) {
   return {
     id: key.id,
     name: key.name,
-    kind: key.kind,
     prefix: key.prefix,
     lastUsedAt: key.lastUsedAt,
     expiresAt: key.expiresAt,
@@ -102,7 +100,6 @@ export async function createApiKey(
   actorUserId: number,
   payload: {
     name: string
-    kind?: 'integration' | 'embed'
     expiresAt?: string | null
     expiresIn?: string | null
   },
@@ -114,7 +111,6 @@ export async function createApiKey(
     const created = await ApiKey.create(
       {
         name: payload.name,
-        kind: payload.kind ?? 'integration',
         prefix,
         keyHash: hashApiKey(secret),
         expiresAt: resolveExpiresAt(payload),

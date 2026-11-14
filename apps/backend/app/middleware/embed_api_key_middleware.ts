@@ -18,8 +18,8 @@ export default class EmbedApiKeyMiddleware {
       ctx.request.header('authorization')?.replace(/^Bearer\s+/i, '')
     const apiKey = await authenticateApiKey(raw)
 
-    if (!apiKey || apiKey.kind !== 'embed') {
-      return ctx.response.unauthorized({ message: 'Invalid embed API key' })
+    if (!apiKey) {
+      return ctx.response.unauthorized({ message: 'Invalid API key' })
     }
 
     const { sessionId } = await ctx.request.validateUsing(embedSessionValidator, {

@@ -35,12 +35,10 @@ test.group('api keys', (group) => {
     const body = response.body().data as {
       id: number
       name: string
-      kind: string
       key: string
       prefix: string
     }
     assert.equal(body.name, 'Test key')
-    assert.equal(body.kind, 'integration')
     assert.isString(body.key)
     assert.isString(body.prefix)
     assert.isTrue(body.key.startsWith('id_'))
@@ -57,24 +55,18 @@ test.group('api keys', (group) => {
     assert.deepEqual(audit.metadata, {
       name: body.name,
       prefix: body.prefix,
-      kind: 'integration',
       source: 'api',
     })
   })
 
-  test('creates and lists a website embed key without exposing it again', async ({
-    client,
-    assert,
-  }) => {
+  test('lists API keys without exposing secrets or a key type', async ({ client, assert }) => {
     const { bearerToken } = await createAdmin()
     const create = await client.post('/api/v1/api-keys').bearerToken(bearerToken).json({
       name: 'Public website widget',
-      kind: 'embed',
       expiresIn: '90d',
     })
     create.assertStatus(200)
-    const body = create.body().data as { id: number; kind: string; key: string }
-    assert.equal(body.kind, 'embed')
+    const body = create.body().data as { id: number; key: string }
     assert.isString(body.key)
 
     const listed = await client.get('/api/v1/api-keys').bearerToken(bearerToken)
@@ -82,17 +74,8 @@ test.group('api keys', (group) => {
     const item = (listed.body().data as { items: Array<Record<string, unknown>> }).items.find(
       (key) => key.id === body.id
     )
-    assert.equal(item?.kind, 'embed')
     assert.isUndefined(item?.key)
-  })
-
-  test('rejects an unsupported API key purpose', async ({ client }) => {
-    const { bearerToken } = await createAdmin()
-    const response = await client
-      .post('/api/v1/api-keys')
-      .bearerToken(bearerToken)
-      .json({ name: 'Invalid purpose', kind: 'browser' })
-    response.assertStatus(422)
+    assert.isUndefined(item?.kind)
   })
 
   test('lists api keys without exposing the secret', async ({ client, assert }) => {
@@ -193,7 +176,6 @@ test.group('api keys', (group) => {
     assert.deepEqual(audit.metadata, {
       name: 'Renamed',
       prefix: stored!.prefix,
-      kind: 'integration',
       source: 'api',
     })
   })

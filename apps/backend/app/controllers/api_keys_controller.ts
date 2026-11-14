@@ -16,7 +16,8 @@ import { paginationSearchQueryValidator } from '#validators/pagination'
 export default class ApiKeysController {
   @ApiOperation({
     summary: '获取 API Key 列表',
-    description: '返回助手集成和网页嵌入密钥分页列表。支持按名称或公开前缀搜索；不暴露原始密钥。',
+    description:
+      '返回可供助手集成和网页嵌入使用的 API Key 分页列表。支持按名称或公开前缀搜索；不暴露原始密钥。',
   })
   @ApiQuery({
     name: 'page',
@@ -56,7 +57,7 @@ export default class ApiKeysController {
 
   @ApiOperation({
     summary: '创建 API Key',
-    description: '创建服务器集成或网页嵌入密钥；原始密钥只在创建响应中完整返回一次。',
+    description: '创建 API Key，供服务器集成或网页嵌入使用；原始密钥只在创建响应中完整返回一次。',
   })
   @ApiResponse({ status: 200, description: '已创建的 API Key 和原始密钥' })
   async store(ctx: HttpContext) {
