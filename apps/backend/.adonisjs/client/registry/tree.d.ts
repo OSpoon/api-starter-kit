@@ -146,4 +146,22 @@ export interface ApiDefinition {
       }
     }
   }
+  embed: {
+    aiChat: {
+      aiChat: {
+        index: typeof routes['embed.ai_chat.ai_chat.index']
+        usage: typeof routes['embed.ai_chat.ai_chat.usage']
+        store: typeof routes['embed.ai_chat.ai_chat.store']
+        show: typeof routes['embed.ai_chat.ai_chat.show']
+        transcribe: typeof routes['embed.ai_chat.ai_chat.transcribe']
+        sendMessage: typeof routes['embed.ai_chat.ai_chat.send_message']
+        showMessageImage: typeof routes['embed.ai_chat.ai_chat.show_message_image']
+        steer: typeof routes['embed.ai_chat.ai_chat.steer']
+        followUp: typeof routes['embed.ai_chat.ai_chat.follow_up']
+        confirmAiAgentAction: typeof routes['embed.ai_chat.ai_chat.confirm_ai_agent_action']
+        cancelAiAgentAction: typeof routes['embed.ai_chat.ai_chat.cancel_ai_agent_action']
+        destroy: typeof routes['embed.ai_chat.ai_chat.destroy']
+      }
+    }
+  }
 }

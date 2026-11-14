@@ -9,16 +9,36 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { useAiChat } from '@/composables/useAiChat'
+import { setRuntimeEmbedAuth } from '@/lib/api'
 import { useAuthStore } from '@/stores/auth'
 
+import { notifyAssistantEmbedResize } from '@assistant/lib/embed'
 import { isAssistantConnectionRuntime } from '@assistant/lib/runtime'
 import { ChevronsUpDown, LogOut, Server } from '@lucide/vue'
 import { toast } from 'vue-sonner'
 
-const isOpen = ref(true)
+const route = useRoute()
+const isEmbedded = computed(() => route.name === 'embed')
+const isOpen = ref(!isEmbedded.value)
 const auth = useAuthStore()
 const router = useRouter()
 const { t } = useI18n()
+
+onMounted(() => {
+  if (isEmbedded.value) document.body.style.backgroundColor = 'transparent'
+})
+
+onBeforeUnmount(() => {
+  if (isEmbedded.value) document.body.style.backgroundColor = ''
+})
+
+watch(isOpen, (open) => {
+  if (isEmbedded.value) notifyAssistantEmbedResize(open)
+})
+
+onBeforeRouteLeave(() => {
+  if (isEmbedded.value) setRuntimeEmbedAuth(null)
+})
 
 const accountName = computed(() => auth.user?.fullName || auth.user?.email || t('nav.account'))
 const accountInitials = computed(() => {
@@ -76,11 +96,23 @@ const {
 </script>
 
 <template>
-  <main class="h-svh overflow-hidden bg-sidebar p-0 md:p-2">
-    <div class="size-full overflow-hidden rounded-xl bg-background shadow-sm">
+  <main
+    :class="
+      isEmbedded
+        ? 'h-svh overflow-hidden bg-transparent p-0'
+        : 'h-svh overflow-hidden bg-sidebar p-0 md:p-2'
+    "
+  >
+    <div
+      :class="
+        isEmbedded
+          ? 'size-full overflow-hidden bg-transparent'
+          : 'size-full overflow-hidden rounded-xl bg-background shadow-sm'
+      "
+    >
       <AiChatAssistant
         v-model="isOpen"
-        mode="page"
+        :mode="isEmbedded ? 'floating' : 'page'"
         :messages="displayedAiChatMessages"
         :conversations="aiConversations"
         :has-more-conversations="hasMoreAiConversations"
@@ -115,7 +147,7 @@ const {
         @stop="handleAiStop"
         @usage-open="refreshAiUsage"
       >
-        <template #sidebarFooter>
+        <template v-if="!isEmbedded" #sidebarFooter>
           <DropdownMenu>
             <DropdownMenuTrigger as-child>
               <Button

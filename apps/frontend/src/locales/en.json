@@ -112,6 +112,10 @@
     "change_connection": "Connection settings",
     "return_to_app": "Return to assistant"
   },
+  "assistant_embed": {
+    "invalid_title": "Could not load the embedded assistant",
+    "invalid_description": "The embed configuration is invalid. Check the API key in the script tag."
+  },
   "password_strength": {
     "label": "Strength",
     "length": "Length >= 15",
@@ -726,8 +730,12 @@
     "keys_card_title": "My API keys",
     "keys_card_desc": "Generate long-lived or expiring access tokens for external systems.",
     "name": "Name",
+    "kind": "Purpose",
+    "integration_kind": "Server integration",
+    "embed_kind": "Website embed",
     "key": "Key",
     "global_access_hint": "This key can use the full AI assistant and its registered capabilities.",
+    "embed_access_hint": "Website visitors can view this key and use the full AI assistant. Embed it only on sites you authorize.",
     "key_status": "Status",
     "created_at": "Created",
     "last_used": "Last used",
@@ -751,7 +759,11 @@
     "create_failed": "Failed to create key",
     "fetch_failed": "Failed to load API keys",
     "dialog_create_title": "Generate new key",
-    "dialog_create_desc": "Give the key a recognizable name (e.g. \"deployment script\").",
+    "dialog_create_desc": "Give the key a recognizable name and choose its purpose.",
+    "dialog_embed_desc": "Paste this script tag into your site to use the assistant. Visitors can see the key; it cannot be viewed again after closing.",
+    "embed_snippet": "Embed code",
+    "copy_snippet": "Copy embed code",
+    "snippet_copied": "Embed code copied",
     "key_name_placeholder": "Key name",
     "validation": {
       "name_required": "Enter a key name",

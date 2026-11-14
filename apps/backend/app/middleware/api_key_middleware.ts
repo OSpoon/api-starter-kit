@@ -22,7 +22,7 @@ export default class ApiKeyMiddleware {
       ctx.request.header('authorization')?.replace(/^Bearer\s+/i, '')
     const apiKey = await authenticateApiKey(raw)
 
-    if (!apiKey) {
+    if (!apiKey || apiKey.kind !== 'integration') {
       return ctx.response.unauthorized({ message: 'Invalid API key' })
     }
 

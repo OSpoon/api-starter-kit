@@ -5,6 +5,7 @@ import { buildListQuery } from '@/lib/list-query'
 export interface ApiKeySummary {
   id: number
   name: string
+  kind: 'integration' | 'embed'
   prefix: string
   key?: string
   lastUsedAt?: string | null
@@ -47,7 +48,7 @@ export async function listApiKeys(token: string | null, page = 1, search = '') {
 
 export async function createApiKey(
   token: string | null,
-  payload: { name: string; expiresIn: string }
+  payload: { name: string; kind: 'integration' | 'embed'; expiresIn: string }
 ) {
   const response = await apiRequest<ApiKeySummary>('/api/v1/api-keys', {
     ...authOptions(token),

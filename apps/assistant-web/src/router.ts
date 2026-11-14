@@ -1,6 +1,7 @@
 import { isPasswordExpired } from '@/lib/password'
 import { useAuthStore } from '@/stores/auth'
 
+import { initializeAssistantEmbed } from '@assistant/lib/embed'
 import {
   hasConfiguredAssistantServer,
   isAssistantConnectionRuntime,
@@ -29,6 +30,19 @@ const router = createRouter({
       name: 'assistant',
       component: () => import('@assistant/views/AssistantView.vue'),
       meta: { requiresAuth: true, title: 'ai_chat.title', pageKind: 'utility' },
+    },
+    {
+      path: '/embed',
+      name: 'embed',
+      component: () => import('@assistant/views/AssistantView.vue'),
+      beforeEnter: () => (initializeAssistantEmbed() ? true : { name: 'embed-error' }),
+      meta: { title: 'ai_chat.title', pageKind: 'utility' },
+    },
+    {
+      path: '/embed-error',
+      name: 'embed-error',
+      component: () => import('@assistant/views/EmbedErrorView.vue'),
+      meta: { title: 'ai_chat.title', pageKind: 'utility' },
     },
     {
       path: '/login',

@@ -33,6 +33,12 @@ export default defineConfig({
           name: 'X-API-Key',
           description: 'API Key 管理页生成的全局助手集成密钥。',
         },
+        embedSession: {
+          type: 'apiKey',
+          in: 'header',
+          name: 'X-Embed-Session',
+          description: '用于隔离同一嵌入 API Key 下不同浏览器会话的 UUID。',
+        },
       },
     },
   },

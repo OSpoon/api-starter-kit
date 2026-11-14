@@ -1063,4 +1063,148 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['destroy']>>>
     }
   }
+  'embed.ai_chat.ai_chat.index': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/embed/ai-chat/conversations'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/pagination').paginationSearchQueryValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['index']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['index']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'embed.ai_chat.ai_chat.usage': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/embed/ai-chat/usage'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['usage']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['usage']>>>
+    }
+  }
+  'embed.ai_chat.ai_chat.store': {
+    methods: ["POST"]
+    pattern: '/api/v1/embed/ai-chat/conversations'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/ai_chat').createConversationValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/ai_chat').createConversationValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['store']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'embed.ai_chat.ai_chat.show': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/embed/ai-chat/conversations/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/pagination').paginationSearchQueryValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['show']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['show']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'embed.ai_chat.ai_chat.transcribe': {
+    methods: ["POST"]
+    pattern: '/api/v1/embed/ai-chat/transcribe'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['transcribe']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['transcribe']>>>
+    }
+  }
+  'embed.ai_chat.ai_chat.send_message': {
+    methods: ["POST"]
+    pattern: '/api/v1/embed/ai-chat/conversations/:id/messages'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/ai_chat').sendAiChatMessageValidator)>>
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/ai_chat').sendAiChatMessageValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['sendMessage']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['sendMessage']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'embed.ai_chat.ai_chat.show_message_image': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/embed/ai-chat/conversations/:id/messages/:messageId/image'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue, ParamValue]
+      params: { id: ParamValue; messageId: ParamValue }
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/ai_chat').aiChatMessageImageRouteValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['showMessageImage']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['showMessageImage']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'embed.ai_chat.ai_chat.steer': {
+    methods: ["POST"]
+    pattern: '/api/v1/embed/ai-chat/conversations/:id/steer'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['steer']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['steer']>>>
+    }
+  }
+  'embed.ai_chat.ai_chat.follow_up': {
+    methods: ["POST"]
+    pattern: '/api/v1/embed/ai-chat/conversations/:id/follow-up'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['followUp']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['followUp']>>>
+    }
+  }
+  'embed.ai_chat.ai_chat.confirm_ai_agent_action': {
+    methods: ["POST"]
+    pattern: '/api/v1/embed/ai-chat/conversations/:id/confirmations/:confirmationId/confirm'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue, ParamValue]
+      params: { id: ParamValue; confirmationId: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['confirmAiAgentAction']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['confirmAiAgentAction']>>>
+    }
+  }
+  'embed.ai_chat.ai_chat.cancel_ai_agent_action': {
+    methods: ["POST"]
+    pattern: '/api/v1/embed/ai-chat/conversations/:id/confirmations/:confirmationId/cancel'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/ai_chat').aiChatConfirmationRouteValidator)>>
+      paramsTuple: [ParamValue, ParamValue]
+      params: { id: ParamValue; confirmationId: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/ai_chat').aiChatConfirmationRouteValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['cancelAiAgentAction']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['cancelAiAgentAction']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'embed.ai_chat.ai_chat.destroy': {
+    methods: ["DELETE"]
+    pattern: '/api/v1/embed/ai-chat/conversations/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['destroy']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['destroy']>>>
+    }
+  }
 }

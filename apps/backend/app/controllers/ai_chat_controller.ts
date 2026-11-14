@@ -64,9 +64,11 @@ function currentUser(ctx: HttpContext) {
 
 function conversationsFor(ctx: HttpContext, userId: number) {
   const query = AiChatConversation.query().where('user_id', userId)
-  return ctx.integrationApiKey
-    ? query.where('api_key_id', ctx.integrationApiKey.id)
-    : query.whereNull('api_key_id')
+  if (!ctx.integrationApiKey) return query.whereNull('api_key_id')
+
+  query.where('api_key_id', ctx.integrationApiKey.id)
+  if (ctx.embedSessionId) query.where('embed_session_id', ctx.embedSessionId)
+  return query
 }
 
 @ApiSecurity('bearerAuth')
@@ -154,6 +156,7 @@ export default class AiChatController {
     const conversation = await AiChatConversation.create({
       userId: user.id,
       apiKeyId: ctx.integrationApiKey?.id ?? null,
+      embedSessionId: ctx.embedSessionId ?? null,
       title: payload.title ?? 'New chat',
     })
 

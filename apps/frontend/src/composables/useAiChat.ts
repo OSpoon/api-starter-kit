@@ -22,6 +22,7 @@ import { mergeAiChatMessages } from '@/features/ai/conversation-state'
 import { formatAiChatMessagesAsMarkdown } from '@/features/ai/markdown'
 import { getAiChatMessageImageDataUrl } from '@/features/ai/message-image'
 import type { DisplayAiChatMessage, LocalAiChatMessage } from '@/features/ai/types'
+import { hasRuntimeEmbedAuth } from '@/lib/api'
 import { useCopyText } from '@/lib/clipboard'
 import { useAuthStore } from '@/stores/auth'
 import { useSettingsStore } from '@/stores/settings'
@@ -56,7 +57,7 @@ export function useAiChat() {
   const aiUsageError = ref<string | null>(null)
 
   async function refreshAiUsage() {
-    if (!auth.token) {
+    if (!auth.token && !hasRuntimeEmbedAuth()) {
       aiUsage.value = null
       return
     }

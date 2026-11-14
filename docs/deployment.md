@@ -91,6 +91,10 @@ Turnstile，可通过构建时变量 `VITE_TURNSTILE_SITE_KEY` 注入公开站�
 若选择将助手 Web 部署到独立域名、CDN 或其他静态站点，则需在构建时设置 `VITE_API_URL`；当
 Web 与 API 不同源时，必须把 Web origin 加入 backend 的 `CORS_ORIGIN`，并使用 HTTPS。
 
+`assistant-web` 的 `/embed` 页面允许被任意网站放入 iframe，其他助手页面仍禁止嵌入。嵌入站点的 CSP
+需允许 `assistant-web` origin 出现在 `script-src` 和 `frame-src`；backend 的 `CORS_ORIGIN` 需允许
+`assistant-web` origin。管理端生成的嵌入脚本需将示例主机替换为实际 `assistant-web` origin。
+
 ```bash
 VITE_API_URL=https://api.example.com pnpm --dir apps/assistant-web build
 ```

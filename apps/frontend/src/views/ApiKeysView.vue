@@ -55,6 +55,13 @@ const {
   onOpenChange: onTokenDialogOpenChange,
 } = useDelayedDialog()
 const createdToken = ref('')
+const createdKind = ref<'integration' | 'embed'>('integration')
+const embedSnippet = computed(
+  () =>
+    `<script async src="https://assistant-web.example.com/widget.js" data-api-key="${createdToken.value}">` +
+    '</scr' +
+    'ipt>'
+)
 const copied = ref(false)
 
 const revokeDialogOpen = ref(false)
@@ -75,6 +82,12 @@ const columns = computed<ColumnDef<ApiKeySummary>[]>(() => [
     meta: { label: t('api_keys.name') },
     header: () => t('api_keys.name'),
     cell: ({ row }) => h('div', { class: 'font-medium' }, row.original.name),
+  },
+  {
+    accessorKey: 'kind',
+    meta: { label: t('api_keys.kind') },
+    header: () => t('api_keys.kind'),
+    cell: ({ row }) => h('div', { class: 'text-sm' }, t(`api_keys.${row.original.kind}_kind`)),
   },
   {
     id: 'key',
@@ -205,14 +218,20 @@ async function copyTokenValue(value: string) {
   }
 }
 
-async function handleCreateKey(values: { name: string; expiresIn: string }) {
+async function handleCreateKey(values: {
+  name: string
+  kind: 'integration' | 'embed'
+  expiresIn: string
+}) {
   creating.value = true
   try {
     const apiKey = await createApiKey(auth.token, {
       name: values.name.trim(),
+      kind: values.kind,
       expiresIn: values.expiresIn,
     })
     createdToken.value = apiKey.key || ''
+    createdKind.value = values.kind
     closeDialog()
     showTokenDialog()
     await runLoad()
@@ -265,6 +284,15 @@ async function copyToken() {
     copiedReset.stop()
     copiedReset.start()
     toast.success(t('api_keys.copy_success'))
+  } catch {
+    toast.error(t('api_keys.copy_failed'))
+  }
+}
+
+async function copyEmbedSnippet() {
+  try {
+    await copyText(embedSnippet.value)
+    toast.success(t('api_keys.snippet_copied'))
   } catch {
     toast.error(t('api_keys.copy_failed'))
   }
@@ -326,7 +354,9 @@ async function copyToken() {
       >
         <FormDialogContent
           :title="t('api_keys.dialog_token_title')"
-          :description="t('api_keys.dialog_token_desc')"
+          :description="
+            t(createdKind === 'embed' ? 'api_keys.dialog_embed_desc' : 'api_keys.dialog_token_desc')
+          "
           class="sm:max-w-155"
         >
           <div class="px-6 pb-6">
@@ -338,6 +368,16 @@ async function copyToken() {
                 <Check v-if="copied" class="mr-1 size-4 text-chart-3" />
                 <Copy v-else class="mr-1 size-4" />
                 {{ copied ? t('api_keys.copied') : t('api_keys.copy') }}
+              </Button>
+            </div>
+            <div v-if="createdKind === 'embed'" class="mt-4 space-y-2">
+              <p class="text-sm font-medium">{{ t('api_keys.embed_snippet') }}</p>
+              <pre
+                class="overflow-x-auto rounded-md border bg-muted p-3 text-xs"
+              ><code>{{ embedSnippet }}</code></pre>
+              <Button size="sm" variant="secondary" @click="copyEmbedSnippet">
+                <Copy class="mr-1 size-4" />
+                {{ t('api_keys.copy_snippet') }}
               </Button>
             </div>
           </div>

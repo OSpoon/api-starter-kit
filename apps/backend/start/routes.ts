@@ -22,8 +22,10 @@ const LlmConfigurationsController = () => import('#controllers/llm_configuration
 const AgentConfigurationsController = () => import('#controllers/agent_configurations_controller')
 const ImConfigurationsController = () => import('#controllers/im_configurations_controller')
 
-function registerAiChatRoutes(mode: 'user' | 'api-key') {
-  const isApiKey = mode === 'api-key'
+function registerAiChatRoutes(mode: 'user' | 'api-key' | 'embed') {
+  const isApiKey = mode !== 'user'
+  const prefix =
+    mode === 'api-key' ? 'integrations/ai-chat' : `${mode === 'embed' ? 'embed' : ''}/ai-chat`
   const group = router
     .group(() => {
       router.get('conversations', [AiChatController, 'index'])
@@ -54,11 +56,18 @@ function registerAiChatRoutes(mode: 'user' | 'api-key') {
       }
       router.delete('conversations/:id', [AiChatController, 'destroy'])
     })
-    .prefix(isApiKey ? 'integrations/ai-chat' : 'ai-chat')
+    .prefix(prefix)
 
-  if (isApiKey) {
+  if (mode === 'api-key') {
     group.as('integrations.ai_chat')
     group.use(middleware.apiKey())
+    group.use(middleware.throttle({ max: 20, windowSeconds: 60, key: 'ip' }))
+    return
+  }
+
+  if (mode === 'embed') {
+    group.as('embed.ai_chat')
+    group.use(middleware.embedApiKey())
     group.use(middleware.throttle({ max: 20, windowSeconds: 60, key: 'ip' }))
     return
   }
@@ -100,6 +109,7 @@ if (process.env.OPENAPI_DOCS_ENABLED === 'true') {
     for (const path of Object.keys(paths)) {
       if (
         !path.startsWith('/api/v1/integrations/ai-chat/') &&
+        !path.startsWith('/api/v1/embed/ai-chat/') &&
         path !== '/api/v1/wecom-messages/{id}/send'
       ) {
         delete paths[path]
@@ -107,7 +117,7 @@ if (process.env.OPENAPI_DOCS_ENABLED === 'true') {
     }
 
     const tags = new Set<string>()
-    for (const pathItem of Object.values(paths)) {
+    for (const [path, pathItem] of Object.entries(paths)) {
       if (!pathItem) continue
       for (const method of [
         'get',
@@ -121,7 +131,9 @@ if (process.env.OPENAPI_DOCS_ENABLED === 'true') {
       ] as const) {
         const operation = pathItem[method]
         if (!operation) continue
-        operation.security = [{ integrationApiKey: [] }]
+        operation.security = path.startsWith('/api/v1/embed/ai-chat/')
+          ? [{ integrationApiKey: [], embedSession: [] }]
+          : [{ integrationApiKey: [] }]
         for (const tag of operation.tags ?? []) tags.add(tag)
       }
     }
@@ -131,7 +143,7 @@ if (process.env.OPENAPI_DOCS_ENABLED === 'true') {
       info: {
         ...document.info,
         title: 'AI Assistant Integration API',
-        description: '第三方通过 X-API-Key 调用 AI 助手集成能力。',
+        description: '第三方通过 X-API-Key 调用 AI 助手集成能力或嵌入式助手接口。',
       },
       paths,
       tags: document.tags?.filter((tag) => tags.has(tag.name)),
@@ -360,5 +372,6 @@ router
 
     registerAiChatRoutes('user')
     registerAiChatRoutes('api-key')
+    registerAiChatRoutes('embed')
   })
   .prefix('/api/v1')

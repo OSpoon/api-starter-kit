@@ -64,6 +64,6 @@ RUN pnpm --filter @api-starter-kit/assistant-web build
 
 FROM nginx:1.29-alpine AS assistant-web
 COPY --from=assistant-web-build /app/apps/assistant-web/dist /usr/share/nginx/html
-COPY apps/frontend/nginx.conf /etc/nginx/conf.d/default.conf
+COPY apps/assistant-web/nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 18080
 CMD ["nginx", "-g", "daemon off;"]

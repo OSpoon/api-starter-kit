@@ -8,7 +8,7 @@ export const todoBoardReadPermission = {
 export const permissionCatalog = [
   { code: 'dashboard:view', name: '查看仪表盘', groupName: '工作台' },
   { code: 'api-keys:read', name: '查看 API 密钥', groupName: '系统管理' },
-  { code: 'api-keys:create', name: '创建全局 AI 助手密钥', groupName: '系统管理' },
+  { code: 'api-keys:create', name: '创建 AI 助手密钥', groupName: '系统管理' },
   { code: 'api-keys:update', name: '更新 API 密钥', groupName: '系统管理' },
   { code: 'api-keys:delete', name: '吊销 API 密钥', groupName: '系统管理' },
   { code: 'users:read', name: '查看用户', groupName: '权限管理' },

@@ -1,4 +1,4 @@
-import { ApiError, apiRequest, apiUrl } from '@/lib/api'
+import { ApiError, apiRequest, apiRequestCredentials, apiRequestHeaders, apiUrl } from '@/lib/api'
 import { readItem } from '@/lib/api-types'
 import { buildListQuery } from '@/lib/list-query'
 
@@ -327,7 +327,7 @@ async function streamAiChatRequest(
     signal?.addEventListener('abort', abortFromCaller, { once: true })
   }
 
-  const headers = new Headers(init.headers)
+  const headers = apiRequestHeaders(path, init.headers)
   headers.set('Accept', 'text/event-stream')
   if (
     init.body &&
@@ -342,7 +342,7 @@ async function streamAiChatRequest(
   try {
     const response = await fetch(apiUrl(path), {
       ...init,
-      credentials: 'include',
+      credentials: apiRequestCredentials(path, init.credentials),
       headers,
       signal: requestController.signal,
     })
@@ -444,12 +444,14 @@ export async function getAiChatMessageImage(
   messageId: number,
   signal?: AbortSignal
 ) {
-  const headers = new Headers()
+  const path = `/api/v1/ai-chat/conversations/${conversationId}/messages/${messageId}/image`
+  const headers = apiRequestHeaders(path)
   if (token) headers.set('Authorization', `Bearer ${token}`)
-  const response = await fetch(
-    apiUrl(`/api/v1/ai-chat/conversations/${conversationId}/messages/${messageId}/image`),
-    { credentials: 'include', headers, signal }
-  )
+  const response = await fetch(apiUrl(path), {
+    credentials: apiRequestCredentials(path),
+    headers,
+    signal,
+  })
   if (!response.ok) {
     const payload = await response.json().catch(() => null)
     throw new ApiError(payload?.message ?? 'Unable to load image attachment', response.status)

@@ -50,12 +50,13 @@ Backend 将 Agent 事件转换为 SSE，包括阶段、计划、工具状态、�
 
 共享 AI UI、API、认证与 locale 位于 `apps/frontend`。各入口职责如下：
 
-| 客户端                | 负责内容                                    |
-| --------------------- | ------------------------------------------- |
-| 管理端                | 系统管理页面和浮动助手                      |
-| `assistant-web`       | 复用共享助手组件的独立 Web 路由与页面壳     |
-| `assistant-desktop`   | 打包 assistant-web 的 Tauri 原生窗口        |
-| `assistant-extension` | 将 assistant-web 装入 Chrome MV3 side panel |
+| 客户端                | 负责内容                                      |
+| --------------------- | --------------------------------------------- |
+| 管理端                | 系统管理页面和浮动助手                        |
+| `assistant-web`       | 复用共享助手组件的独立 Web 路由与页面壳       |
+| 网站嵌入              | `assistant-web` 托管浮动助手 iframe 与 loader |
+| `assistant-desktop`   | 打包 assistant-web 的 Tauri 原生窗口          |
+| `assistant-extension` | 将 assistant-web 装入 Chrome MV3 side panel   |
 
 扩展共享组件的样式约束见 [`apps/frontend/AGENTS.md`](../apps/frontend/AGENTS.md)；Vue Router provider 与消费者的运行时约束见 [`apps/assistant-extension/AGENTS.md`](../apps/assistant-extension/AGENTS.md)。
 

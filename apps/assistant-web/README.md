@@ -2,6 +2,16 @@
 
 `assistant-web` is the standalone, full-screen AI assistant client. It reuses the chat UI, API client, authentication, locale, and UI primitives from `apps/frontend`; authentication, authorization, persistence, and AI execution remain in `apps/backend`.
 
+## Website embed
+
+Create a **Website embed** API Key in the management app and paste its generated script tag into the site. Replace the example assistant host with the deployed `assistant-web` origin:
+
+```html
+<script async src="https://assistant.example.com/widget.js" data-api-key="id_..."></script>
+```
+
+The key is visible to site visitors and grants the full AI assistant integration capability. Treat an embed key as public, create a dedicated key for each site, and revoke it from API Key management when the site should lose access. The embedding site's Content Security Policy must allow the assistant host in `script-src` and `frame-src`; the backend CORS allowlist must include the `assistant-web` origin. The `assistant-web` Nginx config allows framing only at the embed routes and keeps its other routes blocked from framing.
+
 ## Development
 
 The root `pnpm dev` starts only the backend and management frontend. To run this client, start the backend and then:

@@ -112,6 +112,10 @@
     "change_connection": "连接设置",
     "return_to_app": "返回助手"
   },
+  "assistant_embed": {
+    "invalid_title": "无法加载嵌入式助手",
+    "invalid_description": "嵌入配置无效。请检查 script 标签中的 API Key。"
+  },
   "password_strength": {
     "label": "密码强度",
     "length": "长度 ≥ 15",
@@ -726,8 +730,12 @@
     "keys_card_title": "我的 API 密钥",
     "keys_card_desc": "为外部系统生成长期有效或限时访问令牌。",
     "name": "名称",
+    "kind": "用途",
+    "integration_kind": "服务器集成",
+    "embed_kind": "网页嵌入",
     "key": "密钥",
     "global_access_hint": "此密钥可使用完整 AI 助手及其已注册能力。",
+    "embed_access_hint": "网页访客可查看此密钥并使用完整 AI 助手能力。请只嵌入到你授权的网站。",
     "key_status": "状态",
     "created_at": "创建时间",
     "last_used": "最近使用",
@@ -751,7 +759,11 @@
     "create_failed": "密钥生成失败",
     "fetch_failed": "获取密钥列表失败",
     "dialog_create_title": "生成新密钥",
-    "dialog_create_desc": "请为密钥起一个名称以供识别（如「部署脚本」）。",
+    "dialog_create_desc": "请为密钥起一个名称并选择用途。",
+    "dialog_embed_desc": "将此 script 标签粘贴到网站即可使用。密钥对访客可见，关闭后无法再次查看。",
+    "embed_snippet": "嵌入代码",
+    "copy_snippet": "复制嵌入代码",
+    "snippet_copied": "嵌入代码已复制",
     "key_name_placeholder": "密钥名称",
     "validation": {
       "name_required": "请输入密钥名称",

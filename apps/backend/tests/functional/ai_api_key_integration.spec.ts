@@ -30,6 +30,80 @@ test.group('AI API Key integration', (group) => {
     response.assertStatus(404)
   })
 
+  test('isolates embed conversations by browser session and rejects embed keys on integration routes', async ({
+    client,
+    assert,
+  }) => {
+    const secret = `id_embed_${Date.now()}`
+    const apiKey = await ApiKey.create({
+      name: 'Website embed',
+      kind: 'embed',
+      prefix: secret.slice(0, 12),
+      keyHash: hashApiKey(secret),
+    })
+    const sessionA = '12f89f6e-5351-4fb3-8374-7b971d1e5975'
+    const sessionB = '7d68ccf0-45c3-4f70-a563-884e9ae88d34'
+
+    const first = await client
+      .post('/api/v1/embed/ai-chat/conversations')
+      .header('x-api-key', secret)
+      .header('x-embed-session', sessionA)
+      .json({})
+    first.assertStatus(200)
+    const firstId = (first.body() as unknown as { data: { id: number } }).data.id
+    const firstConversation = await AiChatConversation.findOrFail(firstId)
+    assert.equal(firstConversation.apiKeyId, apiKey.id)
+    assert.equal(firstConversation.embedSessionId, sessionA)
+
+    const second = await client
+      .post('/api/v1/embed/ai-chat/conversations')
+      .header('x-api-key', secret)
+      .header('x-embed-session', sessionB)
+      .json({})
+    second.assertStatus(200)
+    const secondId = (second.body() as unknown as { data: { id: number } }).data.id
+
+    const listed = await client
+      .get('/api/v1/embed/ai-chat/conversations')
+      .header('x-api-key', secret)
+      .header('x-embed-session', sessionA)
+    listed.assertStatus(200)
+    assert.deepEqual(
+      (listed.body() as { data: { items: Array<{ id: number }> } }).data.items.map(({ id }) => id),
+      [firstId]
+    )
+
+    const crossSession = await client
+      .get(`/api/v1/embed/ai-chat/conversations/${firstId}`)
+      .header('x-api-key', secret)
+      .header('x-embed-session', sessionB)
+    crossSession.assertStatus(404)
+
+    const wrongRoute = await client
+      .post('/api/v1/integrations/ai-chat/conversations')
+      .bearerToken(secret)
+      .json({})
+    wrongRoute.assertStatus(401)
+
+    const invalidSession = await client
+      .post('/api/v1/embed/ai-chat/conversations')
+      .header('x-api-key', secret)
+      .header('x-embed-session', 'invalid')
+      .json({})
+    invalidSession.assertStatus(422)
+    assert.isNotNull(await AiChatConversation.find(secondId))
+  })
+
+  test('does not accept full integration keys on the embed route', async ({ client }) => {
+    const key = await createApiKey('integration-only')
+    const response = await client
+      .post('/api/v1/embed/ai-chat/conversations')
+      .bearerToken(key.secret)
+      .header('x-embed-session', '12f89f6e-5351-4fb3-8374-7b971d1e5975')
+      .json({})
+    response.assertStatus(401)
+  })
+
   test('gives each global key full assistant access with isolated conversations', async ({
     client,
     assert,

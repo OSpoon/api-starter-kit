@@ -12,8 +12,11 @@ AI 助手通过受控工具使用项目知识和系统数据，并可为管理�
 | 独立助手 Web | `apps/assistant-web`       | 全屏对话工作区，可单独部署      |
 | 桌面端       | `apps/assistant-desktop`   | 使用 Tauri 打包的独立助手客户端 |
 | Chrome 扩展  | `apps/assistant-extension` | Chrome MV3 side panel           |
+| 网站嵌入     | `apps/assistant-web`       | 通过 script 标签加载浮动助手    |
 
 桌面端和扩展复用独立助手 Web 的界面和客户端逻辑。各入口的本地启动、构建和服务端配置见[工程开发指南](development.md)及[部署指南](deployment.md)。
+
+网站嵌入使用单独创建的「网页嵌入」API Key。将管理端生成的 script 标签粘贴到网站即可加载助手 iframe；接入方不需要编写额外客户端代码。此类 Key 对访客可见，并拥有完整 AI 助手能力；每个浏览器会话的聊天记录彼此隔离。Key 可在管理端吊销。
 
 ## 管理台与渠道能力横向对比
 

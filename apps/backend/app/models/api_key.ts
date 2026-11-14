@@ -9,6 +9,9 @@ export default class ApiKey extends BaseModel {
   declare name: string
 
   @column()
+  declare kind: 'integration' | 'embed'
+
+  @column()
   declare prefix: string
 
   @column()

@@ -31,7 +31,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  success: [values: { name: string; expiresIn: string }]
+  success: [values: { name: string; kind: 'integration' | 'embed'; expiresIn: string }]
   cancel: []
 }>()
 
@@ -44,6 +44,7 @@ function createApiKeySchema(translate: Composer['t']) {
       .trim()
       .min(1, translate('api_keys.validation.name_required'))
       .max(120, translate('api_keys.validation.name_max')),
+    kind: z.enum(['integration', 'embed']),
     expiresIn: z.enum(['30d', '90d', '180d', 'long']),
   })
 }
@@ -54,6 +55,7 @@ const form = useForm({
   validationSchema: apiKeySchema,
   initialValues: {
     name: '',
+    kind: 'integration' as 'integration' | 'embed',
     expiresIn: '90d' as '30d' | '90d' | '180d' | 'long',
   },
 })
@@ -65,6 +67,7 @@ watch(
       form.resetForm({
         values: {
           name: '',
+          kind: 'integration',
           expiresIn: '90d',
         },
       })
@@ -90,7 +93,33 @@ const onSubmit = form.handleSubmit((values) => {
           <FormControl>
             <Input v-bind="componentField" :placeholder="t('api_keys.key_name_placeholder')" />
           </FormControl>
-          <FormDescription>{{ t('api_keys.global_access_hint') }}</FormDescription>
+          <FormDescription>
+            {{
+              t(
+                form.values.kind === 'embed'
+                  ? 'api_keys.embed_access_hint'
+                  : 'api_keys.global_access_hint'
+              )
+            }}
+          </FormDescription>
+          <FormMessage />
+        </FormItem>
+      </FormField>
+
+      <FormField v-slot="{ componentField }" name="kind" :validate-on-blur="false">
+        <FormItem>
+          <FormLabel>{{ t('api_keys.kind') }}</FormLabel>
+          <Select v-bind="componentField">
+            <FormControl>
+              <SelectTrigger class="w-full">
+                <SelectValue :placeholder="t('api_keys.kind')" />
+              </SelectTrigger>
+            </FormControl>
+            <SelectContent>
+              <SelectItem value="integration">{{ t('api_keys.integration_kind') }}</SelectItem>
+              <SelectItem value="embed">{{ t('api_keys.embed_kind') }}</SelectItem>
+            </SelectContent>
+          </Select>
           <FormMessage />
         </FormItem>
       </FormField>

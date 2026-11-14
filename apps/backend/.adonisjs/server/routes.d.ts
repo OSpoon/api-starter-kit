@@ -92,6 +92,18 @@ export type ScannedRoutes = {
     'integrations.ai_chat.ai_chat.confirm_ai_agent_action': { paramsTuple: [ParamValue,ParamValue]; params: {'id': ParamValue,'confirmationId': ParamValue} }
     'integrations.ai_chat.ai_chat.cancel_ai_agent_action': { paramsTuple: [ParamValue,ParamValue]; params: {'id': ParamValue,'confirmationId': ParamValue} }
     'integrations.ai_chat.ai_chat.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'embed.ai_chat.ai_chat.index': { paramsTuple?: []; params?: {} }
+    'embed.ai_chat.ai_chat.usage': { paramsTuple?: []; params?: {} }
+    'embed.ai_chat.ai_chat.store': { paramsTuple?: []; params?: {} }
+    'embed.ai_chat.ai_chat.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'embed.ai_chat.ai_chat.transcribe': { paramsTuple?: []; params?: {} }
+    'embed.ai_chat.ai_chat.send_message': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'embed.ai_chat.ai_chat.show_message_image': { paramsTuple: [ParamValue,ParamValue]; params: {'id': ParamValue,'messageId': ParamValue} }
+    'embed.ai_chat.ai_chat.steer': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'embed.ai_chat.ai_chat.follow_up': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'embed.ai_chat.ai_chat.confirm_ai_agent_action': { paramsTuple: [ParamValue,ParamValue]; params: {'id': ParamValue,'confirmationId': ParamValue} }
+    'embed.ai_chat.ai_chat.cancel_ai_agent_action': { paramsTuple: [ParamValue,ParamValue]; params: {'id': ParamValue,'confirmationId': ParamValue} }
+    'embed.ai_chat.ai_chat.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
   }
   GET: {
     'openapi.html': { paramsTuple?: []; params?: {} }
@@ -124,6 +136,10 @@ export type ScannedRoutes = {
     'integrations.ai_chat.ai_chat.usage': { paramsTuple?: []; params?: {} }
     'integrations.ai_chat.ai_chat.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'integrations.ai_chat.ai_chat.show_message_image': { paramsTuple: [ParamValue,ParamValue]; params: {'id': ParamValue,'messageId': ParamValue} }
+    'embed.ai_chat.ai_chat.index': { paramsTuple?: []; params?: {} }
+    'embed.ai_chat.ai_chat.usage': { paramsTuple?: []; params?: {} }
+    'embed.ai_chat.ai_chat.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'embed.ai_chat.ai_chat.show_message_image': { paramsTuple: [ParamValue,ParamValue]; params: {'id': ParamValue,'messageId': ParamValue} }
   }
   HEAD: {
     'openapi.html': { paramsTuple?: []; params?: {} }
@@ -156,6 +172,10 @@ export type ScannedRoutes = {
     'integrations.ai_chat.ai_chat.usage': { paramsTuple?: []; params?: {} }
     'integrations.ai_chat.ai_chat.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'integrations.ai_chat.ai_chat.show_message_image': { paramsTuple: [ParamValue,ParamValue]; params: {'id': ParamValue,'messageId': ParamValue} }
+    'embed.ai_chat.ai_chat.index': { paramsTuple?: []; params?: {} }
+    'embed.ai_chat.ai_chat.usage': { paramsTuple?: []; params?: {} }
+    'embed.ai_chat.ai_chat.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'embed.ai_chat.ai_chat.show_message_image': { paramsTuple: [ParamValue,ParamValue]; params: {'id': ParamValue,'messageId': ParamValue} }
   }
   POST: {
     'auth.signup': { paramsTuple?: []; params?: {} }
@@ -199,6 +219,13 @@ export type ScannedRoutes = {
     'integrations.ai_chat.ai_chat.follow_up': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'integrations.ai_chat.ai_chat.confirm_ai_agent_action': { paramsTuple: [ParamValue,ParamValue]; params: {'id': ParamValue,'confirmationId': ParamValue} }
     'integrations.ai_chat.ai_chat.cancel_ai_agent_action': { paramsTuple: [ParamValue,ParamValue]; params: {'id': ParamValue,'confirmationId': ParamValue} }
+    'embed.ai_chat.ai_chat.store': { paramsTuple?: []; params?: {} }
+    'embed.ai_chat.ai_chat.transcribe': { paramsTuple?: []; params?: {} }
+    'embed.ai_chat.ai_chat.send_message': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'embed.ai_chat.ai_chat.steer': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'embed.ai_chat.ai_chat.follow_up': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'embed.ai_chat.ai_chat.confirm_ai_agent_action': { paramsTuple: [ParamValue,ParamValue]; params: {'id': ParamValue,'confirmationId': ParamValue} }
+    'embed.ai_chat.ai_chat.cancel_ai_agent_action': { paramsTuple: [ParamValue,ParamValue]; params: {'id': ParamValue,'confirmationId': ParamValue} }
   }
   PUT: {
     'profile.profile.change_password': { paramsTuple?: []; params?: {} }
@@ -220,6 +247,7 @@ export type ScannedRoutes = {
     'roles.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'ai_chat.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'integrations.ai_chat.ai_chat.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'embed.ai_chat.ai_chat.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
   }
 }
 declare module '@adonisjs/core/types/http' {
