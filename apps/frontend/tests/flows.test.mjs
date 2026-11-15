@@ -31,6 +31,7 @@ const { didReachMessageScrollerStart } = await jiti.import(
   `${root}/src/components/ui/message-scroller/useMessageScroller.ts`
 )
 const { buildListQuery } = await jiti.import(`${root}/src/lib/list-query.ts`)
+const { formatBackendLogLine } = await jiti.import(`${root}/src/features/backend-logs/format.ts`)
 const { buildLlmConfigurationUpdate, hasUnsavedLlmConfiguration } = await jiti.import(
   `${root}/src/features/agent-config/form-state.ts`
 )
@@ -69,6 +70,28 @@ test('password change validation covers required fields, mismatch, and strength'
     }),
     null
   )
+})
+
+test('formats structured backend logs for terminal display and keeps raw lines as fallback', () => {
+  const parsed = formatBackendLogLine(
+    JSON.stringify({
+      time: 1_700_000_000_123,
+      level: 30,
+      msg: 'HTTP request completed',
+      requestId: 'req-1',
+      request_id: 'req-1',
+      status: 200,
+    })
+  )
+
+  assert.equal(parsed.structured, true)
+  assert.equal(parsed.level, 'info')
+  assert.equal(parsed.message, 'HTTP request completed')
+  assert.deepEqual(parsed.fields, [
+    { key: 'requestId', value: '"req-1"' },
+    { key: 'status', value: '200' },
+  ])
+  assert.equal(formatBackendLogLine('plain text').message, 'plain text')
 })
 
 test('AI stream rejects when the connection closes without a terminal event', async () => {

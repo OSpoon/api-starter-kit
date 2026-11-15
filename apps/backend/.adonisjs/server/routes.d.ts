@@ -54,6 +54,7 @@ export type ScannedRoutes = {
     'knowledge_documents.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'system_status.show': { paramsTuple?: []; params?: {} }
     'system_status.ai_overview': { paramsTuple?: []; params?: {} }
+    'backend_logs.live': { paramsTuple?: []; params?: {} }
     'users.index': { paramsTuple?: []; params?: {} }
     'users.store': { paramsTuple?: []; params?: {} }
     'users.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
@@ -122,6 +123,7 @@ export type ScannedRoutes = {
     'knowledge_documents.index': { paramsTuple?: []; params?: {} }
     'system_status.show': { paramsTuple?: []; params?: {} }
     'system_status.ai_overview': { paramsTuple?: []; params?: {} }
+    'backend_logs.live': { paramsTuple?: []; params?: {} }
     'users.index': { paramsTuple?: []; params?: {} }
     'roles.catalog': { paramsTuple?: []; params?: {} }
     'roles.index': { paramsTuple?: []; params?: {} }
@@ -158,6 +160,7 @@ export type ScannedRoutes = {
     'knowledge_documents.index': { paramsTuple?: []; params?: {} }
     'system_status.show': { paramsTuple?: []; params?: {} }
     'system_status.ai_overview': { paramsTuple?: []; params?: {} }
+    'backend_logs.live': { paramsTuple?: []; params?: {} }
     'users.index': { paramsTuple?: []; params?: {} }
     'roles.catalog': { paramsTuple?: []; params?: {} }
     'roles.index': { paramsTuple?: []; params?: {} }

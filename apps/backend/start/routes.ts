@@ -7,6 +7,7 @@ import { controllers } from '#generated/controllers'
 import { middleware } from '#start/kernel'
 
 const ApiKeysController = () => import('#controllers/api_keys_controller')
+const BackendLogsController = () => import('#controllers/backend_logs_controller')
 const DashboardController = () => import('#controllers/dashboard_controller')
 const AiChatController = () => import('#controllers/ai_chat_controller')
 const ChannelIdentitiesController = () => import('#controllers/channel_identities_controller')
@@ -331,6 +332,9 @@ router
         router
           .get('ai-overview', [SystemStatusController, 'aiOverview'])
           .use(middleware.permission(['system-status:read']))
+        router
+          .get('logs/live', [BackendLogsController, 'live'])
+          .use(middleware.permission(['backend-logs:read']))
         router.get('users', [UsersController, 'index']).use(middleware.permission(['users:read']))
         router
           .post('users', [UsersController, 'store'])

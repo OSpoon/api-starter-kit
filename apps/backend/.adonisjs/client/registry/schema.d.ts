@@ -607,6 +607,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/system_status_controller').default['aiOverview']>>>
     }
   }
+  'backend_logs.live': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/system/logs/live'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/backend_logs_controller').default['live']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/backend_logs_controller').default['live']>>>
+    }
+  }
   'users.index': {
     methods: ["GET","HEAD"]
     pattern: '/api/v1/system/users'

@@ -9,6 +9,7 @@ export const controllers = {
   AiChat: () => import('#controllers/ai_chat_controller'),
   ApiKeys: () => import('#controllers/api_keys_controller'),
   AuditLogs: () => import('#controllers/audit_logs_controller'),
+  BackendLogs: () => import('#controllers/backend_logs_controller'),
   ChannelIdentities: () => import('#controllers/channel_identities_controller'),
   Dashboard: () => import('#controllers/dashboard_controller'),
   GithubOauth: () => import('#controllers/github_oauth_controller'),

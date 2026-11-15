@@ -92,6 +92,9 @@ export interface ApiDefinition {
     show: typeof routes['system_status.show']
     aiOverview: typeof routes['system_status.ai_overview']
   }
+  backendLogs: {
+    live: typeof routes['backend_logs.live']
+  }
   users: {
     index: typeof routes['users.index']
     store: typeof routes['users.store']

@@ -4,6 +4,7 @@ import testUtils from '@adonisjs/core/services/test_utils'
 import { test } from '@japa/runner'
 
 import Permission from '#models/permission'
+import Role from '#models/role'
 import { permissionCatalog } from '#services/permission_catalog'
 
 test.group('permission catalog', (group) => {
@@ -31,6 +32,24 @@ test.group('permission catalog', (group) => {
       permissionCatalog.map((permission) => permission.code),
       [...routeCodes]
     )
+  })
+
+  test('grants backend log access to admin roles when present', async ({ assert }) => {
+    const permission = await Permission.findByOrFail('code', 'backend-logs:read')
+    const roles = await Role.query()
+      .whereIn('code', ['admin', 'super-admin'])
+      .preload('permissions')
+
+    assert.include(
+      roles.map((role) => role.code),
+      'super-admin'
+    )
+    for (const role of roles) {
+      assert.include(
+        role.permissions.map((item) => item.id),
+        permission.id
+      )
+    }
   })
 
   test('groups permissions by current menu and removes retired permission codes', async ({
@@ -71,6 +90,7 @@ test.group('permission catalog', (group) => {
           'api-keys:read',
           'api-keys:update',
           'audit-logs:read',
+          'backend-logs:read',
           'system-status:read',
         ],
         权限管理: [

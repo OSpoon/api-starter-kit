@@ -306,6 +306,12 @@ const routes = {
     tokens: [{"old":"/api/v1/system/ai-overview","type":0,"val":"api","end":""},{"old":"/api/v1/system/ai-overview","type":0,"val":"v1","end":""},{"old":"/api/v1/system/ai-overview","type":0,"val":"system","end":""},{"old":"/api/v1/system/ai-overview","type":0,"val":"ai-overview","end":""}],
     types: placeholder as Registry['system_status.ai_overview']['types'],
   },
+  'backend_logs.live': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/v1/system/logs/live',
+    tokens: [{"old":"/api/v1/system/logs/live","type":0,"val":"api","end":""},{"old":"/api/v1/system/logs/live","type":0,"val":"v1","end":""},{"old":"/api/v1/system/logs/live","type":0,"val":"system","end":""},{"old":"/api/v1/system/logs/live","type":0,"val":"logs","end":""},{"old":"/api/v1/system/logs/live","type":0,"val":"live","end":""}],
+    types: placeholder as Registry['backend_logs.live']['types'],
+  },
   'users.index': {
     methods: ["GET","HEAD"],
     pattern: '/api/v1/system/users',

@@ -113,6 +113,38 @@ test.group('rbac', (group) => {
     deniedAiOverviewResponse.assertStatus(403)
   })
 
+  test('protects the API log stream with its dedicated read permission', async ({
+    client,
+    assert,
+  }) => {
+    const permission = await Permission.findByOrFail('code', 'backend-logs:read')
+    const role = await Role.create({ code: `log-reader-${Date.now()}`, name: 'Log reader' })
+    await role.related('permissions').sync([permission.id])
+
+    const reader = await User.create({
+      fullName: 'Log reader',
+      email: `log-reader-${Date.now()}@example.com`,
+      password: generateInitialPassword(),
+    })
+    await reader.related('roles').sync([role.id])
+    const bouncer = new Bouncer(() => reader, { access })
+    assert.isTrue(await bouncer.allows('access', 'backend-logs:read'))
+
+    const deniedUser = await User.create({
+      fullName: 'No log access',
+      email: `no-log-access-${Date.now()}@example.com`,
+      password: generateInitialPassword(),
+    })
+    const deniedBouncer = new Bouncer(() => deniedUser, { access })
+    assert.isFalse(await deniedBouncer.allows('access', 'backend-logs:read'))
+    const token = await User.accessTokens.create(deniedUser)
+
+    const response = await client
+      .get('/api/v1/system/logs/live')
+      .bearerToken(token.value!.release())
+    response.assertStatus(403)
+  })
+
   test('generates a 15-character password that satisfies the strength requirements', async ({
     assert,
   }) => {

@@ -4,6 +4,7 @@ import {
   FileClock,
   Gauge,
   Key,
+  ScrollText,
   Server,
   ShieldCheck,
   UsersRound,
@@ -65,6 +66,22 @@ const workbenchRootRoute = {
         pageKind: 'dashboard',
         permission: 'system-status:read',
         nav: { group: 'sidebar.system_management', groupOrder: 32, icon: Server, order: 10 },
+      },
+    },
+    {
+      path: 'system/backend-logs',
+      name: 'backend-logs',
+      component: () => import('@/features/backend-logs/BackendLogsPage.vue'),
+      meta: {
+        title: 'sidebar.backend_logs',
+        pageKind: 'utility',
+        permission: 'backend-logs:read',
+        nav: {
+          group: 'sidebar.system_management',
+          groupOrder: 32,
+          icon: ScrollText,
+          order: 50,
+        },
       },
     },
     {

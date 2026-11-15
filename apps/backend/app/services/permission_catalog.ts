@@ -21,6 +21,7 @@ export const permissionCatalog = [
   { code: 'roles:delete', name: '删除角色', groupName: '权限管理' },
   { code: 'permissions:read', name: '查看权限', groupName: '权限管理' },
   { code: 'audit-logs:read', name: '查看审计日志', groupName: '系统管理' },
+  { code: 'backend-logs:read', name: '查看后端实时日志', groupName: '系统管理' },
   { code: 'knowledge:read', name: '检索知识库', groupName: 'Agent管理' },
   { code: 'knowledge:manage', name: '管理知识库', groupName: 'Agent管理' },
   { code: 'system-status:read', name: '查看系统状态', groupName: '系统管理' },

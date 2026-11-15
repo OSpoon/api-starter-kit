@@ -107,6 +107,25 @@ export async function runAiChatAssistantTurn(input: {
   > = []
   let aiFailureStage = 'initialization'
 
+  const logAgentPhase = (
+    phase: 'preparing_agent' | 'model_response',
+    state: 'running' | 'done' | 'error',
+    durationMs?: number,
+    outcome?: 'tool_call' | 'final_response'
+  ) => {
+    logger.info(
+      {
+        conversationId: conversation.id,
+        ...(agentRunId ? { agentRunId } : {}),
+        phase,
+        state,
+        ...(durationMs !== undefined ? { durationMs } : {}),
+        ...(outcome ? { outcome } : {}),
+      },
+      'AI agent phase'
+    )
+  }
+
   const emitRuntimePhase = async (phase: {
     name: 'preparing_agent' | 'model_response'
     state: 'running' | 'done' | 'error'
@@ -124,6 +143,7 @@ export async function runAiChatAssistantTurn(input: {
     )
     if (existingIndex >= 0) runtimeDetails[existingIndex] = detail
     else runtimeDetails.push(detail)
+    logAgentPhase(phase.name, phase.state, phase.durationMs, phase.outcome)
     await emit('agent_phase', phase)
   }
 
@@ -150,6 +170,7 @@ export async function runAiChatAssistantTurn(input: {
       ...(outcome ? { outcome } : {}),
     } as const
     if (outcome === 'final_response') {
+      logAgentPhase(phase.name, phase.state, phase.durationMs, phase.outcome)
       const phaseIndex = runtimeDetails.findIndex(
         (item) => item.kind === 'phase' && item.callId === activeModelResponse?.callId
       )
@@ -327,6 +348,7 @@ export async function runAiChatAssistantTurn(input: {
       })
       throw error
     }
+    agentRunId = run.agentRunId
     await emitRuntimePhase({
       name: 'preparing_agent',
       callId: `${runtimePhaseId}:p`,
@@ -334,7 +356,6 @@ export async function runAiChatAssistantTurn(input: {
       startedAt: preparationStartedAt,
       durationMs: Date.now() - preparationStartedAt,
     })
-    agentRunId = run.agentRunId
     let sessionRun = run
     aiFailureStage = 'message_stream'
     for await (const event of streamAiAgentTurnEvents(
@@ -353,6 +374,16 @@ export async function runAiChatAssistantTurn(input: {
       if (event.source === 'frame') {
         if (event.value.event === 'agent_status') {
           const status = event.value.data
+          logger.info(
+            {
+              conversationId: conversation.id,
+              ...(agentRunId ? { agentRunId } : {}),
+              toolName: status.name.slice(0, 120),
+              state: status.state,
+              ...(status.durationMs !== undefined ? { durationMs: status.durationMs } : {}),
+            },
+            'AI agent tool status'
+          )
           if (status.state === 'running') {
             toolActivity = true
             if (isChannelTurn) {
@@ -789,6 +820,15 @@ export async function runAiChatAssistantTurn(input: {
       runtimeDetails.length,
       ...runtimeDetails.filter((detail) => detail.kind !== 'run'),
       runDetail
+    )
+    logger.info(
+      {
+        conversationId: conversation.id,
+        ...(agentRunId ? { agentRunId } : {}),
+        durationMs: runDetail.durationMs,
+        modelCalls: usage.modelCalls,
+      },
+      'AI agent turn completed'
     )
     await emit('run', {
       agentRunId,

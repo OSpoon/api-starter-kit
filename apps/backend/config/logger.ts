@@ -13,6 +13,8 @@ const logDirectory = resolve(
   app.inProduction ? '../log/backend' : '../../../log/backend'
 )
 await mkdir(logDirectory, { recursive: true, mode: 0o700 })
+export const backendLogFilePath = resolve(logDirectory, 'backend')
+export const backendLogStreamPath = resolve(logDirectory, 'current.log')
 
 const loggerConfig = defineConfig({
   /**
@@ -43,7 +45,7 @@ const loggerConfig = defineConfig({
           {
             target: 'pino-roll',
             options: {
-              file: resolve(logDirectory, 'backend'),
+              file: backendLogFilePath,
               size: '20m',
               limit: { count: 5, removeOtherLogFiles: true },
               symlink: true,
