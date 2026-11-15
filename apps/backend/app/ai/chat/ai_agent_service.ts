@@ -17,6 +17,7 @@ import {
 } from '#ai/runtime/ai_agent_telemetry_exporter'
 import AiChatConversation from '#models/ai_chat_conversation'
 import { recordAiUsageEvent } from '#services/ai_usage_service'
+import { setAgentRunId } from '#support/request_correlation'
 
 export {
   getAiAgentModelName,
@@ -74,6 +75,7 @@ export async function createAiAgentStream(
   }
 ) {
   const agentRunId = input.agentRunId ?? crypto.randomUUID()
+  if (input.auditContext) setAgentRunId(input.auditContext, agentRunId)
   let callSequence = input.modelCallSequenceStart ?? 0
   const nextModelCallSequence = () => callSequence++
   const sessionContext = await buildLiveSessionContext(input.conversationId, input.userId)

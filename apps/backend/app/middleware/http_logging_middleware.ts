@@ -4,7 +4,7 @@ import type { HttpContext } from '@adonisjs/core/http'
 import type { NextFn } from '@adonisjs/core/types/http'
 
 import env from '#start/env'
-import { setRequestCorrelation } from '#support/request_correlation'
+import { getRequestCorrelation, setRequestCorrelation } from '#support/request_correlation'
 
 const correlationIdPattern = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,119}$/
 const maxBodyLogBytes = 16 * 1024
@@ -148,13 +148,13 @@ function getCorrelationId(value: string | undefined) {
   return value && correlationIdPattern.test(value) ? value : randomUUID()
 }
 
-function getTraceId(ctx: HttpContext) {
+function getTraceId(ctx: HttpContext, requestId: string) {
   const traceId = ctx.request.header('x-trace-id')
   if (traceId && correlationIdPattern.test(traceId)) return traceId
 
   const traceparent = ctx.request.header('traceparent')
   const traceparentMatch = traceparent?.match(/^[\da-f]{2}-([\da-f]{32})-[\da-f]{16}-[\da-f]{2}$/i)
-  return traceparentMatch?.[1] ?? randomUUID()
+  return traceparentMatch?.[1] ?? requestId
 }
 
 /**
@@ -166,7 +166,7 @@ export default class HttpLoggingMiddleware {
     const { request, response, logger } = ctx
     const startedAt = process.hrtime.bigint()
     const requestId = getCorrelationId(request.header('x-request-id') ?? request.id())
-    const traceId = getTraceId(ctx)
+    const traceId = getTraceId(ctx, requestId)
 
     setRequestCorrelation(ctx, { requestId, traceId })
     response.header('x-request-id', requestId)
@@ -188,7 +188,9 @@ export default class HttpLoggingMiddleware {
 
         logger.info(
           {
+            requestId,
             traceId,
+            agentRunId: getRequestCorrelation(ctx).agentRunId ?? null,
             method,
             route,
             status: response.getStatus(),
@@ -199,7 +201,14 @@ export default class HttpLoggingMiddleware {
         )
       } catch (error) {
         logger.warn(
-          { err: error, traceId, method, route },
+          {
+            err: error,
+            requestId,
+            traceId,
+            agentRunId: getRequestCorrelation(ctx).agentRunId ?? null,
+            method,
+            route,
+          },
           'HTTP request and response body logging failed'
         )
       }
@@ -223,7 +232,9 @@ export default class HttpLoggingMiddleware {
       logger.error(
         {
           err: error,
+          requestId,
           traceId,
+          agentRunId: getRequestCorrelation(ctx).agentRunId ?? null,
           method,
           url,
         },
@@ -237,7 +248,9 @@ export default class HttpLoggingMiddleware {
 
       logger.info(
         {
+          requestId,
           traceId,
+          agentRunId: getRequestCorrelation(ctx).agentRunId ?? null,
           method,
           url,
           route,

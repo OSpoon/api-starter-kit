@@ -5,12 +5,17 @@ import type { HttpContext } from '@adonisjs/core/http'
 export type RequestCorrelation = {
   requestId: string
   traceId: string
+  agentRunId?: string
 }
 
 const correlations = new WeakMap<HttpContext, RequestCorrelation>()
 
 export function setRequestCorrelation(ctx: HttpContext, correlation: RequestCorrelation) {
   correlations.set(ctx, correlation)
+}
+
+export function setAgentRunId(ctx: HttpContext, agentRunId: string) {
+  correlations.set(ctx, { ...getRequestCorrelation(ctx), agentRunId })
 }
 
 export function getRequestCorrelation(ctx: HttpContext): RequestCorrelation {
