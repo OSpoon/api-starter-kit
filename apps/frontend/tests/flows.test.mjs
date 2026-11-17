@@ -373,12 +373,14 @@ test('message scroller detects reaching the top edge once per crossing', () => {
   assert.equal(didReachMessageScrollerStart(true, true), false)
 })
 
-test('remote list query trims search and omits an empty search parameter', () => {
+test('remote list query serializes explicit filters without aggregate search', () => {
   assert.deepEqual(
-    Object.fromEntries(new URLSearchParams(buildListQuery(2, '  gateway ', { status: 'active' }))),
-    { page: '2', limit: '20', status: 'active', search: 'gateway' }
+    Object.fromEntries(
+      new URLSearchParams(buildListQuery(2, { fullName: 'gateway', status: 'active' }))
+    ),
+    { page: '2', limit: '20', fullName: 'gateway', status: 'active' }
   )
-  assert.deepEqual(Object.fromEntries(new URLSearchParams(buildListQuery(1, '   '))), {
+  assert.deepEqual(Object.fromEntries(new URLSearchParams(buildListQuery(1))), {
     page: '1',
     limit: '20',
   })
