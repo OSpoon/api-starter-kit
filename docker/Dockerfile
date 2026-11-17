@@ -24,10 +24,10 @@ RUN --mount=type=cache,id=api-starter-kit-pnpm-store,target=/pnpm/store \
 
 FROM deps AS backend-build
 COPY . .
-RUN pnpm --filter @api-starter-kit/backend exec node ace build --package-manager=pnpm
+RUN pnpm --filter ./apps/backend exec node ace build --package-manager=pnpm
 
 FROM deps AS backend-deps
-RUN pnpm deploy --legacy --filter=@api-starter-kit/backend --prod --ignore-scripts /tmp/backend-runtime
+RUN pnpm deploy --legacy --filter=./apps/backend --prod --ignore-scripts /tmp/backend-runtime
 
 FROM node:24.15.0-bookworm-slim AS backend
 ENV NODE_ENV=production
@@ -48,7 +48,7 @@ FROM deps AS frontend-build
 ARG VITE_API_URL=
 ENV VITE_API_URL=$VITE_API_URL
 COPY . .
-RUN pnpm --filter frontend build
+RUN pnpm --filter ./apps/frontend build
 
 FROM nginx:1.29-alpine AS frontend
 COPY --from=frontend-build /app/apps/frontend/dist /usr/share/nginx/html
@@ -60,7 +60,7 @@ FROM deps AS assistant-web-build
 ARG VITE_TURNSTILE_SITE_KEY=
 ENV VITE_TURNSTILE_SITE_KEY=$VITE_TURNSTILE_SITE_KEY
 COPY . .
-RUN pnpm --filter @api-starter-kit/assistant-web build
+RUN pnpm --filter ./apps/assistant-web build
 
 FROM nginx:1.29-alpine AS assistant-web
 COPY --from=assistant-web-build /app/apps/assistant-web/dist /usr/share/nginx/html

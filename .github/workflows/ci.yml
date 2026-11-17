@@ -52,16 +52,16 @@ jobs:
         working-directory: .
 
       - name: Format check
-        run: pnpm --filter @api-starter-kit/backend format:check
+        run: pnpm --filter . format:check
 
       - name: Typecheck
-        run: pnpm --filter @api-starter-kit/backend typecheck
+        run: pnpm --filter . typecheck
 
       - name: Lint
-        run: pnpm --filter @api-starter-kit/backend lint:check
+        run: pnpm --filter . lint:check
 
       - name: Test
-        run: pnpm --filter @api-starter-kit/backend test
+        run: pnpm --filter . test
         env:
           NODE_ENV: test
           TZ: Asia/Shanghai
@@ -78,7 +78,7 @@ jobs:
           DB_DATABASE: ci_db
 
       - name: Build
-        run: pnpm --filter @api-starter-kit/backend build
+        run: pnpm --filter . build
 
   frontend:
     name: Frontend (format, typecheck, lint, test, build)
@@ -105,19 +105,19 @@ jobs:
         working-directory: .
 
       - name: Format check
-        run: pnpm --filter @api-starter-kit/frontend format:check
+        run: pnpm --filter . format:check
 
       - name: Typecheck
-        run: pnpm --filter @api-starter-kit/frontend typecheck
+        run: pnpm --filter . typecheck
 
       - name: Lint
-        run: pnpm --filter @api-starter-kit/frontend lint:check
+        run: pnpm --filter . lint:check
 
       - name: Test
-        run: pnpm --filter @api-starter-kit/frontend test
+        run: pnpm --filter . test
 
       - name: Build
-        run: pnpm --filter @api-starter-kit/frontend build
+        run: pnpm --filter . build
 
   assistant:
     name: Assistant (format, typecheck, lint, test, build)
@@ -144,19 +144,19 @@ jobs:
         working-directory: .
 
       - name: Format check
-        run: pnpm --filter @api-starter-kit/assistant-web format:check
+        run: pnpm --filter . format:check
 
       - name: Typecheck
-        run: pnpm --filter @api-starter-kit/assistant-web typecheck
+        run: pnpm --filter . typecheck
 
       - name: Lint
-        run: pnpm --filter @api-starter-kit/assistant-web lint:check
+        run: pnpm --filter . lint:check
 
       - name: Test
-        run: pnpm --filter @api-starter-kit/assistant-web test
+        run: pnpm --filter . test
 
       - name: Build
-        run: pnpm --filter @api-starter-kit/assistant-web build
+        run: pnpm --filter . build
 
   assistant-extension:
     name: Chrome Extension (format, typecheck, lint, build)
@@ -183,16 +183,16 @@ jobs:
         working-directory: .
 
       - name: Format check
-        run: pnpm --filter @api-starter-kit/assistant-extension format:check
+        run: pnpm --filter . format:check
 
       - name: Typecheck
-        run: pnpm --filter @api-starter-kit/assistant-extension typecheck
+        run: pnpm --filter . typecheck
 
       - name: Lint
-        run: pnpm --filter @api-starter-kit/assistant-extension lint:check
+        run: pnpm --filter . lint:check
 
       - name: Build
-        run: pnpm --filter @api-starter-kit/assistant-extension build
+        run: pnpm --filter . build
 
   assistant-desktop:
     name: Assistant Desktop (format, typecheck, lint, test, build)
@@ -232,19 +232,19 @@ jobs:
         run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Format check
-        run: pnpm --filter @api-starter-kit/assistant-desktop format:check
+        run: pnpm --filter ./apps/assistant-desktop format:check
 
       - name: Typecheck
-        run: pnpm --filter @api-starter-kit/assistant-desktop typecheck
+        run: pnpm --filter ./apps/assistant-desktop typecheck
 
       - name: Lint
-        run: pnpm --filter @api-starter-kit/assistant-desktop lint:check
+        run: pnpm --filter ./apps/assistant-desktop lint:check
 
       - name: Test
-        run: pnpm --filter @api-starter-kit/assistant-desktop test
+        run: pnpm --filter ./apps/assistant-desktop test
 
       - name: Build
-        run: pnpm --filter @api-starter-kit/assistant-desktop build
+        run: pnpm --filter ./apps/assistant-desktop build
 
   diff-check:
     name: Git diff --check

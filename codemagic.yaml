@@ -14,7 +14,7 @@ workflows:
       - name: Install workspace dependencies
         script: pnpm install --frozen-lockfile --ignore-scripts
       - name: Build web app
-        script: pnpm --filter @api-starter-kit/authenticator-mobile build
+        script: pnpm --filter ./apps/authenticator-mobile build
       - name: Sync native projects
         script: |
           pnpm --dir apps/authenticator-mobile exec cap sync android
