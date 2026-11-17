@@ -136,6 +136,7 @@ export class AiChatConversationSchema extends BaseModel {
     'contextSummary',
     'contextSummaryMessageId',
     'createdAt',
+    'embedSessionId',
     'id',
     'title',
     'updatedAt',
@@ -150,6 +151,8 @@ export class AiChatConversationSchema extends BaseModel {
   declare contextSummaryMessageId: number | null
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
+  @column()
+  declare embedSessionId: string | null
   @column({ isPrimary: true })
   declare id: number
   @column()
