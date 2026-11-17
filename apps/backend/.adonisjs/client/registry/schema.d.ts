@@ -290,7 +290,7 @@ export interface Registry {
       body: {}
       paramsTuple: []
       params: {}
-      query: ExtractQueryForGet<InferInput<(typeof import('#validators/pagination').paginationSearchQueryValidator)>>
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/api_key').apiKeyListValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/api_keys_controller').default['index']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/api_keys_controller').default['index']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
@@ -506,7 +506,7 @@ export interface Registry {
       body: {}
       paramsTuple: []
       params: {}
-      query: ExtractQueryForGet<InferInput<(typeof import('#validators/pagination').paginationSearchQueryValidator)>>
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/knowledge_document').knowledgeDocumentListValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/knowledge_documents_controller').default['index']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/knowledge_documents_controller').default['index']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
@@ -698,7 +698,7 @@ export interface Registry {
       body: {}
       paramsTuple: []
       params: {}
-      query: ExtractQueryForGet<InferInput<(typeof import('#validators/rbac').listAccessControlValidator)>>
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/rbac').listRolesValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/roles_controller').default['index']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/roles_controller').default['index']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
@@ -758,7 +758,7 @@ export interface Registry {
       body: {}
       paramsTuple: []
       params: {}
-      query: ExtractQueryForGet<InferInput<(typeof import('#validators/rbac').listAccessControlValidator)>>
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/rbac').listPermissionsValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/permissions_controller').default['index']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/permissions_controller').default['index']>>> | { status: 422; response: { errors: SimpleError[] } }
     }

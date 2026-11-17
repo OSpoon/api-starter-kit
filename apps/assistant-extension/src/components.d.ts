@@ -150,6 +150,7 @@ declare module 'vue' {
     DashboardPageTemplate: typeof import('./../../frontend/src/components/templates/DashboardPageTemplate.vue')['default']
     DataTable: typeof import('./../../frontend/src/components/common/DataTable.vue')['default']
     DataTableFacetFilter: typeof import('./../../frontend/src/components/common/DataTableFacetFilter.vue')['default']
+    DataTableTextFilter: typeof import('./../../frontend/src/components/common/DataTableTextFilter.vue')['default']
     DescriptionActionRow: typeof import('./../../frontend/src/components/common/DescriptionActionRow.vue')['default']
     DetailPageTemplate: typeof import('./../../frontend/src/components/templates/DetailPageTemplate.vue')['default']
     Dialog: typeof import('./../../frontend/src/components/ui/dialog/Dialog.vue')['default']

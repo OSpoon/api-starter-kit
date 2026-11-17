@@ -3,7 +3,6 @@ import {
   defineAiAgentAction,
   getAiAgentActor,
   integer,
-  optionalDescription,
   string,
   summaryValue,
 } from '#ai/core/ai_agent_action_helpers'
@@ -50,7 +49,7 @@ const createRoleAction: AiAgentActionImplementation = {
       payload: {
         code,
         name: string(input, 'name', 120),
-        description: optionalDescription(input),
+        description: string(input, 'description', 1000),
         permissionIds: ids,
       },
     }
@@ -65,7 +64,7 @@ const createRoleAction: AiAgentActionImplementation = {
       actorUserId: actor.id,
       code,
       name: string(payload, 'name', 120),
-      description: optionalDescription(payload),
+      description: string(payload, 'description', 1000),
       permissionIds: ids,
       source: 'ai_agent',
     })
@@ -87,7 +86,7 @@ const updateRoleAction: AiAgentActionImplementation = {
       payload: {
         roleId: role.id,
         name: string(input, 'name', 120),
-        description: optionalDescription(input),
+        description: string(input, 'description', 1000),
         permissionIds: ids,
       },
     }
@@ -103,7 +102,7 @@ const updateRoleAction: AiAgentActionImplementation = {
       actorUserId: actor.id,
       roleId: role.id,
       name: string(payload, 'name', 120),
-      description: optionalDescription(payload),
+      description: string(payload, 'description', 1000),
       permissionIds: ids,
       source: 'ai_agent',
     })

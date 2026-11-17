@@ -249,7 +249,7 @@ export async function createAiChatConversation(token: string | null) {
 
 export async function getAiChatConversation(token: string | null, id: number, page = 1) {
   const response = await apiRequest<AiChatConversation>(
-    `/api/v1/ai-chat/conversations/${id}?${buildListQuery(page, '', {}, 50)}`,
+    `/api/v1/ai-chat/conversations/${id}?${buildListQuery(page, {}, 50)}`,
     authOptions(token)
   )
   return readItem(response)

@@ -1,37 +1,40 @@
 <script setup lang="ts">
+import { listPageHeaderKey } from '@/components/common/list-page-context'
 import PageShell from '@/components/common/PageShell.vue'
-import { Button } from '@/components/ui/button'
 
-defineProps<{
-  title: string
-  description?: string
-  loading?: boolean
-  refreshLabel: string
-  actionLabel: string
-  showAction?: boolean
-}>()
+const props = withDefaults(
+  defineProps<{
+    title: string
+    loading?: boolean
+    actionLabel: string
+    showAction?: boolean
+    showHeader?: boolean
+    moveHeadingToTable?: boolean
+  }>(),
+  { showHeader: true, moveHeadingToTable: true }
+)
 
 const emit = defineEmits<{
-  refresh: []
   action: []
 }>()
+
+provide(listPageHeaderKey, {
+  title: computed(() => (props.moveHeadingToTable ? props.title : '')),
+  loading: computed(() => Boolean(props.loading)),
+  actionLabel: computed(() => props.actionLabel),
+  showAction: computed(() => props.showAction !== false),
+  onAction: () => emit('action'),
+})
 
 const slots = useSlots()
 </script>
 
 <template>
-  <PageShell :title="title" :description="description" class="min-h-0 gap-4 overflow-hidden pb-0">
-    <template #actions>
-      <Button variant="outline" size="sm" :disabled="loading" @click="emit('refresh')">
-        <slot name="refresh-icon" />
-        {{ refreshLabel }}
-      </Button>
-      <Button v-if="showAction !== false" size="sm" @click="emit('action')">
-        <slot name="action-icon" />
-        {{ actionLabel }}
-      </Button>
-    </template>
-
+  <PageShell
+    :title="moveHeadingToTable ? '' : title"
+    :header-class="showHeader && !moveHeadingToTable ? undefined : 'hidden'"
+    class="min-h-0 gap-4 overflow-hidden pt-8 pb-0"
+  >
     <slot name="summary" />
 
     <section

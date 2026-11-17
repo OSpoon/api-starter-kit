@@ -18,11 +18,11 @@ import {
 import { clampLimit } from '#support/pagination'
 import { serializeKnowledgeDocument } from '#transformers/knowledge_document_transformer'
 import {
+  knowledgeDocumentListValidator,
   knowledgeDocumentRoleIdsValidator,
   knowledgeDocumentValidator,
   knowledgeMetadataPreviewValidator,
 } from '#validators/knowledge_document'
-import { paginationSearchQueryValidator } from '#validators/pagination'
 
 function parseRoleIds(value: unknown) {
   let parsed = value
@@ -100,7 +100,7 @@ async function readTextFiles(ctx: HttpContext) {
 export default class KnowledgeDocumentsController {
   @ApiOperation({
     summary: '获取知识文档列表',
-    description: '返回当前用户按角色可见的知识文档分页列表，支持按标题、摘要或正文搜索。',
+    description: '返回当前用户按角色可见的知识文档分页列表，标题、摘要和正文分别筛选。',
   })
   @ApiQuery({
     name: 'page',
@@ -114,16 +114,12 @@ export default class KnowledgeDocumentsController {
     description: '每页数量，默认 20，最大 100',
     schema: { type: 'integer', minimum: 1 },
   })
-  @ApiQuery({
-    name: 'search',
-    required: false,
-    description: '搜索文档标题、摘要或正文；去除首尾空格，空值不过滤，最多 200 个字符',
-    schema: { type: 'string', maxLength: 200 },
-  })
+  @ApiQuery({ name: 'title', required: false, schema: { type: 'string', maxLength: 200 } })
+  @ApiQuery({ name: 'summary', required: false, schema: { type: 'string', maxLength: 2_000 } })
+  @ApiQuery({ name: 'content', required: false, schema: { type: 'string', maxLength: 200 } })
   @ApiResponse({ status: 200, description: '按角色可见并包含角色范围的知识文档分页列表' })
   async index({ auth, request, serialize }: HttpContext) {
-    const payload = await paginationSearchQueryValidator.validate(request.qs())
-    const search = payload.search ?? ''
+    const payload = await knowledgeDocumentListValidator.validate(request.qs())
     const user = auth.getUserOrFail()
     const bouncer = new Bouncer(() => user, { access })
     const canManage = await bouncer.allows('access', 'knowledge:manage')
@@ -140,14 +136,9 @@ export default class KnowledgeDocumentsController {
           .orWhereHas('roles', (roleQuery) => roleQuery.whereIn('roles.id', roleIds))
       })
     }
-    if (search) {
-      query.where((builder) => {
-        builder
-          .whereILike('title', `%${search}%`)
-          .orWhereILike('summary', `%${search}%`)
-          .orWhereILike('content', `%${search}%`)
-      })
-    }
+    if (payload.title) query.whereILike('title', `%${payload.title}%`)
+    if (payload.summary) query.whereILike('summary', `%${payload.summary}%`)
+    if (payload.content) query.whereILike('content', `%${payload.content}%`)
     const paginator = await query.paginate(payload.page ?? 1, clampLimit(payload.limit, 20, 100))
     return serialize({
       items: paginator.all().map(serializeKnowledgeDocument),

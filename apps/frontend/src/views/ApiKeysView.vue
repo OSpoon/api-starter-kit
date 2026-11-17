@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { Check, Copy, Plus, RefreshCw, Trash2 } from '@lucide/vue'
+import { Check, Copy, Trash2 } from '@lucide/vue'
 import type { ColumnDef } from '@tanstack/vue-table'
 import { toast } from 'vue-sonner'
 
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import DataTable from '@/components/common/DataTable.vue'
+import DataTableTextFilter from '@/components/common/DataTableTextFilter.vue'
 import FormDialogContent from '@/components/common/FormDialogContent.vue'
 import FormDialogFooter from '@/components/common/FormDialogFooter.vue'
 import ListPage from '@/components/common/ListPage.vue'
@@ -12,7 +13,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog } from '@/components/ui/dialog'
 import ApiKeyForm from '@/components/workbench/ApiKeyForm.vue'
-import { useRemoteListSearch } from '@/composables/useRemoteListSearch'
+import { useRemoteList } from '@/composables/useRemoteList'
 import type { ApiKeySummary } from '@/features/api-keys/api'
 import { badgeToneClass, createApiKey, listApiKeys, revokeApiKey } from '@/features/api-keys/api'
 import { useCopyText } from '@/lib/clipboard'
@@ -35,6 +36,8 @@ const { can } = usePermission()
 const { t } = useI18n()
 
 const keys = ref<ApiKeySummary[]>([])
+const nameFilter = ref('')
+const prefixFilter = ref('')
 const page = ref(1)
 const pageCount = ref(1)
 const loading = ref(false)
@@ -171,14 +174,13 @@ const columns = computed<ColumnDef<ApiKeySummary>[]>(() => [
   },
 ])
 
-async function fetchKeys(
-  nextPage = page.value,
-  search = debouncedSearch.value,
-  isCurrent: () => boolean = () => true
-) {
+async function fetchKeys(nextPage = page.value, isCurrent: () => boolean = () => true) {
   loading.value = true
   try {
-    const result = await listApiKeys(auth.token, nextPage, search)
+    const result = await listApiKeys(auth.token, nextPage, {
+      name: nameFilter.value,
+      prefix: prefixFilter.value,
+    })
     if (!isCurrent()) return
     keys.value = result.items
     page.value = result.meta.currentPage
@@ -192,10 +194,12 @@ async function fetchKeys(
   }
 }
 
-const { search, debouncedSearch, runLoad } = useRemoteListSearch(page, fetchKeys)
+const { runLoad } = useRemoteList(page, fetchKeys)
 
-function refreshKeys() {
-  void runLoad()
+function resetFilters() {
+  nameFilter.value = ''
+  prefixFilter.value = ''
+  void runLoad(1)
 }
 
 function openCreateDialog() {
@@ -289,33 +293,36 @@ async function copyEmbedSnippet() {
 <template>
   <ListPage
     :title="t('api_keys.title')"
-    :description="t('api_keys.desc')"
     :loading="loading"
-    :refresh-label="t('common.refresh')"
     :action-label="t('api_keys.generate_new')"
     :show-action="can('api-keys:create')"
-    @refresh="refreshKeys"
     @action="openCreateDialog"
   >
-    <template #refresh-icon>
-      <RefreshCw class="size-4" :class="{ 'animate-spin': loading }" />
-    </template>
-    <template #action-icon>
-      <Plus class="size-4" />
-    </template>
-
     <DataTable
-      v-model:search="search"
       :columns="columns"
       :data="keys"
-      search-mode="remote"
-      :search-keys="['name']"
-      :search-placeholder="t('api_keys.filter_keyword')"
       storage-key="api-keys-table"
       :empty-message="loading ? t('common.loading') : t('api_keys.no_keys')"
       :server-pagination="{ page, pageCount }"
+      @search="runLoad(1)"
+      @reset="resetFilters"
       @page-change="page = $event"
-    />
+    >
+      <template #filters>
+        <DataTableTextFilter
+          id="api-key-name-filter"
+          v-model="nameFilter"
+          :label="t('api_keys.name')"
+          :placeholder="t('api_keys.filter_name')"
+        />
+        <DataTableTextFilter
+          id="api-key-prefix-filter"
+          v-model="prefixFilter"
+          :label="t('api_keys.prefix')"
+          :placeholder="t('api_keys.filter_prefix')"
+        />
+      </template>
+    </DataTable>
 
     <template #dialogs>
       <Dialog v-if="dialogMounted" :open="dialogOpen" @update:open="onDialogOpenChange">

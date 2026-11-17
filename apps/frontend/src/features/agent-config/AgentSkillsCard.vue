@@ -256,7 +256,6 @@ onMounted(() => void load())
         class="min-h-0 flex-1"
         :columns="columns"
         :data="items"
-        :show-search="false"
         :show-view="false"
         :empty-message="loading ? t('common.loading') : t('agent_config.skills_empty')"
         :server-pagination="{ page, pageCount }"

@@ -1,5 +1,15 @@
 import vine from '@vinejs/vine'
 
+export const knowledgeDocumentListValidator = vine.compile(
+  vine.object({
+    page: vine.number().min(1).max(Number.MAX_SAFE_INTEGER).decimal(0).optional(),
+    limit: vine.number().min(1).max(Number.MAX_SAFE_INTEGER).decimal(0).optional(),
+    title: vine.string().trim().maxLength(200).optional(),
+    summary: vine.string().trim().maxLength(2_000).optional(),
+    content: vine.string().trim().maxLength(200).optional(),
+  })
+)
+
 export const knowledgeDocumentValidator = vine.compile(
   vine.object({
     title: vine.string().trim().minLength(1).maxLength(200),

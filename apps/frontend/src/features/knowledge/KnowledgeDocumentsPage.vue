@@ -1,15 +1,16 @@
 <script setup lang="ts">
-import { FilePenLine, Plus, RefreshCw, RotateCw, Trash2 } from '@lucide/vue'
+import { FilePenLine, RotateCw, Trash2 } from '@lucide/vue'
 import type { ColumnDef } from '@tanstack/vue-table'
 import { toast } from 'vue-sonner'
 
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import DataTable from '@/components/common/DataTable.vue'
+import DataTableTextFilter from '@/components/common/DataTableTextFilter.vue'
 import ListPage from '@/components/common/ListPage.vue'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog } from '@/components/ui/dialog'
-import { useRemoteListSearch } from '@/composables/useRemoteListSearch'
+import { useRemoteList } from '@/composables/useRemoteList'
 import { listSystemRoleCatalog, type SystemRoleOption } from '@/features/access-control/api'
 import { badgeToneClass } from '@/features/api-keys/api'
 import {
@@ -35,6 +36,9 @@ const { can } = usePermission()
 const canManage = computed(() => can('knowledge:manage'))
 const documentTable = useTemplateRef<{ clearSelection: () => void }>('documentTable')
 const documents = ref<KnowledgeDocument[]>([])
+const titleFilter = ref('')
+const summaryFilter = ref('')
+const contentFilter = ref('')
 const page = ref(1)
 const pageCount = ref(1)
 const loading = ref(false)
@@ -171,14 +175,14 @@ const columns = computed<ColumnDef<KnowledgeDocument>[]>(() => [
   },
 ])
 
-async function fetchDocuments(
-  nextPage = page.value,
-  search = debouncedSearch.value,
-  isCurrent: () => boolean = () => true
-) {
+async function fetchDocuments(nextPage = page.value, isCurrent: () => boolean = () => true) {
   loading.value = true
   try {
-    const result = await listKnowledgeDocuments(auth.token, nextPage, search)
+    const result = await listKnowledgeDocuments(auth.token, nextPage, {
+      title: titleFilter.value,
+      summary: summaryFilter.value,
+      content: contentFilter.value,
+    })
     if (!isCurrent()) return
     documents.value = result.items
     page.value = result.meta.currentPage
@@ -192,7 +196,14 @@ async function fetchDocuments(
   }
 }
 
-const { search, debouncedSearch, runLoad } = useRemoteListSearch(page, fetchDocuments)
+const { runLoad } = useRemoteList(page, fetchDocuments)
+
+function resetFilters() {
+  titleFilter.value = ''
+  summaryFilter.value = ''
+  contentFilter.value = ''
+  void runLoad(1)
+}
 
 async function ensureRolesLoaded() {
   if (rolesLoaded.value) return true
@@ -357,34 +368,45 @@ async function confirmReindex() {
 <template>
   <ListPage
     :title="t('knowledge.title')"
-    :description="t('knowledge.desc')"
     :loading="loading || batchReindexing"
-    :refresh-label="t('common.refresh')"
     :action-label="t('knowledge.create')"
     :show-action="canManage && !batchReindexing"
-    @refresh="runLoad()"
     @action="openCreateDialog"
   >
-    <template #refresh-icon
-      ><RefreshCw class="size-4" :class="{ 'animate-spin': loading }"
-    /></template>
-    <template #action-icon><Plus class="size-4" /></template>
     <DataTable
       ref="documentTable"
-      v-model:search="search"
       :columns="columns"
       :data="documents"
-      search-mode="remote"
-      :search-keys="['title']"
-      :search-placeholder="t('knowledge.search_placeholder')"
       storage-key="knowledge-documents-table"
       :empty-message="loading ? t('common.loading') : t('knowledge.empty')"
       :server-pagination="{ page, pageCount }"
+      @search="runLoad(1)"
+      @reset="resetFilters"
       :selectable="canManage"
       :get-row-id="(document) => String(document.id)"
       :selection-disabled="loading || mutationBusy"
       @page-change="page = $event"
     >
+      <template #filters>
+        <DataTableTextFilter
+          id="knowledge-title-filter"
+          v-model="titleFilter"
+          :label="t('knowledge.name')"
+          :placeholder="t('knowledge.filter_title')"
+        />
+        <DataTableTextFilter
+          id="knowledge-summary-filter"
+          v-model="summaryFilter"
+          :label="t('knowledge.summary')"
+          :placeholder="t('knowledge.filter_summary')"
+        />
+        <DataTableTextFilter
+          id="knowledge-content-filter"
+          v-model="contentFilter"
+          :label="t('knowledge.content')"
+          :placeholder="t('knowledge.filter_content')"
+        />
+      </template>
       <template #selection-actions="{ rows, disabled }">
         <Button v-if="canManage" size="sm" :disabled="disabled" @click="requestBatchReindex(rows)">
           <RotateCw class="size-4" :class="{ 'animate-spin': batchReindexing }" />

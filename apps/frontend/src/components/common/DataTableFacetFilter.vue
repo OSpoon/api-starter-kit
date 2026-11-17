@@ -1,88 +1,104 @@
 <script setup lang="ts">
-import { Plus } from '@lucide/vue'
+import { ChevronDown } from '@lucide/vue'
 
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandSeparator,
+} from '@/components/ui/command'
+import { Label } from '@/components/ui/label'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 
 export type DataTableFacetFilterOption = {
   value: string
   label: string
 }
 
-withDefaults(
-  defineProps<{
-    label: string
-    options: DataTableFacetFilterOption[]
-    compact?: boolean
-  }>(),
-  { compact: false }
-)
+const props = defineProps<{
+  label: string
+  options: DataTableFacetFilterOption[]
+}>()
 
 const selectedValues = defineModel<string[]>({ default: () => [] })
 const { t } = useI18n()
+const id = useId()
+const open = ref(false)
+const selectedLabels = computed(() =>
+  props.options
+    .filter((option) => selectedValues.value.includes(option.value))
+    .map((option) => option.label)
+    .join(', ')
+)
 
-function toggle(value: string) {
-  selectedValues.value = selectedValues.value.includes(value)
-    ? selectedValues.value.filter((item) => item !== value)
-    : [...selectedValues.value, value]
+function clear() {
+  selectedValues.value = []
+  open.value = false
 }
 </script>
 
 <template>
-  <template v-if="compact">
-    <DropdownMenuLabel>{{ label }}</DropdownMenuLabel>
-    <DropdownMenuCheckboxItem
-      :checked="selectedValues.length === 0"
-      @select.prevent="selectedValues = []"
-    >
-      {{ t('common.all') }}
-    </DropdownMenuCheckboxItem>
-    <DropdownMenuSeparator />
-    <DropdownMenuCheckboxItem
-      v-for="option in options"
-      :key="option.value"
-      :checked="selectedValues.includes(option.value)"
-      @select.prevent="toggle(option.value)"
-    >
-      {{ option.label }}
-    </DropdownMenuCheckboxItem>
-  </template>
-  <DropdownMenu v-else>
-    <DropdownMenuTrigger as-child>
-      <Button variant="outline" class="h-9 shrink-0 border-dashed" :aria-label="label">
-        <Plus class="size-4" />
-        {{ label }}
-        <span
-          v-if="selectedValues.length"
-          class="ml-1 rounded-sm bg-muted px-1.5 py-0.5 text-xs tabular-nums"
+  <div class="grid w-full min-w-0 gap-1.5 text-sm font-normal">
+    <Label :for="id" class="font-normal whitespace-nowrap">{{ label }}</Label>
+    <Popover v-model:open="open">
+      <PopoverTrigger as-child>
+        <Button
+          :id="id"
+          type="button"
+          variant="outline"
+          class="h-9 w-full min-w-0 justify-between font-normal"
+          :aria-label="label"
         >
-          {{ selectedValues.length }}
-        </span>
-      </Button>
-    </DropdownMenuTrigger>
-    <DropdownMenuContent align="start" class="max-h-80 w-60 overflow-y-auto">
-      <DropdownMenuCheckboxItem
-        :checked="selectedValues.length === 0"
-        @select.prevent="selectedValues = []"
-      >
-        {{ t('common.all') }}
-      </DropdownMenuCheckboxItem>
-      <DropdownMenuSeparator />
-      <DropdownMenuCheckboxItem
-        v-for="option in options"
-        :key="option.value"
-        :checked="selectedValues.includes(option.value)"
-        @select.prevent="toggle(option.value)"
-      >
-        {{ option.label }}
-      </DropdownMenuCheckboxItem>
-    </DropdownMenuContent>
-  </DropdownMenu>
+          <span class="truncate text-left">{{ selectedLabels || t('common.all') }}</span>
+          <ChevronDown class="size-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="start" class="w-[var(--reka-popover-trigger-width)] p-0">
+        <Command v-model="selectedValues" multiple>
+          <CommandInput
+            :aria-label="t('common.search')"
+            :placeholder="t('common.search_placeholder')"
+          />
+          <CommandList>
+            <CommandEmpty>{{ t('common.no_data') }}</CommandEmpty>
+            <CommandGroup>
+              <CommandItem
+                value="__all__"
+                class="[&>svg:last-child]:hidden"
+                @select.prevent="clear"
+              >
+                <Checkbox
+                  :model-value="selectedValues.length === 0"
+                  aria-hidden="true"
+                  tabindex="-1"
+                  class="pointer-events-none"
+                />
+                {{ t('common.all') }}
+              </CommandItem>
+              <CommandSeparator />
+              <CommandItem
+                v-for="option in options"
+                :key="option.value"
+                :value="option.value"
+                class="[&>svg:last-child]:hidden"
+              >
+                <Checkbox
+                  :model-value="selectedValues.includes(option.value)"
+                  aria-hidden="true"
+                  tabindex="-1"
+                  class="pointer-events-none"
+                />
+                {{ option.label }}
+              </CommandItem>
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  </div>
 </template>

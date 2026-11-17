@@ -196,7 +196,6 @@ onMounted(load)
         v-else
         :columns="columns"
         :data="tools"
-        :show-search="false"
         :show-view="false"
         :empty-message="t('agent_config.tools_empty')"
       />

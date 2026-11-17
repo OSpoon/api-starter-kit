@@ -37,9 +37,14 @@ function authOptions(token: string | null) {
   return { token }
 }
 
-export async function listApiKeys(token: string | null, page = 1, search = '') {
+export type ApiKeyListFilters = { name?: string; prefix?: string }
+
+export async function listApiKeys(token: string | null, page = 1, filters: ApiKeyListFilters = {}) {
+  const extra: Record<string, string> = {}
+  if (filters.name?.trim()) extra.name = filters.name.trim()
+  if (filters.prefix?.trim()) extra.prefix = filters.prefix.trim()
   const response = await apiRequest<ApiKeyPage>(
-    `/api/v1/api-keys?${buildListQuery(page, search)}`,
+    `/api/v1/api-keys?${buildListQuery(page, extra)}`,
     authOptions(token)
   )
   return readItem(response)

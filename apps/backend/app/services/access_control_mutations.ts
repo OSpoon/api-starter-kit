@@ -207,7 +207,7 @@ export async function createRoleWithPermissions(input: {
   actorUserId: number
   code: string
   name: string
-  description: string | null
+  description: string
   permissionIds: number[]
   source: MutationSource
 }) {
@@ -390,7 +390,7 @@ export async function updateRoleWithPermissions(input: {
   actorUserId: number
   roleId: number
   name: string
-  description: string | null
+  description: string
   permissionIds?: number[]
   source: MutationSource
 }) {

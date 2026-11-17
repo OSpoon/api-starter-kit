@@ -58,6 +58,11 @@ export interface AuditLogPage {
   meta: { currentPage: number; perPage: number; lastPage: number; total: number }
 }
 export interface AuditLogFilters {
+  action?: string
+  targetType?: string
+  targetId?: string
+  actorName?: string
+  actorEmail?: string
   source?: string[]
   outcome?: string[]
   actorType?: string[]
@@ -72,6 +77,8 @@ export type SystemPermissionOption = Pick<SystemPermission, 'id' | 'code' | 'nam
 const authOptions = (token: string | null) => ({ token })
 
 export type SystemUserListFilters = {
+  fullName?: string
+  email?: string
   roleIds?: string[]
   channels?: string[]
 }
@@ -79,15 +86,16 @@ export type SystemUserListFilters = {
 export async function listSystemUsers(
   token: string | null,
   page = 1,
-  search = '',
   filters: SystemUserListFilters = {}
 ) {
   const extra: Record<string, string> = {}
+  if (filters.fullName?.trim()) extra.fullName = filters.fullName.trim()
+  if (filters.email?.trim()) extra.email = filters.email.trim()
   if (filters.roleIds?.length) extra.roleIds = filters.roleIds.join(',')
   if (filters.channels?.length) extra.channels = filters.channels.join(',')
   return readItem(
     await apiRequest<SystemPage<SystemUser>>(
-      `/api/v1/system/users?${buildListQuery(page, search, extra)}`,
+      `/api/v1/system/users?${buildListQuery(page, extra)}`,
       authOptions(token)
     )
   )
@@ -143,10 +151,20 @@ export async function resetSystemUserPassword(token: string | null, id: number) 
   )
 }
 
-export async function listSystemRoles(token: string | null, page = 1, search = '') {
+export type SystemRoleListFilters = { code?: string; name?: string; description?: string }
+
+export async function listSystemRoles(
+  token: string | null,
+  page = 1,
+  filters: SystemRoleListFilters = {}
+) {
+  const extra: Record<string, string> = {}
+  if (filters.code?.trim()) extra.code = filters.code.trim()
+  if (filters.name?.trim()) extra.name = filters.name.trim()
+  if (filters.description?.trim()) extra.description = filters.description.trim()
   return readItem(
     await apiRequest<SystemPage<SystemRole>>(
-      `/api/v1/system/roles?${buildListQuery(page, search)}`,
+      `/api/v1/system/roles?${buildListQuery(page, extra)}`,
       authOptions(token)
     )
   )
@@ -160,7 +178,7 @@ export async function listSystemRoleCatalog(token: string | null) {
 
 export async function createSystemRole(
   token: string | null,
-  payload: Pick<SystemRole, 'code' | 'name' | 'description' | 'permissionIds'>
+  payload: { code: string; name: string; description: string; permissionIds: number[] }
 ) {
   return readItem(
     await apiRequest<SystemRole>('/api/v1/system/roles', {
@@ -174,7 +192,7 @@ export async function createSystemRole(
 export async function updateSystemRole(
   token: string | null,
   id: number,
-  payload: Pick<SystemRole, 'name' | 'description' | 'permissionIds'>
+  payload: { name: string; description: string; permissionIds: number[] }
 ) {
   return readItem(
     await apiRequest<SystemRole>(`/api/v1/system/roles/${id}`, {
@@ -194,15 +212,26 @@ export async function deleteSystemRole(token: string | null, id: number) {
   )
 }
 
+export type SystemPermissionListFilters = {
+  code?: string
+  name?: string
+  description?: string
+  groupName?: string
+}
+
 export async function listSystemPermissions(
   token: string | null,
   page = 1,
-  search = '',
-  groupName = ''
+  filters: SystemPermissionListFilters = {}
 ) {
+  const extra: Record<string, string> = {}
+  if (filters.code?.trim()) extra.code = filters.code.trim()
+  if (filters.name?.trim()) extra.name = filters.name.trim()
+  if (filters.description?.trim()) extra.description = filters.description.trim()
+  if (filters.groupName?.trim()) extra.groupName = filters.groupName.trim()
   return readItem(
     await apiRequest<SystemPage<SystemPermission>>(
-      `/api/v1/system/permissions?${buildListQuery(page, search, groupName ? { groupName } : {})}`,
+      `/api/v1/system/permissions?${buildListQuery(page, extra)}`,
       authOptions(token)
     )
   )
@@ -217,19 +246,19 @@ export async function listSystemPermissionCatalog(token: string | null) {
   )
 }
 
-export async function listAuditLogs(
-  token: string | null,
-  page = 1,
-  search = '',
-  filters: AuditLogFilters = {}
-) {
+export async function listAuditLogs(token: string | null, page = 1, filters: AuditLogFilters = {}) {
   const extra: Record<string, string> = {}
+  if (filters.action?.trim()) extra.action = filters.action.trim()
+  if (filters.targetType?.trim()) extra.targetType = filters.targetType.trim()
+  if (filters.targetId?.trim()) extra.targetId = filters.targetId.trim()
+  if (filters.actorName?.trim()) extra.actorName = filters.actorName.trim()
+  if (filters.actorEmail?.trim()) extra.actorEmail = filters.actorEmail.trim()
   if (filters.source?.length) extra.source = filters.source.join(',')
   if (filters.outcome?.length) extra.outcome = filters.outcome.join(',')
   if (filters.actorType?.length) extra.actorType = filters.actorType.join(',')
   return readItem(
     await apiRequest<AuditLogPage>(
-      `/api/v1/system/audit-logs?${buildListQuery(page, search, extra)}`,
+      `/api/v1/system/audit-logs?${buildListQuery(page, extra)}`,
       authOptions(token)
     )
   )

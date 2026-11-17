@@ -67,6 +67,7 @@ watch(
           <Textarea
             id="role-description"
             v-model="form.description"
+            aria-required="true"
             :placeholder="t('rbac.roles.description_placeholder')"
           />
         </div>
@@ -81,7 +82,9 @@ watch(
         }}</Button>
         <Button
           type="submit"
-          :disabled="saving || !form.name.trim() || (!role && !form.code.trim())"
+          :disabled="
+            saving || !form.name.trim() || !form.description.trim() || (!role && !form.code.trim())
+          "
         >
           {{ t('common.save') }}
         </Button>

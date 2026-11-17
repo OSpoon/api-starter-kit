@@ -41,7 +41,7 @@ test.group('knowledge documents', (group) => {
     await assert.rejects(() => KnowledgeDocument.findOrFail(document.id), /topics/)
   })
 
-  test('searches knowledge documents on the server before pagination', async ({
+  test('filters knowledge documents by title, summary, and content before pagination', async ({
     client,
     assert,
   }) => {
@@ -54,24 +54,34 @@ test.group('knowledge documents', (group) => {
     await user.related('roles').sync([superAdminRole.id])
     const token = await User.accessTokens.create(user)
 
-    const searchId = String(Date.now())
+    const filterId = String(Date.now())
+    const filterTitle = `Filter title ${filterId}`
+    const filterSummary = `Filter summary ${filterId}`
+    const filterContent = `Filter body ${filterId}`
     const matchedDocument = await KnowledgeDocument.create({
-      title: `Searchable ${searchId}`,
-      content: 'Matching body content',
-      summary: null,
+      title: filterTitle,
+      content: filterContent,
+      summary: filterSummary,
       topics: [],
-      contentHash: `${searchId}a`.slice(0, 64),
+      contentHash: `${filterId}a`.slice(0, 64),
     })
     await KnowledgeDocument.create({
-      title: 'Unrelated document',
-      content: 'Different document',
-      summary: null,
+      title: filterTitle,
+      content: 'Different body',
+      summary: 'Different summary',
       topics: [],
-      contentHash: `${searchId}b`.slice(0, 64),
+      contentHash: `${filterId}b`.slice(0, 64),
     })
 
+    const filters = new URLSearchParams({
+      title: filterTitle,
+      summary: filterSummary,
+      content: filterContent,
+      page: '1',
+      limit: '1',
+    })
     const response = await client
-      .get(`/api/v1/system/knowledge-documents?search=${searchId}&page=1&limit=1`)
+      .get(`/api/v1/system/knowledge-documents?${filters}`)
       .bearerToken(token.value!.release())
 
     response.assertStatus(200)
@@ -84,6 +94,11 @@ test.group('knowledge documents', (group) => {
       [matchedDocument.id]
     )
     assert.equal(body.meta.total, 1)
+
+    const invalidFilter = await client
+      .get(`/api/v1/system/knowledge-documents?title=${'a'.repeat(201)}`)
+      .bearerToken(token.value!.release())
+    invalidFilter.assertStatus(422)
   })
 
   test('allows knowledge readers to list documents but denies management writes', async ({
@@ -171,7 +186,7 @@ test.group('knowledge documents', (group) => {
     await reader.related('roles').sync([allowedRole.id])
     const readerToken = await User.accessTokens.create(reader)
     const readerResponse = await client
-      .get(`/api/v1/system/knowledge-documents?search=${suffix}`)
+      .get(`/api/v1/system/knowledge-documents?title=${suffix}`)
       .bearerToken(readerToken.value!.release())
     readerResponse.assertStatus(200)
     const readerTitles = (
@@ -188,7 +203,7 @@ test.group('knowledge documents', (group) => {
     await manager.related('roles').sync([managerRole.id])
     const managerToken = await User.accessTokens.create(manager)
     const managerResponse = await client
-      .get(`/api/v1/system/knowledge-documents?search=${suffix}`)
+      .get(`/api/v1/system/knowledge-documents?title=${suffix}`)
       .bearerToken(managerToken.value!.release())
     managerResponse.assertStatus(200)
     const managerTitles = (
@@ -222,7 +237,7 @@ test.group('knowledge documents', (group) => {
     })
 
     const response = await client
-      .get(`/api/v1/system/knowledge-documents?search=${encodeURIComponent(document.title)}`)
+      .get(`/api/v1/system/knowledge-documents?title=${encodeURIComponent(document.title)}`)
       .bearerToken(token.value!.release())
     response.assertStatus(200)
     const items = (response.body().data as { items: Array<Record<string, unknown>> }).items

@@ -9,15 +9,14 @@ import {
   updateApiKey,
 } from '#services/api_key_service'
 import { clampLimit } from '#support/pagination'
-import { apiKeyValidator, updateApiKeyValidator } from '#validators/api_key'
-import { paginationSearchQueryValidator } from '#validators/pagination'
+import { apiKeyListValidator, apiKeyValidator, updateApiKeyValidator } from '#validators/api_key'
 
 @ApiSecurity('bearerAuth')
 export default class ApiKeysController {
   @ApiOperation({
     summary: '获取 API Key 列表',
     description:
-      '返回可供助手集成和网页嵌入使用的 API Key 分页列表。支持按名称或公开前缀搜索；不暴露原始密钥。',
+      '返回可供助手集成和网页嵌入使用的 API Key 分页列表。名称和公开前缀分别筛选；不暴露原始密钥。',
   })
   @ApiQuery({
     name: 'page',
@@ -31,23 +30,15 @@ export default class ApiKeysController {
     description: '每页数量，默认 20，最大 100',
     schema: { type: 'integer', minimum: 1 },
   })
-  @ApiQuery({
-    name: 'search',
-    required: false,
-    description: '按 API Key 名称或公开前缀搜索；去除首尾空格，空值不过滤，最多 200 个字符',
-    schema: { type: 'string', maxLength: 200 },
-  })
+  @ApiQuery({ name: 'name', required: false, schema: { type: 'string', maxLength: 120 } })
+  @ApiQuery({ name: 'prefix', required: false, schema: { type: 'string', maxLength: 32 } })
   @ApiResponse({ status: 200, description: 'API Key 列表' })
   async index({ request, serialize }: HttpContext) {
-    const payload = await paginationSearchQueryValidator.validate(request.qs())
+    const payload = await apiKeyListValidator.validate(request.qs())
     const page = payload.page ?? 1
-    const search = payload.search ?? ''
     const query = ApiKey.query().orderBy('created_at', 'desc')
-    if (search) {
-      query.where((builder) => {
-        builder.whereILike('name', `%${search}%`).orWhereILike('prefix', `%${search}%`)
-      })
-    }
+    if (payload.name) query.whereILike('name', `%${payload.name}%`)
+    if (payload.prefix) query.whereILike('prefix', `%${payload.prefix}%`)
     const paginator = await query.paginate(page, clampLimit(payload.limit, 20, 100))
     return serialize({
       items: paginator.all().map((key) => serializeApiKey(key)),

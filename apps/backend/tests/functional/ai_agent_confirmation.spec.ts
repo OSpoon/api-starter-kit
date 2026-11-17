@@ -467,10 +467,24 @@ test.group('AI agent confirmations', (group) => {
       conversationId: conversation.id,
       agentRunId: crypto.randomUUID(),
     }).find((registeredTool) => registeredTool.name === 'system_management_change')
+    const missingDescriptionCode = `agent-missing-description-${Date.now()}`
+    const missingDescription = JSON.parse(
+      await executeTool(tool!, {
+        action: 'create_role',
+        input: { code: missingDescriptionCode, name: 'Missing description', permissionIds: [] },
+      })
+    )
+    assert.equal(missingDescription.kind, 'action_error')
+    assert.isNull(await Role.findBy('code', missingDescriptionCode))
     const proposal = JSON.parse(
       await executeTool(tool!, {
         action: 'create_role',
-        input: { code, name: 'Agent configured role', permissionIds: [apiKeysCreate.id] },
+        input: {
+          code,
+          name: 'Agent configured role',
+          description: 'An AI-created role',
+          permissionIds: [apiKeysCreate.id],
+        },
       })
     )
 
@@ -527,6 +541,7 @@ test.group('AI agent confirmations', (group) => {
         input: {
           code: `agent-forbidden-role-${Date.now()}`,
           name: 'Forbidden role',
+          description: 'A forbidden role',
           permissionIds: [apiKeysCreate.id],
         },
       })

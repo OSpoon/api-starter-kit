@@ -96,40 +96,32 @@ test.group('api keys', (group) => {
       assert.isUndefined((item as Record<string, unknown>).permissions)
       assert.isUndefined((item as Record<string, unknown>).key)
     }
-
-    const emptySearchResponse = await client
-      .get('/api/v1/api-keys?search=%20%20')
-      .bearerToken(bearerToken)
-    emptySearchResponse.assertStatus(200)
-    assert.equal(
-      (emptySearchResponse.body().data as { items: unknown[] }).items.length,
-      body.items.length
-    )
   })
 
-  test('searches api keys on the server before pagination and validates query parameters', async ({
-    client,
-    assert,
-  }) => {
+  test('filters api keys by name and prefix before pagination', async ({ client, assert }) => {
     const { bearerToken } = await createAdmin()
-    const searchId = String(Date.now())
-    const matchName = `Search match ${searchId}`
+    const filterId = String(Date.now())
+    const matchName = `Filtered key ${filterId}`
     const match = await client
       .post('/api/v1/api-keys')
       .bearerToken(bearerToken)
       .json({ name: matchName })
     match.assertStatus(200)
-    const matchId = (match.body().data as { id: number }).id
+    const matchData = match.body().data as { id: number; prefix: string }
 
-    const nonMatch = await client
+    const sameNameDifferentPrefix = await client
       .post('/api/v1/api-keys')
       .bearerToken(bearerToken)
-      .json({ name: 'Other key' })
-    nonMatch.assertStatus(200)
+      .json({ name: matchName })
+    sameNameDifferentPrefix.assertStatus(200)
 
-    const response = await client
-      .get(`/api/v1/api-keys?search=${encodeURIComponent(searchId.toLowerCase())}&page=1&limit=1`)
-      .bearerToken(bearerToken)
+    const filters = new URLSearchParams({
+      name: matchName,
+      prefix: matchData.prefix,
+      page: '1',
+      limit: '1',
+    })
+    const response = await client.get(`/api/v1/api-keys?${filters}`).bearerToken(bearerToken)
     response.assertStatus(200)
     const body = response.body().data as {
       items: Array<{ id: number; name: string }>
@@ -137,7 +129,7 @@ test.group('api keys', (group) => {
     }
     assert.deepEqual(
       body.items.map((item) => item.id),
-      [matchId]
+      [matchData.id]
     )
     assert.equal(body.meta.total, 1)
 

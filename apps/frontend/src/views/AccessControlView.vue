@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Check, Copy, Plus, RefreshCw } from '@lucide/vue'
+import { Check, Copy } from '@lucide/vue'
 import { proxyRefs } from 'vue'
 
 import ManagedUserDialog from '@/components/access-control/ManagedUserDialog.vue'
@@ -7,16 +7,12 @@ import RoleDialog from '@/components/access-control/RoleDialog.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import DataTable from '@/components/common/DataTable.vue'
 import DataTableFacetFilter from '@/components/common/DataTableFacetFilter.vue'
+import DataTableTextFilter from '@/components/common/DataTableTextFilter.vue'
 import FormDialogContent from '@/components/common/FormDialogContent.vue'
 import FormDialogFooter from '@/components/common/FormDialogFooter.vue'
 import ListPage from '@/components/common/ListPage.vue'
 import { Button } from '@/components/ui/button'
 import { Dialog } from '@/components/ui/dialog'
-import {
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-} from '@/components/ui/dropdown-menu'
 import { Label } from '@/components/ui/label'
 import {
   Select,
@@ -42,7 +38,6 @@ const mode = toRef(props, 'mode')
 const management = proxyRefs(useAccessControlManagement(mode))
 const currentUserId = computed(() => auth.user?.id)
 const title = computed(() => t(`rbac.${props.mode}.title`))
-const description = computed(() => t(`rbac.${props.mode}.desc`))
 const canCreate = computed(() => {
   if (props.mode === 'users') return can('users:create')
   if (props.mode === 'roles') return can('roles:create')
@@ -51,6 +46,27 @@ const canCreate = computed(() => {
 const actionLabel = computed(() =>
   props.mode === 'permissions' ? '' : t(`rbac.${props.mode}.create`)
 )
+
+function resetFilters() {
+  if (mode.value === 'users') {
+    management.userNameFilter = ''
+    management.userEmailFilter = ''
+    management.roleFilter = []
+    management.channelFilter = []
+  }
+  if (mode.value === 'roles') {
+    management.roleCodeFilter = ''
+    management.roleNameFilter = ''
+    management.roleDescriptionFilter = ''
+  }
+  if (mode.value === 'permissions') {
+    management.permissionCodeFilter = ''
+    management.permissionNameFilter = ''
+    management.permissionDescriptionFilter = ''
+    management.permissionGroupFilter = '__all__'
+  }
+  management.applyFilters()
+}
 
 const { userColumns, roleColumns, permissionColumns } = useAccessControlColumns({
   currentUserId,
@@ -72,35 +88,35 @@ const { userColumns, roleColumns, permissionColumns } = useAccessControlColumns(
 <template>
   <ListPage
     :title="title"
-    :description="description"
     :loading="management.loading"
-    :refresh-label="t('common.refresh')"
     :action-label="actionLabel"
     :show-action="canCreate"
-    @refresh="management.load"
     @action="management.openCreate"
   >
-    <template #refresh-icon
-      ><RefreshCw class="size-4" :class="{ 'animate-spin': management.loading }"
-    /></template>
-    <template #action-icon><Plus class="size-4" /></template>
-
     <DataTable
       v-if="mode === 'users'"
-      v-model:search="management.search"
-      search-mode="remote"
+      @reset="resetFilters"
+      @search="management.applyFilters"
       :columns="userColumns"
       :data="management.users"
-      :search-keys="['fullName', 'email']"
-      :search-placeholder="t('common.search_placeholder')"
-      filters-layout="inline"
-      :compact-filter-count="management.roleFilter.length + management.channelFilter.length"
       storage-key="rbac-users-table"
       :empty-message="management.loading ? t('common.loading') : t('common.no_data')"
       :server-pagination="{ page: management.page, pageCount: management.pageCount }"
       @page-change="management.page = $event"
     >
       <template #filters>
+        <DataTableTextFilter
+          id="rbac-user-name-filter"
+          v-model="management.userNameFilter"
+          :label="t('rbac.users.name')"
+          :placeholder="t('rbac.users.filter_name')"
+        />
+        <DataTableTextFilter
+          id="rbac-user-email-filter"
+          v-model="management.userEmailFilter"
+          :label="t('auth.email')"
+          :placeholder="t('rbac.users.filter_email')"
+        />
         <DataTableFacetFilter
           v-model="management.roleFilter"
           :label="t('rbac.users.roles')"
@@ -110,56 +126,77 @@ const { userColumns, roleColumns, permissionColumns } = useAccessControlColumns(
           v-model="management.channelFilter"
           :label="t('rbac.users.channels_title')"
           :options="management.channelFilterOptions"
-        />
-      </template>
-      <template #compact-filters>
-        <DataTableFacetFilter
-          v-model="management.roleFilter"
-          :label="t('rbac.users.roles')"
-          :options="management.roleFilterOptions"
-          compact
-        />
-        <DataTableFacetFilter
-          v-model="management.channelFilter"
-          :label="t('rbac.users.channels_title')"
-          :options="management.channelFilterOptions"
-          compact
         />
       </template>
     </DataTable>
     <DataTable
       v-else-if="mode === 'roles'"
-      v-model:search="management.search"
-      search-mode="remote"
+      @reset="resetFilters"
+      @search="management.applyFilters"
       :columns="roleColumns"
       :data="management.roles"
-      :search-keys="['name', 'code', 'description']"
-      :search-placeholder="t('common.search_placeholder')"
       storage-key="rbac-roles-table"
-      :empty-message="management.loading ? t('common.loading') : t('common.no_data')"
-      :server-pagination="{ page: management.page, pageCount: management.pageCount }"
-      @page-change="management.page = $event"
-    />
-    <DataTable
-      v-else
-      v-model:search="management.search"
-      search-mode="remote"
-      :columns="permissionColumns"
-      :data="management.permissions"
-      :search-keys="['name', 'code', 'groupName', 'description']"
-      :search-placeholder="t('common.search_placeholder')"
-      storage-key="rbac-permissions-table"
-      filters-layout="inline"
-      :compact-filter-count="management.permissionGroupFilter === '__all__' ? 0 : 1"
       :empty-message="management.loading ? t('common.loading') : t('common.no_data')"
       :server-pagination="{ page: management.page, pageCount: management.pageCount }"
       @page-change="management.page = $event"
     >
       <template #filters>
-        <div class="flex items-center gap-2">
-          <Label for="permission-group-filter">{{ t('rbac.permissions.group') }}</Label>
+        <DataTableTextFilter
+          id="rbac-role-code-filter"
+          v-model="management.roleCodeFilter"
+          :label="t('rbac.roles.code')"
+          :placeholder="t('rbac.roles.filter_code')"
+        />
+        <DataTableTextFilter
+          id="rbac-role-name-filter"
+          v-model="management.roleNameFilter"
+          :label="t('rbac.roles.name')"
+          :placeholder="t('rbac.roles.filter_name')"
+        />
+        <DataTableTextFilter
+          id="rbac-role-description-filter"
+          v-model="management.roleDescriptionFilter"
+          :label="t('rbac.roles.description')"
+          :placeholder="t('rbac.roles.filter_description')"
+        />
+      </template>
+    </DataTable>
+    <DataTable
+      v-else
+      @reset="resetFilters"
+      @search="management.applyFilters"
+      :columns="permissionColumns"
+      :data="management.permissions"
+      storage-key="rbac-permissions-table"
+      :empty-message="management.loading ? t('common.loading') : t('common.no_data')"
+      :server-pagination="{ page: management.page, pageCount: management.pageCount }"
+      @page-change="management.page = $event"
+    >
+      <template #filters>
+        <DataTableTextFilter
+          id="permission-code-filter"
+          v-model="management.permissionCodeFilter"
+          :label="t('rbac.permissions.code')"
+          :placeholder="t('rbac.permissions.filter_code')"
+        />
+        <DataTableTextFilter
+          id="permission-name-filter"
+          v-model="management.permissionNameFilter"
+          :label="t('rbac.permissions.name')"
+          :placeholder="t('rbac.permissions.filter_name')"
+        />
+        <DataTableTextFilter
+          id="permission-description-filter"
+          v-model="management.permissionDescriptionFilter"
+          :label="t('rbac.permissions.description')"
+          :placeholder="t('rbac.permissions.filter_description')"
+        />
+        <div class="grid min-w-0 gap-1.5 text-sm font-normal">
+          <Label for="permission-group-filter" class="font-normal whitespace-nowrap">
+            {{ t('rbac.permissions.group') }}
+          </Label>
           <Select v-model="management.permissionGroupFilter">
-            <SelectTrigger id="permission-group-filter" class="w-44">
+            <SelectTrigger id="permission-group-filter" class="w-full">
               <SelectValue :placeholder="t('rbac.permissions.group')" />
             </SelectTrigger>
             <SelectContent>
@@ -170,21 +207,6 @@ const { userColumns, roleColumns, permissionColumns } = useAccessControlColumns(
             </SelectContent>
           </Select>
         </div>
-      </template>
-      <template #compact-filters>
-        <DropdownMenuLabel>{{ t('rbac.permissions.group') }}</DropdownMenuLabel>
-        <DropdownMenuRadioGroup v-model="management.permissionGroupFilter">
-          <DropdownMenuRadioItem value="__all__">
-            {{ t('rbac.permissions.all_groups') }}
-          </DropdownMenuRadioItem>
-          <DropdownMenuRadioItem
-            v-for="group in management.permissionGroups"
-            :key="group"
-            :value="group"
-          >
-            {{ group }}
-          </DropdownMenuRadioItem>
-        </DropdownMenuRadioGroup>
       </template>
     </DataTable>
 

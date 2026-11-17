@@ -43,7 +43,14 @@ export function useAccessControlManagement(mode: Ref<AccessControlMode>) {
   const permissionGroupFilter = ref('__all__')
   const roleFilter = ref<string[]>([])
   const channelFilter = ref<string[]>([])
-  const search = ref('')
+  const userNameFilter = ref('')
+  const userEmailFilter = ref('')
+  const roleCodeFilter = ref('')
+  const roleNameFilter = ref('')
+  const roleDescriptionFilter = ref('')
+  const permissionCodeFilter = ref('')
+  const permissionNameFilter = ref('')
+  const permissionDescriptionFilter = ref('')
   const loading = ref(false)
   const page = ref(1)
   const pageCount = ref(1)
@@ -83,7 +90,9 @@ export function useAccessControlManagement(mode: Ref<AccessControlMode>) {
     try {
       if (mode.value === 'users') {
         const [userPage, catalog] = await Promise.all([
-          listSystemUsers(auth.token, nextPage, search.value, {
+          listSystemUsers(auth.token, nextPage, {
+            fullName: userNameFilter.value,
+            email: userEmailFilter.value,
             roleIds: roleFilter.value,
             channels: channelFilter.value,
           }),
@@ -95,7 +104,11 @@ export function useAccessControlManagement(mode: Ref<AccessControlMode>) {
         pageCount.value = userPage.meta.lastPage
       } else if (mode.value === 'roles') {
         const [rolePage, catalog] = await Promise.all([
-          listSystemRoles(auth.token, nextPage, search.value),
+          listSystemRoles(auth.token, nextPage, {
+            code: roleCodeFilter.value,
+            name: roleNameFilter.value,
+            description: roleDescriptionFilter.value,
+          }),
           listSystemPermissionCatalog(auth.token),
         ])
         roles.value = rolePage.items
@@ -104,12 +117,12 @@ export function useAccessControlManagement(mode: Ref<AccessControlMode>) {
         pageCount.value = rolePage.meta.lastPage
       } else {
         const [permissionPage, catalog] = await Promise.all([
-          listSystemPermissions(
-            auth.token,
-            nextPage,
-            search.value,
-            permissionGroupFilter.value === '__all__' ? '' : permissionGroupFilter.value
-          ),
+          listSystemPermissions(auth.token, nextPage, {
+            code: permissionCodeFilter.value,
+            name: permissionNameFilter.value,
+            description: permissionDescriptionFilter.value,
+            groupName: permissionGroupFilter.value === '__all__' ? '' : permissionGroupFilter.value,
+          }),
           listSystemPermissionCatalog(auth.token),
         ])
         permissions.value = permissionPage.items
@@ -164,7 +177,7 @@ export function useAccessControlManagement(mode: Ref<AccessControlMode>) {
   async function saveRole(payload: ManagedRolePayload) {
     saving.value = true
     try {
-      const normalized = { ...payload, description: payload.description || null }
+      const normalized = { ...payload, description: payload.description.trim() }
       if (selectedRole.value) await updateSystemRole(auth.token, selectedRole.value.id, normalized)
       else await createSystemRole(auth.token, normalized)
       await load()
@@ -261,13 +274,6 @@ export function useAccessControlManagement(mode: Ref<AccessControlMode>) {
     { immediate: true }
   )
   watch(page, (nextPage) => void load(nextPage))
-  watch(search, resetPageAndLoad)
-  watch(permissionGroupFilter, () => {
-    if (mode.value === 'permissions') resetPageAndLoad()
-  })
-  watch([roleFilter, channelFilter], () => {
-    if (mode.value === 'users') resetPageAndLoad()
-  })
 
   return {
     users,
@@ -279,9 +285,17 @@ export function useAccessControlManagement(mode: Ref<AccessControlMode>) {
     permissionGroups,
     roleFilter,
     channelFilter,
+    userNameFilter,
+    userEmailFilter,
+    roleCodeFilter,
+    roleNameFilter,
+    roleDescriptionFilter,
+    permissionCodeFilter,
+    permissionNameFilter,
+    permissionDescriptionFilter,
     roleFilterOptions,
     channelFilterOptions,
-    search,
+    applyFilters: resetPageAndLoad,
     loading,
     page,
     pageCount,

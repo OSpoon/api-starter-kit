@@ -44,10 +44,20 @@ function authOptions(token: string | null) {
   return { token }
 }
 
-export async function listKnowledgeDocuments(token: string | null, page = 1, search = '') {
+export type KnowledgeDocumentListFilters = { title?: string; summary?: string; content?: string }
+
+export async function listKnowledgeDocuments(
+  token: string | null,
+  page = 1,
+  filters: KnowledgeDocumentListFilters = {}
+) {
+  const extra: Record<string, string> = {}
+  if (filters.title?.trim()) extra.title = filters.title.trim()
+  if (filters.summary?.trim()) extra.summary = filters.summary.trim()
+  if (filters.content?.trim()) extra.content = filters.content.trim()
   return readItem(
     await apiRequest<KnowledgeDocumentPage>(
-      `/api/v1/system/knowledge-documents?${buildListQuery(page, search)}`,
+      `/api/v1/system/knowledge-documents?${buildListQuery(page, extra)}`,
       authOptions(token)
     )
   )

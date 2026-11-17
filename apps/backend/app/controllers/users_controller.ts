@@ -1,5 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http'
-import { ApiResponse } from '@foadonis/openapi/decorators'
+import { ApiQuery, ApiResponse } from '@foadonis/openapi/decorators'
 
 import User from '#models/user'
 import { generateInitialPassword } from '#security/user_credentials'
@@ -44,21 +44,22 @@ function serializeUserListItem(user: User) {
 }
 
 export default class UsersController {
+  @ApiQuery({ name: 'fullName', required: false, schema: { type: 'string', maxLength: 120 } })
+  @ApiQuery({ name: 'email', required: false, schema: { type: 'string', maxLength: 254 } })
+  @ApiQuery({ name: 'roleIds', required: false, schema: { type: 'string' } })
+  @ApiQuery({ name: 'channels', required: false, schema: { type: 'string' } })
+  @ApiResponse({ status: 422, description: '查询参数无效' })
   async index({ request, serialize }: HttpContext) {
     const filters = await request.validateUsing(listManagedUsersValidator, {
       data: request.qs(),
     })
     const page = Math.max(Number(filters.page ?? 1) || 1, 1)
-    const search = filters.search?.trim() ?? ''
     const query = User.query()
       .orderBy('id')
       .preload('roles', (roles) => roles.preload('permissions'))
       .whereNotIn('email', [CHANNEL_GUEST_USER_EMAIL, AI_INTEGRATION_USER_EMAIL])
-    if (search) {
-      query.where((builder) => {
-        builder.whereILike('full_name', `%${search}%`).orWhereILike('email', `%${search}%`)
-      })
-    }
+    if (filters.fullName) query.whereILike('full_name', `%${filters.fullName}%`)
+    if (filters.email) query.whereILike('email', `%${filters.email}%`)
 
     const roleIds = (filters.roleIds?.split(',') ?? [])
       .map((id) => Number(id))

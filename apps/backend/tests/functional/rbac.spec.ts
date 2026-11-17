@@ -255,6 +255,23 @@ test.group('rbac', (group) => {
     const permission = await Permission.findByOrFail('code', 'dashboard:view')
     await role.related('permissions').sync([permission.id])
 
+    const missingDescriptionCode = `missing-role-description-${Date.now()}`
+    const missingDescriptionCreate = await client
+      .post('/api/v1/system/roles')
+      .bearerToken(bearerToken)
+      .json({ code: missingDescriptionCode, name: 'Missing description' })
+    missingDescriptionCreate.assertStatus(422)
+    assert.isNull(await Role.findBy('code', missingDescriptionCode))
+
+    const missingDescriptionUpdate = await client
+      .put(`/api/v1/system/roles/${role.id}`)
+      .bearerToken(bearerToken)
+      .json({ name: 'Changed role', permissionIds: [permission.id] })
+    missingDescriptionUpdate.assertStatus(422)
+    const unchangedAfterMissingDescription = await Role.findOrFail(role.id)
+    assert.equal(unchangedAfterMissingDescription.name, 'Original role')
+    assert.isNull(unchangedAfterMissingDescription.description)
+
     const response = await client
       .put(`/api/v1/system/roles/${role.id}`)
       .bearerToken(bearerToken)
@@ -283,14 +300,23 @@ test.group('rbac', (group) => {
     const unregisteredResponse = await client
       .put(`/api/v1/system/roles/${role.id}`)
       .bearerToken(bearerToken)
-      .json({ name: 'Changed role', permissionIds: [unregisteredPermission.id] })
+      .json({
+        name: 'Changed role',
+        description: 'Changed description',
+        permissionIds: [unregisteredPermission.id],
+      })
     unregisteredResponse.assertStatus(409)
 
     const code = `invalid-permission-${Date.now()}`
     const createResponse = await client
       .post('/api/v1/system/roles')
       .bearerToken(bearerToken)
-      .json({ code, name: 'Invalid permission role', permissionIds: [999_999_999] })
+      .json({
+        code,
+        name: 'Invalid permission role',
+        description: 'Invalid permission role description',
+        permissionIds: [999_999_999],
+      })
 
     createResponse.assertStatus(409)
     assert.isNull(await Role.findBy('code', code))
@@ -299,7 +325,12 @@ test.group('rbac', (group) => {
     const validCreateResponse = await client
       .post('/api/v1/system/roles')
       .bearerToken(bearerToken)
-      .json({ code: validCode, name: 'Managed role', permissionIds: [permission.id] })
+      .json({
+        code: validCode,
+        name: 'Managed role',
+        description: 'Managed role description',
+        permissionIds: [permission.id],
+      })
 
     validCreateResponse.assertStatus(200)
     const createdRole = await Role.query()
@@ -348,6 +379,7 @@ test.group('rbac', (group) => {
       .json({
         code: `forbidden-grant-${Date.now()}`,
         name: 'Forbidden grant',
+        description: 'A forbidden grant role',
         permissionIds: [apiKeyCreate.id],
       })
     forbiddenCreate.assertStatus(403)
@@ -357,6 +389,7 @@ test.group('rbac', (group) => {
       .bearerToken(bearerToken)
       .json({
         name: managerRole.name,
+        description: 'Manager role description',
         permissionIds: [...managerPermissions.map(({ id }) => id), apiKeyCreate.id],
       })
     forbiddenUpdate.assertStatus(403)
@@ -387,6 +420,7 @@ test.group('rbac', (group) => {
       .json({
         code: `permitted-${Date.now()}`,
         name: 'Permitted role',
+        description: 'A permitted role description',
         permissionIds: [managerPermissions.find(({ code }) => code === 'users:create')!.id],
       })
     permittedRole.assertStatus(200)
@@ -573,32 +607,66 @@ test.group('rbac', (group) => {
       .bearerToken(adminBearerToken)
     allowedResponse.assertStatus(200)
 
-    const searchId = String(Date.now())
-    const searchIp = 'audit-ip-only-192.0.2.9'
-    const searchableLog = await AuditLog.create({
+    const filterId = String(Date.now())
+    const filterAction = `audit.filter.${filterId}`
+    const matchingLog = await AuditLog.create({
       actorUserId: admin.id,
-      action: 'search.test',
-      targetType: 'search_target',
-      targetId: searchId,
+      action: filterAction,
+      targetType: 'filter_target',
+      targetId: filterId,
       metadata: null,
-      ipAddress: searchIp,
+      ipAddress: null,
       userAgent: null,
       requestId: null,
     })
-    const searchResponse = await client
-      .get(`/api/v1/system/audit-logs?search=${encodeURIComponent(searchIp)}&page=1&limit=1`)
-      .bearerToken(adminToken.value!.release())
-    searchResponse.assertStatus(200)
-    const searchItems = (
-      searchResponse.body() as {
-        data: { items: Array<{ id: number; ipAddress: string | null }>; meta: { total: number } }
+    await AuditLog.create({
+      actorUserId: admin.id,
+      action: filterAction,
+      targetType: 'unrelated_target',
+      targetId: filterId,
+      metadata: null,
+      ipAddress: null,
+      userAgent: null,
+      requestId: null,
+    })
+    await AuditLog.create({
+      actorUserId: reader.id,
+      action: filterAction,
+      targetType: 'filter_target',
+      targetId: filterId,
+      metadata: null,
+      ipAddress: null,
+      userAgent: null,
+      requestId: null,
+    })
+    const fieldFilters = new URLSearchParams({
+      page: '1',
+      limit: '20',
+      action: filterAction,
+      targetType: 'filter_target',
+      targetId: filterId,
+      actorName: 'Audit admin',
+      actorEmail: admin.email,
+    })
+    const fieldFilterResponse = await client
+      .get(`/api/v1/system/audit-logs?${fieldFilters}`)
+      .bearerToken(adminBearerToken)
+    fieldFilterResponse.assertStatus(200)
+    const fieldFilterItems = (
+      fieldFilterResponse.body() as {
+        data: { items: Array<{ id: number }>; meta: { total: number } }
       }
     ).data
     assert.deepEqual(
-      searchItems.items.map((item) => ({ id: item.id, ipAddress: item.ipAddress })),
-      [{ id: searchableLog.id, ipAddress: searchIp }]
+      fieldFilterItems.items.map((item) => item.id),
+      [matchingLog.id]
     )
-    assert.equal(searchItems.meta.total, 1)
+    assert.equal(fieldFilterItems.meta.total, 1)
+
+    const invalidFilterResponse = await client
+      .get(`/api/v1/system/audit-logs?action=${'a'.repeat(121)}`)
+      .bearerToken(adminBearerToken)
+    invalidFilterResponse.assertStatus(422)
   })
 
   test('refuses to delete a role that still owns permission grants', async ({ client, assert }) => {
@@ -622,10 +690,7 @@ test.group('rbac', (group) => {
     assert.isNotNull(await Role.find(role.id))
   })
 
-  test('searches and filters paginated management lists on the server', async ({
-    client,
-    assert,
-  }) => {
+  test('filters paginated management lists with named fields', async ({ client, assert }) => {
     const superAdminRole = await Role.findByOrFail('code', 'super-admin')
     const admin = await User.create({
       fullName: 'Search admin',
@@ -635,22 +700,41 @@ test.group('rbac', (group) => {
     await admin.related('roles').sync([superAdminRole.id])
     const token = await User.accessTokens.create(admin)
     const bearerToken = token.value!.release()
-    const searchId = String(Date.now())
+    const filterId = String(Date.now())
     const user = await User.create({
-      fullName: 'Search target',
-      email: `search-target-${searchId}@example.com`,
+      fullName: `Filter target ${filterId}`,
+      email: `filter-target-${filterId}@example.com`,
       password: generateInitialPassword(),
     })
-    const role = await Role.create({ code: `search-role-${searchId}`, name: 'Search role' })
+    const userDecoy = await User.create({
+      fullName: user.fullName,
+      email: `filter-decoy-${filterId}@example.com`,
+      password: generateInitialPassword(),
+    })
+    const role = await Role.create({
+      code: `filter-role-${filterId}`,
+      name: 'Filter role',
+      description: `Filter description ${filterId}`,
+    })
+    await Role.create({
+      code: `filter-decoy-${filterId}`,
+      name: 'Filter role',
+      description: 'Different description',
+    })
     const permission = await Permission.findByOrFail('code', 'dashboard:view')
     await role.related('permissions').sync([permission.id])
 
+    const userFilters = new URLSearchParams({
+      fullName: `Filter target ${filterId}`,
+      email: `filter-target-${filterId}`,
+    })
     const userResponse = await client
-      .get(`/api/v1/system/users?search=${encodeURIComponent(searchId)}`)
+      .get(`/api/v1/system/users?${userFilters}`)
       .bearerToken(bearerToken)
     userResponse.assertStatus(200)
     const userItems = (userResponse.body() as { data: { items: Array<{ id: number }> } }).data.items
     assert.isTrue(userItems.some((item) => item.id === user.id))
+    assert.isFalse(userItems.some((item) => item.id === userDecoy.id))
 
     await user.related('roles').sync([role.id])
     const roleFilteredResponse = await client
@@ -672,15 +756,25 @@ test.group('rbac', (group) => {
     ).data.items
     assert.isTrue(unboundChannelItems.some((item) => item.id === user.id))
 
+    const roleFilters = new URLSearchParams({
+      code: role.code,
+      name: role.name,
+      description: role.description!,
+    })
     const roleResponse = await client
-      .get(`/api/v1/system/roles?search=${encodeURIComponent(searchId)}`)
+      .get(`/api/v1/system/roles?${roleFilters}`)
       .bearerToken(bearerToken)
     roleResponse.assertStatus(200)
     const roleItems = (roleResponse.body() as { data: { items: Array<{ id: number }> } }).data.items
     assert.isTrue(roleItems.some((item) => item.id === role.id))
 
+    const permissionFilters = new URLSearchParams({
+      code: permission.code,
+      name: permission.name,
+      groupName: permission.groupName,
+    })
     const permissionResponse = await client
-      .get(`/api/v1/system/permissions?search=${encodeURIComponent(permission.code)}`)
+      .get(`/api/v1/system/permissions?${permissionFilters}`)
       .bearerToken(bearerToken)
     permissionResponse.assertStatus(200)
     const permissionItems = (
@@ -698,7 +792,7 @@ test.group('rbac', (group) => {
     assert.isTrue(permissionItem?.roles.some((item) => item.id === role.id))
 
     const unregisteredPermissionResponse = await client
-      .get(`/api/v1/system/permissions?search=${encodeURIComponent(searchId)}`)
+      .get(`/api/v1/system/permissions?code=${encodeURIComponent(`unregistered:${filterId}`)}`)
       .bearerToken(bearerToken)
     unregisteredPermissionResponse.assertStatus(200)
     assert.isEmpty(

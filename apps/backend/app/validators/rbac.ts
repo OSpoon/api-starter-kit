@@ -21,11 +21,23 @@ const queryLimit = vine
   .regex(/^[1-9]\d*$/)
   .optional()
 
-export const listAccessControlValidator = vine.compile(
+export const listRolesValidator = vine.compile(
   vine.object({
     page: queryPage,
     limit: queryLimit,
-    search: vine.string().trim().maxLength(200).optional(),
+    code: vine.string().trim().maxLength(100).optional(),
+    name: vine.string().trim().maxLength(120).optional(),
+    description: vine.string().trim().maxLength(1000).optional(),
+  })
+)
+
+export const listPermissionsValidator = vine.compile(
+  vine.object({
+    page: queryPage,
+    limit: queryLimit,
+    code: vine.string().trim().maxLength(100).optional(),
+    name: vine.string().trim().maxLength(120).optional(),
+    description: vine.string().trim().maxLength(1000).optional(),
     groupName: vine.string().trim().maxLength(120).optional(),
   })
 )
@@ -34,7 +46,8 @@ export const listManagedUsersValidator = vine.compile(
   vine.object({
     page: queryPage,
     limit: queryLimit,
-    search: vine.string().trim().maxLength(200).optional(),
+    fullName: vine.string().trim().maxLength(120).optional(),
+    email: vine.string().trim().maxLength(254).optional(),
     roleIds: vine
       .string()
       .trim()
@@ -54,7 +67,7 @@ export const createRoleValidator = vine.compile(
   vine.object({
     code: roleCode(),
     name: vine.string().trim().minLength(1).maxLength(120),
-    description: vine.string().trim().maxLength(1000).optional().nullable(),
+    description: vine.string().trim().minLength(1).maxLength(1000),
     permissionIds: vine.array(vine.number().positive()).optional(),
   })
 )
@@ -62,7 +75,7 @@ export const createRoleValidator = vine.compile(
 export const updateRoleValidator = vine.compile(
   vine.object({
     name: vine.string().trim().minLength(1).maxLength(120),
-    description: vine.string().trim().maxLength(1000).optional().nullable(),
+    description: vine.string().trim().minLength(1).maxLength(1000),
     permissionIds: vine.array(vine.number().positive()).optional(),
   })
 )

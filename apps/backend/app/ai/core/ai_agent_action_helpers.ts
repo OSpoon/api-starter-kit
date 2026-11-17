@@ -43,13 +43,6 @@ export function string(input: Record<string, unknown>, name: string, maxLength: 
   return value.trim()
 }
 
-export function optionalDescription(input: Record<string, unknown>) {
-  const value = input.description
-  if (value === undefined || value === null) return null
-  if (typeof value !== 'string' || value.trim().length > 1000) throw new Error('description 无效')
-  return value.trim() || null
-}
-
 export function summaryValue(payload: Record<string, unknown>, key: string) {
   const value = payload[key]
   if (Array.isArray(value)) return value.join(', ')

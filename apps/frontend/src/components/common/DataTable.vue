@@ -1,5 +1,5 @@
 <script setup lang="ts" generic="TData, TValue">
-import { Check, Funnel, Minus, SlidersHorizontal, X } from '@lucide/vue'
+import { Check, Minus, Plus, RotateCcw, Search, SlidersHorizontal, X } from '@lucide/vue'
 import type {
   Column,
   ColumnDef,
@@ -20,6 +20,7 @@ import {
 } from '@tanstack/vue-table'
 import type { Ref } from 'vue'
 
+import { listPageHeaderKey } from '@/components/common/list-page-context'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -29,8 +30,6 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import {
   Pagination,
   PaginationContent,
@@ -60,43 +59,49 @@ const props = withDefaults(
   defineProps<{
     columns: ColumnDef<TData, TValue>[]
     data: TData[]
-    searchKeys?: string[]
-    searchPlaceholder?: string
-    showSearch?: boolean
     showView?: boolean
-    getSearchableText?: (row: TData) => string
+    viewPlacement?: 'toolbar' | 'after-filters'
+    showListPageTitle?: boolean
     emptyMessage?: string
     storageKey?: string
-    searchId?: string
     serverPagination?: ServerPagination
-    searchMode?: 'local' | 'remote'
-    filtersLayout?: 'wrap' | 'inline'
-    compactFilterCount?: number
+    filtersLayout?: 'wrap' | 'inline' | 'stacked'
     selectable?: boolean
     getRowId?: (row: TData) => string
     isRowSelectable?: (row: TData) => boolean
     selectionDisabled?: boolean
   }>(),
   {
-    showSearch: true,
     showView: true,
-    filtersLayout: 'inline',
-    compactFilterCount: 0,
+    viewPlacement: 'after-filters',
+    showListPageTitle: true,
+    filtersLayout: 'stacked',
     selectable: false,
     selectionDisabled: false,
   }
 )
 
-const search = defineModel<string>('search', { default: '' })
-
 const emit = defineEmits<{
   pageChange: [page: number]
+  search: []
+  reset: []
   selectionChange: [rows: TData[]]
 }>()
 
 const { t } = useI18n()
 const slots = useSlots()
-const useCompactInlineToolbar = computed(() => Boolean(slots['compact-filters']))
+const listPageHeader = inject(listPageHeaderKey, undefined)
+const listPageTitle = computed(() =>
+  props.showListPageTitle ? (listPageHeader?.title.value ?? '') : ''
+)
+const useListPageQueryLayout = computed(() => Boolean(listPageHeader && props.showListPageTitle))
+const displayFilterActions = computed(() => Boolean(listPageHeader && props.showListPageTitle))
+const showListPageActions = computed(
+  () => props.showListPageTitle && Boolean(listPageHeader?.showAction.value)
+)
+const hasToolbarHeading = computed(
+  () => Boolean(slots['toolbar-leading']) || Boolean(listPageTitle.value)
+)
 
 const sorting = ref<SortingState>([])
 const columnFilters = ref<ColumnFiltersState>([])
@@ -106,14 +111,14 @@ const columnVisibility = persistedPreferences?.columnVisibility ?? ref<Visibilit
 const pagination =
   persistedPreferences?.pagination ?? ref<PaginationState>({ pageIndex: 0, pageSize: 10 })
 
-const hasSearch = computed(
-  () => props.showSearch && Boolean(props.searchKeys?.length || props.getSearchableText)
-)
+function hasFullFilterRow() {
+  const filterCount = slots.filters?.().length ?? 0
+  return filterCount > 0 && filterCount % 4 === 0
+}
+
 const showView = computed(() => props.showView)
 const pageCount = computed(() => props.serverPagination?.pageCount ?? table.getPageCount())
 const currentPage = computed(() => props.serverPagination?.page ?? pagination.value.pageIndex + 1)
-
-const resolvedSearchKeys = computed(() => props.searchKeys ?? [])
 
 const table = useVueTable({
   get data() {
@@ -130,38 +135,11 @@ const table = useVueTable({
   getFilteredRowModel: getFilteredRowModel(),
   autoResetPageIndex: false,
   manualPagination: Boolean(props.serverPagination),
-  manualFiltering: props.searchMode === 'remote',
-  globalFilterFn: (row, _columnId, filterValue) => {
-    const keyword = String(filterValue ?? '')
-      .trim()
-      .toLowerCase()
-    if (!keyword) {
-      return true
-    }
-
-    if (props.getSearchableText) {
-      return props.getSearchableText(row.original).toLowerCase().includes(keyword)
-    }
-
-    return resolvedSearchKeys.value.some((key) => {
-      const value = (row.original as Record<string, unknown>)[key]
-      return String(value ?? '')
-        .toLowerCase()
-        .includes(keyword)
-    })
-  },
   onSortingChange: (updaterOrValue) => valueUpdater(updaterOrValue, sorting),
   onColumnFiltersChange: (updaterOrValue) => valueUpdater(updaterOrValue, columnFilters),
   onColumnVisibilityChange: (updaterOrValue) => valueUpdater(updaterOrValue, columnVisibility),
   onRowSelectionChange: (updaterOrValue) => valueUpdater(updaterOrValue, rowSelection),
   onPaginationChange: (updaterOrValue) => valueUpdater(updaterOrValue, pagination),
-  onGlobalFilterChange: (updaterOrValue) => {
-    const next =
-      typeof updaterOrValue === 'function'
-        ? updaterOrValue(search.value)
-        : String(updaterOrValue ?? '')
-    search.value = next
-  },
   state: {
     get sorting() {
       return sorting.value
@@ -174,9 +152,6 @@ const table = useVueTable({
     },
     get rowSelection() {
       return rowSelection.value
-    },
-    get globalFilter() {
-      return search.value
     },
     get pagination() {
       return pagination.value
@@ -288,7 +263,6 @@ watch(
     () => pageSelectableRows.value.map((row) => row.id).join('\0'),
     currentPage,
     () => pagination.value.pageSize,
-    search,
     sorting,
     columnFilters,
   ],
@@ -297,10 +271,6 @@ watch(
 )
 
 defineExpose({ clearSelection })
-
-watch(search, () => {
-  pagination.value = { ...pagination.value, pageIndex: 0 }
-})
 
 watchEffect(() => {
   const pageCount = table.getPageCount()
@@ -316,21 +286,6 @@ function valueUpdater<T extends Updater<unknown>>(updaterOrValue: T, target: Ref
       : updaterOrValue
 }
 
-function searchPlaceholderText() {
-  if (props.searchPlaceholder) {
-    return props.searchPlaceholder
-  }
-
-  const keys = resolvedSearchKeys.value
-  if (keys.length === 1) {
-    return t('common.filter_placeholder', {
-      key: keys[0]!.charAt(0).toUpperCase() + keys[0]!.slice(1),
-    })
-  }
-
-  return t('common.search_placeholder')
-}
-
 function columnLabel(column: Column<TData, unknown>) {
   const meta = column.columnDef.meta as { label?: string } | undefined
   return meta?.label ?? column.id
@@ -344,95 +299,127 @@ function handlePageChange(page: number) {
   }
   table.setPageIndex(page - 1)
 }
+
+function applyFilters() {
+  emit('search')
+}
+
+function resetFilters() {
+  emit('reset')
+}
 </script>
 
 <template>
   <div ref="dataTable" class="data-table flex min-h-0 min-w-0 flex-1 flex-col gap-4">
-    <div
+    <component
+      :is="useListPageQueryLayout ? 'fieldset' : 'div'"
       :class="
-        useCompactInlineToolbar
-          ? 'flex min-w-0 shrink-0 flex-nowrap items-center gap-3'
-          : 'flex shrink-0 flex-col gap-3 md:flex-row md:items-center md:justify-between'
+        useListPageQueryLayout
+          ? 'min-w-0 shrink-0 rounded-md border bg-muted/20 px-3 pb-3'
+          : filtersLayout === 'stacked' && viewPlacement === 'after-filters'
+            ? 'flex min-w-0 shrink-0 flex-col gap-3'
+            : filtersLayout === 'stacked'
+              ? 'grid min-w-0 shrink-0 grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-3'
+              : 'flex shrink-0 flex-col gap-3 md:flex-row md:items-center md:justify-between'
       "
     >
-      <div
-        :class="
-          useCompactInlineToolbar
-            ? 'flex min-w-0 flex-1 flex-nowrap items-center gap-3'
-            : filtersLayout === 'inline'
-              ? 'flex min-w-0 flex-1 flex-nowrap items-center gap-3 overflow-x-auto'
-              : 'flex flex-wrap items-center gap-3'
-        "
-      >
-        <div
-          v-if="hasSearch"
-          :class="
-            useCompactInlineToolbar
-              ? 'flex min-w-0 flex-1 items-center gap-3'
-              : 'flex shrink-0 items-center gap-3'
-          "
-        >
-          <Label :for="searchId ?? 'data-table-search'" class="shrink-0 whitespace-nowrap">
-            {{ t('common.search') }}
-          </Label>
-          <Input
-            :id="searchId ?? 'data-table-search'"
-            :class="
-              useCompactInlineToolbar
-                ? 'min-w-0 flex-1'
-                : filtersLayout === 'inline'
-                  ? 'shrink-0'
-                  : 'max-w-sm min-w-55'
-            "
-            :style="
-              useCompactInlineToolbar
-                ? { width: '14rem', maxWidth: '14rem' }
-                : filtersLayout === 'inline'
-                  ? { width: '14rem' }
-                  : undefined
-            "
-            :placeholder="searchPlaceholderText()"
-            :model-value="search"
-            @update:model-value="table.setGlobalFilter($event)"
-          />
+      <legend v-if="useListPageQueryLayout" class="px-2 text-lg font-semibold tracking-tight">
+        {{ listPageTitle }}
+      </legend>
+      <div :class="useListPageQueryLayout ? 'flex flex-col gap-3 pt-4' : 'contents'">
+        <div v-if="slots.operations" class="min-w-0">
+          <slot name="operations" />
         </div>
-        <template v-if="useCompactInlineToolbar">
-          <div class="hidden shrink-0 items-center gap-3 xl:flex">
-            <slot name="filters" />
+        <component
+          :is="displayFilterActions ? 'form' : 'div'"
+          v-if="slots.filters || displayFilterActions"
+          :class="
+            useListPageQueryLayout
+              ? 'grid w-full min-w-0 grid-cols-1 items-end gap-3 sm:grid-cols-2 xl:grid-cols-4'
+              : filtersLayout === 'inline'
+                ? 'flex min-w-0 flex-1 flex-nowrap items-center gap-3 overflow-x-auto'
+                : filtersLayout === 'stacked' && viewPlacement === 'after-filters'
+                  ? 'grid w-full min-w-0 grid-cols-1 items-end gap-3 rounded-md border bg-muted/20 p-3 sm:grid-cols-2 xl:grid-cols-4'
+                  : filtersLayout === 'stacked'
+                    ? 'contents'
+                    : 'flex flex-wrap items-center gap-3'
+          "
+          @submit.prevent="applyFilters"
+        >
+          <template v-if="slots.filters">
+            <div
+              v-if="filtersLayout === 'stacked'"
+              :class="
+                viewPlacement === 'after-filters'
+                  ? 'contents'
+                  : 'col-span-2 row-start-2 min-w-0 rounded-md border bg-muted/20 p-3'
+              "
+            >
+              <slot name="filters" />
+            </div>
+            <slot v-else name="filters" />
+          </template>
+          <div
+            v-if="displayFilterActions"
+            :class="
+              filtersLayout === 'stacked' && viewPlacement === 'after-filters'
+                ? hasFullFilterRow()
+                  ? 'col-span-full flex justify-end gap-2'
+                  : 'flex justify-end gap-2 sm:col-start-2 xl:col-start-4'
+                : 'flex w-full justify-end gap-2'
+            "
+          >
+            <Button type="button" variant="outline" @click="resetFilters">
+              <RotateCcw class="size-4" />
+              {{ t('common.reset') }}
+            </Button>
+            <Button type="submit" :disabled="listPageHeader?.loading.value">
+              <Search class="size-4" />
+              {{ t('common.search') }}
+            </Button>
           </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger as-child>
-              <Button variant="outline" class="shrink-0 xl:hidden">
-                <Funnel class="mr-2 size-4" />
-                {{ t('common.filters') }}
-                <span
-                  v-if="compactFilterCount > 0"
-                  class="ml-1 rounded-sm bg-muted px-1.5 py-0.5 text-xs tabular-nums"
-                >
-                  {{ compactFilterCount }}
-                </span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
-              <slot name="compact-filters" />
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </template>
-        <slot v-else name="filters" />
+        </component>
+      </div>
+    </component>
+    <div
+      v-if="
+        showView || (viewPlacement === 'after-filters' && hasToolbarHeading) || showListPageActions
+      "
+      :class="
+        useListPageQueryLayout
+          ? 'flex w-full min-w-0 items-center justify-between gap-3'
+          : filtersLayout === 'stacked' && viewPlacement === 'after-filters'
+            ? hasToolbarHeading
+              ? 'flex min-w-0 shrink-0 flex-wrap items-center justify-between gap-3'
+              : 'flex min-w-0 shrink-0 justify-end'
+            : filtersLayout === 'stacked'
+              ? 'col-start-2 row-start-1 ml-auto shrink-0'
+              : 'ml-auto'
+      "
+    >
+      <div class="flex min-w-0 flex-wrap items-center gap-3">
+        <slot v-if="slots['toolbar-leading']" name="toolbar-leading" />
+        <Button
+          v-if="showListPageActions && listPageHeader?.showAction.value"
+          type="button"
+          size="sm"
+          @click="listPageHeader.onAction()"
+        >
+          <Plus class="size-4" />
+          {{ listPageHeader.actionLabel.value }}
+        </Button>
+        <h1
+          v-if="!useListPageQueryLayout && listPageTitle"
+          class="text-lg font-semibold tracking-tight"
+        >
+          {{ listPageTitle }}
+        </h1>
       </div>
       <DropdownMenu v-if="showView">
         <DropdownMenuTrigger as-child>
-          <Button
-            variant="outline"
-            :class="useCompactInlineToolbar ? 'ml-auto shrink-0' : 'ml-auto'"
-            :aria-label="useCompactInlineToolbar ? t('common.view') : undefined"
-          >
-            <SlidersHorizontal
-              :class="useCompactInlineToolbar ? 'mr-0 size-4 sm:mr-2' : 'mr-2 size-4'"
-            />
-            <span :class="useCompactInlineToolbar ? 'hidden sm:inline' : undefined">
-              {{ t('common.view') }}
-            </span>
+          <Button variant="outline" class="shrink-0">
+            <SlidersHorizontal class="size-4" />
+            {{ t('common.view') }}
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">

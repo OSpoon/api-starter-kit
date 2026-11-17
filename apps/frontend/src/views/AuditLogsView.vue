@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { Eye, RefreshCw } from '@lucide/vue'
+import { Eye } from '@lucide/vue'
 import type { ColumnDef } from '@tanstack/vue-table'
 import { toast } from 'vue-sonner'
 
 import DataTable from '@/components/common/DataTable.vue'
 import DataTableFacetFilter from '@/components/common/DataTableFacetFilter.vue'
+import DataTableTextFilter from '@/components/common/DataTableTextFilter.vue'
 import ListPage from '@/components/common/ListPage.vue'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -15,7 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { useRemoteListSearch } from '@/composables/useRemoteListSearch'
+import { useRemoteList } from '@/composables/useRemoteList'
 import { type AuditLogEntry, listAuditLogs } from '@/features/access-control/api'
 import { useAuthStore } from '@/stores/auth'
 
@@ -27,7 +28,11 @@ const entries = ref<AuditLogEntry[]>([])
 const pageCount = ref(1)
 const sourceFilter = ref<string[]>([])
 const outcomeFilter = ref<string[]>([])
-const actorTypeFilter = ref<string[]>([])
+const actionFilter = ref('')
+const targetTypeFilter = ref('')
+const targetIdFilter = ref('')
+const actorNameFilter = ref('')
+const actorEmailFilter = ref('')
 const selectedEntry = ref<AuditLogEntry | null>(null)
 const detailsOpen = computed({
   get: () => selectedEntry.value !== null,
@@ -43,9 +48,6 @@ const metadataJson = computed(() => {
   )
   return JSON.stringify(details, null, 2)
 })
-const filterCount = computed(
-  () => sourceFilter.value.length + outcomeFilter.value.length + actorTypeFilter.value.length
-)
 const sourceFilterOptions = computed(() =>
   [
     'http',
@@ -66,13 +68,6 @@ const outcomeFilterOptions = computed(() =>
     label: outcomeLabel(value),
   }))
 )
-const actorTypeFilterOptions = computed(() =>
-  ['user', 'api_key', 'system', 'anonymous', 'unknown'].map((value) => ({
-    value,
-    label: actorTypeLabel(value),
-  }))
-)
-
 function outcomeVariant(outcome: string): 'secondary' | 'destructive' | 'outline' {
   if (outcome === 'success') return 'secondary'
   if (outcome === 'failure' || outcome === 'denied') return 'destructive'
@@ -192,36 +187,17 @@ function reasonLabel(reasonCode: string | null) {
   return te(key) ? t(key) : reasonCode
 }
 
-function getAuditSearchableText(entry: AuditLogEntry) {
-  return [
-    entry.action,
-    entry.targetType,
-    entry.targetId,
-    entry.ipAddress,
-    entry.requestId,
-    entry.traceId,
-    entry.requestRoute,
-    entry.reasonCode,
-    entry.source,
-    entry.outcome,
-    entry.actor?.fullName,
-    entry.actor?.email,
-  ]
-    .filter(Boolean)
-    .join(' ')
-}
-
-async function load(
-  nextPage = page.value,
-  search = debouncedSearch.value,
-  isCurrent: () => boolean = () => true
-) {
+async function load(nextPage = page.value, isCurrent: () => boolean = () => true) {
   loading.value = true
   try {
-    const result = await listAuditLogs(auth.token, nextPage, search, {
+    const result = await listAuditLogs(auth.token, nextPage, {
+      action: actionFilter.value.trim(),
+      targetType: targetTypeFilter.value.trim(),
+      targetId: targetIdFilter.value.trim(),
+      actorName: actorNameFilter.value.trim(),
+      actorEmail: actorEmailFilter.value.trim(),
       source: sourceFilter.value,
       outcome: outcomeFilter.value,
-      actorType: actorTypeFilter.value,
     })
     if (!isCurrent()) return
     entries.value = result.items
@@ -234,39 +210,63 @@ async function load(
   }
 }
 
-const { search, debouncedSearch, runLoad } = useRemoteListSearch(page, load)
+const { runLoad } = useRemoteList(page, load)
 
-watch([sourceFilter, outcomeFilter, actorTypeFilter], () => void runLoad(1), { deep: true })
+function resetFilters() {
+  actionFilter.value = ''
+  targetTypeFilter.value = ''
+  targetIdFilter.value = ''
+  actorNameFilter.value = ''
+  actorEmailFilter.value = ''
+  sourceFilter.value = []
+  outcomeFilter.value = []
+  void runLoad(1)
+}
 </script>
 
 <template>
-  <ListPage
-    :title="t('audit_logs.title')"
-    :description="t('audit_logs.desc')"
-    :loading="loading"
-    :refresh-label="t('common.refresh')"
-    action-label=""
-    :show-action="false"
-    @refresh="runLoad(1)"
-  >
-    <template #refresh-icon>
-      <RefreshCw class="size-4" :class="{ 'animate-spin': loading }" />
-    </template>
+  <ListPage :title="t('audit_logs.title')" :loading="loading" action-label="" :show-action="false">
     <DataTable
-      v-model:search="search"
       :columns="columns"
       :data="entries"
-      search-mode="remote"
-      :get-searchable-text="getAuditSearchableText"
-      :search-placeholder="t('audit_logs.search')"
-      filters-layout="inline"
-      :compact-filter-count="filterCount"
       storage-key="audit-logs-table"
       :empty-message="loading ? t('common.loading') : t('common.no_data')"
       :server-pagination="{ page, pageCount }"
+      @search="runLoad(1)"
+      @reset="resetFilters"
       @page-change="page = $event"
     >
       <template #filters>
+        <DataTableTextFilter
+          id="audit-action-filter"
+          v-model="actionFilter"
+          :label="t('audit_logs.action')"
+          :placeholder="t('audit_logs.filter_action')"
+        />
+        <DataTableTextFilter
+          id="audit-target-type-filter"
+          v-model="targetTypeFilter"
+          :label="t('audit_logs.target_type')"
+          :placeholder="t('audit_logs.filter_target_type')"
+        />
+        <DataTableTextFilter
+          id="audit-target-id-filter"
+          v-model="targetIdFilter"
+          :label="t('audit_logs.target_id')"
+          :placeholder="t('audit_logs.filter_target_id')"
+        />
+        <DataTableTextFilter
+          id="audit-actor-name-filter"
+          v-model="actorNameFilter"
+          :label="t('audit_logs.actor_name')"
+          :placeholder="t('audit_logs.filter_actor_name')"
+        />
+        <DataTableTextFilter
+          id="audit-actor-email-filter"
+          v-model="actorEmailFilter"
+          :label="t('audit_logs.actor_email')"
+          :placeholder="t('audit_logs.filter_actor_email')"
+        />
         <DataTableFacetFilter
           v-model="outcomeFilter"
           :label="t('audit_logs.outcome')"
@@ -276,31 +276,6 @@ watch([sourceFilter, outcomeFilter, actorTypeFilter], () => void runLoad(1), { d
           v-model="sourceFilter"
           :label="t('audit_logs.origin')"
           :options="sourceFilterOptions"
-        />
-        <DataTableFacetFilter
-          v-model="actorTypeFilter"
-          :label="t('audit_logs.actor_type')"
-          :options="actorTypeFilterOptions"
-        />
-      </template>
-      <template #compact-filters>
-        <DataTableFacetFilter
-          v-model="outcomeFilter"
-          :label="t('audit_logs.outcome')"
-          :options="outcomeFilterOptions"
-          compact
-        />
-        <DataTableFacetFilter
-          v-model="sourceFilter"
-          :label="t('audit_logs.origin')"
-          :options="sourceFilterOptions"
-          compact
-        />
-        <DataTableFacetFilter
-          v-model="actorTypeFilter"
-          :label="t('audit_logs.actor_type')"
-          :options="actorTypeFilterOptions"
-          compact
         />
       </template>
     </DataTable>

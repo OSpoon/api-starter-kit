@@ -230,7 +230,7 @@ test.group('AI agent tool registry', () => {
     if (!tool) throw new Error('Expected system management change tool')
     assert.include(tool.description, 'direct top-level fields')
     assert.include(tool.description, 'action create_role')
-    assert.include(tool.description, 'fields code and name')
+    assert.include(tool.description, 'fields code, name, and description')
     assert.include(tool.description, 'create_user requires fullName, email, and roleIds')
   })
 
