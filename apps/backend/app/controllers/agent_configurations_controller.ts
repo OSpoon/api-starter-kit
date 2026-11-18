@@ -22,6 +22,11 @@ import {
 } from '#services/ai_agent_skill_service'
 import { AiAgentSkillZipError } from '#services/ai_agent_skill_zip'
 import { recordAuditEvent } from '#services/audit_log'
+import {
+  getMineruConfigurationStatus,
+  MineruTokenRequiredError,
+  updateMineruToken,
+} from '#services/mineru_configuration_service'
 import { clampLimit } from '#support/pagination'
 import {
   aiAgentSkillCodeValidator,
@@ -29,6 +34,7 @@ import {
   installAiAgentSkillZipValidator,
   updateAiAgentConfigurationValidator,
   updateAiAgentSkillValidator,
+  updateMineruTokenValidator,
 } from '#validators/ai_agent_configuration'
 import { paginationSearchQueryValidator } from '#validators/pagination'
 
@@ -37,10 +43,13 @@ export default class AgentConfigurationsController {
   @ApiOperation({ summary: '获取 Agent 工具配置目录' })
   @ApiResponse({
     status: 200,
-    description: '内置 Agent 工具的启用状态、执行策略及不可关闭的操作确认要求',
+    description: '内置 Agent 工具的启用状态、执行策略及脱敏后的 MinerU Token',
   })
   async show({ serialize }: HttpContext) {
-    return serialize({ tools: await getAiAgentToolSettings() })
+    return serialize({
+      tools: await getAiAgentToolSettings(),
+      mineru: await getMineruConfigurationStatus(),
+    })
   }
 
   @ApiOperation({ summary: '更新 Agent 内置工具配置' })
@@ -57,7 +66,53 @@ export default class AgentConfigurationsController {
         toolModes: configuration.toolModes,
       },
     })
-    return ctx.serialize({ tools: await getAiAgentToolSettings() })
+    return ctx.serialize({
+      tools: await getAiAgentToolSettings(),
+      mineru: await getMineruConfigurationStatus(),
+    })
+  }
+
+  @ApiOperation({ summary: '保存或清除 MinerU API Token' })
+  @ApiBody({
+    required: true,
+    schema: {
+      type: 'object',
+      anyOf: [{ required: ['token'] }, { required: ['enable'] }],
+      properties: {
+        token: { type: 'string', nullable: true, writeOnly: true, minLength: 1, maxLength: 1024 },
+        enable: { type: 'boolean', description: '保存 Token 时启用 PDF 读取工具' },
+      },
+    },
+  })
+  @ApiResponse({ status: 200, description: '返回工具配置列表和脱敏后的 MinerU Token' })
+  @ApiResponse({ status: 422, description: 'Token 或启用参数无效' })
+  async updateMineruConfiguration(ctx: HttpContext) {
+    const { token, enable } = await ctx.request.validateUsing(updateMineruTokenValidator)
+    if ((token === undefined && !enable) || (token === null && enable)) {
+      return ctx.response.unprocessableEntity({ message: '请提供 Token 或确认启用现有配置' })
+    }
+    try {
+      await updateMineruToken(token, enable)
+    } catch (error) {
+      if (error instanceof MineruTokenRequiredError) {
+        return ctx.response.unprocessableEntity({ message: error.message })
+      }
+      throw error
+    }
+    await recordAuditEvent(ctx, {
+      actorUserId: ctx.auth.getUserOrFail().id,
+      action: 'agent.mineru_configuration_updated',
+      targetType: 'ai_agent_configuration',
+      targetId: 1,
+      metadata: {
+        operation: token === undefined ? 'enable' : token === null ? 'clear' : 'save',
+        ...(enable ? { enabled: true } : {}),
+      },
+    })
+    return ctx.serialize({
+      tools: await getAiAgentToolSettings(),
+      mineru: await getMineruConfigurationStatus(),
+    })
   }
 
   @ApiOperation({ summary: '获取已安装的 Agent 技能' })

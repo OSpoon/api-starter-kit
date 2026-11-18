@@ -81,6 +81,11 @@ export interface AgentToolSetting {
   requiresConfirmation: boolean
 }
 
+export interface AgentToolConfiguration {
+  tools: AgentToolSetting[]
+  mineru: { source: 'web' | null; maskedToken: string | null }
+}
+
 export interface AgentModulePage<T> {
   items: T[]
   meta: { currentPage: number; perPage: number; lastPage: number; total: number }
@@ -108,7 +113,7 @@ async function getModulePage<T>(token: string | null, path: string, page: number
 
 export async function getAgentTools(token: string | null) {
   return readItem(
-    await apiRequest<ApiEnvelope<{ tools: AgentToolSetting[] }>>('/api/v1/system/agent-config', {
+    await apiRequest<ApiEnvelope<AgentToolConfiguration>>('/api/v1/system/agent-config', {
       token,
     })
   )
@@ -116,10 +121,24 @@ export async function getAgentTools(token: string | null) {
 
 export async function updateAgentTools(token: string | null, tools: AgentToolSetting[]) {
   return readItem(
-    await apiRequest<ApiEnvelope<{ tools: AgentToolSetting[] }>>('/api/v1/system/agent-config', {
+    await apiRequest<ApiEnvelope<AgentToolConfiguration>>('/api/v1/system/agent-config', {
       method: 'PUT',
       token,
       body: JSON.stringify({ tools }),
+    })
+  )
+}
+
+export async function updateMineruToken(
+  token: string | null,
+  value: string | null | undefined,
+  enable: boolean
+) {
+  return readItem(
+    await apiRequest<ApiEnvelope<AgentToolConfiguration>>('/api/v1/system/agent-config/mineru', {
+      method: 'PUT',
+      token,
+      body: JSON.stringify({ token: value, enable }),
     })
   )
 }

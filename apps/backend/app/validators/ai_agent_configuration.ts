@@ -14,8 +14,22 @@ export const updateAiAgentConfigurationValidator = vine.compile(
           mode: vine.enum(['direct', 'confirm'] as const),
         })
       )
-      .minLength(builtInAiAgentToolNames.length)
+      .minLength(builtInAiAgentToolNames.length - 1)
       .maxLength(builtInAiAgentToolNames.length),
+  })
+)
+
+export const updateMineruTokenValidator = vine.compile(
+  vine.object({
+    token: vine
+      .string()
+      .trim()
+      .minLength(1)
+      .maxLength(1024)
+      .regex(/^[!-~]+$/)
+      .nullable()
+      .optional(),
+    enable: vine.boolean().optional(),
   })
 )
 

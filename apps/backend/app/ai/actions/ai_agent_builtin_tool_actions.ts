@@ -6,15 +6,13 @@ import type { AiAgentActionImplementation } from '#ai/core/ai_agent_action_contr
 import { defineAiAgentAction, getAiAgentActor, string } from '#ai/core/ai_agent_action_helpers'
 import {
   builtInAiAgentToolNames,
-  builtInAiAgentToolsRequiringConfirmation,
+  canConfigureAiAgentToolMode,
 } from '#ai/core/ai_agent_tool_catalog'
 import type { AiAgentToolContext } from '#ai/core/ai_agent_tool_context'
 import type { AiAgentKnowledgeSource } from '#ai/core/ai_agent_tool_context'
 import { getAiAgentToolSettings } from '#services/ai_agent_configuration_service'
 
-const readableToolNames = builtInAiAgentToolNames.filter(
-  (name) => !builtInAiAgentToolsRequiringConfirmation.some((tool) => tool === name)
-)
+const readableToolNames = builtInAiAgentToolNames.filter(canConfigureAiAgentToolMode)
 
 function object(input: Record<string, unknown>, key: string) {
   const value = input[key]

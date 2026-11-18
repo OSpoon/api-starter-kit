@@ -8,6 +8,7 @@ export function serializeAiChatMessage(message: AiChatMessage) {
     role: message.role,
     content: message.content,
     ...(message.imageMimeType ? { image: { mimeType: message.imageMimeType } } : {}),
+    ...(message.pdfName ? { pdf: { name: message.pdfName } } : {}),
     citations: message.citations ?? [],
     ...(message.runtimeDetails?.length ? { timeline: message.runtimeDetails } : {}),
     createdAt: message.createdAt.toISO(),

@@ -36,6 +36,7 @@ export type ScannedRoutes = {
     'llm-config.legacy.test': { paramsTuple?: []; params?: {} }
     'agent_configurations.show': { paramsTuple?: []; params?: {} }
     'agent_configurations.update_configuration': { paramsTuple?: []; params?: {} }
+    'agent_configurations.update_mineru_configuration': { paramsTuple?: []; params?: {} }
     'agent-config.llm.show': { paramsTuple?: []; params?: {} }
     'agent-config.llm.update': { paramsTuple?: []; params?: {} }
     'agent-config.llm.test': { paramsTuple?: []; params?: {} }
@@ -237,6 +238,7 @@ export type ScannedRoutes = {
     'api_keys.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'llm-config.legacy.update': { paramsTuple?: []; params?: {} }
     'agent_configurations.update_configuration': { paramsTuple?: []; params?: {} }
+    'agent_configurations.update_mineru_configuration': { paramsTuple?: []; params?: {} }
     'agent-config.llm.update': { paramsTuple?: []; params?: {} }
     'agent_configurations.update_skill': { paramsTuple: [ParamValue]; params: {'code': ParamValue} }
     'im_configurations.update': { paramsTuple?: []; params?: {} }

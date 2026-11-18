@@ -32,6 +32,7 @@ export interface AiAgentToolRequestContext {
   onTaskPlanUpdate?: (steps: AiAgentTaskPlanStep[]) => void | Promise<void>
   knowledgeCatalogDocumentIds?: Set<number>
   enabledToolNames?: string[]
+  hasPdfAttachments?: boolean
 }
 
 export interface AiAgentToolContext extends AiAgentToolRequestContext {

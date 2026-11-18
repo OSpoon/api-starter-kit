@@ -16,6 +16,12 @@ export function shouldPreserveInterruptedRun(error: unknown) {
 
 export function getSafeAiErrorMessage(error: unknown) {
   if (isAbortError(error)) return '已停止生成本次回复。'
+  if (
+    error instanceof Error &&
+    error.message.startsWith('Model output contains an unrecoverable tool call.')
+  ) {
+    return '模型生成了无法解析的工具调用。请重试；如果持续出现，请检查模型服务的工具调用支持。'
+  }
   return '本次 AI 请求未完成，请稍后重试。'
 }
 

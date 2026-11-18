@@ -4,15 +4,16 @@ import {
   ChevronDown,
   CircleCheck,
   Copy,
+  FileText,
   History,
   ImageDown,
-  ImagePlus,
   ListChecks,
   LoaderCircle,
   MessageCircle,
   MessageCirclePlus,
   Mic,
   Minus,
+  Paperclip,
   RefreshCw,
   Square,
   Trash2,
@@ -26,6 +27,7 @@ import AiChatCredentialCard from '@/components/ai-chat/AiChatCredentialCard.vue'
 import AiChatLogo from '@/components/ai-chat/AiChatLogo.vue'
 import AiChatMessageItem from '@/components/ai-chat/AiChatMessageItem.vue'
 import AiMessageContent from '@/components/ai-chat/AiMessageContent.vue'
+import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import {
   Attachment,
   AttachmentActions,
@@ -135,7 +137,7 @@ const props = withDefaults(
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
   send: [message: string]
-  sendImage: [message: string, image: File]
+  sendAttachment: [message: string, file: File]
   voiceSend: [audio: Blob, fileName: string]
   clear: []
   selectConversation: [id: string | number]
@@ -155,12 +157,13 @@ const emit = defineEmits<{
 
 const { t, te, locale } = useI18n()
 
-const imageInputRef = ref<HTMLInputElement | null>(null)
-const attachedImage = ref<File | null>(null)
+const attachmentInputRef = ref<HTMLInputElement | null>(null)
+const attachedFile = ref<File | null>(null)
+const pendingPdf = ref<File | null>(null)
 const attachedImagePreview = ref<string | null>(null)
 
-watch(attachedImage, (file, _previous, onCleanup) => {
-  if (!file) {
+watch(attachedFile, (file, _previous, onCleanup) => {
+  if (!file || file.type === 'application/pdf') {
     attachedImagePreview.value = null
     return
   }
@@ -370,13 +373,13 @@ const isOpen = computed({
 })
 
 watch(isOpen, (open) => {
-  if (!open) attachedImage.value = null
+  if (!open) attachedFile.value = null
 })
 
 watch(
   () => props.currentConversationId,
   (currentId, previousId) => {
-    if (currentId !== previousId) attachedImage.value = null
+    if (currentId !== previousId) attachedFile.value = null
   }
 )
 
@@ -400,7 +403,7 @@ const showSuggestions = computed(
   () =>
     displayMessages.value.every((message) => message.id === 'welcome') &&
     !input.value.trim() &&
-    !attachedImage.value &&
+    !attachedFile.value &&
     !props.loading &&
     !props.disabled &&
     !props.approval &&
@@ -480,40 +483,40 @@ function openAssistant() {
 }
 
 function closeAssistant() {
-  attachedImage.value = null
+  attachedFile.value = null
   isOpen.value = false
 }
 
 function clearChat() {
-  attachedImage.value = null
+  attachedFile.value = null
   emit('clear')
 }
 
 function selectConversation(id: string | number) {
-  if (String(id) !== String(props.currentConversationId)) attachedImage.value = null
+  if (String(id) !== String(props.currentConversationId)) attachedFile.value = null
   emit('selectConversation', id)
 }
 
 function sendMessage(message = input.value) {
   const content = message.trim()
-  if ((!content && !attachedImage.value) || props.disabled) {
+  if ((!content && !attachedFile.value) || props.disabled) {
     return
   }
 
   if (props.loading) {
     if (!content) return
     emit('send', content)
-  } else if (attachedImage.value) {
-    emit('sendImage', content, attachedImage.value)
-    attachedImage.value = null
+  } else if (attachedFile.value) {
+    emit('sendAttachment', content, attachedFile.value)
+    attachedFile.value = null
   } else {
     emit('send', content)
   }
   input.value = ''
 }
 
-function openImagePicker() {
-  imageInputRef.value?.click()
+function openAttachmentPicker() {
+  attachmentInputRef.value?.click()
 }
 
 function attachImage(file: File) {
@@ -526,14 +529,31 @@ function attachImage(file: File) {
     toast.error(t('ai_chat.image.too_large'))
     return
   }
-  attachedImage.value = file
+  attachedFile.value = file
 }
 
-function selectImage(event: Event) {
+function selectAttachment(event: Event) {
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
   input.value = ''
-  if (file) attachImage(file)
+  if (!file) return
+  if (file.type === 'application/pdf' || (!file.type && /\.pdf$/i.test(file.name))) {
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error(t('ai_chat.pdf.too_large'))
+      return
+    }
+    pendingPdf.value =
+      file.type === 'application/pdf'
+        ? file
+        : new File([file], file.name, { type: 'application/pdf' })
+  } else {
+    attachImage(file)
+  }
+}
+
+function approvePdf() {
+  if (pendingPdf.value) attachedFile.value = pendingPdf.value
+  pendingPdf.value = null
 }
 
 function stopGeneration() {
@@ -1153,13 +1173,14 @@ watch(
                 {{ suggestion }}
               </Button>
             </div>
-            <div v-if="attachedImage && attachedImagePreview" class="mb-2 flex justify-start pl-3">
+            <div v-if="attachedFile" class="mb-2 flex justify-start pl-3">
               <Attachment size="sm" class="max-w-full">
-                <AttachmentMedia variant="image">
+                <AttachmentMedia v-if="attachedImagePreview" variant="image">
                   <img :src="attachedImagePreview" alt="" />
                 </AttachmentMedia>
+                <FileText v-else class="size-4 shrink-0" aria-hidden="true" />
                 <AttachmentContent>
-                  <AttachmentTitle>{{ attachedImage.name }}</AttachmentTitle>
+                  <AttachmentTitle>{{ attachedFile.name }}</AttachmentTitle>
                 </AttachmentContent>
                 <AttachmentActions>
                   <Button
@@ -1168,7 +1189,7 @@ watch(
                     size="icon-sm"
                     :title="t('ai_chat.image.remove')"
                     :aria-label="t('ai_chat.image.remove')"
-                    @click="attachedImage = null"
+                    @click="attachedFile = null"
                   >
                     <X class="size-4" aria-hidden="true" />
                   </Button>
@@ -1242,12 +1263,12 @@ watch(
             </div>
             <form v-else @submit.prevent="handleSubmit">
               <input
-                ref="imageInputRef"
+                ref="attachmentInputRef"
                 type="file"
-                accept="image/jpeg,image/png,image/webp"
+                accept="image/jpeg,image/png,image/webp,application/pdf,.pdf"
                 class="sr-only"
-                :aria-label="t('ai_chat.image.attach')"
-                @change="selectImage"
+                :aria-label="t('ai_chat.pdf.attach')"
+                @change="selectAttachment"
               />
               <InputGroup class="min-h-12 rounded-xl">
                 <InputGroupTextarea
@@ -1268,11 +1289,11 @@ watch(
                     v-if="!loading"
                     size="icon-sm"
                     :disabled="disabled"
-                    :title="t('ai_chat.image.attach')"
-                    :aria-label="t('ai_chat.image.attach')"
-                    @click="openImagePicker"
+                    :title="t('ai_chat.pdf.attach')"
+                    :aria-label="t('ai_chat.pdf.attach')"
+                    @click="openAttachmentPicker"
                   >
-                    <ImagePlus class="size-3.5" aria-hidden="true" />
+                    <Paperclip class="size-3.5" aria-hidden="true" />
                   </InputGroupButton>
                   <InputGroupButton
                     v-if="!loading"
@@ -1294,7 +1315,7 @@ watch(
                     variant="default"
                     size="icon-sm"
                     class="ml-auto"
-                    :disabled="(!input.trim() && !attachedImage && !loading) || disabled"
+                    :disabled="(!input.trim() && !attachedFile && !loading) || disabled"
                     :title="
                       loading
                         ? input.trim()
@@ -1401,4 +1422,16 @@ watch(
       </div>
     </div>
   </div>
+  <ConfirmDialog
+    :open="Boolean(pendingPdf)"
+    :title="t('ai_chat.pdf.consent_title')"
+    :description="t('ai_chat.pdf.consent_description', { name: pendingPdf?.name ?? '' })"
+    :confirm-label="t('ai_chat.pdf.consent_confirm')"
+    @update:open="
+      (open) => {
+        if (!open) pendingPdf = null
+      }
+    "
+    @confirm="approvePdf"
+  />
 </template>

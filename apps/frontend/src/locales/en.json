@@ -248,9 +248,22 @@
     "tools_load_failed": "Failed to load tool configuration",
     "tools_saved": "Tool configuration saved",
     "tools_save_failed": "Failed to save tool configuration",
+    "mineru": {
+      "configure": "Enable PDF attachment reading",
+      "reuse": "Leave the field blank to use the existing token, or enter a new token to replace it.",
+      "enable": "Enable",
+      "token": "MinerU API token",
+      "description": "The token is stored encrypted. Only a masked value is shown.",
+      "invalid_token": "Enter a token without spaces, up to 1024 characters.",
+      "source_web": "Token configured",
+      "source_none": "Token is not configured",
+      "save_enable": "Save and enable",
+      "manage_token": "Manage API tokens in MinerU"
+    },
     "tool_names": {
       "diagnose_my_access": "Check my permissions",
       "run_registered_query": "Query system data",
+      "read_pdf_attachment": "Read PDF attachment",
       "search_knowledge_catalog": "Browse knowledge catalog",
       "search_knowledge": "Search knowledge base",
       "revoke_api_key": "Revoke API key",
@@ -261,6 +274,7 @@
     "tool_descriptions": {
       "diagnose_my_access": "Read the current user's access to a named permission.",
       "run_registered_query": "Read system data through registered, authorized query templates.",
+      "read_pdf_attachment": "Read a PDF authorized by the user in this conversation. Requires MinerU configuration.",
       "search_knowledge_catalog": "Find knowledge documents the current user can access.",
       "search_knowledge": "Search content in selected knowledge documents.",
       "revoke_api_key": "Revoke an API key.",
@@ -359,6 +373,14 @@
       "max_duration": "The 60-second recording limit was reached. Transcribing now.",
       "too_large": "The recording cannot exceed 10 MB",
       "transcribe_failed": "Voice transcription failed. Please try again."
+    },
+    "pdf": {
+      "attach": "Attach an image or PDF",
+      "consent_title": "Allow MinerU to parse this PDF",
+      "consent_description": "After you send the message, if the assistant needs to read {name}, the server will send the full PDF to the third-party MinerU cloud service.",
+      "consent_confirm": "Agree and attach",
+      "too_large": "PDF files must be 5 MB or smaller",
+      "queue_unavailable": "Wait for the current response to finish before sending an attachment."
     },
     "image": {
       "attach": "Attach an image",
@@ -540,6 +562,7 @@
         "action_awaiting_confirmation": "Awaiting confirmation...: {action}",
         "action_cancelled": "Cancelled: {action}",
         "list_agent_skills": "Discover skills",
+        "read_pdf_attachment": "Read PDF attachment",
         "load_agent_skill": "Load skill",
         "bash": "Run skill command",
         "run_registered_query": "Query data",

@@ -391,6 +391,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['updateConfiguration']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
+  'agent_configurations.update_mineru_configuration': {
+    methods: ["PUT"]
+    pattern: '/api/v1/system/agent-config/mineru'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/ai_agent_configuration').updateMineruTokenValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/ai_agent_configuration').updateMineruTokenValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['updateMineruConfiguration']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['updateMineruConfiguration']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
   'agent-config.llm.show': {
     methods: ["GET","HEAD"]
     pattern: '/api/v1/system/agent-config/llm'

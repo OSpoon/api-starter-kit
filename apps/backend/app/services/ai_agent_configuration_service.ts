@@ -44,15 +44,20 @@ export async function updateAiAgentToolSettings(settings: AiAgentToolSettingInpu
     .filter((tool) => !allowedNames.has(tool.code))
     .map((tool) => tool.code)
   if (invalidNames.length) throw new Error(`未知的 Agent 工具：${invalidNames.join(', ')}`)
+  const configured = new Map(settings.map((tool) => [tool.code, tool]))
   if (
-    settings.length !== builtInAiAgentToolNames.length ||
-    new Set(settings.map((tool) => tool.code)).size !== builtInAiAgentToolNames.length
+    configured.size !== settings.length ||
+    builtInAiAgentToolNames.some((name) => name !== 'read_pdf_attachment' && !configured.has(name))
   ) {
     throw new Error('必须为每个内置 Agent 工具提交且仅提交一项配置')
   }
-
-  const configured = new Map(settings.map((tool) => [tool.code, tool]))
+  // Older clients omit the PDF setting. Preserve the administrator's saved value.
   const enabledTools = settings.filter((tool) => tool.enabled).map((tool) => tool.code)
+  if (!configured.has('read_pdf_attachment')) {
+    const currentEnabledTools = await getEnabledAiAgentToolNames()
+    if (currentEnabledTools.includes('read_pdf_attachment'))
+      enabledTools.push('read_pdf_attachment')
+  }
   const toolModes = Object.fromEntries(
     builtInAiAgentToolNames.map((code) => [
       code,

@@ -54,7 +54,11 @@ export async function buildAiChatTurnContext(input: {
       })),
     {
       role: userMessage.role,
-      content: userMessage.content,
+      content:
+        userMessage.content ||
+        (userMessage.pdfName
+          ? 'The user attached a PDF without a question. Ask what they want to do with it.'
+          : ''),
       id: userMessage.id,
       ...(userMessage.imageData && userMessage.imageMimeType
         ? {

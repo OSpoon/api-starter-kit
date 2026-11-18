@@ -109,3 +109,14 @@ IM Bot 是独立 worker，未配置渠道时会等待配置；异常退出后需
 | Bot 配置未生效    | 检查 worker 日志、PostgreSQL 连接和渠道配置。    |
 
 发布管理端或助手 Web 时上传完整 `dist/`；HTML 和版本检查 JSON 不应缓存，带哈希资源可长期缓存。仓库 Nginx 已配置该策略。
+
+### MinerU PDF 附件
+
+在「助手配置 → 内置工具」开启「读取 PDF 附件」时，通过弹窗配置 MinerU API Token。
+凭据通过 Web 配置并加密存储。清除后须重新配置才能提交新解析任务。
+任务提交成功后保留该批次对应的加密凭据，以便凭据更换后仍可查询原批次。任务结束后清理批次凭据。
+服务端需要访问
+`mineru.net`、`mineru.oss-cn-shanghai.aliyuncs.com` 和 `cdn-mineru.openxlab.org.cn`。
+只有用户同意将当前附件传给 MinerU 且助手需要读取时，后端才上传该 PDF。
+原文件在确认上传后从本地附件记录移除，解析文本随会话保存，删除会话会级联清理本地附件。
+第三方的保留和删除按 MinerU 的服务条款执行。

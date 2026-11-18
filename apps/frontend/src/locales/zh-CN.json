@@ -248,9 +248,22 @@
     "tools_load_failed": "加载工具配置失败",
     "tools_saved": "工具配置已保存",
     "tools_save_failed": "保存工具配置失败",
+    "mineru": {
+      "configure": "启用 PDF 附件读取",
+      "reuse": "留空即可使用现有 Token，也可以输入新 Token 进行更换。",
+      "enable": "启用",
+      "token": "MinerU API Token",
+      "description": "Token 将加密保存，页面仅显示脱敏值。",
+      "invalid_token": "请输入不含空格的有效 Token，最多 1024 个字符。",
+      "source_web": "Token 已配置",
+      "source_none": "尚未配置 Token",
+      "save_enable": "保存并启用",
+      "manage_token": "前往 MinerU 管理 API Token"
+    },
     "tool_names": {
       "diagnose_my_access": "检查我的权限",
       "run_registered_query": "查询系统数据",
+      "read_pdf_attachment": "读取 PDF 附件",
       "search_knowledge_catalog": "浏览知识目录",
       "search_knowledge": "搜索知识库",
       "revoke_api_key": "吊销 API Key",
@@ -261,6 +274,7 @@
     "tool_descriptions": {
       "diagnose_my_access": "读取当前用户对指定系统权限的授权状态。",
       "run_registered_query": "通过已注册、已授权的查询模板读取系统数据。",
+      "read_pdf_attachment": "读取当前会话中用户已授权的 PDF，需要配置 MinerU。",
       "search_knowledge_catalog": "查找当前用户可访问的知识文档。",
       "search_knowledge": "检索所选知识文档中的内容。",
       "revoke_api_key": "吊销指定的 API Key。",
@@ -359,6 +373,14 @@
       "max_duration": "录音已达到 60 秒上限，正在提交转写",
       "too_large": "录音文件不能超过 10 MB",
       "transcribe_failed": "语音转写失败，请稍后重试"
+    },
+    "pdf": {
+      "attach": "添加图片或 PDF",
+      "consent_title": "允许 MinerU 解析此 PDF",
+      "consent_description": "发送消息后，如果助手需要读取 {name}，后端会将完整 PDF 传给第三方 MinerU 云服务进行解析。",
+      "consent_confirm": "同意并添加",
+      "too_large": "PDF 不能超过 5 MB",
+      "queue_unavailable": "请等待当前回复结束后再发送附件。"
     },
     "image": {
       "attach": "附加图片",
@@ -540,6 +562,7 @@
         "action_awaiting_confirmation": "等待确认...：{action}",
         "action_cancelled": "已取消：{action}",
         "list_agent_skills": "发现技能",
+        "read_pdf_attachment": "读取 PDF 附件",
         "load_agent_skill": "加载技能",
         "bash": "运行技能命令",
         "run_registered_query": "查询数据",

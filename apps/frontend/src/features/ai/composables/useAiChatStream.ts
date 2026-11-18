@@ -42,11 +42,11 @@ export function useAiChatStream(
     message: string,
     mode: AiChatQueueMode = 'steer',
     regenerateAssistantMessageId?: number,
-    image?: File
+    file?: File
   ) {
     if (state.loading.value && state.conversation.value && !regenerateAssistantMessageId) {
-      if (image) {
-        toast.error(translate('ai_chat.image.queue_unavailable'))
+      if (file) {
+        toast.error(translate('ai_chat.pdf.queue_unavailable'))
         return
       }
       try {
@@ -73,12 +73,15 @@ export function useAiChatStream(
         messages: currentMessages.filter((item) => item.id !== regenerateAssistantMessageId),
       }
     }
+    const pdf = file?.type === 'application/pdf' ? file : undefined
+    const image = pdf ? undefined : file
     const userMessage = regenerateAssistantMessageId
       ? null
       : {
           id: `local-user-${Date.now()}`,
           role: 'user' as const,
           content: message,
+          ...(pdf ? { pdf: { name: pdf.name } } : {}),
           ...(image ? { image: { mimeType: image.type }, localImageFile: image } : {}),
         }
     let assistantMessage: LocalAiChatMessage = createStreamingAssistantMessage()
@@ -213,6 +216,7 @@ export function useAiChatStream(
           context: pageContext.value,
           regenerateAssistantMessageId,
           image,
+          pdf,
         }
       )
       const persistedConversation = await getAiChatConversation(token(), conversation.id)

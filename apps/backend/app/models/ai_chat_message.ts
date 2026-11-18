@@ -154,6 +154,9 @@ export default class AiChatMessage extends BaseModel {
   @column()
   declare imageMimeType: string | null
 
+  @column()
+  declare pdfName: string | null
+
   @column({
     prepare: (citations: AiChatCitation[] | null | undefined) => JSON.stringify(citations ?? []),
     consume: (value: unknown) => consumeJsonArray(value, 'citations', isCitation),

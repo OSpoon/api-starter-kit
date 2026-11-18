@@ -10,6 +10,7 @@ export interface AiChatMessage {
   role: AiChatRole
   content: string
   image?: { mimeType: string }
+  pdf?: { name: string }
   citations: AiChatCitation[]
   createdAt: string
   updatedAt: string
@@ -92,6 +93,7 @@ export interface AiChatStreamOptions {
   context?: AiChatPageContext
   regenerateAssistantMessageId?: number
   image?: File
+  pdf?: File
 }
 
 // The backend limits a complete AI run to five minutes at most. Keep a small
@@ -409,10 +411,14 @@ export function streamAiChatMessage(
   onEvent: (event: AiChatStreamEvent) => void,
   options: AiChatStreamOptions = {}
 ) {
-  const body = options.image ? new FormData() : undefined
+  const body = options.image || options.pdf ? new FormData() : undefined
   if (body) {
     if (content.trim()) body.append('content', content)
-    body.append('image', options.image!)
+    if (options.image) body.append('image', options.image)
+    if (options.pdf) {
+      body.append('pdf', options.pdf)
+      body.append('pdfMineruConsent', 'true')
+    }
     if (options.context) {
       body.append('contextRoute', options.context.route)
       body.append('contextTitle', options.context.title)

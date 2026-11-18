@@ -10,6 +10,7 @@ import {
 import { createApiKeyCreationTool } from '#ai/tools/create_api_key'
 import { createApiKeyDeletionTool } from '#ai/tools/delete_api_key'
 import { createDiagnoseMyAccessTool } from '#ai/tools/diagnose_my_access'
+import { createReadPdfAttachmentTool } from '#ai/tools/read_pdf_attachment'
 import { createApiKeyRevocationTool } from '#ai/tools/revoke_api_key'
 import { createRunRegisteredQueryTool } from '#ai/tools/run_registered_query'
 import { createSearchKnowledgeTool } from '#ai/tools/search_knowledge'
@@ -34,6 +35,9 @@ export function createAiAgentTools(input: AiAgentToolContext): AgentTool[] {
           createRunRegisteredQueryTool(input, support),
           createSearchKnowledgeCatalogTool(knowledgeInput, support),
           createSearchKnowledgeTool(knowledgeInput, support),
+          ...(input.hasPdfAttachments && input.capabilityMode !== 'channel'
+            ? [createReadPdfAttachmentTool(input)]
+            : []),
           createApiKeyRevocationTool(input, support),
           createApiKeyDeletionTool(input, support),
           createSystemManagementChangeTool(input, support),

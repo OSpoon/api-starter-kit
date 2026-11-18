@@ -5,11 +5,13 @@ import db from '@adonisjs/lucid/services/db'
 import { test } from '@japa/runner'
 
 import { createConfiguredAiAgentTools } from '#ai/registry/ai_agent_tool_registry'
+import AiAgentConfiguration from '#models/ai_agent_configuration'
 import Permission from '#models/permission'
 import Role from '#models/role'
 import User from '#models/user'
 import { generateInitialPassword } from '#security/user_credentials'
 import { loadAiAgentSkill, removeAiAgentSkill } from '#services/ai_agent_skill_service'
+import { getMineruToken, updateMineruToken } from '#services/mineru_configuration_service'
 
 async function createActor(permissionCodes: string[]) {
   const permissions = await Promise.all(
@@ -43,6 +45,113 @@ test.group('Agent configuration', (group) => {
       .bearerToken(token)
       .json({ tools: [] })
     denied.assertStatus(403)
+  })
+
+  test('manages MinerU credentials without disclosing them', async ({ client, assert }) => {
+    const reader = await createActor(['agent-config:read'])
+    const editor = await createActor(['agent-config:read', 'agent-config:update'])
+    const endpoint = '/api/v1/system/agent-config/mineru'
+    const secret = 'synthetic-mineru-web-token'
+    await updateMineruToken(null)
+    const denied = await client.put(endpoint).bearerToken(reader).json({ token: secret })
+    denied.assertStatus(403)
+    const missing = await client.put(endpoint).bearerToken(editor).json({ enable: true })
+    missing.assertStatus(422)
+    const invalid = await client.put(endpoint).bearerToken(editor).json({ token: 'bad token' })
+    invalid.assertStatus(422)
+
+    const saved = await client
+      .put(endpoint)
+      .bearerToken(editor)
+      .json({ token: secret, enable: true })
+    saved.assertStatus(200)
+    saved.assertBodyContains({
+      data: { mineru: { source: 'web', maskedToken: 'syntheti••••••••oken' } },
+    })
+    assert.notInclude(JSON.stringify(saved.body()), secret)
+    assert.equal(await getMineruToken(), secret)
+    const stored = await AiAgentConfiguration.findOrFail(1)
+    assert.isString(stored.mineruToken)
+    assert.notEqual(stored.mineruToken, secret)
+    assert.isTrue(stored.enabledTools.includes('read_pdf_attachment'))
+
+    const reused = await client.put(endpoint).bearerToken(editor).json({ enable: true })
+    reused.assertStatus(200)
+    assert.equal(await getMineruToken(), secret)
+    const read = await client.get('/api/v1/system/agent-config').bearerToken(reader)
+    read.assertStatus(200)
+    read.assertBodyContains({
+      data: { mineru: { source: 'web', maskedToken: 'syntheti••••••••oken' } },
+    })
+    assert.notInclude(JSON.stringify(read.body()), secret)
+
+    const shortToken = await client.put(endpoint).bearerToken(editor).json({ token: 'tiny' })
+    shortToken.assertStatus(200)
+    shortToken.assertBodyContains({ data: { mineru: { source: 'web', maskedToken: '••••••••' } } })
+
+    const cleared = await client.put(endpoint).bearerToken(editor).json({ token: null })
+    cleared.assertStatus(200)
+    cleared.assertBodyContains({ data: { mineru: { source: null, maskedToken: null } } })
+    assert.isNull(await getMineruToken())
+    const missingAfterClear = await client.put(endpoint).bearerToken(editor).json({ enable: true })
+    missingAfterClear.assertStatus(422)
+  })
+
+  test('lists and enables the PDF tool only for eligible conversations', async ({
+    client,
+    assert,
+  }) => {
+    const token = await createActor(['agent-config:read', 'agent-config:update'])
+    const endpoint = '/api/v1/system/agent-config'
+    const response = await client.get(endpoint).bearerToken(token)
+    response.assertStatus(200)
+    const tools = (
+      response.body().data as {
+        tools: Array<{ code: string; enabled: boolean; mode: string; modeConfigurable: boolean }>
+      }
+    ).tools
+    const pdf = tools.find((tool) => tool.code === 'read_pdf_attachment')
+    assert.equal(pdf?.mode, 'direct')
+    assert.isFalse(pdf?.modeConfigurable)
+    const input = {
+      userId: 1,
+      conversationId: 1,
+      agentRunId: 'pdf-settings',
+      hasPdfAttachments: true,
+    }
+    const hasPdfTool = async (hasPdfAttachments = true) => {
+      const registered = await createConfiguredAiAgentTools({ ...input, hasPdfAttachments })
+      return registered.some(({ name }) => name === 'read_pdf_attachment')
+    }
+    const configured = tools.map(({ code, mode, enabled }) => ({
+      code,
+      mode,
+      enabled: code === 'read_pdf_attachment' ? true : enabled,
+    }))
+    const enabled = await client.put(endpoint).bearerToken(token).json({ tools: configured })
+    enabled.assertStatus(200)
+    assert.isTrue(await hasPdfTool())
+    assert.isFalse(await hasPdfTool(false))
+
+    const disabled = await client
+      .put(endpoint)
+      .bearerToken(token)
+      .json({
+        tools: configured.map((tool) =>
+          tool.code === 'read_pdf_attachment' ? { ...tool, enabled: false } : tool
+        ),
+      })
+    disabled.assertStatus(200)
+    assert.isFalse(await hasPdfTool())
+
+    const legacy = await client
+      .put(endpoint)
+      .bearerToken(token)
+      .json({
+        tools: configured.filter(({ code }) => code !== 'read_pdf_attachment'),
+      })
+    legacy.assertStatus(200)
+    assert.isFalse(await hasPdfTool())
   })
 
   test('allows read-only tools to switch policy and always confirms managed changes', async ({
@@ -96,6 +205,7 @@ test.group('Agent configuration', (group) => {
       conversationId: 1,
       agentRunId: crypto.randomUUID(),
       enabledToolNames: saved.map(({ code }) => code),
+      hasPdfAttachments: true,
     })
     assert.include(
       runtimeTools.map(({ name }) => name),
@@ -114,10 +224,15 @@ test.group('Agent configuration', (group) => {
       conversationId: 1,
       agentRunId: crypto.randomUUID(),
       capabilityMode: 'channel',
+      hasPdfAttachments: true,
     })
     assert.include(
       channelRuntimeTools.map(({ name }) => name),
       'bash'
+    )
+    assert.notInclude(
+      channelRuntimeTools.map(({ name }) => name),
+      'read_pdf_attachment'
     )
     for (const setting of saved) {
       const runtimeTool = runtimeTools.find(({ name }) => name === setting.code) as
@@ -143,6 +258,7 @@ test.group('Agent configuration', (group) => {
       userId: 1,
       conversationId: 1,
       agentRunId: crypto.randomUUID(),
+      hasPdfAttachments: true,
     })
     const confirmedSettings = (
       confirmed.body().data as {

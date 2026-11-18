@@ -109,6 +109,27 @@ test('AI stream rejects when the connection closes without a terminal event', as
   }
 })
 
+test('AI stream sends a PDF and explicit MinerU consent as multipart', async () => {
+  const originalFetch = globalThis.fetch
+  const pdf = new File(['%PDF-1.7 example'], 'rates.pdf', { type: 'application/pdf' })
+  globalThis.fetch = async (_url, options) => {
+    assert.ok(options.body instanceof FormData)
+    assert.equal(options.body.get('pdf').name, 'rates.pdf')
+    assert.equal(options.body.get('pdfMineruConsent'), 'true')
+    assert.equal(options.body.get('content'), 'Summarize the attachment')
+    assert.equal(options.body.has('image'), false)
+    return new Response(
+      'event: done\ndata: {"conversation":{"id":1},"message":{"id":2},"confirmations":[]}\n\n'
+    )
+  }
+  try {
+    await streamAiChatMessage(null, 1, 'Summarize the attachment', () => {}, { pdf })
+    assert.equal(hasAiChatConversationContent([{ content: '', pdf: { name: pdf.name } }]), true)
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})
+
 test('AI stream accepts a terminal done event', async () => {
   const originalFetch = globalThis.fetch
   globalThis.fetch = async () =>

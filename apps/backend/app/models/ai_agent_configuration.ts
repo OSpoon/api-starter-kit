@@ -13,6 +13,9 @@ export default class AiAgentConfiguration extends BaseModel {
   @column()
   declare toolModes: Record<string, 'direct' | 'confirm'>
 
+  @column({ serializeAs: null })
+  declare mineruToken: string | null
+
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
 

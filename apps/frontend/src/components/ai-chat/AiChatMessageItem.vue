@@ -8,6 +8,7 @@ import {
   CircleCheck,
   Copy,
   FileCheck2,
+  FileText,
   Gauge,
   ListChecks,
   LoaderCircle,
@@ -55,6 +56,7 @@ export interface AiChatMessageItemData {
   role: 'assistant' | 'user'
   content: string
   image?: { mimeType: string }
+  pdf?: { name: string }
   localImageFile?: File
   candidateContent?: string
   citations?: AiChatCitation[]
@@ -656,7 +658,11 @@ function getTimelineSections(timeline: AiChatTimelineItem[]) {
               >
                 {{ t('ai_chat.image.load_failed') }}
               </p>
-              <p class="whitespace-pre-wrap">{{ message.content }}</p>
+              <p v-if="message.pdf" class="flex items-center gap-2 break-all">
+                <FileText class="size-4 shrink-0" aria-hidden="true" />
+                {{ message.pdf.name }}
+              </p>
+              <p v-if="message.content" class="whitespace-pre-wrap">{{ message.content }}</p>
             </template>
           </BubbleContent>
         </Bubble>

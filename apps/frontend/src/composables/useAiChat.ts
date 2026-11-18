@@ -318,8 +318,8 @@ export function useAiChat() {
     }
   }
 
-  function handleAiSendImage(message: string, image: File) {
-    return handleAiSend(message, 'steer', undefined, image)
+  function handleAiSendAttachment(message: string, file: File) {
+    return handleAiSend(message, 'steer', undefined, file)
   }
 
   const { send: handleAiSend, confirmAction: streamAiConfirmation } = useAiChatStream(
@@ -419,7 +419,7 @@ export function useAiChat() {
     confirmAiConfirmation,
     handleAiRetryMessage,
     handleAiSend,
-    handleAiSendImage,
+    handleAiSendAttachment,
     handleAiVoiceSend,
   }
 }

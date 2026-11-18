@@ -31,6 +31,7 @@ const sensitiveFieldNames = new Set([
   'fullname',
   'givenname',
   'lastname',
+  'maskedtoken',
   'mobile',
   'name',
   'otp',

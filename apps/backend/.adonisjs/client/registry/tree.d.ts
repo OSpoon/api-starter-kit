@@ -63,6 +63,7 @@ export interface ApiDefinition {
   agentConfigurations: {
     show: typeof routes['agent_configurations.show']
     updateConfiguration: typeof routes['agent_configurations.update_configuration']
+    updateMineruConfiguration: typeof routes['agent_configurations.update_mineru_configuration']
     skills: typeof routes['agent_configurations.skills']
     installSkills: typeof routes['agent_configurations.install_skills']
     installSkillZip: typeof routes['agent_configurations.install_skill_zip']

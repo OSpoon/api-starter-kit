@@ -267,6 +267,9 @@ router
           .put('agent-config', [AgentConfigurationsController, 'updateConfiguration'])
           .use(middleware.permission(['agent-config:update']))
         router
+          .put('agent-config/mineru', [AgentConfigurationsController, 'updateMineruConfiguration'])
+          .use(middleware.permission(['agent-config:update']))
+        router
           .get('agent-config/llm', [LlmConfigurationsController, 'show'])
           .as('agent-config.llm.show')
           .use(middleware.permission(['agent-config:read']))

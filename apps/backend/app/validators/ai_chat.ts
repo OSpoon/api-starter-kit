@@ -9,6 +9,7 @@ export const createConversationValidator = vine.compile(
 export const sendAiChatMessageValidator = vine.compile(
   vine.object({
     content: vine.string().trim().minLength(1).maxLength(8000).optional(),
+    pdfMineruConsent: vine.boolean().optional(),
     regenerateAssistantMessageId: vine.number().positive().optional(),
     contextRoute: vine.string().trim().maxLength(200).optional(),
     contextTitle: vine.string().trim().maxLength(160).optional(),

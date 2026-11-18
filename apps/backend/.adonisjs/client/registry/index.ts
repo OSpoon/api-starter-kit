@@ -198,6 +198,12 @@ const routes = {
     tokens: [{"old":"/api/v1/system/agent-config","type":0,"val":"api","end":""},{"old":"/api/v1/system/agent-config","type":0,"val":"v1","end":""},{"old":"/api/v1/system/agent-config","type":0,"val":"system","end":""},{"old":"/api/v1/system/agent-config","type":0,"val":"agent-config","end":""}],
     types: placeholder as Registry['agent_configurations.update_configuration']['types'],
   },
+  'agent_configurations.update_mineru_configuration': {
+    methods: ["PUT"],
+    pattern: '/api/v1/system/agent-config/mineru',
+    tokens: [{"old":"/api/v1/system/agent-config/mineru","type":0,"val":"api","end":""},{"old":"/api/v1/system/agent-config/mineru","type":0,"val":"v1","end":""},{"old":"/api/v1/system/agent-config/mineru","type":0,"val":"system","end":""},{"old":"/api/v1/system/agent-config/mineru","type":0,"val":"agent-config","end":""},{"old":"/api/v1/system/agent-config/mineru","type":0,"val":"mineru","end":""}],
+    types: placeholder as Registry['agent_configurations.update_mineru_configuration']['types'],
+  },
   'agent-config.llm.show': {
     methods: ["GET","HEAD"],
     pattern: '/api/v1/system/agent-config/llm',

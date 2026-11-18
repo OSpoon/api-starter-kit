@@ -8,6 +8,7 @@ export type DisplayAiChatMessage = {
   role: 'user' | 'assistant'
   content: string
   image?: { mimeType: string }
+  pdf?: { name: string }
   localImageFile?: File
   candidateContent?: string
   candidateCallId?: string

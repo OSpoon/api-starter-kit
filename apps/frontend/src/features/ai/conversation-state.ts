@@ -3,11 +3,12 @@ import type { AiChatMessage } from './api'
 type AiChatMessageContent = {
   content: string
   image?: unknown
+  pdf?: unknown
   localImageFile?: unknown
 }
 
 export function hasAiChatMessageContent(message: AiChatMessageContent) {
-  return Boolean(message.content.trim() || message.image || message.localImageFile)
+  return Boolean(message.content.trim() || message.image || message.pdf || message.localImageFile)
 }
 
 export function hasAiChatConversationContent(messages: AiChatMessageContent[]) {

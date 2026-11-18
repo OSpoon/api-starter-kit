@@ -1,4 +1,5 @@
-import { readFile } from 'node:fs/promises'
+import { readFile, rm } from 'node:fs/promises'
+import { basename } from 'node:path'
 
 import type { HttpContext } from '@adonisjs/core/http'
 import logger from '@adonisjs/core/services/logger'
@@ -41,8 +42,10 @@ import AiAgentConfirmation from '#models/ai_agent_confirmation'
 import AiChatConversation from '#models/ai_chat_conversation'
 import AiChatMessage from '#models/ai_chat_message'
 import { getAiChatImageMimeType } from '#services/ai_chat_image_service'
+import { createAiChatPdfMessage } from '#services/ai_chat_pdf_service'
 import { getAudioMimeType, transcribeAudio } from '#services/ai_speech_service'
 import { getAiUsageSummary } from '#services/ai_usage_service'
+import { getMineruToken } from '#services/mineru_configuration_service'
 import { clampLimit } from '#support/pagination'
 import {
   serializeAiChatConversation,
@@ -196,6 +199,7 @@ export default class AiChatController {
         'role',
         'content',
         'imageMimeType',
+        'pdfName',
         'citations',
         'runtimeDetails',
         'createdAt',
@@ -218,10 +222,16 @@ export default class AiChatController {
     required: true,
     schema: {
       type: 'object',
-      anyOf: [{ required: ['content'] }, { required: ['image'] }],
+      anyOf: [
+        { required: ['content'] },
+        { required: ['image'] },
+        { required: ['pdf', 'pdfMineruConsent'] },
+      ],
       properties: {
         content: { type: 'string', maxLength: 8000 },
         image: { type: 'string', format: 'binary' },
+        pdf: { type: 'string', format: 'binary', description: '最大 5 MB' },
+        pdfMineruConsent: { type: 'boolean', enum: [true] },
         contextRoute: { type: 'string', maxLength: 200 },
         contextTitle: { type: 'string', maxLength: 160 },
       },
@@ -230,14 +240,15 @@ export default class AiChatController {
   @ApiOperation({
     summary: '发送 AI 聊天消息',
     description:
-      '保存用户消息，调用 OpenAI 兼容接口，并保存助手回复。支持 JSON 文本请求或包含单张 JPEG、PNG、WebP 图片的 multipart/form-data 请求。',
+      '保存用户消息，调用 OpenAI 兼容接口，并保存助手回复。支持 JSON 文本请求或包含单张 JPEG、PNG、WebP 图片或用户已授权 MinerU 处理的单份 PDF 的 multipart/form-data 请求。',
   })
   @ApiResponse({
     status: 200,
     description: 'SSE 流包含 Agent 准备阶段、工具状态和不含参数值的调用摘要。',
   })
   @ApiResponse({ status: 409, description: '当前会话已有 AI 请求正在运行' })
-  @ApiResponse({ status: 422, description: '消息或图片校验失败' })
+  @ApiResponse({ status: 422, description: '消息、附件或 MinerU 授权校验失败' })
+  @ApiResponse({ status: 503, description: '服务端尚未配置 PDF 解析' })
   async sendMessage(ctx: HttpContext) {
     const { params, request, response } = ctx
     const user = currentUser(ctx)
@@ -255,8 +266,37 @@ export default class AiChatController {
       })
     }
 
-    if (!content && !imageFile && !payload.regenerateAssistantMessageId) {
-      return response.unprocessableEntity({ message: '请输入问题或附加一张图片' })
+    const pdfFile = request.file('pdf', { size: '5mb', extnames: ['pdf'] })
+    let pdfData: Buffer | undefined
+    if (pdfFile) {
+      const temporaryPdf = pdfFile.tmpPath
+      try {
+        if (
+          imageFile ||
+          payload.regenerateAssistantMessageId ||
+          payload.pdfMineruConsent !== true
+        ) {
+          return response.unprocessableEntity({
+            message: '每条消息仅支持一个附件，PDF 需要授权 MinerU 解析',
+          })
+        }
+        if (!(await getMineruToken())) {
+          return response.serviceUnavailable({ message: 'PDF 解析服务未配置' })
+        }
+        if (!pdfFile.isValid || !temporaryPdf) {
+          return response.unprocessableEntity({ message: '请上传不超过 5 MB 的有效 PDF' })
+        }
+        pdfData = await readFile(temporaryPdf)
+        if (pdfData.subarray(0, 5).toString('ascii') !== '%PDF-') {
+          return response.unprocessableEntity({ message: 'PDF 格式无效' })
+        }
+      } finally {
+        if (temporaryPdf) await rm(temporaryPdf, { force: true })
+      }
+    }
+
+    if (!content && !imageFile && !pdfData && !payload.regenerateAssistantMessageId) {
+      return response.unprocessableEntity({ message: '请输入问题或添加附件' })
     }
 
     if (payload.regenerateAssistantMessageId && imageFile) {
@@ -302,12 +342,19 @@ export default class AiChatController {
 
       const userMessage =
         regeneration?.userMessage ??
-        (await AiChatMessage.create({
-          conversationId: conversation.id,
-          role: 'user',
-          content,
-          ...(imageData && imageMimeType ? { imageData, imageMimeType } : {}),
-        }))
+        (pdfData && pdfFile
+          ? await createAiChatPdfMessage(
+              conversation.id,
+              content,
+              basename(pdfFile.clientName).slice(0, 255),
+              pdfData
+            )
+          : await AiChatMessage.create({
+              conversationId: conversation.id,
+              role: 'user',
+              content,
+              ...(imageData && imageMimeType ? { imageData, imageMimeType } : {}),
+            }))
 
       const messageCount = await AiChatMessage.query()
         .where('conversation_id', conversation.id)
@@ -318,7 +365,7 @@ export default class AiChatController {
         conversation.title === 'New chat'
       const shouldGenerateImageTitle = isFirstMessage && Boolean(imageData && imageMimeType)
       if (isFirstMessage && !shouldGenerateImageTitle) {
-        conversation.title = createAiChatConversationTitle(content)
+        conversation.title = createAiChatConversationTitle(content || userMessage.pdfName || '')
         await conversation.save()
       }
 

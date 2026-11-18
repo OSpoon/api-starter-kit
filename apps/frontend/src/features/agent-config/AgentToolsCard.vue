@@ -1,11 +1,26 @@
 <script setup lang="ts">
-import { LoaderCircle, RefreshCw } from '@lucide/vue'
+import { ExternalLink, KeyRound, LoaderCircle, RefreshCw } from '@lucide/vue'
 import type { ColumnDef } from '@tanstack/vue-table'
+import { toTypedSchema } from '@vee-validate/zod'
+import { useForm } from 'vee-validate'
 import { toast } from 'vue-sonner'
+import { z } from 'zod'
 
 import DataTable from '@/components/common/DataTable.vue'
+import FormDialogContent from '@/components/common/FormDialogContent.vue'
+import FormDialogFooter from '@/components/common/FormDialogFooter.vue'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Dialog } from '@/components/ui/dialog'
+import {
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form'
+import { Input } from '@/components/ui/input'
 import {
   Select,
   SelectContent,
@@ -14,7 +29,14 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
-import { type AgentToolSetting, getAgentTools, updateAgentTools } from '@/features/agent-config/api'
+import {
+  type AgentToolConfiguration,
+  type AgentToolSetting,
+  getAgentTools,
+  updateAgentTools,
+  updateMineruToken,
+} from '@/features/agent-config/api'
+import { firstFormError } from '@/lib/form-validation'
 import { usePermission } from '@/lib/permission'
 import { useAuthStore } from '@/stores/auth'
 
@@ -26,6 +48,31 @@ const saving = ref(false)
 const tools = ref<AgentToolSetting[]>([])
 const saved = ref('')
 const canUpdate = computed(() => can('agent-config:update'))
+const mineruSource = ref<AgentToolConfiguration['mineru']['source']>(null)
+const mineruMaskedToken = ref<string | null>(null)
+const mineruStatusLabel = computed(() =>
+  t(mineruSource.value ? 'agent_config.mineru.source_web' : 'agent_config.mineru.source_none')
+)
+const mineruOpen = ref(false)
+const mineruForm = useForm({
+  initialValues: { token: '' },
+  validationSchema: toTypedSchema(
+    z.object({
+      token: z
+        .string()
+        .trim()
+        .refine(
+          (token) => (token ? /^[!-~]{1,1024}$/.test(token) : Boolean(mineruSource.value)),
+          t('agent_config.mineru.invalid_token')
+        ),
+    })
+  ),
+})
+const submitMineru = mineruForm.handleSubmit(
+  ({ token }) => saveMineru(token || undefined),
+  ({ errors }) => toast.error(firstFormError(errors, t('common.form_check_errors')))
+)
+
 const serialize = (items: AgentToolSetting[]) =>
   JSON.stringify(
     items
@@ -40,7 +87,24 @@ const columns = computed<ColumnDef<AgentToolSetting>[]>(() => [
     header: () => t('agent_config.tool_name'),
     cell: ({ row }) =>
       h('div', { class: 'min-w-48' }, [
-        h('div', { class: 'font-medium' }, t(`agent_config.tool_names.${row.original.code}`)),
+        h('div', { class: 'flex items-center gap-2 font-medium' }, [
+          t(`agent_config.tool_names.${row.original.code}`),
+          ...(row.original.code === 'read_pdf_attachment'
+            ? [
+                h(
+                  'span',
+                  {
+                    class:
+                      'inline-flex size-5 items-center justify-center rounded-full bg-muted text-muted-foreground',
+                    title: mineruStatusLabel.value,
+                    role: 'img',
+                    'aria-label': mineruStatusLabel.value,
+                  },
+                  [h(KeyRound, { class: 'size-3', 'aria-hidden': true })]
+                ),
+              ]
+            : []),
+        ]),
         h('div', { class: 'text-xs text-muted-foreground' }, row.original.code),
         h(
           'div',
@@ -102,7 +166,9 @@ const columns = computed<ColumnDef<AgentToolSetting>[]>(() => [
     header: () => t('agent_config.enabled'),
     cell: ({ row }) =>
       h(Switch, {
-        modelValue: row.original.enabled,
+        modelValue:
+          row.original.enabled &&
+          (row.original.code !== 'read_pdf_attachment' || Boolean(mineruSource.value)),
         disabled: !canUpdate.value || saving.value,
         title: t('agent_config.toggle_enabled', {
           name: t(`agent_config.tool_names.${row.original.code}`),
@@ -119,8 +185,7 @@ async function load() {
   loading.value = true
   try {
     const result = await getAgentTools(auth.token)
-    tools.value = result.tools.map((tool) => ({ ...tool }))
-    saved.value = serialize(tools.value)
+    applyConfiguration(result)
   } catch (error) {
     toast.error(error instanceof Error ? error.message : t('agent_config.tools_load_failed'))
   } finally {
@@ -128,8 +193,43 @@ async function load() {
   }
 }
 
+function applyConfiguration(result: AgentToolConfiguration) {
+  tools.value = result.tools.map((tool) => ({ ...tool }))
+  mineruSource.value = result.mineru.source
+  mineruMaskedToken.value = result.mineru.maskedToken
+  saved.value = serialize(tools.value)
+}
+
+function openMineru() {
+  mineruForm.resetForm()
+  mineruOpen.value = true
+}
+
+async function saveMineru(value?: string) {
+  if (saving.value) return
+  saving.value = true
+  try {
+    applyConfiguration(await updateMineruToken(auth.token, value, true))
+    mineruForm.resetForm()
+    mineruOpen.value = false
+    toast.success(t('agent_config.tools_saved'))
+  } catch (error) {
+    toast.error(error instanceof Error ? error.message : t('agent_config.tools_save_failed'))
+  } finally {
+    saving.value = false
+  }
+}
+
+watch(mineruOpen, (open) => {
+  if (!open) mineruForm.resetForm()
+})
+
 function setEnabled(code: string, enabled: boolean) {
   if (saving.value) return
+  if (code === 'read_pdf_attachment' && enabled) {
+    openMineru()
+    return
+  }
   const tool = tools.value.find((item) => item.code === code)
   if (tool) {
     tool.enabled = enabled
@@ -154,8 +254,7 @@ async function save() {
   saving.value = true
   try {
     const result = await updateAgentTools(auth.token, tools.value)
-    tools.value = result.tools.map((tool) => ({ ...tool }))
-    saved.value = serialize(tools.value)
+    applyConfiguration(result)
     toast.success(t('agent_config.tools_saved'))
   } catch (error) {
     if (saved.value === previous) tools.value = JSON.parse(previous) as AgentToolSetting[]
@@ -201,4 +300,55 @@ onMounted(load)
       />
     </CardContent>
   </Card>
+  <Dialog v-model:open="mineruOpen">
+    <FormDialogContent
+      :title="t('agent_config.mineru.configure')"
+      :description="
+        mineruSource ? t('agent_config.mineru.reuse') : t('agent_config.mineru.description')
+      "
+    >
+      <form class="flex min-h-0 flex-1 flex-col overflow-hidden" novalidate @submit="submitMineru">
+        <div class="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-6 py-4">
+          <FormField v-slot="{ componentField }" name="token" :validate-on-blur="false">
+            <FormItem>
+              <FormLabel>{{ t('agent_config.mineru.token') }}</FormLabel>
+              <FormControl>
+                <Input
+                  v-bind="componentField"
+                  type="password"
+                  autocomplete="new-password"
+                  :placeholder="mineruMaskedToken ?? undefined"
+                  :disabled="saving"
+                />
+              </FormControl>
+              <FormDescription>
+                <a
+                  href="https://mineru.net/apiManage/token"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="inline-flex items-center gap-1 text-primary underline underline-offset-4"
+                >
+                  {{ t('agent_config.mineru.manage_token') }}
+                  <ExternalLink class="size-3" aria-hidden="true" />
+                </a>
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          </FormField>
+        </div>
+        <FormDialogFooter>
+          <Button type="button" variant="ghost" :disabled="saving" @click="mineruOpen = false">
+            {{ t('common.cancel') }}
+          </Button>
+          <Button type="submit" :disabled="saving">
+            {{
+              mineruForm.values.token?.trim() || !mineruSource
+                ? t('agent_config.mineru.save_enable')
+                : t('agent_config.mineru.enable')
+            }}
+          </Button>
+        </FormDialogFooter>
+      </form>
+    </FormDialogContent>
+  </Dialog>
 </template>

@@ -85,7 +85,7 @@ const {
   dismissAiConfirmation,
   handleAiCopyCredential,
   handleAiSend,
-  handleAiSendImage,
+  handleAiSendAttachment,
   handleAiVoiceSend,
   handleAiSelectConversation,
   handleAiStop,
@@ -141,7 +141,7 @@ const {
         @dismiss-credential="aiCredentialDisclosure = null"
         @copy-credential="handleAiCopyCredential"
         @send="handleAiSend"
-        @send-image="handleAiSendImage"
+        @send-attachment="handleAiSendAttachment"
         @voice-send="handleAiVoiceSend"
         @select-conversation="handleAiSelectConversation"
         @stop="handleAiStop"
