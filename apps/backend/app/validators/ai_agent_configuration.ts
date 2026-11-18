@@ -1,3 +1,5 @@
+import '@adonisjs/core/providers/vinejs_provider'
+
 import vine from '@vinejs/vine'
 
 import { builtInAiAgentToolNames } from '#ai/core/ai_agent_tool_catalog'
@@ -28,6 +30,10 @@ export const installAiAgentSkillsValidator = vine.compile(
         /^(?:[A-Za-z0-9_-][A-Za-z0-9_.-]*\/[A-Za-z0-9_-][A-Za-z0-9_.-]*(?:@[A-Za-z0-9._/-]+)?|git@[A-Za-z0-9.-]+:[^\s]+\.git|https:\/\/\S+|ssh:\/\/(?:git@)?\S+\.git)$/i
       ),
   })
+)
+
+export const installAiAgentSkillZipValidator = vine.compile(
+  vine.object({ file: vine.file({ size: '10mb', extnames: ['zip'] }) })
 )
 
 export const updateAiAgentSkillValidator = vine.compile(vine.object({ enabled: vine.boolean() }))

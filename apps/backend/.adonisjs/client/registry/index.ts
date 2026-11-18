@@ -228,6 +228,12 @@ const routes = {
     tokens: [{"old":"/api/v1/system/agent-config/skills","type":0,"val":"api","end":""},{"old":"/api/v1/system/agent-config/skills","type":0,"val":"v1","end":""},{"old":"/api/v1/system/agent-config/skills","type":0,"val":"system","end":""},{"old":"/api/v1/system/agent-config/skills","type":0,"val":"agent-config","end":""},{"old":"/api/v1/system/agent-config/skills","type":0,"val":"skills","end":""}],
     types: placeholder as Registry['agent_configurations.install_skills']['types'],
   },
+  'agent_configurations.install_skill_zip': {
+    methods: ["POST"],
+    pattern: '/api/v1/system/agent-config/skills/zip',
+    tokens: [{"old":"/api/v1/system/agent-config/skills/zip","type":0,"val":"api","end":""},{"old":"/api/v1/system/agent-config/skills/zip","type":0,"val":"v1","end":""},{"old":"/api/v1/system/agent-config/skills/zip","type":0,"val":"system","end":""},{"old":"/api/v1/system/agent-config/skills/zip","type":0,"val":"agent-config","end":""},{"old":"/api/v1/system/agent-config/skills/zip","type":0,"val":"skills","end":""},{"old":"/api/v1/system/agent-config/skills/zip","type":0,"val":"zip","end":""}],
+    types: placeholder as Registry['agent_configurations.install_skill_zip']['types'],
+  },
   'agent_configurations.update_skill': {
     methods: ["PUT"],
     pattern: '/api/v1/system/agent-config/skills/:code',

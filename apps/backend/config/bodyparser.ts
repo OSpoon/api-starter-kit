@@ -61,7 +61,7 @@ const bodyParserConfig = defineConfig({
     /**
      * Routes where multipart processing is handled manually.
      */
-    processManually: [],
+    processManually: ['/api/v1/system/agent-config/skills/zip'],
 
     /**
      * Maximum accepted payload size for multipart requests.

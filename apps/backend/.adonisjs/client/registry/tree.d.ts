@@ -65,6 +65,7 @@ export interface ApiDefinition {
     updateConfiguration: typeof routes['agent_configurations.update_configuration']
     skills: typeof routes['agent_configurations.skills']
     installSkills: typeof routes['agent_configurations.install_skills']
+    installSkillZip: typeof routes['agent_configurations.install_skill_zip']
     updateSkill: typeof routes['agent_configurations.update_skill']
     removeSkill: typeof routes['agent_configurations.remove_skill']
   }

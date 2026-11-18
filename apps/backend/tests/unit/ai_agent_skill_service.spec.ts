@@ -34,6 +34,7 @@ test.group('AI agent skill service', (group) => {
       '---\nname: Summarize\ndescription: Create concise summaries.\n---\nUse short sentences.\n'
     )
     await writeFile(join(skillPath, 'references', 'guide.md'), 'Keep only durable facts.')
+    await writeFile(join(skillPath, 'references', 'region-policy.json'), '{"region":"example"}')
     return { workspace, skillPath }
   }
 
@@ -78,6 +79,14 @@ test.group('AI agent skill service', (group) => {
     assert.equal(
       await loadAiAgentSkill('summarize', 'references/guide.md', workspace),
       'Keep only durable facts.'
+    )
+    assert.deepEqual(
+      JSON.parse(await loadAiAgentSkill('summarize', 'references/region-policy.json', workspace)),
+      { region: 'example' }
+    )
+    await assert.rejects(
+      () => runAiAgentSkillCommand('summarize', 'references/region-policy.json', [], workspace),
+      /类型不受支持.*load_agent_skill.*resourcePath/
     )
     await assert.rejects(
       () => loadAiAgentSkill('summarize', 'system-info.md', workspace),

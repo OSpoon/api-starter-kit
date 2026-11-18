@@ -1,3 +1,5 @@
+import { fileURLToPath } from 'node:url'
+
 import testUtils from '@adonisjs/core/services/test_utils'
 import db from '@adonisjs/lucid/services/db'
 import { test } from '@japa/runner'
@@ -7,6 +9,7 @@ import Permission from '#models/permission'
 import Role from '#models/role'
 import User from '#models/user'
 import { generateInitialPassword } from '#security/user_credentials'
+import { loadAiAgentSkill, removeAiAgentSkill } from '#services/ai_agent_skill_service'
 
 async function createActor(permissionCodes: string[]) {
   const permissions = await Promise.all(
@@ -246,6 +249,55 @@ test.group('Agent configuration', (group) => {
     })
     updated.assertStatus(200)
     assert.notProperty(updated.body().data, 'requestTimeoutMs')
+  })
+
+  test('installs a ZIP with bundled resources and enforces management permission', async ({
+    client,
+    assert,
+  }) => {
+    const skills = '/api/v1/system/agent-config/skills'
+    const zip = (name: string) =>
+      fileURLToPath(new URL(`../fixtures/skill-zip/${name}.zip`, import.meta.url))
+    const reader = await createActor(['agent-config:read'])
+    const editor = await createActor(['agent-config:read', 'agent-config:update'])
+    const code = 'zip-upload-regression'
+
+    const denied = await client.post(`${skills}/zip`).bearerToken(reader).file('file', zip('skill'))
+    denied.assertStatus(403)
+    for (const invalid of ['traversal', 'symlink']) {
+      const response = await client
+        .post(`${skills}/zip`)
+        .bearerToken(editor)
+        .file('file', zip(invalid))
+      response.assertStatus(422)
+    }
+    const installed = await client
+      .post(`${skills}/zip`)
+      .bearerToken(editor)
+      .file('file', zip('skill'))
+    installed.assertStatus(200)
+    let removed = false
+    try {
+      installed.assertBodyContains({ data: { installed: [{ code, name: code }] } })
+      await assert.rejects(() => loadAiAgentSkill(code, 'references/guide.md'))
+      const duplicate = await client
+        .post(`${skills}/zip`)
+        .bearerToken(editor)
+        .file('file', zip('skill'))
+      duplicate.assertStatus(409)
+      const enabled = await client
+        .put(`${skills}/${code}`)
+        .bearerToken(editor)
+        .json({ enabled: true })
+      enabled.assertStatus(200)
+      assert.equal(await loadAiAgentSkill(code, 'references/guide.md'), 'Bundled guidance.')
+      const deleted = await client.delete(`${skills}/${code}`).bearerToken(editor)
+      deleted.assertStatus(200)
+      removed = true
+      await assert.rejects(() => loadAiAgentSkill(code, 'references/guide.md'))
+    } finally {
+      if (!removed) await removeAiAgentSkill(code)
+    }
   })
 
   test('manages skills through the CLI-backed directory without a skills table', async ({

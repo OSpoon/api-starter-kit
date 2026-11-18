@@ -285,6 +285,9 @@ router
           .post('agent-config/skills', [AgentConfigurationsController, 'installSkills'])
           .use(middleware.permission(['agent-config:update']))
         router
+          .post('agent-config/skills/zip', [AgentConfigurationsController, 'installSkillZip'])
+          .use(middleware.permission(['agent-config:update']))
+        router
           .put('agent-config/skills/:code', [AgentConfigurationsController, 'updateSkill'])
           .use(middleware.permission(['agent-config:update']))
         router

@@ -41,6 +41,7 @@ export type ScannedRoutes = {
     'agent-config.llm.test': { paramsTuple?: []; params?: {} }
     'agent_configurations.skills': { paramsTuple?: []; params?: {} }
     'agent_configurations.install_skills': { paramsTuple?: []; params?: {} }
+    'agent_configurations.install_skill_zip': { paramsTuple?: []; params?: {} }
     'agent_configurations.update_skill': { paramsTuple: [ParamValue]; params: {'code': ParamValue} }
     'agent_configurations.remove_skill': { paramsTuple: [ParamValue]; params: {'code': ParamValue} }
     'im_configurations.show': { paramsTuple?: []; params?: {} }
@@ -200,6 +201,7 @@ export type ScannedRoutes = {
     'llm-config.legacy.test': { paramsTuple?: []; params?: {} }
     'agent-config.llm.test': { paramsTuple?: []; params?: {} }
     'agent_configurations.install_skills': { paramsTuple?: []; params?: {} }
+    'agent_configurations.install_skill_zip': { paramsTuple?: []; params?: {} }
     'knowledge_documents.metadata_preview': { paramsTuple?: []; params?: {} }
     'knowledge_documents.store': { paramsTuple?: []; params?: {} }
     'knowledge_documents.store_batch': { paramsTuple?: []; params?: {} }

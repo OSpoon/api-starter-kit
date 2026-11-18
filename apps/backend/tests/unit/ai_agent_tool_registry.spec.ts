@@ -18,6 +18,8 @@ test.group('AI agent tool registry', () => {
     const bashTool = createAgentSkillBashTool(context)
 
     assert.include(loadTool.description, 'omit resourcePath to read SKILL.md')
+    assert.include(loadTool.description, 'references/region-policy.json')
+    assert.include(bashTool.description, 'use load_agent_skill with code and resourcePath')
     assert.include(
       (loadTool.parameters.properties?.resourcePath as { description: string }).description,
       'Omit on the first load to read SKILL.md'

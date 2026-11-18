@@ -1054,7 +1054,7 @@ watch(
               <MessageScroller>
                 <MessageScrollerViewport @reach-start="loadOlderMessagesAtStart">
                   <MessageScrollerContent
-                    :class="isSelectingMessages ? 'gap-y-9 px-3' : 'gap-y-6 px-3'"
+                    :class="isSelectingMessages ? 'gap-y-6 px-3' : 'gap-y-3 px-3'"
                   >
                     <div
                       v-if="loadingOlderMessages"

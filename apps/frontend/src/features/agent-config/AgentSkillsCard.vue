@@ -34,6 +34,7 @@ const page = ref(1)
 const pageCount = ref(1)
 const loading = ref(false)
 const installing = ref(false)
+const selectedZip = shallowRef<File>()
 const changingSkill = ref<string | null>(null)
 const pendingDelete = ref<AgentSkill | null>(null)
 const deleteOpen = ref(false)
@@ -63,26 +64,40 @@ async function load(nextPage = page.value) {
   }
 }
 
+async function install(source: string | File) {
+  installing.value = true
+  try {
+    const result = await installAgentSkills(auth.token, source)
+    selectedZip.value = undefined
+    form.resetForm({ values: { source: '' } })
+    await load(1)
+    toast.success(
+      result.installed.length
+        ? t('agent_config.skills_installed', { count: result.installed.length })
+        : t('agent_config.skills_install_complete')
+    )
+  } catch (error) {
+    toast.error(error instanceof Error ? error.message : t('agent_config.skills_install_failed'))
+  } finally {
+    installing.value = false
+  }
+}
+
 const submit = form.handleSubmit(
-  async ({ source }) => {
-    installing.value = true
-    try {
-      const result = await installAgentSkills(auth.token, source)
-      form.resetForm({ values: { source: '' } })
-      await load(1)
-      toast.success(
-        result.installed.length
-          ? t('agent_config.skills_installed', { count: result.installed.length })
-          : t('agent_config.skills_install_complete')
-      )
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : t('agent_config.skills_install_failed'))
-    } finally {
-      installing.value = false
-    }
-  },
+  ({ source }) => install(selectedZip.value ?? source),
   ({ errors }) => toast.error(firstFormError(errors, t('common.form_check_errors')))
 )
+
+const zipInput = useTemplateRef<HTMLInputElement>('zipInput')
+
+function selectZip(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file || !can('agent-config:update') || installing.value) return
+  selectedZip.value = file
+  form.setFieldValue('source', file.name)
+}
 
 async function toggleSkill(skill: AgentSkill, enabled: boolean) {
   changingSkill.value = skill.code
@@ -232,13 +247,32 @@ onMounted(() => void load())
         <FormField v-slot="{ componentField }" name="source" :validate-on-blur="false">
           <FormItem>
             <FormLabel>{{ t('agent_config.skills_source') }}</FormLabel>
-            <FormControl>
-              <Input
-                v-bind="componentField"
-                :disabled="!can('agent-config:update') || installing"
-                :placeholder="t('agent_config.skills_source_placeholder')"
+            <div class="flex gap-2">
+              <FormControl>
+                <Input
+                  v-bind="componentField"
+                  :disabled="!can('agent-config:update') || installing"
+                  :placeholder="t('agent_config.skills_source_placeholder')"
+                  @input="selectedZip = undefined"
+                />
+              </FormControl>
+              <input
+                ref="zipInput"
+                type="file"
+                accept=".zip,application/zip"
+                hidden
+                @change="selectZip"
               />
-            </FormControl>
+              <Button
+                v-if="can('agent-config:update')"
+                type="button"
+                variant="outline"
+                :disabled="installing || loading"
+                @click="zipInput?.click()"
+              >
+                {{ t('agent_config.select_skill_zip') }}
+              </Button>
+            </div>
             <FormMessage />
           </FormItem>
         </FormField>
@@ -249,7 +283,7 @@ onMounted(() => void load())
         >
           <RefreshCw v-if="installing" class="size-4 animate-spin" />
           <Download v-else class="size-4" />
-          {{ t('agent_config.install_skill') }}
+          {{ t(selectedZip ? 'agent_config.upload_skill_zip' : 'agent_config.install_skill') }}
         </Button>
       </form>
       <DataTable

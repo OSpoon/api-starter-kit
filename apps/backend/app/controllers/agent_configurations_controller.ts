@@ -1,5 +1,12 @@
+import { randomUUID } from 'node:crypto'
+import { createWriteStream } from 'node:fs'
+import { mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { pipeline } from 'node:stream/promises'
+
 import type { HttpContext } from '@adonisjs/core/http'
-import { ApiOperation, ApiResponse, ApiSecurity } from '@foadonis/openapi/decorators'
+import { ApiBody, ApiOperation, ApiResponse, ApiSecurity } from '@foadonis/openapi/decorators'
 
 import {
   getAiAgentToolSettings,
@@ -7,16 +14,19 @@ import {
 } from '#services/ai_agent_configuration_service'
 import {
   installAiAgentSkills,
+  installAiAgentSkillZip,
   listAiAgentSkills,
   removeAiAgentSkill,
   updateAiAgentSkill,
   validateAiAgentSkillSource,
 } from '#services/ai_agent_skill_service'
+import { AiAgentSkillZipError } from '#services/ai_agent_skill_zip'
 import { recordAuditEvent } from '#services/audit_log'
 import { clampLimit } from '#support/pagination'
 import {
   aiAgentSkillCodeValidator,
   installAiAgentSkillsValidator,
+  installAiAgentSkillZipValidator,
   updateAiAgentConfigurationValidator,
   updateAiAgentSkillValidator,
 } from '#validators/ai_agent_configuration'
@@ -83,6 +93,48 @@ export default class AgentConfigurationsController {
     return ctx.serialize({ installed })
   }
 
+  @ApiOperation({ summary: '从上传的 ZIP 安装单个 Agent 技能' })
+  @ApiBody({
+    mediaType: 'multipart/form-data',
+    required: true,
+    schema: {
+      type: 'object',
+      required: ['file'],
+      properties: { file: { type: 'string', format: 'binary' } },
+    },
+  })
+  @ApiResponse({ status: 200, description: '返回安装的技能，默认停用' })
+  @ApiResponse({ status: 409, description: '技能代码已存在' })
+  @ApiResponse({ status: 422, description: 'ZIP 或技能包无效' })
+  async installSkillZip(ctx: HttpContext) {
+    if (!ctx.request.is(['multipart/form-data'])) {
+      return ctx.response.unprocessableEntity({ message: '请上传 ZIP 文件' })
+    }
+    const temporary = await mkdtemp(join(tmpdir(), 'agent-skill-upload-'))
+    try {
+      ctx.request.multipart.onFile('file', { deferValidations: true }, async (part, report) => {
+        const tmpPath = join(temporary, randomUUID())
+        part.pause()
+        part.on('data', report)
+        await pipeline(part, createWriteStream(tmpPath, { flags: 'wx', mode: 0o600 }))
+        return { tmpPath }
+      })
+      await ctx.request.multipart.process()
+      const { file } = await ctx.request.validateUsing(installAiAgentSkillZipValidator)
+      if (!file.tmpPath) throw new AiAgentSkillZipError('ZIP 文件无效')
+      const installed = await installAiAgentSkillZip(file.tmpPath)
+      await recordAuditEvent(ctx, {
+        actorUserId: ctx.auth.getUserOrFail().id,
+        action: 'agent.skills_installed',
+        targetType: 'ai_agent_skills',
+        metadata: { installedCount: installed.length, source: 'zip' },
+      })
+      return ctx.serialize({ installed })
+    } finally {
+      await rm(temporary, { recursive: true, force: true })
+    }
+  }
+
   @ApiOperation({ summary: '更新 Agent 技能的启用状态' })
   @ApiResponse({ status: 200, description: '返回更新后的技能' })
   @ApiResponse({ status: 404, description: '技能不存在' })
@@ -100,7 +152,7 @@ export default class AgentConfigurationsController {
     return ctx.serialize(skill)
   }
 
-  @ApiOperation({ summary: '通过 skills CLI 移除 Agent 技能' })
+  @ApiOperation({ summary: '移除 Agent 技能' })
   @ApiResponse({ status: 200, description: '返回移除结果' })
   @ApiResponse({ status: 404, description: '技能不存在' })
   async removeSkill(ctx: HttpContext) {

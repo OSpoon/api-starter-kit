@@ -451,6 +451,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['installSkills']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
+  'agent_configurations.install_skill_zip': {
+    methods: ["POST"]
+    pattern: '/api/v1/system/agent-config/skills/zip'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/ai_agent_configuration').installAiAgentSkillZipValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/ai_agent_configuration').installAiAgentSkillZipValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['installSkillZip']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['installSkillZip']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
   'agent_configurations.update_skill': {
     methods: ["PUT"]
     pattern: '/api/v1/system/agent-config/skills/:code'

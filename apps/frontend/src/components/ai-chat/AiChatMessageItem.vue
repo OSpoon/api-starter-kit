@@ -535,6 +535,8 @@ watch(
   { immediate: true }
 )
 
+const timelineSections = computed(() => getTimelineSections(props.message.timeline ?? []))
+
 function getTimelineSections(timeline: AiChatTimelineItem[]) {
   const turns = new Map<number, AiChatTimelineItem[]>()
   let currentTurn = 0
@@ -577,9 +579,9 @@ function getTimelineSections(timeline: AiChatTimelineItem[]) {
       class="group/message"
       :class="
         isWelcomeMessage
-          ? 'w-full items-center gap-3'
+          ? 'w-full items-center gap-1'
           : message.role === 'assistant'
-            ? 'w-full gap-3'
+            ? 'w-full gap-1'
             : 'max-w-[85%] gap-1'
       "
     >
@@ -675,11 +677,7 @@ function getTimelineSections(timeline: AiChatTimelineItem[]) {
         </DialogContent>
       </Dialog>
       <Trace
-        v-if="
-          message.role === 'assistant' &&
-          message.timeline?.length &&
-          getTimelineSections(message.timeline).length
-        "
+        v-if="message.role === 'assistant' && message.timeline?.length && timelineSections.length"
         class="mt-1"
       >
         <TraceCollapsible
@@ -708,10 +706,7 @@ function getTimelineSections(timeline: AiChatTimelineItem[]) {
               class="max-h-[180px] overflow-y-auto overscroll-contain border-t border-border/60 px-2.5 py-2"
             >
               <Trace class="gap-1 text-xs">
-                <template
-                  v-for="section in getTimelineSections(message.timeline)"
-                  :key="section.key"
-                >
+                <template v-for="section in timelineSections" :key="section.key">
                   <template
                     v-for="(item, index) in section.items"
                     :key="`${item.kind}-${item.kind === 'tool' ? (item.callId ?? item.name) : index}`"
@@ -763,7 +758,7 @@ function getTimelineSections(timeline: AiChatTimelineItem[]) {
                     <TraceLine
                       v-else-if="item.kind === 'model_text'"
                       :status="getTraceStatus(item)"
-                      class="w-full text-xs"
+                      class="w-full items-start text-xs"
                       :class="item.streaming ? 'text-foreground' : 'text-muted-foreground'"
                     >
                       <TraceIcon>
@@ -772,7 +767,9 @@ function getTimelineSections(timeline: AiChatTimelineItem[]) {
                           :class="item.streaming ? 'animate-spin text-primary' : ''"
                         />
                       </TraceIcon>
-                      <TraceTitle class="flex-1 whitespace-pre-wrap">{{ item.text }}</TraceTitle>
+                      <span class="min-w-0 flex-1 wrap-anywhere whitespace-pre-wrap">
+                        {{ item.text.trim() }}
+                      </span>
                     </TraceLine>
                     <TraceLine
                       v-else-if="

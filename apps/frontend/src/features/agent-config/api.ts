@@ -128,11 +128,16 @@ export function listAgentSkills(token: string | null, page: number) {
   return getModulePage<AgentSkill>(token, 'skills', page)
 }
 
-export async function installAgentSkills(token: string | null, source: string) {
+export async function installAgentSkills(token: string | null, source: string | File) {
+  const zip = new FormData()
+  if (typeof source !== 'string') zip.append('file', source)
+  const body = typeof source === 'string' ? JSON.stringify({ source }) : zip
   return readItem(
     await apiRequest<ApiEnvelope<{ installed: Array<Pick<AgentSkill, 'code' | 'name'>> }>>(
-      '/api/v1/system/agent-config/skills',
-      { method: 'POST', token, body: JSON.stringify({ source }) }
+      typeof source === 'string'
+        ? '/api/v1/system/agent-config/skills'
+        : '/api/v1/system/agent-config/skills/zip',
+      { method: 'POST', token, body }
     )
   )
 }

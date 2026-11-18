@@ -1,8 +1,10 @@
 import { execFile as nodeExecFile } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import {
+  link,
   lstat,
   mkdir,
+  mkdtemp,
   open,
   readdir,
   readFile,
@@ -25,6 +27,7 @@ import {
   executeAiAgentSkillScript,
   getAiAgentSkillScriptPaths,
 } from '#services/ai_agent_skill_execution_service'
+import { AiAgentSkillZipError, extractAiAgentSkillZip } from '#services/ai_agent_skill_zip'
 import env from '#start/env'
 
 const execFile = promisify(nodeExecFile)
@@ -259,16 +262,26 @@ async function resolveSkillFile(skillPath: string, resourcePath: string, maxByte
   return realFilePath
 }
 
+let skillMutation: Promise<unknown> = Promise.resolve()
+
+function serializeSkillMutation<T>(operation: () => Promise<T>) {
+  const result = skillMutation.then(operation)
+  skillMutation = result.catch(() => {})
+  return result
+}
+
 export async function updateAiAgentSkill(code: string, enabled: boolean, workspace?: string) {
-  validateSkillCode(code)
-  const root = getSkillsWorkspace(workspace)
-  const skills = await listSkillsFromWorkspace(root)
-  const skill = skills.find((item) => item.code === code)
-  if (!skill) throw new AiAgentSkillNotFoundError()
-  const state = await readState(root)
-  state[code] = enabled
-  await writeState(root, state)
-  return { ...skill, enabled }
+  return serializeSkillMutation(async () => {
+    validateSkillCode(code)
+    const root = getSkillsWorkspace(workspace)
+    const skills = await listSkillsFromWorkspace(root)
+    const skill = skills.find((item) => item.code === code)
+    if (!skill) throw new AiAgentSkillNotFoundError()
+    const state = await readState(root)
+    state[code] = enabled
+    await writeState(root, state)
+    return { ...skill, enabled }
+  })
 }
 
 async function runSkillsCli(args: string[], workspace: string) {
@@ -318,39 +331,127 @@ export function validateAiAgentSkillSource(source: string) {
   return value
 }
 
+function zipOriginPath(workspace: string, code: string) {
+  return join(workspace, '.assistant-zip-skills', code)
+}
+
+export async function installAiAgentSkillZip(filePath: string, workspace?: string) {
+  return serializeSkillMutation(async () => {
+    const root = getSkillsWorkspace(workspace)
+    const skills = getSkillsDirectory(root)
+    await mkdir(skills, { recursive: true, mode: 0o700 })
+    const temporary = await mkdtemp(join(root, '.skill-upload-'))
+    try {
+      await extractAiAgentSkillZip(filePath, temporary)
+      const entries = await readdir(temporary, { withFileTypes: true })
+      const directory =
+        entries.length === 1 && entries[0]?.isDirectory()
+          ? join(temporary, entries[0].name)
+          : temporary
+      const markdown = join(directory, 'SKILL.md')
+      const file = await lstat(markdown).catch(() => undefined)
+      if (!file?.isFile() || file.size > skillFileLimit) {
+        throw new AiAgentSkillZipError('ZIP 必须包含一个有效的 SKILL.md')
+      }
+      const content = await readFile(markdown, 'utf8')
+      const metadata = parseSkillFrontmatter(content)
+      const code = metadata.name
+      if (
+        typeof code !== 'string' ||
+        typeof metadata.description !== 'string' ||
+        !metadata.description.trim()
+      ) {
+        throw new AiAgentSkillZipError('SKILL.md 必须声明技能名称和说明')
+      }
+      try {
+        if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(code)) throw new Error('Invalid skill code')
+        validateSkillCode(code)
+        getSkillCapabilities(content)
+      } catch {
+        throw new AiAgentSkillZipError('SKILL.md 的技能名称或能力声明无效')
+      }
+      await getAiAgentSkillScriptPaths(directory).catch(() => {
+        throw new AiAgentSkillZipError('技能脚本超过运行限制')
+      })
+
+      const destination = join(skills, code)
+      const origin = zipOriginPath(root, code)
+      if (await lstat(destination).catch(ignoreMissing)) {
+        throw Object.assign(new Error('技能已存在'), { status: 409 })
+      }
+      await mkdir(join(root, '.assistant-zip-skills'), { recursive: true, mode: 0o700 })
+      await rm(origin, { force: true })
+      // Keep provenance outside the archive and bind it to this installed file.
+      await link(markdown, origin)
+      try {
+        const state = await readState(root)
+        state[code] = false
+        await writeState(root, state)
+        await rename(directory, destination)
+      } catch (error) {
+        await rm(origin, { force: true })
+        if (['EEXIST', 'ENOTEMPTY'].includes((error as NodeJS.ErrnoException).code ?? '')) {
+          throw Object.assign(new Error('技能已存在'), { status: 409 })
+        }
+        throw error
+      }
+      return [{ code, name: code }]
+    } finally {
+      await rm(temporary, { recursive: true, force: true })
+    }
+  })
+}
+
+function ignoreMissing(error: NodeJS.ErrnoException) {
+  if (error.code !== 'ENOENT') throw error
+}
+
 export async function installAiAgentSkills(source: string, workspace?: string) {
-  const validatedSource = validateAiAgentSkillSource(source)
-  const root = getSkillsWorkspace(workspace)
-  const before = await listSkillsFromWorkspace(root)
-  await runSkillsCli(
-    ['add', validatedSource, '--skill', '*', '--agent', 'universal', '--copy', '--yes'],
-    root
-  )
-  const after = await listSkillsFromWorkspace(root)
-  const state = await readState(root)
-  const installed = after.filter(
-    (skill) => !before.some((previous) => previous.code === skill.code)
-  )
-  for (const skill of installed) state[skill.code] = false
-  await writeState(root, state)
-  return installed.map(({ code, name }) => ({ code, name }))
+  return serializeSkillMutation(async () => {
+    const validatedSource = validateAiAgentSkillSource(source)
+    const root = getSkillsWorkspace(workspace)
+    const before = await listSkillsFromWorkspace(root)
+    await runSkillsCli(
+      ['add', validatedSource, '--skill', '*', '--agent', 'universal', '--copy', '--yes'],
+      root
+    )
+    const after = await listSkillsFromWorkspace(root)
+    const state = await readState(root)
+    const installed = after.filter(
+      (skill) => !before.some((previous) => previous.code === skill.code)
+    )
+    for (const skill of installed) state[skill.code] = false
+    await writeState(root, state)
+    return installed.map(({ code, name }) => ({ code, name }))
+  })
 }
 
 export async function removeAiAgentSkill(code: string, workspace?: string) {
-  validateSkillCode(code)
-  const root = getSkillsWorkspace(workspace)
-  const skills = await listSkillsFromWorkspace(root)
-  const skill = skills.find((item) => item.code === code)
-  if (!skill) throw new AiAgentSkillNotFoundError()
-  await runSkillsCli(['remove', code, '--yes'], root)
-  const remainingSkills = await listSkillsFromWorkspace(root)
-  if (remainingSkills.some((item) => item.code === code)) {
-    throw new Error('skills CLI 未能移除技能')
-  }
-  const state = await readState(root)
-  delete state[code]
-  await writeState(root, state)
-  return skill
+  return serializeSkillMutation(async () => {
+    validateSkillCode(code)
+    const root = getSkillsWorkspace(workspace)
+    const skills = await listSkillsFromWorkspace(root)
+    const skill = skills.find((item) => item.code === code)
+    if (!skill) throw new AiAgentSkillNotFoundError()
+    const origin = zipOriginPath(root, code)
+    const marker = await lstat(origin).catch(ignoreMissing)
+    const directory = join(getSkillsDirectory(root), code)
+    const markdown = await lstat(join(directory, 'SKILL.md'))
+    if (marker && marker.dev === markdown.dev && marker.ino === markdown.ino) {
+      await rm(directory, { recursive: true })
+      await rm(origin, { force: true })
+    } else {
+      await runSkillsCli(['remove', code, '--yes'], root)
+    }
+    const remainingSkills = await listSkillsFromWorkspace(root)
+    if (remainingSkills.some((item) => item.code === code)) {
+      throw new Error('skills CLI 未能移除技能')
+    }
+    const state = await readState(root)
+    delete state[code]
+    await writeState(root, state)
+    return skill
+  })
 }
 
 export async function loadAiAgentSkill(
@@ -425,7 +526,11 @@ export async function runAiAgentSkillCommand(
         : skillScriptExtensions.has(extension)
           ? 'node'
           : undefined
-  if (!runtime) throw new Error('技能脚本类型不受支持')
+  if (!runtime) {
+    throw new Error(
+      '技能脚本类型不受支持。读取 JSON、Markdown 等技能资源时，请调用 load_agent_skill，传入原技能 code，并将相对路径作为 resourcePath。'
+    )
+  }
   if (signal?.aborted) throw new DOMException('AI request was cancelled', 'AbortError')
   const canonicalScriptPath = relative(skillPath, resolvedScript).split(sep).join('/')
   const result = await executeAiAgentSkillScript({
