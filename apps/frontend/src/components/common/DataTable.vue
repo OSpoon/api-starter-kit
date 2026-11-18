@@ -323,7 +323,10 @@ function resetFilters() {
               : 'flex shrink-0 flex-col gap-3 md:flex-row md:items-center md:justify-between'
       "
     >
-      <legend v-if="useListPageQueryLayout" class="px-2 text-lg font-semibold tracking-tight">
+      <legend
+        v-if="useListPageQueryLayout"
+        class="px-2 font-display text-xl font-semibold tracking-tight"
+      >
         {{ listPageTitle }}
       </legend>
       <div :class="useListPageQueryLayout ? 'flex flex-col gap-3 pt-4' : 'contents'">
@@ -410,7 +413,7 @@ function resetFilters() {
         </Button>
         <h1
           v-if="!useListPageQueryLayout && listPageTitle"
-          class="text-lg font-semibold tracking-tight"
+          class="text-xl font-semibold tracking-tight"
         >
           {{ listPageTitle }}
         </h1>
@@ -434,7 +437,7 @@ function resetFilters() {
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
-    <Table container-class="min-h-0 min-w-0 flex-1 overflow-auto border-y">
+    <Table container-class="min-h-0 min-w-0 flex-1 overflow-auto rounded-md border">
       <TableHeader class="sticky top-0 z-10 bg-card">
         <TableRow
           v-for="(headerGroup, groupIndex) in table.getHeaderGroups()"

@@ -37,9 +37,7 @@ const slots = useSlots()
   >
     <slot name="summary" />
 
-    <section
-      class="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden rounded-lg border bg-card p-4"
-    >
+    <section class="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden">
       <div v-if="slots.query" class="shrink-0 rounded-md border bg-muted/20 p-4">
         <slot name="query" />
       </div>
