@@ -126,6 +126,37 @@ test('AI stream accepts a terminal done event', async () => {
   }
 })
 
+test('AI timeline keeps the final model phase for replies without tool calls', () => {
+  const message = { content: '', timeline: [] }
+  const state = { runMeta: ref(null) }
+  const send = (event) =>
+    applyAiChatStreamEvent(
+      event,
+      message,
+      state,
+      () => {},
+      () => {}
+    )
+  const phase = {
+    type: 'agent_phase',
+    name: 'model_response',
+    callId: 'final-model-response',
+    startedAt: 100,
+  }
+  send({ ...phase, state: 'running' })
+  send({ ...phase, state: 'done', outcome: 'final_response', durationMs: 250 })
+  send({ type: 'run', agentRunId: 'run-1', durationMs: 300, usage: { modelCalls: 1 } })
+
+  assert.deepEqual(
+    message.timeline.map(({ kind, durationMs }) => ({ kind, durationMs })),
+    [
+      { kind: 'phase', durationMs: 250 },
+      { kind: 'run', durationMs: 300 },
+    ]
+  )
+  assert.equal(message.timeline[0].outcome, 'final_response')
+})
+
 test('AI stream delivers model and safe built-in tool details', async () => {
   const originalFetch = globalThis.fetch
   globalThis.fetch = async () =>

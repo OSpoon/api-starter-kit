@@ -107,6 +107,44 @@ export async function runAiChatAssistantTurn(input: {
   > = []
   let aiFailureStage = 'initialization'
 
+  const streamStartedAt = Date.now()
+  const usage = {
+    inputTokens: 0,
+    outputTokens: 0,
+    cacheReadTokens: 0,
+    cacheWriteTokens: 0,
+    totalTokens: 0,
+    modelCalls: 0,
+    compactionCalls: 0,
+  }
+  let runSummary: Extract<AiChatRuntimeDetail, { kind: 'run' }> | undefined
+
+  const recordRunSummary = (state: 'done' | 'error') => {
+    if (runSummary) {
+      runSummary.state = state
+      return runSummary
+    }
+    const runUsage: Record<string, unknown> = { ...usage }
+    let durationMs = Date.now() - streamStartedAt
+    for (const detail of runtimeDetails) {
+      if (detail.kind !== 'run') continue
+      durationMs += detail.durationMs
+      for (const [key, value] of Object.entries(detail.usage)) {
+        if (typeof value !== 'number') continue
+        const previous = runUsage[key]
+        runUsage[key] = (typeof previous === 'number' ? previous : 0) + value
+      }
+    }
+    runSummary = { kind: 'run', state, durationMs, usage: runUsage }
+    runtimeDetails.splice(
+      0,
+      runtimeDetails.length,
+      ...runtimeDetails.filter((detail) => detail.kind !== 'run'),
+      runSummary
+    )
+    return runSummary
+  }
+
   const logAgentPhase = (
     phase: 'preparing_agent' | 'model_response',
     state: 'running' | 'done' | 'error',
@@ -169,16 +207,7 @@ export async function runAiChatAssistantTurn(input: {
       durationMs: finishedAt - activeModelResponse.startedAt,
       ...(outcome ? { outcome } : {}),
     } as const
-    if (outcome === 'final_response') {
-      logAgentPhase(phase.name, phase.state, phase.durationMs, phase.outcome)
-      const phaseIndex = runtimeDetails.findIndex(
-        (item) => item.kind === 'phase' && item.callId === activeModelResponse?.callId
-      )
-      if (phaseIndex >= 0) runtimeDetails.splice(phaseIndex, 1)
-      await emit('agent_phase', phase)
-    } else {
-      await emitRuntimePhase(phase)
-    }
+    await emitRuntimePhase(phase)
     activeModelResponse = undefined
   }
 
@@ -291,16 +320,7 @@ export async function runAiChatAssistantTurn(input: {
       userMessage,
       regeneration,
     })
-    const usage = {
-      inputTokens: 0,
-      outputTokens: 0,
-      cacheReadTokens: 0,
-      cacheWriteTokens: 0,
-      totalTokens: 0,
-      modelCalls: 0,
-    }
     aiFailureStage = 'agent_stream'
-    const streamStartedAt = Date.now()
     const preparationStartedAt = Date.now()
     await emitRuntimePhase({
       name: 'preparing_agent',
@@ -330,6 +350,7 @@ export async function runAiChatAssistantTurn(input: {
         },
         onCredentialDisclosure: (credential) => emit('credential_disclosure', { credential }),
         onCompactionUsage: ({ usage: compactionUsage }) => {
+          usage.compactionCalls += 1
           usage.modelCalls += 1
           usage.inputTokens += compactionUsage.input
           usage.outputTokens += compactionUsage.output
@@ -798,29 +819,7 @@ export async function runAiChatAssistantTurn(input: {
       )
     }
     aiFailureStage = 'done_event_serialization'
-    const previousRuns = runtimeDetails.filter((detail) => detail.kind === 'run')
-    const runUsage: Record<string, unknown> = { ...usage }
-    for (const previousRun of previousRuns) {
-      for (const [key, value] of Object.entries(previousRun.usage)) {
-        if (typeof value !== 'number') continue
-        const existingValue = runUsage[key]
-        runUsage[key] = (typeof existingValue === 'number' ? existingValue : 0) + value
-      }
-    }
-    const runDetail = {
-      kind: 'run',
-      durationMs:
-        Date.now() -
-        streamStartedAt +
-        previousRuns.reduce((total, previousRun) => total + previousRun.durationMs, 0),
-      usage: runUsage,
-    } satisfies AiChatRuntimeDetail
-    runtimeDetails.splice(
-      0,
-      runtimeDetails.length,
-      ...runtimeDetails.filter((detail) => detail.kind !== 'run'),
-      runDetail
-    )
+    const runDetail = recordRunSummary('done')
     logger.info(
       {
         conversationId: conversation.id,
@@ -865,6 +864,7 @@ export async function runAiChatAssistantTurn(input: {
     assistantContent = collapseRepeatedAssistantResponse(
       assistantContent.trim() ? assistantContent : message
     )
+    recordRunSummary('error')
     const failedAssistantMessage = await persistAssistantMessage()
     if (!failedAssistantMessage) {
       throw error

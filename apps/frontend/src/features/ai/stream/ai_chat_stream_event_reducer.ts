@@ -92,27 +92,21 @@ export function applyAiChatStreamEvent(
     }
     case 'agent_phase': {
       const timeline = assistantMessage.timeline ?? []
-      if (event.name === 'model_response' && event.outcome === 'final_response') {
-        assistantMessage.timeline = timeline.filter(
-          (item) => !(item.kind === 'phase' && item.callId === event.callId)
-        )
-      } else {
-        const phaseIndex = timeline.findIndex(
-          (item) => item.kind === 'phase' && item.callId === event.callId
-        )
-        const phase = {
-          kind: 'phase' as const,
-          name: event.name,
-          state: event.state,
-          callId: event.callId,
-          startedAt: event.startedAt,
-          durationMs: event.durationMs,
-          outcome: event.outcome,
-        }
-        if (phaseIndex >= 0) timeline[phaseIndex] = phase
-        else timeline.push(phase)
-        assistantMessage.timeline = [...timeline]
+      const phaseIndex = timeline.findIndex(
+        (item) => item.kind === 'phase' && item.callId === event.callId
+      )
+      const phase = {
+        kind: 'phase' as const,
+        name: event.name,
+        state: event.state,
+        callId: event.callId,
+        startedAt: event.startedAt,
+        durationMs: event.durationMs,
+        outcome: event.outcome,
       }
+      if (phaseIndex >= 0) timeline[phaseIndex] = phase
+      else timeline.push(phase)
+      assistantMessage.timeline = [...timeline]
       updateAssistantMessage()
       return true
     }

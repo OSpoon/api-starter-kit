@@ -44,6 +44,7 @@ export type AiChatRuntimeDetail =
     }
   | {
       kind: 'run'
+      state?: 'done' | 'error'
       durationMs: number
       usage: Record<string, unknown>
     }

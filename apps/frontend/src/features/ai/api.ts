@@ -151,6 +151,7 @@ export interface AiChatRunUsage {
   cacheWriteTokens?: number
   totalTokens: number
   modelCalls: number
+  compactionCalls?: number
 }
 
 export interface AiChatUsageModel {
@@ -195,6 +196,7 @@ export type AiChatTimelineItem =
   | ({ kind: 'tool' } & AiChatAgentActivity)
   | {
       kind: 'run'
+      state?: 'done' | 'error'
       durationMs: number
       usage: AiChatRunUsage
     }

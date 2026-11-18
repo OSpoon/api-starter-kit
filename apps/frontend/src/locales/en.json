@@ -496,6 +496,14 @@
       "plan": "Execution plan",
       "plan_progress": "{completed} of {total} steps done",
       "run": "Run completed · {duration}s",
+      "run_failed": "Run failed · {duration}s",
+      "run_usage": "{calls} model calls · {tokens} tokens",
+      "compaction_calls": "{count} context compaction calls",
+      "model_text": "Intermediate model output",
+      "query_template": "Query template: {code}",
+      "tool_parameters": "Parameters: {parameters}",
+      "inputPreview": "Input summary",
+      "outputPreview": "Output summary",
       "run_waiting_confirmation": "Turn paused · {duration}s",
       "elapsed": "running {duration}s",
       "duration_seconds": "{duration}s",
@@ -509,6 +517,7 @@
         "model_response": {
           "running": "Waiting for model response",
           "done": "Model response completed",
+          "final_response": "Final response generated",
           "tool_call": "Model generated a tool call",
           "error": "Model response failed"
         }

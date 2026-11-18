@@ -496,6 +496,14 @@
       "plan": "执行计划",
       "plan_progress": "{total} 步中已完成 {completed} 步",
       "run": "运行完成 · {duration} 秒",
+      "run_failed": "运行失败 · {duration} 秒",
+      "run_usage": "{calls} 次模型调用 · {tokens} Token",
+      "compaction_calls": "{count} 次上下文压缩调用",
+      "model_text": "模型中间输出",
+      "query_template": "查询模板：{code}",
+      "tool_parameters": "参数：{parameters}",
+      "inputPreview": "输入摘要",
+      "outputPreview": "输出摘要",
       "run_waiting_confirmation": "本轮已暂停 · {duration} 秒",
       "elapsed": "已运行 {duration} 秒",
       "duration_seconds": "{duration} 秒",
@@ -509,6 +517,7 @@
         "model_response": {
           "running": "正在等待响应",
           "done": "模型响应完成",
+          "final_response": "最终回复生成完成",
           "tool_call": "已生成工具调用",
           "error": "模型响应失败"
         }

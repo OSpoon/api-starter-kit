@@ -206,6 +206,8 @@ function canRetryMessage(message: AiChatMessageItemData) {
 function getTimelineLabel(item: AiChatTimelineItem, timeline: AiChatTimelineItem[] = []) {
   if (item.kind === 'phase') {
     if (item.name === 'model_response') {
+      if (item.outcome === 'final_response')
+        return t('ai_chat.timeline.phases.model_response.final_response')
       if (item.outcome === 'tool_call') {
         return t('ai_chat.timeline.phases.model_response.tool_call')
       }
@@ -216,13 +218,23 @@ function getTimelineLabel(item: AiChatTimelineItem, timeline: AiChatTimelineItem
   if (item.kind === 'plan') {
     return item.steps.map(getPlanStepLabel).join(' · ')
   }
-  if (item.kind === 'confirmation') return ''
+  if (item.kind === 'confirmation') {
+    const action = localizedOrFallback(`ai_chat.actions.${item.action}`, item.action)
+    return t('ai_chat.confirmation_separator', {
+      action: item.targetLabel ? `${action} · ${item.targetLabel}` : action,
+      status: t(`ai_chat.confirmation_status.${item.status}`),
+    })
+  }
   if (item.kind === 'run') {
     const awaitingConfirmation = timeline.some(
       (entry) => entry.kind === 'tool' && entry.phase === 'awaiting_confirmation'
     )
     return t(
-      awaitingConfirmation ? 'ai_chat.timeline.run_waiting_confirmation' : 'ai_chat.timeline.run',
+      item.state === 'error'
+        ? 'ai_chat.timeline.run_failed'
+        : awaitingConfirmation
+          ? 'ai_chat.timeline.run_waiting_confirmation'
+          : 'ai_chat.timeline.run',
       { duration: formatDurationSeconds(item.durationMs) }
     )
   }
@@ -291,7 +303,7 @@ function getTimelineIcon(item: AiChatTimelineItem) {
     return item.state === 'running' ? LoaderCircle : Check
   }
   if (item.kind === 'plan') return ListChecks
-  if (item.kind === 'confirmation') return CircleCheck
+  if (item.kind === 'confirmation') return item.status === 'failed' ? CircleAlert : CircleCheck
   if (item.kind === 'run') return Gauge
   if (item.kind === 'model_text') return item.streaming ? LoaderCircle : Activity
   if (item.name === 'bash') return Terminal
@@ -436,6 +448,8 @@ function getTraceStatus(item: AiChatTimelineItem): 'running' | 'error' | 'pendin
     if (item.state === 'error') return 'error'
     return item.state === 'running' ? 'running' : undefined
   }
+  if (item.kind === 'run') return item.state === 'error' ? 'error' : undefined
+  if (item.kind === 'confirmation') return item.status === 'failed' ? 'error' : undefined
   if (item.kind !== 'tool') return undefined
   if (item.state === 'error' || item.errorCode) return 'error'
   return item.state === 'running' || isMergedToolActive(item) ? 'running' : undefined
@@ -543,13 +557,7 @@ function getTimelineSections(timeline: AiChatTimelineItem[]) {
   for (const item of timeline) {
     if (item.kind === 'phase' && item.name === 'preparing_agent') {
       currentTurn += 1
-      if (item.state === 'done') continue
     }
-    if (item.kind === 'phase' && item.name === 'model_response' && item.state === 'done') {
-      continue
-    }
-    if (item.kind === 'confirmation') continue
-    if (item.kind === 'run') continue
     const turn = item.kind === 'plan' && item.turn ? item.turn : Math.max(currentTurn, 1)
     const items = turns.get(turn) ?? []
     items.push(item)
@@ -767,8 +775,13 @@ function getTimelineSections(timeline: AiChatTimelineItem[]) {
                           :class="item.streaming ? 'animate-spin text-primary' : ''"
                         />
                       </TraceIcon>
-                      <span class="min-w-0 flex-1 wrap-anywhere whitespace-pre-wrap">
-                        {{ item.text.trim() }}
+                      <span class="min-w-0 flex-1">
+                        <span class="block font-medium">{{
+                          t('ai_chat.timeline.model_text')
+                        }}</span>
+                        <span class="block wrap-anywhere whitespace-pre-wrap">{{
+                          item.text.trim()
+                        }}</span>
                       </span>
                     </TraceLine>
                     <TraceLine
@@ -821,7 +834,11 @@ function getTimelineSections(timeline: AiChatTimelineItem[]) {
                     <TraceCollapsible
                       v-else-if="
                         item.kind === 'tool' &&
-                        (item.detail?.inputPreview || item.detail?.outputPreview)
+                        (item.detail?.inputPreview ||
+                          item.detail?.outputPreview ||
+                          item.detail?.templateCode ||
+                          item.detail?.parameterSummary?.length ||
+                          item.detail?.resultCount != null)
                       "
                       class="min-w-0 flex-1"
                     >
@@ -853,15 +870,44 @@ function getTimelineSections(timeline: AiChatTimelineItem[]) {
                           </TraceDescription>
                         </TraceLine>
                       </TraceCollapsibleTrigger>
-                      <TraceCollapsibleContent>
-                        <CodeBlock
-                          size="sm"
-                          :variant="item.state === 'error' ? 'destructive' : 'default'"
+                      <TraceCollapsibleContent class="space-y-2">
+                        <p v-if="item.detail?.templateCode">
+                          {{
+                            t('ai_chat.timeline.query_template', { code: item.detail.templateCode })
+                          }}
+                        </p>
+                        <p
+                          v-if="item.detail?.parameterSummary?.length && !item.detail.inputPreview"
                         >
-                          <CodeBlockContent :wrap="true" class="max-h-64">{{
-                            item.detail?.outputPreview ?? item.detail?.inputPreview
-                          }}</CodeBlockContent>
-                        </CodeBlock>
+                          {{
+                            t('ai_chat.timeline.tool_parameters', {
+                              parameters: item.detail.parameterSummary
+                                .map(({ name, type }) => `${name} (${type})`)
+                                .join(', '),
+                            })
+                          }}
+                        </p>
+                        <p v-if="item.detail?.resultCount != null">
+                          {{
+                            t('ai_chat.timeline.results_count', { count: item.detail.resultCount })
+                          }}
+                        </p>
+                        <div
+                          v-for="preview in ['inputPreview', 'outputPreview'] as const"
+                          :key="preview"
+                        >
+                          <template v-if="item.detail?.[preview]">
+                            <p class="mb-1 font-medium">{{ t(`ai_chat.timeline.${preview}`) }}</p>
+                            <CodeBlock
+                              size="sm"
+                              :variant="item.state === 'error' ? 'destructive' : 'default'"
+                            >
+                              <CodeBlockContent :wrap="true" class="max-h-64">{{
+                                item.detail[preview]
+                              }}</CodeBlockContent>
+                            </CodeBlock>
+                          </template>
+                        </div>
                       </TraceCollapsibleContent>
                     </TraceCollapsible>
                     <TraceLine
@@ -883,7 +929,26 @@ function getTimelineSections(timeline: AiChatTimelineItem[]) {
                         {{ getTimelineLabel(item, message.timeline ?? []) }}
                       </TraceTitle>
                       <TraceDescription
-                        v-if="getTimelineDurationMs(item) !== undefined"
+                        v-if="item.kind === 'run'"
+                        class="text-xs text-muted-foreground"
+                      >
+                        {{
+                          t('ai_chat.timeline.run_usage', {
+                            calls: item.usage.modelCalls,
+                            tokens: item.usage.totalTokens,
+                          })
+                        }}
+                        <template v-if="item.usage.compactionCalls">
+                          ·
+                          {{
+                            t('ai_chat.timeline.compaction_calls', {
+                              count: item.usage.compactionCalls,
+                            })
+                          }}
+                        </template>
+                      </TraceDescription>
+                      <TraceDescription
+                        v-else-if="getTimelineDurationMs(item) !== undefined"
                         class="text-xs text-muted-foreground"
                       >
                         {{ getTimelineDurationLabel(item) }}

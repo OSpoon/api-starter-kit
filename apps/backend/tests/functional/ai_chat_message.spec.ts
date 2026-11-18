@@ -73,6 +73,7 @@ test.group('AI chat messages', (group) => {
         callId: 'model-response-1',
         startedAt: 1_760_000_000_000,
         durationMs: 1_200,
+        outcome: 'final_response' as const,
       },
       {
         kind: 'plan' as const,
@@ -84,6 +85,12 @@ test.group('AI chat messages', (group) => {
             durationMs: 800,
           },
         ],
+      },
+      {
+        kind: 'run' as const,
+        state: 'error' as const,
+        durationMs: 1_500,
+        usage: { modelCalls: 2, totalTokens: 120, compactionCalls: 1 },
       },
     ]
 
