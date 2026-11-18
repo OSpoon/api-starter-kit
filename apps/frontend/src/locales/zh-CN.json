@@ -280,7 +280,7 @@
     "skills_source_placeholder": "owner/repo 或 https://github.com/owner/repo",
     "skills_source_required": "请输入技能来源地址",
     "skills_source_max": "来源地址不能超过 2048 个字符",
-    "install_skill": "通过 skills CLI 安装",
+    "install_skill": "安装 Skills",
     "skills_install_failed": "技能安装失败",
     "skills_load_failed": "加载技能列表失败",
     "skills_installed": "已安装 {count} 个技能；请审阅后启用。",

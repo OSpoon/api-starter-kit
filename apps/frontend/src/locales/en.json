@@ -280,7 +280,7 @@
     "skills_source_placeholder": "owner/repo or https://github.com/owner/repo",
     "skills_source_required": "Enter a skill source",
     "skills_source_max": "The source URL must not exceed 2048 characters",
-    "install_skill": "Install with skills CLI",
+    "install_skill": "Install Skills",
     "skills_install_failed": "Failed to install skills",
     "skills_load_failed": "Failed to load skills",
     "skills_installed": "Installed {count} skills. Review and enable them when ready.",
