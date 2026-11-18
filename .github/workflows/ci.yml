@@ -116,6 +116,9 @@ jobs:
       - name: Test
         run: pnpm --filter . test
 
+      - name: Prepare frontend build environment
+        run: cp .env.example .env
+
       - name: Build
         run: pnpm --filter . build
 

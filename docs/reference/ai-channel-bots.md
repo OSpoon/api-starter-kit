@@ -337,5 +337,5 @@ git diff --check
 
 ```bash
 pnpm --dir apps/backend exec node ace migration:status
-docker compose --env-file apps/backend/.env -f docker/docker-compose.yml -f docker/docker-compose.app.yml -f docker/docker-compose.im.yml config
+docker compose --env-file apps/backend/.env --env-file apps/frontend/.env -f docker/docker-compose.yml -f docker/docker-compose.app.yml -f docker/docker-compose.im.yml config
 ```

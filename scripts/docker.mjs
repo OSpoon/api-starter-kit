@@ -16,7 +16,7 @@ const serviceGroups = {
     label: '应用（backend、frontend）',
     hint: '会自动启动 PostgreSQL',
     files: ['docker/docker-compose.yml', 'docker/docker-compose.app.yml'],
-    envFiles: ['apps/backend/.env'],
+    envFiles: ['apps/backend/.env', 'apps/frontend/.env'],
     services: ['backend', 'frontend'],
   },
   assistantWeb: {
@@ -27,7 +27,7 @@ const serviceGroups = {
       'docker/docker-compose.app.yml',
       'docker/docker-compose.assistant-web.yml',
     ],
-    envFiles: ['apps/backend/.env'],
+    envFiles: ['apps/backend/.env', 'apps/frontend/.env'],
     services: ['assistant-web'],
   },
   im: {

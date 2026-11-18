@@ -38,10 +38,14 @@ services:
       target: frontend
       args:
         NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmmirror.com/}
+        VITE_API_URL: ${VITE_API_URL:-}
+        VITE_PUBLIC_URL: ${VITE_PUBLIC_URL:-}
+        VITE_TURNSTILE_SITE_KEY: ${VITE_TURNSTILE_SITE_KEY:-}
+        VITE_API_DOCS_URL: ${VITE_API_DOCS_URL:-}
+        VITE_PLATFORM_NAME: ${VITE_PLATFORM_NAME:-}
+        VITE_PLATFORM_TAGLINE: ${VITE_PLATFORM_TAGLINE:-}
     ports:
       - '${FRONTEND_PORT:-18080}:18080'
-    env_file:
-      - ../apps/frontend/.env
     depends_on:
       backend:
         condition: service_healthy

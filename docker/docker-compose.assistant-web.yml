@@ -7,6 +7,7 @@ services:
       target: assistant-web
       args:
         NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmmirror.com/}
+        VITE_API_URL: ${VITE_API_URL:-}
         VITE_TURNSTILE_SITE_KEY: ${VITE_TURNSTILE_SITE_KEY:-}
     ports:
       - '${ASSISTANT_WEB_PORT:-17070}:18080'

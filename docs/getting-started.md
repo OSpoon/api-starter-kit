@@ -6,7 +6,7 @@
 
 - Node.js `24.15.0`（仓库版本见 `.nvmrc`）
 - pnpm `11.9.0`
-- Docker Compose v2，或可访问的 PostgreSQL 15+ 实例
+- Docker Compose v2.17+，或可访问的 PostgreSQL 15+ 实例
 
 ## 安装与配置
 
@@ -19,7 +19,7 @@ pnpm --dir apps/backend exec node ace generate:key --show
 
 将生成的密钥填入 `apps/backend/.env` 的 `APP_KEY`。启动服务前，替换示例中的
 `ADMIN_PASSWORD` 和 `DB_PASSWORD`，使用彼此不同的高强度密码；管理员密码至少 15 位。
-不要提交 `.env` 文件或复用示例密码。
+按部署域名调整 `apps/frontend/.env` 中的公开构建配置。不要提交 `.env` 文件或复用示例密码。
 
 `ADMIN_EMAIL`、`ADMIN_PASSWORD` 和 `ADMIN_FULL_NAME` 用于初始化管理员。同邮箱账号已存在时，初始化不会重置密码，也不会自动启用已停用账号。
 

@@ -46,9 +46,19 @@ CMD ["node", "docker-entrypoint.js"]
 
 FROM deps AS frontend-build
 ARG VITE_API_URL=
+ARG VITE_PUBLIC_URL
+ARG VITE_TURNSTILE_SITE_KEY=
+ARG VITE_API_DOCS_URL=
+ARG VITE_PLATFORM_NAME=
+ARG VITE_PLATFORM_TAGLINE=
 ENV VITE_API_URL=$VITE_API_URL
+ENV VITE_PUBLIC_URL=$VITE_PUBLIC_URL
+ENV VITE_TURNSTILE_SITE_KEY=$VITE_TURNSTILE_SITE_KEY
+ENV VITE_API_DOCS_URL=$VITE_API_DOCS_URL
+ENV VITE_PLATFORM_NAME=$VITE_PLATFORM_NAME
+ENV VITE_PLATFORM_TAGLINE=$VITE_PLATFORM_TAGLINE
 COPY . .
-RUN pnpm --filter ./apps/frontend build
+RUN test -n "$VITE_PUBLIC_URL" && pnpm --filter ./apps/frontend build
 
 FROM nginx:1.29-alpine AS frontend
 COPY --from=frontend-build /app/apps/frontend/dist /usr/share/nginx/html
@@ -57,7 +67,9 @@ EXPOSE 18080
 CMD ["nginx", "-g", "daemon off;"]
 
 FROM deps AS assistant-web-build
+ARG VITE_API_URL=
 ARG VITE_TURNSTILE_SITE_KEY=
+ENV VITE_API_URL=$VITE_API_URL
 ENV VITE_TURNSTILE_SITE_KEY=$VITE_TURNSTILE_SITE_KEY
 COPY . .
 RUN pnpm --filter ./apps/assistant-web build
