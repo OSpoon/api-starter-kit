@@ -22,12 +22,11 @@
 
 ## 功能与实现参考
 
-| 文档                                        | 用途                                      |
-| ------------------------------------------- | ----------------------------------------- |
-| [AI 助手能力](ai-assistant-capabilities.md) | 各客户端与渠道的能力和使用边界            |
-| [AI 助手架构](ai-assistant-architecture.md) | Agent、工具、会话存储和流式接口的实现边界 |
-| [知识库实现说明](knowledge-base.md)         | 文档管理、检索、权限和审计                |
-| [AI 与集成参考](reference/README.md)        | 提示词、渠道 Bot 与专项验证               |
+- [AI 助手能力](ai-assistant-capabilities.md)：客户端与渠道的能力边界。
+- [AI 助手架构](ai-assistant-architecture.md)：Agent、工具、提示词维护入口、会话和流式接口。
+- [知识库实现说明](knowledge-base.md)：文档管理、检索、权限和审计。
+- [渠道 Bot 指南](reference/ai-channel-bots.md)：接入、配置和排障。
+- [Agent 工具验证](ai-agent-tool-verification.md)：工具、确认和技能管理的端到端验证。
 
 ## 应用说明
 

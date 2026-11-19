@@ -36,6 +36,8 @@ Vite 和 Docker 构建都使用 `apps/frontend/.env`；CI 从示例文件生成�
 
 助手 Web 默认端口为 `17070`，使用同源 `/api/` 代理；跨域部署需设置 `VITE_API_URL`、将 Web origin 加入 backend 的 `CORS_ORIGIN`，并使用 HTTPS。嵌入网站时，其 CSP 需允许助手 Web 的 `script-src` 和 `frame-src`，backend CORS 也需允许该 origin。桌面端连接远程 API 需 HTTPS，并将目标平台的 Tauri origin 加入 `CORS_ORIGIN`。客户端详情见[助手 Web](../apps/assistant-web/README.md)、[桌面端](../apps/assistant-desktop/README.md)和[扩展](../apps/assistant-extension/README.md)。
 
+MCP 仅支持 stdio 服务。服务命令必须存在于 backend 主机或容器中，并以 backend OS 用户身份运行，不经过技能 sandbox；只配置可信命令。MCP 环境变量加密保存在数据库中。
+
 ## 首次启动与更新
 
 检查 Compose 配置并启动 PostgreSQL、backend 和管理端：

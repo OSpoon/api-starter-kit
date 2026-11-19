@@ -39,7 +39,7 @@ Backend route 声明 URL 和 middleware；controller 协调 HTTP，validator 校
 
 ## AI 扩展边界
 
-AI 查询、工具和操作复用 backend 中的 registry。查询使用固定模板；有副作用的操作先创建 proposal，再由确认 API 复核并执行。详细运行时、数据持久化和 SSE 说明见[AI 助手架构](ai-assistant-architecture.md)；知识检索见[知识库实现说明](knowledge-base.md)。
+AI 工具、技能和 MCP 复用 backend runtime 与 registry；查询使用固定模板，有副作用的操作通过持久化提议和确认流程执行。实现细节见[AI 助手架构](ai-assistant-architecture.md)，知识检索见[知识库实现说明](knowledge-base.md)。
 
 ## 数据与部署
 

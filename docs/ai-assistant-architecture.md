@@ -1,6 +1,6 @@
 # AI 助手架构
 
-本文描述 backend AI runtime 的主要边界和数据流。用户可用能力见[AI 助手能力](ai-assistant-capabilities.md)；提示词的维护位置见[提示词索引](reference/ai-assistant-prompts.md)。具体 API schema 以 OpenAPI 为准。
+本文描述 backend AI runtime 的主要边界和数据流。用户可用能力见[AI 助手能力](ai-assistant-capabilities.md)；提示词与工具描述的源码位置见下文。具体 API schema 以 OpenAPI 为准。
 
 ## 运行时分层
 
@@ -21,17 +21,31 @@ flowchart TB
 - Backend 管理会话编排、提示策略、授权、审计、工具注册和持久化；可复用的领域逻辑位于 `apps/backend/app/services`。
 - HTTP controller 处理会话归属、输入校验、消息持久化和 SSE 生命周期。渠道 adapter 将平台消息转换为共享 Agent 输入，不另建 AI runtime。
 - `ai_agent_runtime` 组合模型配置与 backend 工具；替换 Agent adapter 不应复制授权、审计或领域 service。
-- Agent 工具和查询分别通过既有 tool、query、action registry 暴露。技能内容是非可信输入，不能定义新的权限或替代注册工具契约。
+- 内置工具、查询、操作和技能通过现有 registry 接入；技能内容是非可信输入，不能定义权限或替代工具契约。
+- MCP 仅支持管理员配置的 stdio 服务，进程以 backend 用户身份运行，不经过技能 sandbox；只配置可信命令。工具声明 `readOnlyHint: true` 时直接执行，其他调用需用户确认。当前使用项目自有 registry，不加载通用 Pi 插件。
+
+## 提示词与工具描述的维护入口
+
+| 内容                             | 源码位置                                                                                                                                  |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| Agent 系统、领域、渠道与摘要提示 | `apps/backend/app/ai/policy/ai_agent_prompt_policy.ts`                                                                                    |
+| 工具描述与参数 schema            | `apps/backend/app/ai/registry/ai_agent_tool_registry.ts`、`apps/backend/app/ai/tools/`、`apps/backend/app/ai/agent/pi/tool_parameters.ts` |
+| 查询模板契约                     | `apps/backend/app/ai/registry/ai_agent_query_registry.ts`、`apps/backend/app/ai/queries/`                                                 |
+| 操作与确认续答                   | `apps/backend/app/ai/core/ai_agent_action_registry.ts`、`apps/backend/app/ai/chat/confirmed_tool_result_summary.ts`                       |
+| 知识元数据提示                   | `apps/backend/app/services/knowledge_metadata_service.ts`                                                                                 |
+| 界面文案与行为评估               | `apps/frontend/src/locales/`、`apps/backend/app/ai/evaluation/`、`apps/backend/tests/`                                                    |
+
+行为规则变更同步更新 backend 测试或评估用例；用户可见文案以 locale 源文件为准。工具、查询、操作和确认契约见 [`apps/backend/AGENTS.md`](../apps/backend/AGENTS.md)。
 
 ## 查询与操作边界
 
-查询只调用 `ai_agent_query_registry` 中的固定模板。每个模板定义稳定标识、参数 schema、权限、服务端范围、最小 DTO 和结果上限；缺参时保存待补参数状态，续问时重新验证用户、权限、有效期和模板。所有模型请求在 Pi provider 的共享边界统一脱敏，不在每个查询模板重复维护脱敏字段。结构化字段按通用键名识别个人信息和凭据，文本扫描已识别的邮箱、电话、IPv4、通过 Luhn 校验的卡号和常见凭据格式；结构化 IP 字段也覆盖 IPv6。可逆的个人信息占位符缓存在进程内，并在流式文本和工具调用参数返回 Agent 前还原；后续请求创建 privacy session 时会清理闲置超过 24 小时的映射，缓存上限为 256 个会话。凭据使用不可逆的 `[REDACTED]`，不会恢复。未知的自然语言姓名和图片内容不在扫描范围内；进程重启、切换 backend 副本或映射缓存驱逐后，无法保证从普通历史文本重建这些姓名映射。
+查询只调用 `ai_agent_query_registry` 中的固定模板。模板定义参数、权限、服务端范围、最小 DTO 和结果上限；缺参状态会保存并在续问时重新验证。模型请求在共享 Pi provider 边界统一脱敏：识别结构化敏感字段及邮箱、电话、IP、卡号和常见凭据格式；不等同完整 DLP，无法识别未标注姓名或图片内容。可逆映射仅缓存在 backend 进程内，闲置 24 小时清理，最多 256 个会话；凭据替换为不可逆的 `[REDACTED]`。重启、切换副本或缓存驱逐后，映射不保留。
 
 有副作用的管理操作只创建持久化提议。确认 API 在执行前复核会话归属、权限、提议状态和目标当前状态，并记录审计。模型生成的文本不参与授权判断。完整规范见 [`apps/backend/AGENTS.md`](../apps/backend/AGENTS.md) 的 AI 章节。
 
 知识检索按目录与正文两阶段执行；正文检索只能使用本轮目录结果中的文档。字段、角色范围、审计和维护方式见[知识库实现说明](knowledge-base.md)。
 
-技能由管理员从可信 Git 来源安装，新技能默认停用。启用后，Agent 可读取其说明和小型资源；仅执行技能目录中的 `.js`、`.mjs`、`.cjs`、`.py`、`.sh` 和 `.bash` 文件，扩展名分别选择 Node.js、Python 3 或 Bash 解释器。脚本由 backend 启动子进程，并通过 OS sandbox 禁用网络、限制写入范围并拒绝访问 backend 应用目录和服务 home 目录，不另建 runner 服务。Node 脚本还使用 Node Permission Model 限制文件 API 的读取范围，并禁用子进程、worker 和 native addons；Node 运行时限制 V8 heap。所有脚本都有执行时间和输出大小限制，执行结束时清理同进程组的子进程。backend 在 Linux 容器中运行时，宿主机必须允许 bubblewrap 建立所需 namespace，否则执行器失败关闭。脚本仍只允许从管理员认可的可信来源安装；该运行时处于 beta 阶段，具体部署条件见[部署指南](deployment.md)。
+管理员可从可信 Git 来源或单技能 ZIP 安装技能，新技能默认停用。启用后，Agent 可读取技能说明和资源；脚本由 backend 子进程在 OS sandbox 中运行，限制文件、网络、时长和输出。Node 脚本另受 Node Permission Model 限制。Linux 部署需允许 bubblewrap 建立所需 namespace；详细条件见[部署指南](deployment.md)。
 
 ## 会话与持久化
 
@@ -58,8 +72,6 @@ Backend 将 Agent 事件转换为 SSE，包括阶段、计划、工具状态、�
 | `assistant-desktop`   | 打包 assistant-web 的 Tauri 原生窗口          |
 | `assistant-extension` | 将 assistant-web 装入 Chrome MV3 side panel   |
 
-扩展共享组件的样式约束见 [`apps/frontend/AGENTS.md`](../apps/frontend/AGENTS.md)；Vue Router provider 与消费者的运行时约束见 [`apps/assistant-extension/AGENTS.md`](../apps/assistant-extension/AGENTS.md)。
-
 ## 开发遥测
 
 Pi telemetry 仅在 `NODE_ENV=development` 时启用。配置 `LANGFUSE_BASE_URL`、`LANGFUSE_PUBLIC_KEY` 和 `LANGFUSE_SECRET_KEY` 后，trace 会导出到 Langfuse；缺少配置时不向外部发送。Agent trace 记录模型、用量、成本、停止原因和工具标识，不附加原始提示词、回复、工具参数或查询结果。
@@ -68,7 +80,7 @@ Pi telemetry 仅在 `NODE_ENV=development` 时启用。配置 `LANGFUSE_BASE_URL
 
 ## 验证
 
-应用级命令见[工程开发指南](development.md)。修改 Agent、查询或确认流程时，还可运行：
+修改 Agent、查询或确认流程时，可运行 backend 全量测试和模型行为评估：
 
 ```bash
 pnpm test:agent-workflows

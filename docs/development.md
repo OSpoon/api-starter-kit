@@ -39,12 +39,14 @@ assistant-web 默认端口为 `17070`，管理端为 `18080`。桌面端开发�
 pnpm --dir apps/backend exec node ace migration:status
 ```
 
-AI Agent 工具、查询或确认流程可运行专项验证：
+AI Agent 工具、查询或确认流程可运行：
 
 ```bash
 pnpm test:agent-workflows
 pnpm --dir apps/backend exec node ace ai:evaluate
 ```
+
+`pnpm test:agent-workflows` 当前运行完整 backend 测试套件，并非 Agent 专项过滤器。
 
 桌面端和扩展的专项说明见[桌面端 README](../apps/assistant-desktop/README.md)和[扩展 README](../apps/assistant-extension/README.md)。
 

@@ -2,13 +2,13 @@
 
 ![HERO](./docs/api-starter-kit-hero.png)
 
-> 面向 AI 管理应用的全栈模板，提供认证、权限、审计、知识检索和受控 AI 等系统能力。
+> 为业务应用提供认证、权限、审计、知识检索和 AI 助手等基座能力。
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-24.15.0-brightgreen.svg)](package.json)
 [![pnpm](https://img.shields.io/badge/pnpm-11.9.0-orange.svg)](package.json)
 
-API Starter Kit 是 pnpm/Turborepo monorepo。它提供构建业务应用所需的系统基础，不预设具体业务领域。
+API Starter Kit 是 pnpm/Turborepo monorepo，提供通用系统能力，不预设业务领域。
 
 | 应用         | 目录                        | 职责                                                |
 | ------------ | --------------------------- | --------------------------------------------------- |

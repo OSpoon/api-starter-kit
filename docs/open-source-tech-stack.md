@@ -41,12 +41,13 @@
 | Monaco Editor      | SQL、JSON 等编辑器内核；Vue wrapper 由 `@guolao/vue-monaco-editor` 提供 | `apps/frontend`                                                                                    | [microsoft/monaco-editor](https://github.com/microsoft/monaco-editor)、[imguolao/monaco-vue](https://github.com/imguolao/monaco-vue) |
 | CodeMirror 6       | 轻量代码与 SQL 编辑器                                                   | `apps/frontend`                                                                                    | [codemirror/basic-setup](https://github.com/codemirror/basic-setup)                                                                  |
 
-## 桌面端与浏览器扩展
+## 移动端、桌面端与浏览器扩展
 
-| 项目         | 本项目用途                                | 使用位置                                                               | GitHub                                                                    |
-| ------------ | ----------------------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| Tauri 2      | 将独立助手 Web 客户端封装为桌面应用       | [`apps/assistant-desktop`](../apps/assistant-desktop/package.json)     | [tauri-apps/tauri](https://github.com/tauri-apps/tauri)                   |
-| Extension.js | Chrome Manifest V3 扩展开发、热更新与构建 | [`apps/assistant-extension`](../apps/assistant-extension/package.json) | [extension-js/extension.js](https://github.com/extension-js/extension.js) |
+| 项目         | 本项目用途                                   | 使用位置                                                                 | GitHub                                                                    |
+| ------------ | -------------------------------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------- |
+| Capacitor 8  | 将 TOTP 身份验证器打包为 iOS 和 Android 应用 | [`apps/authenticator-mobile`](../apps/authenticator-mobile/package.json) | [ionic-team/capacitor](https://github.com/ionic-team/capacitor)           |
+| Tauri 2      | 将独立助手 Web 客户端封装为桌面应用          | [`apps/assistant-desktop`](../apps/assistant-desktop/package.json)       | [tauri-apps/tauri](https://github.com/tauri-apps/tauri)                   |
+| Extension.js | Chrome Manifest V3 扩展开发、热更新与构建    | [`apps/assistant-extension`](../apps/assistant-extension/package.json)   | [extension-js/extension.js](https://github.com/extension-js/extension.js) |
 
 ## Monorepo 与工程工具
 
