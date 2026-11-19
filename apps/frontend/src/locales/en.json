@@ -340,7 +340,7 @@
     "mcp_remove_servers_description": "Saving removes these servers and their tools: {names}. Continue?"
   },
   "im_config": {
-    "title": "IM bot management",
+    "title": "Bot channels",
     "description": "Manage WeCom, DingTalk, and Feishu bots. Configure and enable each bot separately.",
     "add_bot": "Add bot",
     "edit_bot": "Edit bot",

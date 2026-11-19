@@ -340,7 +340,7 @@
     "mcp_remove_servers_description": "保存后将移除这些服务及其工具：{names}。继续吗？"
   },
   "im_config": {
-    "title": "IM Bot 管理",
+    "title": "Bot 渠道",
     "description": "管理企业微信、钉钉和飞书机器人。每个机器人可单独启停和配置。",
     "add_bot": "新增机器人",
     "edit_bot": "编辑机器人",

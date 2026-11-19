@@ -57,8 +57,6 @@ test.group('permission catalog', (group) => {
   }) => {
     const retiredPermissions = await Permission.query()
       .whereIn('code', [
-        'im-config:read',
-        'im-config:update',
         'agent-mcp:execute',
         'llm-config:read',
         'llm-config:update',
@@ -108,6 +106,8 @@ test.group('permission catalog', (group) => {
           'agent-config:read',
           'agent-config:update',
           'ai-usage:read',
+          'im-config:read',
+          'im-config:update',
           'knowledge:manage',
           'knowledge:read',
         ],

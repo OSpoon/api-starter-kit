@@ -86,7 +86,7 @@ export default class ImConfigurationsController {
         targetId: bot.id,
         metadata: { channel: bot.channel, name: bot.name, enabled: bot.enabled },
       })
-      return ctx.response.created(ctx.serialize(bot))
+      return ctx.response.created(await ctx.serialize(bot))
     } catch (error) {
       if ((error as { code?: string }).code === '23505') {
         return ctx.response.conflict({ message: '该平台的应用标识已存在' })

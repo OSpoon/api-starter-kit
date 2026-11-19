@@ -320,38 +320,51 @@ test.group('Agent configuration', (group) => {
     assert,
   }) => {
     const token = await createActor(['im-config:read', 'im-config:update'])
-    const wecom = await client.post('/api/v1/system/im-config').bearerToken(token).json({
-      name: 'WeCom support',
-      channel: 'wecom',
-      identifier: 'wecom-bot',
-      secret: 'wecom-secret',
-      tenantId: 'wecom-tenant',
-    })
+    const marker = crypto.randomUUID()
+    const wecomName = `WeCom support ${marker}`
+    const feishuName = `Feishu support ${marker}`
+    const dingtalkName = `DingTalk support ${marker}`
+    const wecom = await client
+      .post('/api/v1/system/im-config')
+      .bearerToken(token)
+      .json({
+        name: wecomName,
+        channel: 'wecom',
+        identifier: `wecom-bot-${marker}`,
+        secret: 'wecom-secret',
+        tenantId: 'wecom-tenant',
+      })
     wecom.assertStatus(201)
-    const feishu = await client.post('/api/v1/system/im-config').bearerToken(token).json({
-      name: 'Feishu support',
-      channel: 'feishu',
-      identifier: 'feishu-app',
-      secret: 'feishu-secret',
-    })
+    const feishu = await client
+      .post('/api/v1/system/im-config')
+      .bearerToken(token)
+      .json({
+        name: feishuName,
+        channel: 'feishu',
+        identifier: `feishu-app-${marker}`,
+        secret: 'feishu-secret',
+      })
     feishu.assertStatus(201)
-    const dingtalk = await client.post('/api/v1/system/im-config').bearerToken(token).json({
-      name: 'DingTalk support',
-      channel: 'dingtalk',
-      identifier: 'dingtalk-client',
-      secret: 'dingtalk-secret',
-      cardTemplateId: 'action-template',
-      streamingCardTemplateId: 'stream-template',
-    })
+    const dingtalk = await client
+      .post('/api/v1/system/im-config')
+      .bearerToken(token)
+      .json({
+        name: dingtalkName,
+        channel: 'dingtalk',
+        identifier: `dingtalk-client-${marker}`,
+        secret: 'dingtalk-secret',
+        cardTemplateId: 'action-template',
+        streamingCardTemplateId: 'stream-template',
+      })
     dingtalk.assertStatus(201)
 
     const feishuId = (feishu.body() as unknown as { data: { id: number } }).data.id
     const updated = await client
       .put(`/api/v1/system/im-config/${feishuId}`)
       .bearerToken(token)
-      .json({ identifier: 'updated-feishu-app' })
+      .json({ identifier: `updated-feishu-app-${marker}` })
     updated.assertStatus(200)
-    const result = await client.get('/api/v1/system/im-config').bearerToken(token)
+    const result = await client.get(`/api/v1/system/im-config?search=${marker}`).bearerToken(token)
     result.assertStatus(200)
     const bots = (
       result.body() as {
@@ -366,15 +379,12 @@ test.group('Agent configuration', (group) => {
       }
     ).data.items
     assert.equal(bots.length, 3)
-    assert.equal(bots.find((bot) => bot.name === 'WeCom support')?.identifier, 'wecom-bot')
+    assert.equal(bots.find((bot) => bot.name === wecomName)?.identifier, `wecom-bot-${marker}`)
     assert.equal(
-      bots.find((bot) => bot.name === 'Feishu support')?.identifier,
-      'updated-feishu-app'
+      bots.find((bot) => bot.name === feishuName)?.identifier,
+      `updated-feishu-app-${marker}`
     )
-    assert.equal(
-      bots.find((bot) => bot.name === 'DingTalk support')?.cardTemplateId,
-      'action-template'
-    )
+    assert.equal(bots.find((bot) => bot.name === dingtalkName)?.cardTemplateId, 'action-template')
     assert.isTrue(bots.every((bot) => bot.secretConfigured))
     assert.notProperty(bots[0], 'secret')
   })

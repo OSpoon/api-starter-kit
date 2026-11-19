@@ -557,14 +557,16 @@ test('workbench template pages are removed while SQL tools stay development-only
   }
 })
 
-test('IM configuration is a section of Agent configuration without a separate menu entry', () => {
+test('IM bot configuration has its own Bot channels menu entry', () => {
   const routes = workbenchRoutes[0].children
-  const agentConfig = routes.find((route) => route.name === 'agent-config')
   const imConfig = routes.find((route) => route.name === 'im-config')
 
-  assert.ok(agentConfig)
-  assert.deepEqual(imConfig.redirect, { name: 'agent-config', query: { module: 'im' } })
-  assert.equal(imConfig.meta?.nav, undefined)
+  assert.ok(imConfig)
+  assert.equal(imConfig.path, 'system/im-config')
+  assert.equal(imConfig.meta?.pageKind, 'list')
+  assert.equal(imConfig.meta?.permission, 'im-config:read')
+  assert.equal(imConfig.meta?.title, 'sidebar.im_config')
+  assert.equal(imConfig.meta?.nav?.group, 'sidebar.agent_management')
 })
 
 test('permission-aware landing picks the first accessible module', () => {
