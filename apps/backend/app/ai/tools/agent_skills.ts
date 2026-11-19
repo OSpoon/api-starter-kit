@@ -26,7 +26,6 @@ export function createListAgentSkillsTool(_input: AiAgentToolContext) {
       description:
         'List enabled administrator-installed skills and their descriptions. Use a relevant skill only when it matches the task; then load its instructions with load_agent_skill.',
       schema: z.object({}),
-      parameters: { type: 'object', properties: {} },
       executionMode: 'sequential',
     }
   )
@@ -58,22 +57,10 @@ export function createLoadAgentSkillTool(_input: AiAgentToolContext) {
           .min(1)
           .max(512)
           .optional()
-          .describe('Omit when first loading a skill; defaults to SKILL.md.'),
+          .describe(
+            'Omit on the first load to read SKILL.md and list scripts. To read a referenced Markdown or JSON file, pass its relative path, for example references/region-policy.json.'
+          ),
       }),
-      parameters: {
-        type: 'object',
-        properties: {
-          code: { type: 'string', minLength: 1, maxLength: 128 },
-          resourcePath: {
-            type: 'string',
-            minLength: 1,
-            maxLength: 512,
-            description:
-              'Omit on the first load to read SKILL.md and list scripts. To read a referenced Markdown or JSON file, pass its relative path, for example references/region-policy.json.',
-          },
-        },
-        required: ['code'],
-      },
       executionMode: 'sequential',
     }
   )
@@ -143,25 +130,6 @@ export function createAgentSkillBashTool(input: AiAgentToolContext) {
           ),
         args: z.array(z.string().max(4096)).max(32).default([]),
       }),
-      parameters: {
-        type: 'object',
-        properties: {
-          code: { type: 'string', minLength: 1, maxLength: 128 },
-          scriptPath: {
-            type: 'string',
-            minLength: 1,
-            maxLength: 512,
-            description:
-              'Exact Node.js, Python 3, or Bash script path relative to the skill directory, from SKILL.md or the scripts list returned by load_agent_skill.',
-          },
-          args: {
-            type: 'array',
-            items: { type: 'string', maxLength: 4096 },
-            maxItems: 32,
-          },
-        },
-        required: ['code', 'scriptPath'],
-      },
       executionMode: 'sequential',
     }
   )

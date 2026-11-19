@@ -1,4 +1,5 @@
 import { type z, ZodError } from 'zod'
+import { zodToJsonSchema } from 'zod-to-json-schema'
 
 import type { AgentTool, AgentToolParameters } from '#ai/agent'
 import {
@@ -23,16 +24,22 @@ export function createAiAgentTool<TZodSchema extends z.ZodTypeAny, TResult>(
     name: string
     description: string
     schema: TZodSchema
-    parameters: AgentToolParameters
+    parameters?: AgentToolParameters
     executionMode?: 'parallel' | 'sequential'
     prepareConfirmation?: (input: z.infer<TZodSchema>) => Promise<AiAgentConfirmationSummary>
   }
 ): AiAgentToolWithConfirmation {
+  const { $schema: schemaVersion, ...schema } = zodToJsonSchema(options.schema, {
+    target: 'jsonSchema7',
+    $refStrategy: 'none',
+  })
+  void schemaVersion
+  const parameters = { type: 'object', ...schema }
   return {
     name: options.name,
     label: options.name,
     description: options.description,
-    parameters: options.parameters,
+    parameters: options.parameters ?? (parameters as AgentToolParameters),
     executionMode: options.executionMode ?? 'sequential',
     ...(options.prepareConfirmation
       ? {

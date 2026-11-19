@@ -2,11 +2,13 @@ import crypto from 'node:crypto'
 
 import type { HttpContext } from '@adonisjs/core/http'
 import logger from '@adonisjs/core/services/logger'
+import type { AiChatRunUsage } from '@api-starter-kit/ai-chat-contract'
 
 import { createFinalResponseState, snapshotAgentSessionState } from '#ai/agent'
 import { type AiAgentPageContext, createAiAgentStream } from '#ai/chat/ai_agent_service'
 import type { AiChatResolvedRegeneration } from '#ai/chat/ai_chat_regeneration'
 import {
+  type AiAgentTurnEvent,
   collapseRepeatedAssistantResponse,
   startAiChatSseKeepalive,
   streamAiAgentTurnEvents,
@@ -120,12 +122,14 @@ export async function runAiChatAssistantTurn(input: {
   }
   let runSummary: Extract<AiChatRuntimeDetail, { kind: 'run' }> | undefined
 
-  const recordRunSummary = (state: 'done' | 'error') => {
+  const recordRunSummary = (
+    state: 'done' | 'error'
+  ): Extract<AiChatRuntimeDetail, { kind: 'run' }> => {
     if (runSummary) {
       runSummary.state = state
       return runSummary
     }
-    const runUsage: Record<string, unknown> = { ...usage }
+    const runUsage: AiChatRunUsage = { ...usage }
     let durationMs = Date.now() - streamStartedAt
     for (const detail of runtimeDetails) {
       if (detail.kind !== 'run') continue
@@ -133,17 +137,18 @@ export async function runAiChatAssistantTurn(input: {
       for (const [key, value] of Object.entries(detail.usage)) {
         if (typeof value !== 'number') continue
         const previous = runUsage[key]
-        runUsage[key] = (typeof previous === 'number' ? previous : 0) + value
+        runUsage[key] = (previous ?? 0) + value
       }
     }
-    runSummary = { kind: 'run', state, durationMs, usage: runUsage }
+    const summary = { kind: 'run' as const, state, durationMs, usage: runUsage }
+    runSummary = summary
     runtimeDetails.splice(
       0,
       runtimeDetails.length,
       ...runtimeDetails.filter((detail) => detail.kind !== 'run'),
-      runSummary
+      summary
     )
-    return runSummary
+    return summary
   }
 
   const logAgentPhase = (
@@ -188,6 +193,7 @@ export async function runAiChatAssistantTurn(input: {
 
   const startModelResponse = async () => {
     modelResponseIndex += 1
+    usage.modelCalls += 1
     activeModelResponse = {
       callId: `${runtimePhaseId}:r${modelResponseIndex}`,
       startedAt: Date.now(),
@@ -277,6 +283,14 @@ export async function runAiChatAssistantTurn(input: {
     })
     lastPersistedContentLength = assistantContent.length
     return persistedAssistantMessage
+  }
+
+  const appendAssistantDelta = async (content: string) => {
+    assistantContent += content
+    if (!persistedAssistantMessage || assistantContent.length - lastPersistedContentLength >= 500) {
+      await persistAssistantMessage()
+    }
+    await emit('delta', { content })
   }
 
   const clearPendingAssistantCandidate = async () => {
@@ -379,16 +393,53 @@ export async function runAiChatAssistantTurn(input: {
       durationMs: Date.now() - preparationStartedAt,
     })
     let sessionRun = run
+    const recordModelResponse = async (
+      value: Extract<AiAgentTurnEvent, { source: 'message_end' }>['value'],
+      modelRun: typeof run,
+      outcome: 'tool_call' | 'final_response'
+    ) => {
+      await finishModelResponse(value.error ? 'error' : 'done', value.error ? undefined : outcome)
+      usage.inputTokens += value.inputTokens
+      usage.outputTokens += value.outputTokens
+      usage.cacheReadTokens += value.cacheReadTokens
+      usage.cacheWriteTokens += value.cacheWriteTokens
+      usage.totalTokens += value.totalTokens
+      try {
+        await recordAiUsageEvent({
+          userId,
+          conversationId: conversation.id,
+          agentRunId: modelRun.agentRunId,
+          callSequence: modelRun.nextModelCallSequence(),
+          providerId: value.providerId,
+          modelId: value.modelId,
+          baseUrl: value.baseUrl,
+          usage: {
+            input: value.inputTokens,
+            output: value.outputTokens,
+            cacheRead: value.cacheReadTokens,
+            cacheWrite: value.cacheWriteTokens,
+            totalTokens: value.totalTokens,
+          },
+          status: value.error ? 'failed' : 'completed',
+        })
+      } catch (error) {
+        logger.warn(
+          { err: error, conversationId: conversation.id, agentRunId: modelRun.agentRunId },
+          'AI usage event could not be recorded'
+        )
+      }
+    }
     aiFailureStage = 'message_stream'
     for await (const event of streamAiAgentTurnEvents(
       run,
       input.signal,
       input.enabledToolNames?.length === 0
-        ? { streamText: true }
+        ? { streamText: true, turn: runtimeTurn }
         : {
             captureModelText: true,
             streamTextAfterToolExecution: true,
             hasPriorToolExecution: input.hasPriorToolExecution,
+            turn: runtimeTurn,
           }
     )) {
       if (input.signal.aborted) {
@@ -447,9 +498,10 @@ export async function runAiChatAssistantTurn(input: {
         }
         if (event.value.event === 'agent_plan') {
           const planType = event.value.data.planType ?? 'confirmation'
+          const turn = event.value.data.turn ?? runtimeTurn
           const planDetail: AiChatRuntimeDetail = {
             kind: 'plan',
-            turn: runtimeTurn,
+            turn,
             planType,
             steps: event.value.data.steps.map((step) => ({ ...step })),
           }
@@ -457,7 +509,7 @@ export async function runAiChatAssistantTurn(input: {
             (item) =>
               item.kind === 'plan' &&
               (item.planType ?? 'confirmation') === planType &&
-              (item.turn === runtimeTurn || (runtimeTurn === 1 && item.turn === undefined))
+              (item.turn === turn || (turn === 1 && item.turn === undefined))
           )
           if (existingIndex >= 0) runtimeDetails[existingIndex] = planDetail
           else runtimeDetails.push(planDetail)
@@ -545,7 +597,6 @@ export async function runAiChatAssistantTurn(input: {
         continue
       }
       if (event.source === 'message_start') {
-        usage.modelCalls += 1
         await startModelResponse()
         continue
       }
@@ -592,14 +643,7 @@ export async function runAiChatAssistantTurn(input: {
         if (captureModelText && isChannelTurn) continue
         if (!captureModelText && toolActivity) continue
         if (activeModelResponse) pendingModelText.delete(activeModelResponse.callId)
-        assistantContent += event.value
-        if (
-          !persistedAssistantMessage ||
-          assistantContent.length - lastPersistedContentLength >= 500
-        ) {
-          await persistAssistantMessage()
-        }
-        await emit('delta', { content: event.value })
+        await appendAssistantDelta(event.value)
         continue
       }
       if (event.source === 'message_end') {
@@ -609,39 +653,11 @@ export async function runAiChatAssistantTurn(input: {
         if (isChannelTurn && event.value.hasToolCall) {
           await emit('channel_progress', { content: '正在执行工具…' })
         }
-        await finishModelResponse(
-          event.value.error ? 'error' : 'done',
-          event.value.error ? undefined : event.value.hasToolCall ? 'tool_call' : 'final_response'
+        await recordModelResponse(
+          event.value,
+          run,
+          event.value.hasToolCall ? 'tool_call' : 'final_response'
         )
-        usage.inputTokens += event.value.inputTokens
-        usage.outputTokens += event.value.outputTokens
-        usage.cacheReadTokens += event.value.cacheReadTokens
-        usage.cacheWriteTokens += event.value.cacheWriteTokens
-        usage.totalTokens += event.value.totalTokens
-        try {
-          await recordAiUsageEvent({
-            userId,
-            conversationId: conversation.id,
-            agentRunId: run.agentRunId,
-            callSequence: run.nextModelCallSequence(),
-            providerId: event.value.providerId,
-            modelId: event.value.modelId,
-            baseUrl: event.value.baseUrl,
-            usage: {
-              input: event.value.inputTokens,
-              output: event.value.outputTokens,
-              cacheRead: event.value.cacheReadTokens,
-              cacheWrite: event.value.cacheWriteTokens,
-              totalTokens: event.value.totalTokens,
-            },
-            status: event.value.error ? 'failed' : 'completed',
-          })
-        } catch (error) {
-          logger.warn(
-            { err: error, conversationId: conversation.id, agentRunId: run.agentRunId },
-            'AI usage event could not be recorded'
-          )
-        }
         if (event.value.error) {
           if (captureModelText && modelCallId) {
             const partialText = pendingModelText.get(modelCallId)
@@ -714,55 +730,15 @@ export async function runAiChatAssistantTurn(input: {
           throw new DOMException('AI request was cancelled', 'AbortError')
         }
         if (event.source === 'message_start') {
-          usage.modelCalls += 1
           await startModelResponse()
           continue
         }
         if (event.source === 'message_delta') {
-          assistantContent += event.value
-          if (
-            !persistedAssistantMessage ||
-            assistantContent.length - lastPersistedContentLength >= 500
-          ) {
-            await persistAssistantMessage()
-          }
-          await emit('delta', { content: event.value })
+          await appendAssistantDelta(event.value)
           continue
         }
         if (event.source === 'message_end') {
-          await finishModelResponse(
-            event.value.error ? 'error' : 'done',
-            event.value.error ? undefined : 'final_response'
-          )
-          usage.inputTokens += event.value.inputTokens
-          usage.outputTokens += event.value.outputTokens
-          usage.cacheReadTokens += event.value.cacheReadTokens
-          usage.cacheWriteTokens += event.value.cacheWriteTokens
-          usage.totalTokens += event.value.totalTokens
-          try {
-            await recordAiUsageEvent({
-              userId,
-              conversationId: conversation.id,
-              agentRunId: finalizer.agentRunId,
-              callSequence: finalizer.nextModelCallSequence(),
-              providerId: event.value.providerId,
-              modelId: event.value.modelId,
-              baseUrl: event.value.baseUrl,
-              usage: {
-                input: event.value.inputTokens,
-                output: event.value.outputTokens,
-                cacheRead: event.value.cacheReadTokens,
-                cacheWrite: event.value.cacheWriteTokens,
-                totalTokens: event.value.totalTokens,
-              },
-              status: event.value.error ? 'failed' : 'completed',
-            })
-          } catch (error) {
-            logger.warn(
-              { err: error, conversationId: conversation.id, agentRunId: finalizer.agentRunId },
-              'AI usage event could not be recorded'
-            )
-          }
+          await recordModelResponse(event.value, finalizer, 'final_response')
           if (event.value.error) throw event.value.error
           await persistAssistantMessage()
           continue

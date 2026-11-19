@@ -1,4 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http'
+import type { AiChatPlanStep, AiChatStreamEventMap } from '@api-starter-kit/ai-chat-contract'
 
 import type { AgentAssistantMessage } from '#ai/agent'
 import type { createAiAgentStream } from '#ai/chat/ai_agent_service'
@@ -6,36 +7,19 @@ import type { AiAgentConfirmationSummary } from '#ai/core/ai_agent_confirmation'
 import { sanitizeAiAgentToolErrorMessage } from '#ai/core/ai_agent_tool_errors'
 import { summarizeAiAgentToolParameters } from '#ai/core/ai_agent_tool_summary'
 
-type AiAgentPlanStep = {
-  key: string
-  label?: string
-  state: 'pending' | 'running' | 'done'
-  startedAt?: number
-  durationMs?: number
-}
+type AiAgentPlanStep = AiChatPlanStep
 
 export type AiAgentToolFrame =
   | {
       event: 'agent_plan'
-      data: { planType?: 'task' | 'confirmation'; steps: AiAgentPlanStep[] }
+      data: AiChatStreamEventMap['agent_plan']
     }
   | {
       event: 'agent_status'
-      data: {
-        name: string
-        callId: string
-        state: 'running' | 'done' | 'error'
-        startedAt?: number
-        durationMs?: number
-        displayName?: string
-        detail?: Record<string, unknown>
-        phase?: string
-        message?: string
-        errorCode?: string
-      }
+      data: AiChatStreamEventMap['agent_status']
     }
   | { event: 'tool_completed'; data: { name: string; output: unknown } }
-  | { event: 'agent_confirmation'; data: AiAgentConfirmationSummary }
+  | { event: 'agent_confirmation'; data: AiChatStreamEventMap['agent_confirmation'] }
 
 export type AiAgentTurnEvent =
   | { source: 'queued_user_message' }
@@ -366,6 +350,7 @@ export async function* streamAiAgentTurnEvents(
     captureModelText?: boolean
     streamTextAfterToolExecution?: boolean
     hasPriorToolExecution?: boolean
+    turn?: number
   } = {}
 ): AsyncGenerator<AiAgentTurnEvent> {
   const plan: AiAgentPlanStep[] = [
@@ -390,7 +375,11 @@ export async function* streamAiAgentTurnEvents(
   }
   const planFrame = (): AiAgentToolFrame => ({
     event: 'agent_plan',
-    data: { planType: 'confirmation', steps: plan.map((step) => ({ ...step })) },
+    data: {
+      ...(options.turn === undefined ? {} : { turn: options.turn }),
+      planType: 'confirmation',
+      steps: plan.map((step) => ({ ...step })),
+    },
   })
   const toolStartedAt = new Map<string, number>()
   const toolInputs = new Map<string, unknown>()
@@ -423,7 +412,11 @@ export async function* streamAiAgentTurnEvents(
         source: 'frame',
         value: {
           event: 'agent_plan',
-          data: { planType: 'task', steps: event.steps as AiAgentPlanStep[] },
+          data: {
+            ...(options.turn === undefined ? {} : { turn: options.turn }),
+            planType: 'task',
+            steps: event.steps as unknown as AiAgentPlanStep[],
+          },
         },
       }
       continue

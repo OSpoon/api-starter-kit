@@ -43,14 +43,6 @@ export function createReadPdfAttachmentTool(input: AiAgentToolContext) {
           .max(2 * 1024 * 1024)
           .default(0),
       }),
-      parameters: {
-        type: 'object',
-        properties: {
-          attachmentId: { type: 'integer', minimum: 1 },
-          offset: { type: 'integer', minimum: 0, maximum: 2 * 1024 * 1024 },
-        },
-        required: ['attachmentId'],
-      },
       executionMode: 'sequential',
     }
   )

@@ -1,13 +1,19 @@
 import type { HttpContext } from '@adonisjs/core/http'
+import logger from '@adonisjs/core/services/logger'
 
 import { upsertAgentToolResult } from '#ai/agent'
 import { writeAiChatSse } from '#ai/chat/ai_chat_sse_adapter'
-import { summarizeConfirmedToolResult } from '#ai/chat/confirmed_tool_result_summary'
+import {
+  shouldDeferConfirmationReply,
+  summarizeConfirmedToolResult,
+} from '#ai/chat/confirmed_tool_result_summary'
 import {
   AiAgentConfirmationError,
+  cancelAiAgentAction as cancelAiAgentActionCore,
   confirmAiAgentAction as executeAiAgentAction,
   findPendingConfirmationTool,
   getAiAgentActionResultMessage,
+  hasConfirmedToolAction,
   listCancelledToolConfirmations,
   listConversationConfirmations,
 } from '#ai/core/ai_agent_confirmation'
@@ -151,6 +157,7 @@ export async function executeAiChatConfirmationAndCreateMessage(input: {
   )
   if (response && completedPlan?.kind === 'plan') {
     writeAiChatSse(response, 'agent_plan', {
+      ...(completedPlan.turn === undefined ? {} : { turn: completedPlan.turn }),
       planType: completedPlan.planType ?? 'confirmation',
       steps: completedPlan.steps,
     })
@@ -197,7 +204,7 @@ export async function executeAiChatConfirmationAndCreateMessage(input: {
     const messageConfirmations = pendingConfirmations.filter(
       (item) => item.messageId === assistantMessage.id
     )
-    if (messageConfirmations.length > 0) {
+    if (shouldDeferConfirmationReply(pendingConfirmations, assistantMessage.id)) {
       if (response) {
         writeAiChatSse(response, 'done', {
           conversation: serializeAiChatConversation(conversation),
@@ -205,7 +212,14 @@ export async function executeAiChatConfirmationAndCreateMessage(input: {
           confirmations: messageConfirmations,
         })
       }
-      return { confirmation, actionResult, message: assistantMessage, isToolAction }
+      return {
+        confirmation,
+        actionResult,
+        message: assistantMessage,
+        isToolAction,
+        reply: '',
+        pendingConfirmations: messageConfirmations,
+      }
     }
 
     const cancelledConfirmations = await listCancelledToolConfirmations({
@@ -213,7 +227,7 @@ export async function executeAiChatConfirmationAndCreateMessage(input: {
       conversationId: conversation.id,
       userId,
     })
-    const { message } = await summarizeConfirmedToolResult({
+    const summary = await summarizeConfirmedToolResult({
       ctx,
       conversation,
       assistantMessage,
@@ -227,7 +241,17 @@ export async function executeAiChatConfirmationAndCreateMessage(input: {
         targetSummary: item.targetSummary ?? undefined,
       })),
     })
-    return { confirmation, actionResult, message, isToolAction }
+    const remainingConfirmations = await listConversationConfirmations(conversation.id, userId)
+    return {
+      confirmation,
+      actionResult,
+      message: summary.message,
+      isToolAction,
+      reply: summary.reply,
+      pendingConfirmations: remainingConfirmations.filter(
+        (item) => item.messageId === assistantMessage.id
+      ),
+    }
   }
 
   const content = await getAiAgentActionResultMessage({
@@ -247,5 +271,155 @@ export async function executeAiChatConfirmationAndCreateMessage(input: {
       confirmations: [],
     })
   }
-  return { confirmation, actionResult, message: assistantMessage, isToolAction }
+  return {
+    confirmation,
+    actionResult,
+    message: assistantMessage,
+    isToolAction,
+    reply: content,
+    pendingConfirmations: [],
+  }
+}
+
+export async function cancelAiChatConfirmationAndUpdateMessage(input: {
+  ctx: HttpContext
+  conversation: AiChatConversation
+  confirmationId: number
+  userId: number
+  source: 'api' | 'channel'
+  response?: HttpContext['response']
+}) {
+  const { ctx, conversation, confirmationId, userId, source, response } = input
+  const proposal = await AiAgentConfirmation.query()
+    .where('id', confirmationId)
+    .where('conversation_id', conversation.id)
+    .where('requested_by_user_id', userId)
+    .first()
+  if (!proposal) throw new AiAgentConfirmationError('确认请求不存在', 404)
+
+  const message = proposal.assistantMessageId
+    ? await AiChatMessage.query()
+        .where('id', proposal.assistantMessageId)
+        .where('conversation_id', conversation.id)
+        .where('role', 'assistant')
+        .first()
+    : null
+  const isToolAction =
+    proposal.action === 'call_builtin_tool' || proposal.action === 'call_mcp_tool'
+  const pendingTool =
+    isToolAction && message
+      ? findPendingConfirmationTool(message.runtimeDetails, confirmationId, proposal.action)
+      : undefined
+  const confirmation = await cancelAiAgentActionCore(ctx, {
+    confirmationId,
+    conversationId: conversation.id,
+    userId,
+    source,
+  })
+  const pendingConfirmations = await listConversationConfirmations(conversation.id, userId)
+  if (!isToolAction || !message) {
+    return {
+      confirmation,
+      message,
+      pendingConfirmations,
+      reply: '操作已取消。',
+      replyDelta: '',
+      summaryStreamed: false,
+    }
+  }
+
+  const assistantMessage = await AiChatMessage.findOrFail(message.id)
+  assistantMessage.agentContext = upsertAgentToolResult(assistantMessage.agentContext, {
+    assistantMessageId: assistantMessage.id,
+    toolCallId:
+      (pendingTool?.kind === 'tool' ? pendingTool.callId : undefined) ??
+      `confirmation-${confirmationId}`,
+    toolName:
+      (pendingTool?.kind === 'tool' ? pendingTool.name : undefined) ??
+      (typeof proposal.targetSummary?.toolName === 'string'
+        ? proposal.targetSummary.toolName
+        : proposal.action),
+    text: 'The user cancelled this proposed operation; it was not executed.',
+    isError: true,
+  })
+  await assistantMessage.save()
+
+  if (shouldDeferConfirmationReply(pendingConfirmations, assistantMessage.id)) {
+    return {
+      confirmation,
+      message: assistantMessage,
+      pendingConfirmations,
+      reply: '操作已取消；这组确认仍有待处理项。',
+      replyDelta: '',
+      summaryStreamed: false,
+    }
+  }
+
+  const summaryInput = {
+    assistantMessageId: assistantMessage.id,
+    conversationId: conversation.id,
+    userId,
+  }
+  if (await hasConfirmedToolAction(summaryInput)) {
+    const cancelledConfirmations = await listCancelledToolConfirmations(summaryInput)
+    try {
+      const summary = await summarizeConfirmedToolResult({
+        ctx,
+        conversation,
+        assistantMessage,
+        userId,
+        response,
+        continueWithConfiguredTools: false,
+        confirmationBatchResolved: true,
+        resolutions: cancelledConfirmations.map((item) => ({
+          action: item.action,
+          targetSummary: item.targetSummary ?? undefined,
+        })),
+      })
+      return {
+        confirmation,
+        message: summary.message,
+        pendingConfirmations: await listConversationConfirmations(conversation.id, userId),
+        reply: summary.reply,
+        replyDelta: '',
+        summaryStreamed: Boolean(response),
+      }
+    } catch (error) {
+      logger.warn(
+        { err: error, confirmationId, conversationId: conversation.id },
+        'Completed tool results could not be summarized after cancellation'
+      )
+      const fallback = '待确认操作已取消；之前已完成的工具结果未能整理，请查看运行详情。'
+      const visibleContent = assistantMessage.content
+        .replaceAll('此操作需要确认，请在确认卡片中确认后继续。', '')
+        .trim()
+      const replyDelta = visibleContent ? `\n\n${fallback}` : fallback
+      assistantMessage.content = visibleContent ? `${visibleContent}\n\n${fallback}` : fallback
+      await assistantMessage.save()
+      return {
+        confirmation,
+        message: assistantMessage,
+        pendingConfirmations: [],
+        reply: fallback,
+        replyDelta,
+        summaryStreamed: false,
+      }
+    }
+  }
+
+  const reply = confirmation.presentation.summary
+  const visibleContent = assistantMessage.content
+    .replaceAll('此操作需要确认，请在确认卡片中确认后继续。', '')
+    .trim()
+  const replyDelta = visibleContent ? `\n\n${reply}` : reply
+  assistantMessage.content = visibleContent ? `${visibleContent}\n\n${reply}` : reply
+  await assistantMessage.save()
+  return {
+    confirmation,
+    message: assistantMessage,
+    pendingConfirmations: [],
+    reply,
+    replyDelta,
+    summaryStreamed: false,
+  }
 }

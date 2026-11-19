@@ -73,10 +73,7 @@ export function applyAiChatStreamEvent(
       assistantMessage.plan = event.steps
       const planType = event.planType ?? 'confirmation'
       const timeline = assistantMessage.timeline ?? []
-      const turn = Math.max(
-        1,
-        timeline.filter((item) => item.kind === 'phase' && item.name === 'preparing_agent').length
-      )
+      const turn = event.turn ?? 1
       const planIndex = timeline.findIndex(
         (item) =>
           item.kind === 'plan' &&

@@ -1,35 +1,33 @@
+import type {
+  AiChatConfirmation,
+  AiChatConversationSummary,
+  AiChatMessage,
+  AiChatStreamEvent,
+} from '@api-starter-kit/ai-chat-contract'
+
 import { ApiError, apiRequest, apiRequestCredentials, apiRequestHeaders, apiUrl } from '@/lib/api'
 import { readItem } from '@/lib/api-types'
 import { buildListQuery } from '@/lib/list-query'
 
-export type AiChatRole = 'user' | 'assistant'
-
-export interface AiChatMessage {
-  id: number
-  conversationId: number
-  role: AiChatRole
-  content: string
-  image?: { mimeType: string }
-  pdf?: { name: string }
-  citations: AiChatCitation[]
-  createdAt: string
-  updatedAt: string
-  timeline?: AiChatTimelineItem[]
-}
-
-export interface AiChatCitation {
-  documentId: number
-  chunkId: number
-  title: string
-  excerpt: string
-}
-
-export interface AiChatConversationSummary {
-  id: number
-  title: string
-  createdAt: string
-  updatedAt: string
-}
+export type {
+  AiChatAgentActivity,
+  AiChatAgentActivityDetail,
+  AiChatAgentPhaseEvent,
+  AiChatCitation,
+  AiChatConfirmation,
+  AiChatConversationSummary,
+  AiChatCredentialDisclosure,
+  AiChatMessage,
+  AiChatPendingConfirmation,
+  AiChatPlanStep,
+  AiChatRole,
+  AiChatRunMeta,
+  AiChatRunPhase,
+  AiChatRunUsage,
+  AiChatStreamEvent,
+  AiChatStreamEventMap,
+  AiChatTimelineItem,
+} from '@api-starter-kit/ai-chat-contract'
 
 export interface AiChatPaginationMeta {
   currentPage: number
@@ -48,35 +46,6 @@ export interface AiChatConversation extends AiChatConversationSummary {
   messagesMeta?: AiChatPaginationMeta
   confirmations?: AiChatConfirmation[]
 }
-
-export interface AiChatConfirmation {
-  id: number
-  messageId: number
-  action: string
-  status?: 'pending' | 'confirmed' | 'expired' | 'failed' | 'cancelled'
-  impact: 'standard' | 'destructive'
-  targetType: string
-  targetId: string | null
-  targetSummary: Record<string, unknown>
-  changeSummary: Array<{ field: string; value: string }>
-  expiresAt: string | null
-  presentation: {
-    title: string
-    summary: string
-    targetLabel: string | null
-    changes: Array<{ label: string; value: string }>
-    impactLabel: string
-    approveLabel: string
-    cancelLabel: string
-  }
-}
-export interface AiChatCredentialDisclosure {
-  kind: 'api_key' | 'password'
-  value: string
-  label: string
-}
-
-export type AiChatPendingConfirmation = Omit<AiChatConfirmation, 'messageId'>
 
 export interface AiChatDeleteResult {
   id: number
@@ -100,61 +69,6 @@ export interface AiChatStreamOptions {
 // client-side grace period so a proxy or a broken SSE connection cannot leave
 // the assistant in its loading state indefinitely.
 const AI_STREAM_TIMEOUT_MS = 305_000
-
-export interface AiChatAgentActivity {
-  name: string
-  state: 'running' | 'done' | 'error'
-  callId?: string
-  startedAt?: number
-  displayName?: string
-  durationMs?: number
-  message?: string
-  errorCode?: 'permission_denied' | 'invalid_input' | 'conflict' | 'failed' | 'tool_not_registered'
-  phase?: string
-  detail?: {
-    templateCode?: string
-    action?: string
-    permissionCode?: string
-    targetType?: string
-    targetId?: string | number
-    targetLabel?: string
-    confirmationId?: number
-    toolName?: string
-    resultCount?: number
-    message?: string
-    progress?: number
-    completed?: number
-    total?: number
-    parameterSummary?: Array<{ name: string; type: string }>
-    skillCode?: string
-    skillName?: string
-    skillInstructionCharacters?: number
-    skillCount?: number
-    skillNames?: string[]
-    inputPreview?: string
-    outputPreview?: string
-  }
-}
-
-export interface AiChatRunPhase {
-  kind: 'phase'
-  name: 'preparing_agent' | 'model_response'
-  state: 'running' | 'done' | 'error'
-  callId: string
-  startedAt: number
-  durationMs?: number
-  outcome?: 'tool_call' | 'final_response'
-}
-
-export interface AiChatRunUsage {
-  inputTokens: number
-  outputTokens: number
-  cacheReadTokens?: number
-  cacheWriteTokens?: number
-  totalTokens: number
-  modelCalls: number
-  compactionCalls?: number
-}
 
 export interface AiChatUsageModel {
   modelId: string
@@ -183,39 +97,6 @@ export interface AiChatUsageSummary {
   pricingSource: 'models.dev' | 'mixed' | 'unavailable'
   unpricedModelCount: number
   models: AiChatUsageModel[]
-}
-
-export interface AiChatRunMeta {
-  agentRunId: string
-  usage: AiChatRunUsage
-  durationMs: number
-}
-
-export type AiChatTimelineItem =
-  | { kind: 'model_text'; callId: string; text: string; streaming?: boolean }
-  | { kind: 'plan'; turn?: number; planType?: 'task' | 'confirmation'; steps: AiChatPlanStep[] }
-  | AiChatRunPhase
-  | ({ kind: 'tool' } & AiChatAgentActivity)
-  | {
-      kind: 'run'
-      state?: 'done' | 'error'
-      durationMs: number
-      usage: AiChatRunUsage
-    }
-  | {
-      kind: 'confirmation'
-      action: string
-      targetLabel?: string
-      status: 'confirmed' | 'failed' | 'expired' | 'cancelled'
-      completedAt: string
-    }
-
-export interface AiChatPlanStep {
-  key: string
-  label?: string
-  state: 'pending' | 'running' | 'done'
-  startedAt?: number
-  durationMs?: number
 }
 
 export class AiChatStreamIncompleteError extends Error {
@@ -269,48 +150,6 @@ export async function transcribeAiChatAudio(token: string | null, audio: Blob, f
   })
   return readItem(response).text
 }
-
-export type AiChatStreamEvent =
-  | { type: 'user'; conversation: AiChatConversationSummary; message: AiChatMessage }
-  | { type: 'delta'; content: string }
-  | { type: 'agent_candidate_delta'; callId: string; content: string }
-  | { type: 'agent_candidate_clear'; callId: string }
-  | { type: 'agent_candidate_commit'; callId: string }
-  | { type: 'assistant_segment_start' }
-  | {
-      type: 'agent_status'
-      name: string
-      state: AiChatAgentActivity['state']
-      callId?: string
-      startedAt?: number
-      displayName?: string
-      durationMs?: number
-      message?: string
-      errorCode?: AiChatAgentActivity['errorCode']
-      phase?: string
-      detail?: AiChatAgentActivity['detail']
-    }
-  | ({ type: 'agent_phase' } & Omit<AiChatRunPhase, 'kind'>)
-  | {
-      type: 'agent_model_text'
-      callId: string
-      text: string
-      streaming: boolean
-      append: boolean
-    }
-  | { type: 'agent_model_text_clear'; callId: string }
-  | { type: 'agent_plan'; planType?: 'task' | 'confirmation'; steps: AiChatPlanStep[] }
-  | { type: 'agent_citations'; citations: AiChatCitation[] }
-  | ({ type: 'agent_confirmation' } & AiChatPendingConfirmation)
-  | ({ type: 'run' } & AiChatRunMeta)
-  | { type: 'credential_disclosure'; credential: AiChatCredentialDisclosure }
-  | {
-      type: 'done'
-      conversation: AiChatConversationSummary
-      message: AiChatMessage
-      confirmations: AiChatConfirmation[]
-    }
-  | { type: 'error'; message: string; assistantMessage?: AiChatMessage }
 
 async function streamAiChatRequest(
   token: string | null,
@@ -525,20 +364,5 @@ export async function deleteAiChatConversation(token: string | null, id: number)
     ...authOptions(token),
     method: 'DELETE',
   })
-  return readItem(response)
-}
-
-export async function cancelAiAgentAction(
-  token: string | null,
-  conversationId: number,
-  confirmationId: number
-) {
-  const response = await apiRequest<AiChatPendingConfirmation>(
-    `/api/v1/ai-chat/conversations/${conversationId}/confirmations/${confirmationId}/cancel`,
-    {
-      ...authOptions(token),
-      method: 'POST',
-    }
-  )
   return readItem(response)
 }

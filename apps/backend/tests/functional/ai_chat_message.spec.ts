@@ -204,7 +204,7 @@ test.group('AI chat messages', (group) => {
         steps: [
           {
             key: 'identify_target',
-            state: 'done',
+            state: 'done' as const,
             startedAt: 1_760_000_000_000,
             durationMs: 800,
           },
@@ -214,7 +214,13 @@ test.group('AI chat messages', (group) => {
         kind: 'run' as const,
         state: 'error' as const,
         durationMs: 1_500,
-        usage: { modelCalls: 2, totalTokens: 120, compactionCalls: 1 },
+        usage: {
+          inputTokens: 0,
+          outputTokens: 0,
+          modelCalls: 2,
+          totalTokens: 120,
+          compactionCalls: 1,
+        },
       },
     ]
 

@@ -1,20 +1,16 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import logger from '@adonisjs/core/services/logger'
 
-import { upsertAgentToolResult } from '#ai/agent'
-import { summarizeConfirmedToolResult } from '#ai/chat/confirmed_tool_result_summary'
+import {
+  cancelAiChatConfirmationAndUpdateMessage,
+  executeAiChatConfirmationAndCreateMessage,
+} from '#ai/chat/confirmation/ai_chat_confirmation_service'
 import { runAiChatAssistantTurn } from '#ai/chat/turn/ai_chat_turn_service'
 import {
   AiAgentConfirmationError,
-  cancelAiAgentAction,
-  confirmAiAgentAction,
-  findPendingConfirmationTool,
-  getAiAgentActionResultMessage,
-  hasConfirmedToolAction,
-  listCancelledToolConfirmations,
   listConversationConfirmations,
+  listPendingConversationConfirmations,
 } from '#ai/core/ai_agent_confirmation'
-import { listPendingConversationConfirmations } from '#ai/core/ai_agent_confirmation'
 import type {
   ChannelAdapter,
   ChannelCardActionEvent,
@@ -22,7 +18,6 @@ import type {
   OutboundMessage,
 } from '#channels/channel_types'
 import type { ReloadableBotRuntime } from '#channels/reloadable_ai_channel_runtime'
-import AiAgentConfirmation from '#models/ai_agent_confirmation'
 import AiChatMessage from '#models/ai_chat_message'
 import User from '#models/user'
 import {
@@ -51,13 +46,14 @@ function createChannelHttpContext(user: User, channel: NormalizedInboundMessage[
   } as unknown as HttpContext
 }
 
-function summarizeConfirmation(confirmation: Record<string, unknown> | null) {
+function summarizeConfirmation(confirmation: object | null) {
   if (!confirmation) return null
+  const value = confirmation as Record<string, unknown>
   return {
-    id: confirmation.id ?? confirmation.confirmationId ?? null,
-    actionCode: confirmation.actionCode ?? confirmation.action ?? null,
-    status: confirmation.status ?? null,
-    keys: Object.keys(confirmation),
+    id: value.id ?? value.confirmationId ?? null,
+    actionCode: value.actionCode ?? value.action ?? null,
+    status: value.status ?? null,
+    keys: Object.keys(value),
   }
 }
 
@@ -108,7 +104,8 @@ export function createAiChannelCandidateBuffer() {
   }
 }
 
-function confirmationReply(value: Record<string, unknown>): OutboundMessage | null {
+function confirmationReply(confirmation: object): OutboundMessage | null {
+  const value = confirmation as Record<string, unknown>
   const nestedConfirmation = value.confirmation
   const candidate =
     nestedConfirmation && typeof nestedConfirmation === 'object'
@@ -260,7 +257,7 @@ export class AiChannelBridge implements ReloadableBotRuntime {
     let assistantContent = ''
     let streamedContent = ''
     const candidateBuffer = createAiChannelCandidateBuffer()
-    let confirmation: Record<string, unknown> | null = null
+    let confirmation: object | null = null
     let managedActionResult: 'pending' | 'error' | null = null
     const publishStreamContent = async (content: string) => {
       const visibleContent = removeConfirmationPlaceholder(content)
@@ -475,220 +472,26 @@ export class AiChannelBridge implements ReloadableBotRuntime {
     const ctx = createChannelHttpContext(user, input.channel)
     try {
       if (input.actionKey === `confirm:${input.taskId}`) {
-        const proposal = await AiAgentConfirmation.query()
-          .where('id', confirmationId)
-          .where('conversation_id', conversation.id)
-          .where('requested_by_user_id', user.id)
-          .first()
-        const isToolAction =
-          proposal?.action === 'call_builtin_tool' || proposal?.action === 'call_mcp_tool'
-        const proposalMessage =
-          isToolAction && proposal?.assistantMessageId
-            ? await AiChatMessage.query()
-                .where('id', proposal.assistantMessageId)
-                .where('conversation_id', conversation.id)
-                .where('role', 'assistant')
-                .first()
-            : null
-        if (isToolAction && !proposalMessage) {
-          return textReply('找不到工具提案对应的助手消息，操作未执行。')
-        }
-        const pendingTool =
-          isToolAction && proposalMessage
-            ? findPendingConfirmationTool(
-                proposalMessage.runtimeDetails,
-                confirmationId,
-                proposal!.action
-              )
-            : undefined
-
-        const execution = await confirmAiAgentAction(ctx, {
+        const result = await executeAiChatConfirmationAndCreateMessage({
+          ctx,
+          conversation,
           confirmationId,
-          conversationId: conversation.id,
           userId: user.id,
         })
-        if (isToolAction && proposalMessage) {
-          const message = await AiChatMessage.findOrFail(proposalMessage.id)
-          const result =
-            execution.result && typeof execution.result === 'object' ? execution.result : undefined
-          const resultText =
-            typeof result?.agentToolResult === 'string'
-              ? result.agentToolResult
-              : typeof result?.mcpToolResult === 'string'
-                ? result.mcpToolResult
-                : 'Tool completed without a text result.'
-          message.agentContext = upsertAgentToolResult(message.agentContext, {
-            assistantMessageId: message.id,
-            toolCallId:
-              (pendingTool?.kind === 'tool' ? pendingTool.callId : undefined) ??
-              `confirmation-${confirmationId}`,
-            toolName:
-              (pendingTool?.kind === 'tool' ? pendingTool.name : undefined) ??
-              (typeof result?.agentToolName === 'string'
-                ? result.agentToolName
-                : typeof result?.mcpToolName === 'string'
-                  ? result.mcpToolName
-                  : proposal!.action),
-            text: resultText,
-            isError: false,
-          })
-          await message.save()
-
-          const pendingConfirmations = await listConversationConfirmations(conversation.id, user.id)
-          if (pendingConfirmations.some((item) => item.messageId === message.id)) {
-            return textReply('操作已执行；这组确认仍有待处理项，处理完后我会统一总结。')
-          }
-
-          const cancelledConfirmations = await listCancelledToolConfirmations({
-            assistantMessageId: message.id,
-            conversationId: conversation.id,
-            userId: user.id,
-          })
-          let reply = ''
-          try {
-            const summary = await summarizeConfirmedToolResult({
-              ctx,
-              conversation,
-              assistantMessage: message,
-              userId: user.id,
-              result,
-              continueWithConfiguredTools: cancelledConfirmations.length === 0,
-              confirmationBatchResolved: true,
-              resolutions: cancelledConfirmations.map((item) => ({
-                action: item.action,
-                targetSummary: item.targetSummary ?? undefined,
-              })),
-              onEvent: (event, data) => {
-                if (event !== 'delta' || !data || typeof data !== 'object') return
-                const content = (data as Record<string, unknown>).content
-                if (typeof content === 'string') reply += content
-              },
-            })
-            return textReply(reply.trim() || summary.reply)
-          } catch (error) {
-            logger.error(
-              { err: error, confirmationId, conversationId: conversation.id },
-              'Confirmed channel tool result could not be summarized'
-            )
-            return textReply('工具已执行，但 Agent 未能整理返回结果。请查看会话记录。')
-          }
+        if (result.isToolAction && result.pendingConfirmations.length > 0) {
+          return textReply('操作已执行；这组确认仍有待处理项，处理完后我会统一总结。')
         }
-        return textReply(
-          await getAiAgentActionResultMessage({
-            confirmationId,
-            conversationId: conversation.id,
-            userId: user.id,
-            result:
-              execution.result && typeof execution.result === 'object'
-                ? execution.result
-                : undefined,
-          })
-        )
+        return textReply(result.reply)
       }
       if (input.actionKey === `cancel:${input.taskId}`) {
-        const proposal = await AiAgentConfirmation.query()
-          .where('id', confirmationId)
-          .where('conversation_id', conversation.id)
-          .where('requested_by_user_id', user.id)
-          .first()
-        const isToolAction =
-          proposal?.action === 'call_builtin_tool' || proposal?.action === 'call_mcp_tool'
-        const proposalMessage =
-          isToolAction && proposal?.assistantMessageId
-            ? await AiChatMessage.query()
-                .where('id', proposal.assistantMessageId)
-                .where('conversation_id', conversation.id)
-                .where('role', 'assistant')
-                .first()
-            : null
-        const pendingTool =
-          isToolAction && proposalMessage && proposal
-            ? findPendingConfirmationTool(
-                proposalMessage.runtimeDetails,
-                confirmationId,
-                proposal.action
-              )
-            : undefined
-        const cancellation = await cancelAiAgentAction(ctx, {
+        const result = await cancelAiChatConfirmationAndUpdateMessage({
+          ctx,
+          conversation,
           confirmationId,
-          conversationId: conversation.id,
           userId: user.id,
+          source: 'channel',
         })
-        if (isToolAction && proposalMessage) {
-          const message = await AiChatMessage.findOrFail(proposalMessage.id)
-          message.agentContext = upsertAgentToolResult(message.agentContext, {
-            assistantMessageId: message.id,
-            toolCallId:
-              (pendingTool?.kind === 'tool' ? pendingTool.callId : undefined) ??
-              `confirmation-${confirmationId}`,
-            toolName:
-              (pendingTool?.kind === 'tool' ? pendingTool.name : undefined) ??
-              (typeof proposal!.targetSummary?.toolName === 'string'
-                ? proposal!.targetSummary.toolName
-                : proposal!.action),
-            text: 'The user cancelled this proposed operation; it was not executed.',
-            isError: true,
-          })
-          await message.save()
-
-          const pendingConfirmations = await listConversationConfirmations(conversation.id, user.id)
-          if (pendingConfirmations.some((item) => item.messageId === message.id)) {
-            return textReply('操作已取消；这组确认仍有待处理项。')
-          }
-
-          const summaryInput = {
-            assistantMessageId: message.id,
-            conversationId: conversation.id,
-            userId: user.id,
-          }
-          if (!(await hasConfirmedToolAction(summaryInput))) {
-            const visibleContent = message.content
-              .replaceAll('此操作需要确认，请在确认卡片中确认后继续。', '')
-              .trim()
-            message.content = visibleContent
-              ? `${visibleContent}\n\n${cancellation.presentation.summary}`
-              : cancellation.presentation.summary
-            await message.save()
-            return textReply(cancellation.presentation.summary)
-          }
-
-          const cancelledConfirmations = await listCancelledToolConfirmations(summaryInput)
-          let reply = ''
-          try {
-            const summary = await summarizeConfirmedToolResult({
-              ctx,
-              conversation,
-              assistantMessage: message,
-              userId: user.id,
-              continueWithConfiguredTools: false,
-              confirmationBatchResolved: true,
-              resolutions: cancelledConfirmations.map((item) => ({
-                action: item.action,
-                targetSummary: item.targetSummary ?? undefined,
-              })),
-              onEvent: (event, data) => {
-                if (event !== 'delta' || !data || typeof data !== 'object') return
-                const content = (data as Record<string, unknown>).content
-                if (typeof content === 'string') reply += content
-              },
-            })
-            return textReply(reply.trim() || summary.reply)
-          } catch (error) {
-            logger.warn(
-              { err: error, confirmationId, conversationId: conversation.id },
-              'Completed tool results could not be summarized after cancellation'
-            )
-            const latestMessage = await AiChatMessage.findOrFail(message.id)
-            const fallback = '待确认操作已取消；之前已完成的工具结果未能整理，请查看运行详情。'
-            const visibleContent = latestMessage.content
-              .replaceAll('此操作需要确认，请在确认卡片中确认后继续。', '')
-              .trim()
-            latestMessage.content = visibleContent ? `${visibleContent}\n\n${fallback}` : fallback
-            await latestMessage.save()
-            return textReply(fallback)
-          }
-        }
-        return textReply('操作已取消。')
+        return textReply(result.reply)
       }
       return textReply('未知的确认操作。')
     } catch (error) {

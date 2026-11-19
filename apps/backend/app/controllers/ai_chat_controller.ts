@@ -11,7 +11,6 @@ import {
   ApiSecurity,
 } from '@foadonis/openapi/decorators'
 
-import { upsertAgentToolResult } from '#ai/agent'
 import {
   createAiChatConversationTitle,
   generateAiChatConversationTitleFromImage,
@@ -19,19 +18,14 @@ import {
 import { resolveAiChatRegeneration } from '#ai/chat/ai_chat_regeneration'
 import { startAiChatSseKeepalive, writeAiChatSse } from '#ai/chat/ai_chat_sse_adapter'
 import { resetAiConversationState } from '#ai/chat/ai_conversation_state'
-import { executeAiChatConfirmationAndCreateMessage } from '#ai/chat/confirmation/ai_chat_confirmation_service'
 import {
-  shouldDeferConfirmationReply,
-  summarizeConfirmedToolResult,
-} from '#ai/chat/confirmed_tool_result_summary'
+  cancelAiChatConfirmationAndUpdateMessage,
+  executeAiChatConfirmationAndCreateMessage,
+} from '#ai/chat/confirmation/ai_chat_confirmation_service'
 import { runAiChatAssistantTurn } from '#ai/chat/turn/ai_chat_turn_service'
 import { getAiRequestTimeout } from '#ai/core/ai_agent_config'
 import {
   AiAgentConfirmationError,
-  cancelAiAgentAction as cancelAgentAction,
-  findPendingConfirmationTool,
-  hasConfirmedToolAction,
-  listCancelledToolConfirmations,
   listConversationConfirmations,
 } from '#ai/core/ai_agent_confirmation'
 import {
@@ -39,7 +33,6 @@ import {
   getAiAgentRun,
   releaseAiAgentConversation,
 } from '#ai/runtime/ai_agent_run_registry'
-import AiAgentConfirmation from '#models/ai_agent_confirmation'
 import AiChatConversation from '#models/ai_chat_conversation'
 import AiChatMessage from '#models/ai_chat_message'
 import { getAiChatImageMimeType } from '#services/ai_chat_image_service'
@@ -583,120 +576,25 @@ export default class AiChatController {
     }
 
     try {
-      const pending = await AiAgentConfirmation.query()
-        .where('id', route.confirmationId)
-        .where('conversation_id', conversation.id)
-        .where('requested_by_user_id', user.id)
-        .first()
-      const isToolAction =
-        pending?.action === 'call_builtin_tool' || pending?.action === 'call_mcp_tool'
-      const pendingMessage = pending?.assistantMessageId
-        ? await AiChatMessage.find(pending.assistantMessageId)
-        : null
-      const pendingTool =
-        isToolAction && pending && pendingMessage
-          ? findPendingConfirmationTool(
-              pendingMessage.runtimeDetails,
-              Number(route.confirmationId),
-              pending.action
-            )
-          : undefined
-      const confirmation = await cancelAgentAction(ctx, {
+      const result = await cancelAiChatConfirmationAndUpdateMessage({
+        ctx,
+        conversation,
         confirmationId: Number(route.confirmationId),
-        conversationId: conversation.id,
         userId: user.id,
         source: 'api',
+        response: streaming ? response : undefined,
       })
-      let assistantMessage = pendingMessage
-        ? await AiChatMessage.findOrFail(pendingMessage.id)
-        : null
-      let directReplyDelta: string | undefined
-      let summaryStreamed = false
-      if (pending && pendingMessage && isToolAction) {
-        assistantMessage ??= await AiChatMessage.findOrFail(pendingMessage.id)
-        const toolCallId =
-          (pendingTool?.kind === 'tool' ? pendingTool.callId : undefined) ??
-          `confirmation-${route.confirmationId}`
-        assistantMessage.agentContext = upsertAgentToolResult(assistantMessage.agentContext, {
-          assistantMessageId: assistantMessage.id,
-          toolCallId,
-          toolName:
-            (pendingTool?.kind === 'tool' ? pendingTool.name : undefined) ??
-            (typeof pending.targetSummary?.toolName === 'string'
-              ? pending.targetSummary.toolName
-              : pending.action),
-          text: 'The user cancelled this proposed operation; it was not executed.',
-          isError: true,
-        })
-        await assistantMessage.save()
-        const pendingConfirmations = await listConversationConfirmations(conversation.id, user.id)
-        if (!shouldDeferConfirmationReply(pendingConfirmations, assistantMessage.id)) {
-          const summaryInput = {
-            assistantMessageId: assistantMessage.id,
-            conversationId: conversation.id,
-            userId: user.id,
-          }
-          if (await hasConfirmedToolAction(summaryInput)) {
-            const cancelledConfirmations = await listCancelledToolConfirmations(summaryInput)
-            try {
-              await summarizeConfirmedToolResult({
-                ctx,
-                conversation,
-                assistantMessage,
-                userId: user.id,
-                response: streaming ? response : undefined,
-                continueWithConfiguredTools: false,
-                confirmationBatchResolved: true,
-                resolutions: cancelledConfirmations.map((item) => ({
-                  action: item.action,
-                  targetSummary: item.targetSummary ?? undefined,
-                })),
-              })
-              summaryStreamed = streaming
-            } catch (error) {
-              logger.warn(
-                {
-                  err: error,
-                  confirmationId: route.confirmationId,
-                  conversationId: conversation.id,
-                },
-                'Completed tool results could not be summarized after cancellation'
-              )
-              const latestMessage = await AiChatMessage.findOrFail(assistantMessage.id)
-              const fallback = '待确认操作已取消；之前已完成的工具结果未能整理，请查看运行详情。'
-              const visibleContent = latestMessage.content
-                .replaceAll('此操作需要确认，请在确认卡片中确认后继续。', '')
-                .trim()
-              directReplyDelta = visibleContent ? `\n\n${fallback}` : fallback
-              latestMessage.content = visibleContent ? `${visibleContent}\n\n${fallback}` : fallback
-              await latestMessage.save()
-              assistantMessage = latestMessage
-            }
-          } else {
-            const visibleContent = assistantMessage.content
-              .replaceAll('此操作需要确认，请在确认卡片中确认后继续。', '')
-              .trim()
-            directReplyDelta = visibleContent
-              ? `\n\n${confirmation.presentation.summary}`
-              : confirmation.presentation.summary
-            assistantMessage.content = visibleContent
-              ? `${visibleContent}\n\n${confirmation.presentation.summary}`
-              : confirmation.presentation.summary
-            await assistantMessage.save()
-          }
-        }
-      }
-      if (!streaming) return serialize(confirmation)
-      if (!assistantMessage) {
+      if (!streaming) return serialize(result.confirmation)
+      if (!result.message) {
         writeAiChatSse(response, 'error', { message: '找不到对应的助手消息' })
         return
       }
-      if (summaryStreamed) return
-      if (directReplyDelta) writeAiChatSse(response, 'delta', { content: directReplyDelta })
+      if (result.summaryStreamed) return
+      if (result.replyDelta) writeAiChatSse(response, 'delta', { content: result.replyDelta })
       writeAiChatSse(response, 'done', {
         conversation: serializeAiChatConversation(conversation),
-        message: serializeAiChatMessage(await AiChatMessage.findOrFail(assistantMessage.id)),
-        confirmations: await listConversationConfirmations(conversation.id, user.id),
+        message: serializeAiChatMessage(result.message),
+        confirmations: result.pendingConfirmations,
       })
     } catch (error) {
       if (streaming) {

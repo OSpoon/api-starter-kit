@@ -1,5 +1,9 @@
 import type { AgentTool } from '#ai/agent'
 import { proposeAiAgentAction } from '#ai/core/ai_agent_confirmation'
+import {
+  type BuiltInAiAgentToolName,
+  builtInAiAgentToolNames,
+} from '#ai/core/ai_agent_tool_catalog'
 import type { AiAgentToolContext } from '#ai/core/ai_agent_tool_context'
 import { createAiAgentToolSupport } from '#ai/registry/ai_agent_tool_helpers'
 import {
@@ -25,26 +29,26 @@ export function createAiAgentTools(input: AiAgentToolContext): AgentTool[] {
   const support = createAiAgentToolSupport(input)
   const knowledgeCatalogDocumentIds = input.knowledgeCatalogDocumentIds ?? new Set<number>()
   const knowledgeInput = { ...input, knowledgeCatalogDocumentIds }
-
-  const tools =
-    input.capabilityMode === 'knowledge-only'
-      ? [
-          createSearchKnowledgeCatalogTool(knowledgeInput, support),
-          createSearchKnowledgeTool(knowledgeInput, support),
-        ]
-      : [
-          createDiagnoseMyAccessTool(input, support),
-          createRunRegisteredQueryTool(input, support),
-          createSearchKnowledgeCatalogTool(knowledgeInput, support),
-          createSearchKnowledgeTool(knowledgeInput, support),
-          ...(input.hasPdfAttachments && input.capabilityMode !== 'channel'
-            ? [createReadPdfAttachmentTool(input)]
-            : []),
-          createApiKeyRevocationTool(input, support),
-          createApiKeyDeletionTool(input, support),
-          createSystemManagementChangeTool(input, support),
-          ...(input.capabilityMode === 'channel' ? [] : [createApiKeyCreationTool(input, support)]),
-        ]
+  const factories = {
+    diagnose_my_access: () => createDiagnoseMyAccessTool(input, support),
+    run_registered_query: () => createRunRegisteredQueryTool(input, support),
+    search_knowledge_catalog: () => createSearchKnowledgeCatalogTool(knowledgeInput, support),
+    search_knowledge: () => createSearchKnowledgeTool(knowledgeInput, support),
+    read_pdf_attachment: () => createReadPdfAttachmentTool(input),
+    revoke_api_key: () => createApiKeyRevocationTool(input, support),
+    delete_api_key: () => createApiKeyDeletionTool(input, support),
+    system_management_change: () => createSystemManagementChangeTool(input, support),
+    create_api_key: () => createApiKeyCreationTool(input, support),
+  } satisfies Record<BuiltInAiAgentToolName, () => AgentTool>
+  const tools = builtInAiAgentToolNames
+    .filter((name) =>
+      input.capabilityMode === 'knowledge-only'
+        ? name === 'search_knowledge_catalog' || name === 'search_knowledge'
+        : (name !== 'read_pdf_attachment' ||
+            (input.hasPdfAttachments && input.capabilityMode !== 'channel')) &&
+          (name !== 'create_api_key' || input.capabilityMode !== 'channel')
+    )
+    .map((name) => factories[name]())
 
   if (!input.enabledToolNames) return tools
   const enabled = new Set<string>(input.enabledToolNames)

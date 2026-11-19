@@ -1,60 +1,15 @@
 import { BaseModel, column } from '@adonisjs/lucid/orm'
+import type {
+  AiChatCitation,
+  AiChatRole,
+  AiChatTimelineItem,
+} from '@api-starter-kit/ai-chat-contract'
 import { DateTime } from 'luxon'
 
 import type { AgentSessionState } from '#ai/agent'
 
-export type AiChatRole = 'user' | 'assistant'
-
-export type AiChatCitation = {
-  documentId: number
-  chunkId: number
-  title: string
-  excerpt: string
-}
-
-export type AiChatRuntimeDetail =
-  | { kind: 'model_text'; callId: string; text: string }
-  | {
-      kind: 'tool'
-      name: string
-      state: 'running' | 'done' | 'error'
-      callId?: string
-      startedAt?: number
-      displayName?: string
-      durationMs?: number
-      message?: string
-      phase?: string
-      errorCode?: string
-      detail?: Record<string, unknown>
-    }
-  | {
-      kind: 'phase'
-      name: 'preparing_agent' | 'model_response'
-      state: 'running' | 'done' | 'error'
-      callId: string
-      startedAt: number
-      durationMs?: number
-      outcome?: 'tool_call' | 'final_response'
-    }
-  | {
-      kind: 'plan'
-      turn?: number
-      planType?: 'task' | 'confirmation'
-      steps: Array<Record<string, unknown>>
-    }
-  | {
-      kind: 'run'
-      state?: 'done' | 'error'
-      durationMs: number
-      usage: Record<string, unknown>
-    }
-  | {
-      kind: 'confirmation'
-      action: string
-      targetLabel?: string
-      status: 'confirmed' | 'failed' | 'expired' | 'cancelled'
-      completedAt: string
-    }
+export type { AiChatCitation, AiChatRole }
+export type AiChatRuntimeDetail = AiChatTimelineItem
 
 function isJsonRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value)

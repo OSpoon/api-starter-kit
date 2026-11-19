@@ -8,7 +8,6 @@ import {
   type AiChatPendingConfirmation,
   type AiChatQueueMode,
   AiChatStreamIncompleteError,
-  type AiChatTimelineItem,
   getAiChatConversation,
   queueAiChatMessage,
   streamAiAgentActionCancellation,
@@ -95,8 +94,8 @@ export function useAiChatStream(
       : [...currentMessages, userMessage!, assistantMessage]
     const newlyCreatedConfirmationIds = new Set<number>()
     let completedAssistantMessageId: number | null = null
-    let completedTimeline: AiChatTimelineItem[] | undefined
     let streamedConfirmation: AiChatPendingConfirmation | null = null
+    let streamedUserMessageId: number | undefined
 
     const updateAssistantMessage = () => {
       state.streamingMessages.value = state.streamingMessages.value.map((item) =>
@@ -112,6 +111,7 @@ export function useAiChatStream(
         message,
         (event) => {
           if (event.type === 'user') {
+            streamedUserMessageId = event.message.id
             state.conversations.value = [
               event.conversation,
               ...state.conversations.value.filter((item) => item.id !== event.conversation.id),
@@ -156,7 +156,6 @@ export function useAiChatStream(
 
           if (event.type === 'done') {
             completedAssistantMessageId = event.message.id
-            completedTimeline = assistantMessage.timeline
             event.confirmations.forEach((confirmation) =>
               newlyCreatedConfirmationIds.add(confirmation.id)
             )
@@ -227,10 +226,6 @@ export function useAiChatStream(
         messages: mergeAiChatMessages(
           previousConversation?.messages ?? [],
           persistedConversation.messages
-        ).map((item) =>
-          item.id === completedAssistantMessageId && completedTimeline
-            ? { ...item, timeline: completedTimeline }
-            : item
         ),
         messagesMeta: persistedConversation.messagesMeta
           ? {
@@ -264,14 +259,11 @@ export function useAiChatStream(
               state.conversation.value.id
             )
             const previousConversation = state.conversation.value
-            let currentUserMessageIndex = -1
-            for (let index = persistedConversation.messages.length - 1; index >= 0; index -= 1) {
-              const candidate = persistedConversation.messages[index]
-              if (candidate?.role === 'user' && candidate.content === message) {
-                currentUserMessageIndex = index
-                break
-              }
-            }
+            const currentUserMessageIndex = streamedUserMessageId
+              ? persistedConversation.messages.findIndex(
+                  (candidate) => candidate.id === streamedUserMessageId
+                )
+              : -1
             const persistedAssistantMessage =
               currentUserMessageIndex >= 0
                 ? persistedConversation.messages[currentUserMessageIndex + 1]
@@ -340,10 +332,6 @@ export function useAiChatStream(
     if (!conversation || conversation.id !== conversationId || state.loading.value) return false
     const confirmation = state.confirmations.value.find((item) => item.id === confirmationId)
     if (!confirmation) return false
-    const hasAnotherConfirmationForMessage = state.confirmations.value.some(
-      (item) => item.id !== confirmationId && item.messageId === confirmation.messageId
-    )
-
     state.abortController.value?.abort()
     const abortController = new AbortController()
     state.abortController.value = abortController
@@ -360,11 +348,9 @@ export function useAiChatStream(
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       }),
-      status:
-        action === 'cancel' && hasAnotherConfirmationForMessage ? ('done' as const) : 'streaming',
+      status: 'streaming',
     }
-    state.streamingMessageId.value =
-      assistantMessage.status === 'streaming' ? assistantMessage.id : null
+    state.streamingMessageId.value = assistantMessage.id
     state.streamingMessages.value = existingMessage
       ? conversation.messages.map((item) =>
           item.id === assistantMessage.id ? assistantMessage : item
@@ -414,6 +400,12 @@ export function useAiChatStream(
             return
 
           if (event.type === 'done') {
+            assistantMessage = {
+              ...event.message,
+              id: event.message.id,
+              status: 'done',
+            }
+            updateAssistantMessage()
             state.conversation.value = {
               ...(state.conversation.value ?? conversation),
               ...event.conversation,

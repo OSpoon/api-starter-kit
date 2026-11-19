@@ -2,7 +2,6 @@ import { z } from 'zod'
 
 import type { AiAgentTaskPlanStep, AiAgentToolContext } from '#ai/core/ai_agent_tool_context'
 import { type AiAgentToolSupport, createAiAgentTool } from '#ai/registry/ai_agent_tool_helpers'
-import { aiAgentToolParameters } from '#ai/registry/ai_agent_tool_parameters'
 
 const planSchema = z.object({
   steps: z
@@ -33,7 +32,6 @@ export function createAiAgentTaskPlanTool(input: AiAgentToolContext, support: Ai
       description:
         'Publish or update a concise progress plan for a complex multi-step task. Do not use for simple questions. Send the full current step list each time, mark only the active step running, and mark a step done only after its tool result or confirmed operation is complete. Plan status is display metadata and never proves that an operation succeeded.',
       schema: planSchema,
-      parameters: aiAgentToolParameters.taskPlan,
       executionMode: 'sequential',
     }
   )

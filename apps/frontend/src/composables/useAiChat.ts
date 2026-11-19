@@ -4,7 +4,6 @@ import type {
   AiChatConfirmation,
   AiChatCredentialDisclosure,
   AiChatRunMeta,
-  AiChatTimelineItem,
 } from '@/features/ai/api'
 import {
   type AiChatConversation,
@@ -198,58 +197,6 @@ export function useAiChat() {
     aiApprovalDismissed.value = false
   }
 
-  function appendConfirmationTimeline(
-    messageId: number,
-    confirmation: AiChatConfirmation,
-    status: 'cancelled'
-  ) {
-    const matchingTools = aiConversation.value?.messages
-      .find((message) => message.id === messageId)
-      ?.timeline?.filter(
-        (entry) =>
-          entry.kind === 'tool' &&
-          entry.phase === 'awaiting_confirmation' &&
-          entry.detail?.action === confirmation.action
-      )
-    const targetTool =
-      matchingTools?.find(
-        (entry) => entry.kind === 'tool' && entry.detail?.confirmationId === confirmation.id
-      ) ?? (matchingTools?.length === 1 ? matchingTools[0] : undefined)
-    const targetToolCallId = targetTool?.kind === 'tool' ? targetTool.callId : undefined
-    const item: AiChatTimelineItem = {
-      kind: 'confirmation',
-      action: confirmation.action,
-      ...(confirmation.presentation.targetLabel
-        ? { targetLabel: confirmation.presentation.targetLabel }
-        : {}),
-      status,
-      completedAt: new Date().toISOString(),
-    }
-    if (aiConversation.value) {
-      aiConversation.value = {
-        ...aiConversation.value,
-        messages: aiConversation.value.messages.map((message) =>
-          message.id === messageId
-            ? {
-                ...message,
-                timeline: [
-                  ...(message.timeline ?? []).map((entry) =>
-                    entry.kind === 'tool' &&
-                    entry.phase === 'awaiting_confirmation' &&
-                    targetToolCallId !== undefined &&
-                    entry.callId === targetToolCallId
-                      ? { ...entry, phase: 'cancelled' }
-                      : entry
-                  ),
-                  item,
-                ],
-              }
-            : message
-        ),
-      }
-    }
-  }
-
   async function refreshAiConfirmationState(conversationId: number) {
     try {
       const refreshed = await getAiChatConversation(auth.token, conversationId)
@@ -275,7 +222,6 @@ export function useAiChat() {
 
     aiCancelling.value = true
     aiApprovalDismissed.value = true
-    appendConfirmationTimeline(confirmation.messageId, confirmation, 'cancelled')
 
     try {
       const succeeded = await streamAiCancellation(conversation.id, confirmation.id)

@@ -17,6 +17,7 @@
     "format:check": "prettier --check --config ../../prettier.config.cjs --ignore-path ../../.prettierignore ."
   },
   "dependencies": {
+    "@api-starter-kit/ai-chat-contract": "workspace:*",
     "@codemirror/autocomplete": "^6.20.3",
     "@codemirror/commands": "^6.10.4",
     "@codemirror/lang-json": "^6.0.2",

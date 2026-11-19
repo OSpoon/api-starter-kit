@@ -2,7 +2,6 @@ import { z } from 'zod'
 
 import type { AiAgentToolContext } from '#ai/core/ai_agent_tool_context'
 import { type AiAgentToolSupport, createAiAgentTool } from '#ai/registry/ai_agent_tool_helpers'
-import { aiAgentToolParameters } from '#ai/registry/ai_agent_tool_parameters'
 
 export function createApiKeyCreationTool(_input: AiAgentToolContext, support: AiAgentToolSupport) {
   return createAiAgentTool(
@@ -16,7 +15,6 @@ export function createApiKeyCreationTool(_input: AiAgentToolContext, support: Ai
         name: z.string().trim().min(1).max(120),
         expiresIn: z.enum(['30d', '90d', '180d', 'long']).optional(),
       }),
-      parameters: aiAgentToolParameters.apiKeyCreation,
       prepareConfirmation: ({ name, expiresIn }) =>
         support.prepareManagedChange('create_api_key', 'create_api_key', {
           name,

@@ -2,7 +2,6 @@ import { z } from 'zod'
 
 import type { AiAgentToolContext } from '#ai/core/ai_agent_tool_context'
 import { type AiAgentToolSupport, createAiAgentTool } from '#ai/registry/ai_agent_tool_helpers'
-import { aiAgentToolParameters } from '#ai/registry/ai_agent_tool_parameters'
 import { recordKnowledgeSearchAudit } from '#services/knowledge_audit'
 import { searchKnowledge } from '#services/knowledge_service'
 
@@ -75,7 +74,6 @@ export function createSearchKnowledgeTool(input: AiAgentToolContext, support: Ai
         query: z.string().trim().min(2).max(1000),
         documentIds: z.array(z.number().int().positive()).min(1).max(10),
       }),
-      parameters: aiAgentToolParameters.searchKnowledge,
       executionMode: 'sequential',
     }
   )

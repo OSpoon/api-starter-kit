@@ -1,6 +1,5 @@
 import { test } from '@japa/runner'
 
-import { aiAgentToolParameters } from '#ai/registry/ai_agent_tool_parameters'
 import {
   createAiAgentTools,
   createConfiguredAiAgentTools,
@@ -35,15 +34,17 @@ test.group('AI agent tool registry', () => {
   test('uses JSON Schema for Agent tool parameters and keeps optional fields optional', ({
     assert,
   }) => {
-    const queryParameters = aiAgentToolParameters.runRegisteredQuery
+    const tools = createAiAgentTools({ userId: 1, conversationId: 1, agentRunId: 'test-run' })
+    const queryParameters = tools.find((tool) => tool.name === 'run_registered_query')?.parameters
+    const apiKeyTarget = tools.find((tool) => tool.name === 'revoke_api_key')?.parameters
+    if (!queryParameters || !apiKeyTarget) throw new Error('Expected registered query tools')
     assert.equal(queryParameters.type, 'object')
     assert.deepEqual(queryParameters.required, ['templateCode'])
-    assert.deepEqual(
-      (queryParameters.properties?.params as { additionalProperties: boolean })
-        .additionalProperties,
-      true
-    )
-    assert.equal(aiAgentToolParameters.apiKeyTarget.anyOf?.length, 3)
+    const paramsSchema = queryParameters.properties?.params as
+      | { additionalProperties?: unknown }
+      | undefined
+    assert.notEqual(paramsSchema?.additionalProperties, false)
+    assert.equal((apiKeyTarget.anyOf as unknown[] | undefined)?.length, 3)
   })
 
   test('registers every Agent tool with an explicit name and description', ({ assert }) => {

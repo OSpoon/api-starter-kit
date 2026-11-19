@@ -2,7 +2,6 @@ import { z } from 'zod'
 
 import type { AiAgentToolContext } from '#ai/core/ai_agent_tool_context'
 import { type AiAgentToolSupport, createAiAgentTool } from '#ai/registry/ai_agent_tool_helpers'
-import { aiAgentToolParameters } from '#ai/registry/ai_agent_tool_parameters'
 import { recordKnowledgeSearchAudit } from '#services/knowledge_audit'
 import { searchKnowledgeCatalog } from '#services/knowledge_service'
 
@@ -63,7 +62,6 @@ export function createSearchKnowledgeCatalogTool(
       description:
         'First stage of document knowledge retrieval. Search the knowledge-source catalog available to this Agent and return at most 12 candidate documents without document excerpts. You must call this before search_knowledge; use the returned documentId values to choose the narrow document scope for the second stage.',
       schema: z.object({ query: z.string().trim().min(2).max(1000) }),
-      parameters: aiAgentToolParameters.searchKnowledgeCatalog,
       executionMode: 'sequential',
     }
   )

@@ -101,14 +101,13 @@ export const aiApiKeyChangeSchema = z.preprocess(
     return { ...nested, ...directInput }
   },
   z
-    .object({
-      apiKeyId: z.coerce.number().int().positive().optional(),
-      id: z.coerce.number().int().positive().optional(),
-      name: z.string().trim().min(1).max(120).optional(),
-    })
-    .refine(
-      (input) =>
-        [input.apiKeyId, input.id, input.name].filter((value) => value !== undefined).length === 1,
-      '请将 API Key 的正整数 ID 或精确名称作为工具参数传入（二选一）'
-    )
+    .union([
+      z.object({ apiKeyId: z.coerce.number().int().positive() }).passthrough(),
+      z.object({ id: z.coerce.number().int().positive() }).passthrough(),
+      z.object({ name: z.string().trim().min(1).max(120) }).passthrough(),
+    ])
+    .refine((input) => {
+      const target = input as Record<string, unknown>
+      return ['apiKeyId', 'id', 'name'].filter((key) => target[key] !== undefined).length === 1
+    }, '请将 API Key 的正整数 ID 或精确名称作为工具参数传入（二选一）')
 )

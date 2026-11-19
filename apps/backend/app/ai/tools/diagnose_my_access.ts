@@ -3,7 +3,6 @@ import { z } from 'zod'
 import type { AiAgentToolContext } from '#ai/core/ai_agent_tool_context'
 import { diagnoseMyAccess } from '#ai/diagnostics/ai_access_diagnostic'
 import { type AiAgentToolSupport, createAiAgentTool } from '#ai/registry/ai_agent_tool_helpers'
-import { aiAgentToolParameters } from '#ai/registry/ai_agent_tool_parameters'
 
 export function createDiagnoseMyAccessTool(input: AiAgentToolContext, support: AiAgentToolSupport) {
   return createAiAgentTool(
@@ -16,7 +15,6 @@ export function createDiagnoseMyAccessTool(input: AiAgentToolContext, support: A
       description:
         'Diagnose only the current authenticated user\u2019s access. For an overall permission review, call with an empty object and summarize effectivePermissions; omit permissionCode. Set permissionCode only when the user explicitly asks whether they have one named permission.',
       schema: z.object({ permissionCode: z.string().optional() }),
-      parameters: aiAgentToolParameters.diagnoseMyAccess,
       executionMode: 'parallel',
     }
   )
