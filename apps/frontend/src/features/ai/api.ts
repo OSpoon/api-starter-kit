@@ -8,6 +8,7 @@ import type {
 import { ApiError, apiRequest, apiRequestCredentials, apiRequestHeaders, apiUrl } from '@/lib/api'
 import { readItem } from '@/lib/api-types'
 import { buildListQuery } from '@/lib/list-query'
+import { readSseEvents } from '@/lib/sse'
 
 export type {
   AiChatAgentActivity,
@@ -195,48 +196,12 @@ async function streamAiChatRequest(
       throw new ApiError(payload?.message ?? 'AI request failed', response.status)
     }
 
-    const reader = response.body.getReader()
-    const decoder = new TextDecoder()
-    let buffer = ''
     let receivedTerminalEvent = false
-
-    function consumeEvent(raw: string) {
-      const lines = raw.split('\n')
-      const event = lines
-        .find((line) => line.startsWith('event:'))
-        ?.slice('event:'.length)
-        .trim()
-      const data = lines
-        .filter((line) => line.startsWith('data:'))
-        .map((line) => line.slice('data:'.length).trim())
-        .join('\n')
-
-      if (!event || !data) {
-        return
-      }
-
+    await readSseEvents(response.body, (event, data) => {
       receivedTerminalEvent ||= event === 'done' || event === 'error'
       onEvent({ type: event, ...JSON.parse(data) } as AiChatStreamEvent)
-    }
-
-    while (true) {
-      const { done, value } = await reader.read()
-      buffer += decoder.decode(value, { stream: !done })
-
-      const events = buffer.split('\n\n')
-      buffer = events.pop() ?? ''
-      events.forEach(consumeEvent)
-
-      if (done) {
-        if (buffer.trim()) {
-          consumeEvent(buffer)
-        }
-        if (!receivedTerminalEvent) {
-          throw new AiChatStreamIncompleteError()
-        }
-        break
-      }
-    }
+    })
+    if (!receivedTerminalEvent) throw new AiChatStreamIncompleteError()
   } finally {
     clearTimeout(timeout)
     signal?.removeEventListener('abort', abortFromCaller)

@@ -1,7 +1,13 @@
 {
   "$schema": "https://json.schemastore.org/tsconfig",
   "extends": "@vue/tsconfig/tsconfig.dom.json",
-  "include": ["src/**/*", "src/**/*.vue", "../assistant-web/env.d.ts"],
+  "include": [
+    "src/**/*",
+    "src/**/*.vue",
+    "../assistant-web/env.d.ts",
+    "../assistant-web/src/components.d.ts",
+    "../frontend/src/auto-imports.d.ts"
+  ],
   "exclude": ["node_modules", "dist", "coverage"],
   "compilerOptions": {
     "allowImportingTsExtensions": true,

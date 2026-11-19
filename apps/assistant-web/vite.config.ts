@@ -29,10 +29,10 @@ export default defineConfig({
     tailwindcss(),
     AutoImport({
       imports: ['vue', 'vue-router', 'vue-i18n', '@vueuse/core'],
-      dts: 'src/auto-imports.d.ts',
+      dts: false,
     }),
     Components({
-      dirs: ['src/components', `${frontendSource}/components`],
+      dirs: [`${frontendSource}/components/ai-chat`, `${frontendSource}/components/ui`],
       dts: 'src/components.d.ts',
     }),
   ],

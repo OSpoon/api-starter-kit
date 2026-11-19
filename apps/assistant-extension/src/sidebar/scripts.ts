@@ -1,4 +1,3 @@
-import SidebarHost from './SidebarHost.vue'
 import { createAssistantApp } from '@assistant/create-app'
 import { registerAssistantExtensionPermissionBridge } from '@assistant/lib/runtime'
 
@@ -13,5 +12,5 @@ registerAssistantExtensionPermissionBridge({
   removeHostPermission: (origin) => chrome.permissions.remove({ origins: [originPattern(origin)] }),
 })
 
-const app = await createAssistantApp(SidebarHost)
+const app = await createAssistantApp()
 app.mount('#app')

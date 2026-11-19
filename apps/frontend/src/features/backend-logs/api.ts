@@ -1,4 +1,5 @@
 import { ApiError, apiRequestCredentials, apiRequestHeaders } from '@/lib/api'
+import { readSseEvents } from '@/lib/sse'
 
 const streamPath = '/api/v1/system/logs/live'
 
@@ -23,43 +24,11 @@ export async function streamBackendLogs(
   }
 
   onConnected()
-  const reader = response.body.getReader()
-  const decoder = new TextDecoder()
-  let buffer = ''
-
-  function consumeEvent(raw: string) {
-    const lines = raw.split('\n')
-    const event = lines
-      .find((line) => line.startsWith('event:'))
-      ?.slice('event:'.length)
-      .trim()
-    const data = lines
-      .filter((line) => line.startsWith('data:'))
-      .map((line) => line.slice('data:'.length).trim())
-      .join('\n')
-
-    if (!event || !data) return
+  await readSseEvents(response.body, (event, data) => {
     const payload = JSON.parse(data) as { line?: unknown; message?: unknown }
     if (event === 'log' && typeof payload.line === 'string') onLine(payload.line)
     if (event === 'error') {
       throw new Error(typeof payload.message === 'string' ? payload.message : 'Log stream failed')
     }
-  }
-
-  try {
-    while (true) {
-      const { done, value } = await reader.read()
-      buffer += decoder.decode(value, { stream: !done })
-      const events = buffer.split('\n\n')
-      buffer = events.pop() ?? ''
-      events.forEach(consumeEvent)
-
-      if (done) {
-        if (buffer.trim()) consumeEvent(buffer)
-        break
-      }
-    }
-  } finally {
-    reader.releaseLock()
-  }
+  })
 }

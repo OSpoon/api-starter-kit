@@ -1,8 +1,8 @@
 import './assets/main.css'
 
+import App from '@/App.vue'
 import i18n, { loadLocaleMessages } from '@/i18n'
 
-import App from './App.vue'
 import router from './router'
 import { initializeAssistantRuntime } from '@assistant/lib/runtime'
 import { createPinia, setActivePinia } from 'pinia'

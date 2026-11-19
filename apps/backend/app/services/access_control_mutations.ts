@@ -19,6 +19,8 @@ export class AccessControlMutationError extends Error {
       | 'invalid_role_ids'
       | 'invalid_permission_ids'
       | 'duplicate_role_code'
+      | 'role_not_found'
+      | 'role_in_use'
       | 'protected_role'
       | 'protected_user'
       | 'super_admin_target_forbidden'
@@ -200,6 +202,62 @@ async function resolvePermissions(ids: number[], client: TransactionClientContra
     throw new AccessControlMutationError('invalid_permission_ids', '包含未注册或不存在的权限')
   }
   return { ids: normalizedIds, codes: permissions.map((permission) => permission.code) }
+}
+
+function assertRoleCanBeDeleted(role: Role) {
+  if (role.isSystem) {
+    throw new AccessControlMutationError('protected_role', '系统内置角色不可删除')
+  }
+  if (Number(role.$extras.users_count ?? 0) > 0) {
+    throw new AccessControlMutationError('role_in_use', '角色仍分配给用户，无法删除')
+  }
+  if (Number(role.$extras.permissions_count ?? 0) > 0) {
+    throw new AccessControlMutationError('role_in_use', '角色仍有已分配的权限，无法删除')
+  }
+}
+
+export async function findDeletableRole(roleId: number) {
+  const role = await Role.query()
+    .where('id', roleId)
+    .withCount('users')
+    .withCount('permissions')
+    .first()
+  if (!role) throw new AccessControlMutationError('role_not_found', '角色不存在')
+  assertRoleCanBeDeleted(role)
+  return role
+}
+
+export async function deleteRoleWithAudit(input: {
+  ctx: HttpContext
+  actorUserId: number
+  roleId: number | string
+  source: MutationSource
+}) {
+  return db.transaction(async (trx) => {
+    const role = await Role.query({ client: trx })
+      .where('id', input.roleId)
+      .forUpdate()
+      .withCount('users')
+      .withCount('permissions')
+      .first()
+    if (!role) throw new AccessControlMutationError('role_not_found', '角色不存在')
+    assertRoleCanBeDeleted(role)
+
+    role.useTransaction(trx)
+    await role.delete()
+    await recordAuditEvent(
+      input.ctx,
+      {
+        actorUserId: input.actorUserId,
+        action: 'role.deleted',
+        targetType: 'role',
+        targetId: role.id,
+        ...(input.source === 'ai_agent' ? { metadata: { source: input.source } } : {}),
+      },
+      trx
+    )
+    return role.id
+  })
 }
 
 export async function createRoleWithPermissions(input: {

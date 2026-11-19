@@ -5,9 +5,9 @@ import Role from '#models/role'
 import {
   AccessControlMutationError,
   createRoleWithPermissions,
+  deleteRoleWithAudit,
   updateRoleWithPermissions,
 } from '#services/access_control_mutations'
-import { recordAuditEvent } from '#services/audit_log'
 import { permissionCatalogCodes } from '#services/permission_catalog'
 import { clampLimit } from '#support/pagination'
 import { createRoleValidator, listRolesValidator, updateRoleValidator } from '#validators/rbac'
@@ -156,27 +156,20 @@ export default class RolesController {
 
   async destroy(ctx: HttpContext) {
     const { auth, params, response, serialize } = ctx
-    const role = await Role.query()
-      .where('id', params.id)
-      .withCount('users')
-      .withCount('permissions')
-      .firstOrFail()
-    if (role.isSystem) {
-      return response.forbidden({ message: '系统内置角色不可删除' })
+    try {
+      const id = await deleteRoleWithAudit({
+        ctx,
+        actorUserId: auth.getUserOrFail().id,
+        roleId: params.id,
+        source: 'api',
+      })
+      return serialize({ id, deleted: true })
+    } catch (error) {
+      if (!(error instanceof AccessControlMutationError)) throw error
+      if (error.code === 'protected_role') return response.forbidden({ message: error.message })
+      if (error.code === 'role_in_use') return response.conflict({ message: error.message })
+      if (error.code === 'role_not_found') return response.notFound({ message: error.message })
+      throw error
     }
-    if (Number(role.$extras.users_count ?? 0) > 0) {
-      return response.conflict({ message: '角色仍分配给用户，无法删除' })
-    }
-    if (Number(role.$extras.permissions_count ?? 0) > 0) {
-      return response.conflict({ message: '角色仍有已分配的权限，无法删除' })
-    }
-    await role.delete()
-    await recordAuditEvent(ctx, {
-      actorUserId: auth.getUserOrFail().id,
-      action: 'role.deleted',
-      targetType: 'role',
-      targetId: role.id,
-    })
-    return serialize({ id: role.id, deleted: true })
   }
 }

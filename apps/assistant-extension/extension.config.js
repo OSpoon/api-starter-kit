@@ -29,11 +29,11 @@ export default {
       AutoImport({
         include: [/\.[jt]sx?$/, /\.vue$/, /\.vue\?vue/, /\.vue\.[tj]sx?\?vue/],
         imports: ['vue', 'vue-router', 'vue-i18n', '@vueuse/core'],
-        dts: 'src/auto-imports.d.ts',
+        dts: false,
       }),
       Components({
-        dirs: [`${assistantWebSource}/components`, `${frontendSource}/components`],
-        dts: 'src/components.d.ts',
+        dirs: [`${frontendSource}/components/ai-chat`, `${frontendSource}/components/ui`],
+        dts: false,
       })
     )
     config.module ??= {}

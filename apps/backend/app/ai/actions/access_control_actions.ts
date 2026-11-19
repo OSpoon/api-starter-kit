@@ -10,9 +10,10 @@ import Role from '#models/role'
 import {
   assertGrantablePermissionIds,
   createRoleWithPermissions,
+  deleteRoleWithAudit,
+  findDeletableRole,
   updateRoleWithPermissions,
 } from '#services/access_control_mutations'
-import { recordAuditEvent } from '#services/audit_log'
 
 async function resolveRoleId(input: Record<string, unknown>) {
   const value = input.roleId
@@ -112,19 +113,7 @@ const updateRoleAction: AiAgentActionImplementation = {
 const deleteRoleAction: AiAgentActionImplementation = {
   permission: 'roles:delete',
   async prepare(input) {
-    const role = await Role.query()
-      .where('id', await resolveRoleId(input))
-      .withCount('users')
-      .withCount('permissions')
-      .first()
-    if (!role) throw new Error('角色不存在')
-    if (
-      role.isSystem ||
-      Number(role.$extras.users_count ?? 0) > 0 ||
-      Number(role.$extras.permissions_count ?? 0) > 0
-    ) {
-      throw new Error('系统角色、仍被用户使用或仍分配权限的角色不可删除')
-    }
+    const role = await findDeletableRole(await resolveRoleId(input))
     return {
       targetType: 'role',
       targetId: String(role.id),
@@ -134,26 +123,11 @@ const deleteRoleAction: AiAgentActionImplementation = {
   },
   async execute({ confirmation, ctx }) {
     const actor = getAiAgentActor(ctx)
-    const role = await Role.query()
-      .where('id', integer(confirmation.payload, 'roleId'))
-      .withCount('users')
-      .withCount('permissions')
-      .first()
-    if (
-      !role ||
-      role.isSystem ||
-      Number(role.$extras.users_count ?? 0) > 0 ||
-      Number(role.$extras.permissions_count ?? 0) > 0
-    ) {
-      throw new Error('角色不存在、受保护、仍被用户使用或仍分配权限')
-    }
-    await role.delete()
-    await recordAuditEvent(ctx, {
+    await deleteRoleWithAudit({
+      ctx,
       actorUserId: actor.id,
-      action: 'role.deleted',
-      targetType: 'role',
-      targetId: role.id,
-      metadata: { source: 'ai_agent' },
+      roleId: integer(confirmation.payload, 'roleId'),
+      source: 'ai_agent',
     })
   },
 }

@@ -61,6 +61,7 @@ COPY . .
 RUN test -n "$VITE_PUBLIC_URL" && pnpm --filter ./apps/frontend build
 
 FROM nginx:1.29-alpine AS frontend
+COPY docker/nginx/spa-common.inc /etc/nginx/conf.d/spa-common.inc
 COPY --from=frontend-build /app/apps/frontend/dist /usr/share/nginx/html
 COPY apps/frontend/nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 18080
@@ -75,6 +76,7 @@ COPY . .
 RUN pnpm --filter ./apps/assistant-web build
 
 FROM nginx:1.29-alpine AS assistant-web
+COPY docker/nginx/spa-common.inc /etc/nginx/conf.d/spa-common.inc
 COPY --from=assistant-web-build /app/apps/assistant-web/dist /usr/share/nginx/html
 COPY apps/assistant-web/nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 18080
