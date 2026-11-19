@@ -27,6 +27,8 @@ export const permissionCatalog = [
   { code: 'system-status:read', name: '查看系统状态', groupName: '系统管理' },
   { code: 'agent-config:read', name: '查看 Agent 配置', groupName: 'Agent管理' },
   { code: 'agent-config:update', name: '管理 Agent 配置', groupName: 'Agent管理' },
+  { code: 'im-config:read', name: '查看 IM Bot', groupName: 'Agent管理' },
+  { code: 'im-config:update', name: '管理 IM Bot', groupName: 'Agent管理' },
   { code: 'ai-usage:read', name: '查看 AI 用量', groupName: 'Agent管理' },
 ] as const
 

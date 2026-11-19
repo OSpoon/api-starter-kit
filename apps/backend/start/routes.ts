@@ -325,11 +325,14 @@ router
           ])
           .use(middleware.permission(['agent-config:update']))
         router
-          .get('im-config', [ImConfigurationsController, 'show'])
-          .use(middleware.permission(['agent-config:read']))
+          .get('im-config', [ImConfigurationsController, 'index'])
+          .use(middleware.permission(['im-config:read']))
         router
-          .put('im-config', [ImConfigurationsController, 'update'])
-          .use(middleware.permission(['agent-config:update']))
+          .post('im-config', [ImConfigurationsController, 'store'])
+          .use(middleware.permission(['im-config:update']))
+        router
+          .put('im-config/:id', [ImConfigurationsController, 'update'])
+          .use(middleware.permission(['im-config:update']))
       })
       .prefix('system')
       .use(middleware.auth())

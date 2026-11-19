@@ -217,6 +217,7 @@ export type SystemPermissionListFilters = {
   name?: string
   description?: string
   groupName?: string
+  groupNames?: string[]
 }
 
 export async function listSystemPermissions(
@@ -228,7 +229,8 @@ export async function listSystemPermissions(
   if (filters.code?.trim()) extra.code = filters.code.trim()
   if (filters.name?.trim()) extra.name = filters.name.trim()
   if (filters.description?.trim()) extra.description = filters.description.trim()
-  if (filters.groupName?.trim()) extra.groupName = filters.groupName.trim()
+  if (filters.groupNames?.length) extra.groupNames = filters.groupNames.join(',')
+  else if (filters.groupName?.trim()) extra.groupName = filters.groupName.trim()
   return readItem(
     await apiRequest<SystemPage<SystemPermission>>(
       `/api/v1/system/permissions?${buildListQuery(page, extra)}`,

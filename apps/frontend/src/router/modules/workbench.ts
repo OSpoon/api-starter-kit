@@ -5,6 +5,7 @@ import {
   Gauge,
   Key,
   ListTree,
+  MessageSquare,
   ScrollText,
   Server,
   ShieldCheck,
@@ -99,7 +100,18 @@ const workbenchRootRoute = {
     {
       path: 'system/im-config',
       name: 'im-config',
-      redirect: { name: 'agent-config', query: { module: 'im' } },
+      component: () => import('@/features/im-config/ImConfigurationPage.vue'),
+      meta: {
+        title: 'sidebar.im_config',
+        pageKind: 'list',
+        permission: 'im-config:read',
+        nav: {
+          group: 'sidebar.agent_management',
+          groupOrder: 29,
+          icon: MessageSquare,
+          order: 20,
+        },
+      },
     },
     {
       path: 'system/users',

@@ -69,7 +69,7 @@ AiChannelBridge
 
 ## 4. 运行时配置
 
-机器人凭据统一在系统管理的「Agent 配置 → IM 渠道」页面维护。敏感字段由后端加密保存，保存后对应 Bot worker 会自动重新加载运行时配置；模型、ASR 和 Embedding 配置也在「Agent 配置」页面维护。
+机器人凭据在「Agent管理 → Bot 渠道」页面维护。每个平台可配置多个具名机器人，并可分别启停；密钥由后端加密保存且列表不会返回密钥明文。每个平台仍运行一个 worker 进程，由它管理该平台已启用的机器人连接；配置变更会触发 worker 自动协调连接。模型、ASR 和 Embedding 配置仍在「助手配置」页面维护。
 
 ### 企业微信字段
 
@@ -107,8 +107,8 @@ pnpm --dir apps/backend exec node ace migration:status
 
 1. 在企业微信管理后台创建或打开智能机器人。
 2. 进入智能机器人 API 配置，取得 Bot ID、Secret、Tenant ID 和 WebSocket 地址。
-3. 在本系统「系统管理 → Agent 配置 → IM 渠道 → 企微机器人」保存配置。
-4. 启动企业微信 Bot worker。
+3. 在本系统「Agent管理 → Bot 渠道」新增企业微信机器人，填写名称和对应凭据。
+4. 启动企业微信 Bot worker；平台下启用的机器人由同一 worker 进程分别连接。
 5. 向机器人发送消息，首次回复会包含一次性绑定码。
 6. 登录本系统，在「个人设置 → AI 渠道绑定 → 企微机器人」点击绑定，使用 Input OTP 组件输入 8 位绑定码。
 
@@ -132,7 +132,7 @@ pnpm --dir apps/backend exec node ace migration:status
 7. 如需群聊触发，开通群聊中 @ 机器人的消息权限，并在群里使用 `@机器人` 测试。
 8. 在「权限管理」中开通以应用身份发送消息所需的消息权限。
 9. 发布应用版本；仅保存开发者后台配置但未发布时，权限和可见范围可能不会生效。
-10. 在本系统「系统管理 → Agent 配置 → IM 渠道 → 飞书机器人」配置 App ID、App Secret 和 Domain。
+10. 在本系统「Agent管理 → Bot 渠道」新增飞书机器人，配置 App ID、App Secret 和 Domain。
 11. 启动飞书 Bot worker。
 12. 私聊机器人获取一次性绑定码，并在本系统个人设置中绑定。
 
@@ -156,7 +156,7 @@ pnpm --dir apps/backend exec node ace migration:status
 3. 开通机器人接收消息文件下载所需的 OpenAPI 权限，并发布应用版本。
 4. 创建并发布受控操作互动卡片模板，模板需要接收 `description`、`confirmLabel`、`cancelLabel`、`confirmActionKey`、`cancelActionKey`、`taskId`、`conversationKey`、`externalUserId` 和 `externalTenantId` 参数，并通过卡片按钮回传 `actionKey`、`taskId`、`conversationKey`、`externalUserId` 和 `externalTenantId` 等私有参数。`description` 应绑定 Markdown 组件；其中会包含操作标题、目标、变更摘要和影响提示。标准示例见 [`dingtalk-controlled-action-confirmation-template.example.json`](./dingtalk-controlled-action-confirmation-template.example.json)。
 5. 如需普通问答流式输出，再创建并发布流式回复互动卡片模板。模板只需要接收 `content`，卡片标题使用模板中的固定文本，系统通过官方卡片更新接口更新 `content`。标准示例见 [`dingtalk-streaming-reply-template.example.json`](./dingtalk-streaming-reply-template.example.json)。
-6. 在本系统「系统管理 → Agent 配置 → IM 渠道 → 钉钉机器人」保存 Client ID、Client Secret，以及对应的受控操作和流式回复卡片模板 ID。
+6. 在本系统「Agent管理 → Bot 渠道」新增钉钉机器人，保存 Client ID、Client Secret，以及对应的受控操作和流式回复卡片模板 ID。
 7. 仅启动一个 `bot:dingtalk` 进程，向机器人发送消息获取一次性绑定码，并在个人设置中绑定。
 
 如果日志显示 Stream 已认证但收不到消息，检查机器人能力、应用发布状态、消息事件订阅和当前用户可见范围；如果普通消息正常但没有确认卡，检查卡片模板 ID、模板发布状态、卡片回调主题和按钮回传参数。
@@ -175,7 +175,7 @@ pnpm --dir apps/backend bot:feishu
 pnpm --dir apps/backend bot:dingtalk
 ```
 
-每个 Bot 使用独立进程；只启动正在调试的 Bot。
+每个平台使用独立进程；一个平台进程可连接多个已启用的机器人，只启动正在调试的平台 worker。
 
 对应的 backend 脚本和 Nodemon 配置为：
 
@@ -218,7 +218,7 @@ docker compose -f docker/docker-compose.yml -f docker/docker-compose.app.yml -f 
 
 系统状态页通过共享数据库心跳读取各 Bot 进程状态。worker 每 10 秒上报一次，超过 30 秒没有心跳会显示为离线。这反映进程存活状态，不代表 IM 平台连接正常。
 
-Bot worker 会监听 PostgreSQL 的 IM 配置变更通知。管理员在「Agent 配置 → IM 渠道」页面保存后，
+Bot worker 会监听 PostgreSQL 的 IM 配置变更通知。管理员在「Agent管理 → Bot 渠道」页面保存后，
 对应渠道会自动使用新配置建立连接，无需执行 `docker compose restart`。如果配置不完整，
 worker 会保持运行并等待；如果 PostgreSQL 监听连接断开，worker 会自动重连并重新读取
 数据库配置。
@@ -238,10 +238,10 @@ channel + externalTenantId + externalUserId → system user
 群聊不要求绑定系统账号。群聊消息使用以下逻辑会话范围：
 
 ```text
-channel + externalTenantId + externalConversationKey + externalUserId
+bot instance + channel + externalTenantId + externalConversationKey + externalUserId
 ```
 
-同一群中的不同外部用户拥有隔离的多轮上下文；用户发送 `/new` 只会重置自己的访客会话。群聊访客仅注册 `search_knowledge_catalog` 和 `search_knowledge` 两个顺序工具，并且只检索未绑定角色限制的公开知识库文档。实时系统查询、个人或敏感数据查询、所有写操作和确认卡片都必须转到私聊，并先完成身份绑定。
+同一群中的不同外部用户及不同机器人实例拥有隔离的多轮上下文；从旧单机器人配置迁移的实例会保留原会话映射。用户发送 `/new` 只会重置自己的访客会话。群聊访客仅注册 `search_knowledge_catalog` 和 `search_knowledge` 两个顺序工具，并且只检索未绑定角色限制的公开知识库文档。实时系统查询、个人或敏感数据查询、所有写操作和确认卡片都必须转到私聊，并先完成身份绑定。
 
 三个机器人均支持精确发送 `/new` 新建会话。系统会保留旧会话历史，但将当前渠道映射切换到新的 AI 会话，后续消息不会继续携带旧会话上下文；旧确认卡也不会在新会话中执行。
 

@@ -1,14 +1,5 @@
 <script setup lang="ts">
-import {
-  BrainCircuit,
-  LoaderCircle,
-  MessageSquare,
-  PlugZap,
-  Save,
-  Sparkles,
-  TestTube,
-  Wrench,
-} from '@lucide/vue'
+import { BrainCircuit, LoaderCircle, PlugZap, Save, Sparkles, TestTube, Wrench } from '@lucide/vue'
 import { toTypedSchema } from '@vee-validate/zod'
 import { useForm } from 'vee-validate'
 import { nextTick } from 'vue'
@@ -35,7 +26,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import ImConfigurationSection from '@/features/im-config/ImConfigurationSection.vue'
 import { firstFormError } from '@/lib/form-validation'
 import { usePermission } from '@/lib/permission'
 import { useAuthStore } from '@/stores/auth'
@@ -61,9 +51,7 @@ watch(
   () => route.query.module,
   (module) => {
     activeModule.value =
-      module === 'im' || module === 'skills' || module === 'tools' || module === 'mcp'
-        ? module
-        : 'models'
+      module === 'skills' || module === 'tools' || module === 'mcp' ? module : 'models'
   },
   { immediate: true }
 )
@@ -72,7 +60,6 @@ const sections = computed(() => [
   { value: 'tools', label: t('agent_config.module_tools'), icon: Wrench },
   { value: 'skills', label: t('agent_config.module_skills'), icon: Sparkles },
   { value: 'mcp', label: t('agent_config.module_mcp'), icon: PlugZap },
-  { value: 'im', label: t('agent_config.module_im'), icon: MessageSquare },
 ])
 const loading = ref(true)
 const saving = ref(false)
@@ -576,9 +563,6 @@ onMounted(load)
     </div>
     <div v-if="!loading" v-show="activeModule === 'mcp'" class="flex min-h-0 flex-1 flex-col">
       <AgentMcpCard />
-    </div>
-    <div v-if="!loading" v-show="activeModule === 'im'">
-      <ImConfigurationSection />
     </div>
   </SettingsPageTemplate>
 </template>

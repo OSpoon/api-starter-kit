@@ -83,7 +83,8 @@ export interface ApiDefinition {
     }
   }
   imConfigurations: {
-    show: typeof routes['im_configurations.show']
+    index: typeof routes['im_configurations.index']
+    store: typeof routes['im_configurations.store']
     update: typeof routes['im_configurations.update']
   }
   knowledgeDocuments: {

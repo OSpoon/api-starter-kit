@@ -40,7 +40,7 @@ export function useAccessControlManagement(mode: Ref<AccessControlMode>) {
   const permissions = ref<SystemPermission[]>([])
   const roleCatalog = ref<SystemRoleOption[]>([])
   const permissionCatalog = ref<SystemPermissionOption[]>([])
-  const permissionGroupFilter = ref('__all__')
+  const permissionGroupFilter = ref<string[]>([])
   const roleFilter = ref<string[]>([])
   const channelFilter = ref<string[]>([])
   const userNameFilter = ref('')
@@ -121,7 +121,7 @@ export function useAccessControlManagement(mode: Ref<AccessControlMode>) {
             code: permissionCodeFilter.value,
             name: permissionNameFilter.value,
             description: permissionDescriptionFilter.value,
-            groupName: permissionGroupFilter.value === '__all__' ? '' : permissionGroupFilter.value,
+            groupNames: permissionGroupFilter.value,
           }),
           listSystemPermissionCatalog(auth.token),
         ])

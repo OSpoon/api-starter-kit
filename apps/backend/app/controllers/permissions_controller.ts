@@ -43,11 +43,20 @@ export default class PermissionsController {
   @ApiQuery({ name: 'name', required: false, schema: { type: 'string', maxLength: 120 } })
   @ApiQuery({ name: 'description', required: false, schema: { type: 'string', maxLength: 1000 } })
   @ApiQuery({ name: 'groupName', required: false, schema: { type: 'string', maxLength: 120 } })
+  @ApiQuery({
+    name: 'groupNames',
+    required: false,
+    schema: {
+      type: 'string',
+      pattern: '^[^,]{1,120}(,[^,]{1,120})*$',
+      description: '以逗号分隔的权限分组名称',
+    },
+  })
   @ApiResponse({ status: 422, description: '查询参数无效' })
   async index({ request, serialize }: HttpContext) {
     const filters = await request.validateUsing(listPermissionsValidator, { data: request.qs() })
     const page = Number(filters.page ?? 1)
-    const groupName = filters.groupName ?? ''
+    const groupNames = filters.groupNames?.split(',').map((groupName) => groupName.trim())
     const query = Permission.query()
       .whereIn('code', permissionCatalogCodes)
       .withCount('roles')
@@ -57,7 +66,8 @@ export default class PermissionsController {
     if (filters.code) query.whereILike('code', `%${filters.code}%`)
     if (filters.name) query.whereILike('name', `%${filters.name}%`)
     if (filters.description) query.whereILike('description', `%${filters.description}%`)
-    if (groupName) query.where('group_name', groupName)
+    if (groupNames?.length) query.whereIn('group_name', groupNames)
+    else if (filters.groupName) query.where('group_name', filters.groupName)
     const paginator = await query.paginate(page, clampLimit(filters.limit, 20, 100))
     return serialize({ items: paginator.all().map(serializePermission), meta: paginator.getMeta() })
   }

@@ -1,10 +1,7 @@
 import encryption from '@adonisjs/core/services/encryption'
-import logger from '@adonisjs/core/services/logger'
-import db from '@adonisjs/lucid/services/db'
 
 import type { AiAgentThinkingLevel } from '#ai/core/ai_agent_config'
 import LlmConfiguration from '#models/llm_configuration'
-import { IM_CONFIGURATION_CHANGED_CHANNEL } from '#services/im_configuration_change_listener'
 
 const DEFAULT_EMBEDDING_MODEL = 'Qwen3-Embedding-0.6B-4bit-DWQ'
 
@@ -26,41 +23,12 @@ type LlmConfigInput = {
   embeddingDimensions: number
 }
 
-export type ImConfigInput = {
-  wecomBotId?: string | null
-  wecomBotSecret?: string | null
-  wecomBotTenantId?: string | null
-  wecomBotWsUrl?: string | null
-  feishuAppId?: string | null
-  feishuAppSecret?: string | null
-  feishuDomain?: string | null
-  dingtalkClientId?: string | null
-  dingtalkClientSecret?: string | null
-  dingtalkCardTemplateId?: string | null
-  dingtalkStreamingCardTemplateId?: string | null
-}
-
 function encryptSecret(value?: string | null) {
   return value?.trim() ? encryption.encrypt(value.trim()) : null
 }
 
 function decryptSecret(value?: string | null) {
   return value ? encryption.decrypt<string>(value) : null
-}
-
-async function notifyImConfigurationChanged() {
-  try {
-    await db.rawQuery('select pg_notify(?, ?)', [IM_CONFIGURATION_CHANGED_CHANNEL, 'changed'])
-  } catch (error) {
-    logger.warn(
-      { err: error },
-      'IM configuration saved, but the PostgreSQL change notification could not be sent'
-    )
-  }
-}
-
-function configurationKey(value: unknown) {
-  return JSON.stringify(value)
 }
 
 export async function getLlmConfiguration() {
@@ -76,10 +44,6 @@ export async function getLlmConfiguration() {
     embeddingModel: DEFAULT_EMBEDDING_MODEL,
     embeddingDimensions: 1024,
   })
-}
-
-export async function getImConfiguration() {
-  return getLlmConfiguration()
 }
 
 export async function readRuntimeLlmConfiguration() {
@@ -106,67 +70,6 @@ export async function readRuntimeLlmConfiguration() {
   }
 }
 
-export async function readRuntimeWecomBotConfiguration() {
-  const config = await getLlmConfiguration()
-  const botId = config.wecomBotId?.trim() || null
-  const secret = decryptSecret(config.wecomBotSecret)
-  const tenantId = config.wecomBotTenantId?.trim() || null
-  if (!botId || !secret || !tenantId) return null
-
-  return {
-    botId,
-    secret,
-    tenantId,
-    wsUrl: config.wecomBotWsUrl?.trim() || undefined,
-    configurationKey: configurationKey({
-      botId: config.wecomBotId,
-      secret: config.wecomBotSecret,
-      tenantId: config.wecomBotTenantId,
-      wsUrl: config.wecomBotWsUrl,
-    }),
-  }
-}
-
-export async function readRuntimeFeishuBotConfiguration() {
-  const config = await getLlmConfiguration()
-  const appId = config.feishuAppId?.trim() || null
-  const secret = decryptSecret(config.feishuAppSecret)
-  if (!appId || !secret) return null
-
-  return {
-    appId,
-    secret,
-    domain: config.feishuDomain?.trim() || undefined,
-    configurationKey: configurationKey({
-      appId: config.feishuAppId,
-      secret: config.feishuAppSecret,
-      domain: config.feishuDomain,
-    }),
-  }
-}
-
-export async function readRuntimeDingTalkBotConfiguration() {
-  const config = await getLlmConfiguration()
-  const clientId = config.dingtalkClientId?.trim() || null
-  const clientSecret = decryptSecret(config.dingtalkClientSecret)
-  const cardTemplateId = config.dingtalkCardTemplateId?.trim() || null
-  const streamingCardTemplateId = config.dingtalkStreamingCardTemplateId?.trim() || null
-  if (!clientId || !clientSecret) return null
-
-  return {
-    clientId,
-    clientSecret,
-    cardTemplateId,
-    streamingCardTemplateId,
-    configurationKey: configurationKey({
-      clientId: config.dingtalkClientId,
-      clientSecret: config.dingtalkClientSecret,
-      cardTemplateId: config.dingtalkCardTemplateId,
-      streamingCardTemplateId: config.dingtalkStreamingCardTemplateId,
-    }),
-  }
-}
-
 export async function updateLlmConfiguration(input: LlmConfigInput) {
   const config = await getLlmConfiguration()
   config.chatBaseUrl = input.chatBaseUrl?.trim() || null
@@ -183,31 +86,6 @@ export async function updateLlmConfiguration(input: LlmConfigInput) {
   if (input.asrApiKey?.trim()) config.asrApiKey = encryptSecret(input.asrApiKey)
   if (input.embeddingApiKey?.trim()) config.embeddingApiKey = encryptSecret(input.embeddingApiKey)
   await config.save()
-  return config
-}
-
-export async function updateImConfiguration(input: ImConfigInput) {
-  const config = await getImConfiguration()
-  if (input.wecomBotId !== undefined) config.wecomBotId = input.wecomBotId?.trim() || null
-  if (input.wecomBotTenantId !== undefined)
-    config.wecomBotTenantId = input.wecomBotTenantId?.trim() || null
-  if (input.wecomBotWsUrl !== undefined) config.wecomBotWsUrl = input.wecomBotWsUrl?.trim() || null
-  if (input.feishuAppId !== undefined) config.feishuAppId = input.feishuAppId?.trim() || null
-  if (input.feishuDomain !== undefined) config.feishuDomain = input.feishuDomain?.trim() || null
-  if (input.dingtalkClientId !== undefined)
-    config.dingtalkClientId = input.dingtalkClientId?.trim() || null
-  if (input.dingtalkCardTemplateId !== undefined)
-    config.dingtalkCardTemplateId = input.dingtalkCardTemplateId?.trim() || null
-  if (input.dingtalkStreamingCardTemplateId !== undefined) {
-    config.dingtalkStreamingCardTemplateId = input.dingtalkStreamingCardTemplateId?.trim() || null
-  }
-  if (input.wecomBotSecret?.trim()) config.wecomBotSecret = encryptSecret(input.wecomBotSecret)
-  if (input.feishuAppSecret?.trim()) config.feishuAppSecret = encryptSecret(input.feishuAppSecret)
-  if (input.dingtalkClientSecret?.trim()) {
-    config.dingtalkClientSecret = encryptSecret(input.dingtalkClientSecret)
-  }
-  await config.save()
-  await notifyImConfigurationChanged()
   return config
 }
 
@@ -231,29 +109,6 @@ export function serializeLlmConfiguration(config: LlmConfiguration) {
       model: config.embeddingModel ?? DEFAULT_EMBEDDING_MODEL,
       dimensions: 1024,
       apiKeyConfigured: Boolean(config.embeddingApiKey || config.chatApiKey),
-    },
-    updatedAt: config.updatedAt.toISO(),
-  }
-}
-
-export function serializeImConfiguration(config: LlmConfiguration) {
-  return {
-    wecomBot: {
-      botId: config.wecomBotId,
-      tenantId: config.wecomBotTenantId,
-      wsUrl: config.wecomBotWsUrl,
-      secretConfigured: Boolean(config.wecomBotSecret),
-    },
-    feishuBot: {
-      appId: config.feishuAppId,
-      domain: config.feishuDomain,
-      secretConfigured: Boolean(config.feishuAppSecret),
-    },
-    dingtalkBot: {
-      clientId: config.dingtalkClientId,
-      cardTemplateId: config.dingtalkCardTemplateId,
-      streamingCardTemplateId: config.dingtalkStreamingCardTemplateId,
-      clientSecretConfigured: Boolean(config.dingtalkClientSecret),
     },
     updatedAt: config.updatedAt.toISO(),
   }

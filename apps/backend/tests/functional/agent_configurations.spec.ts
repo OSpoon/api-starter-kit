@@ -289,49 +289,94 @@ test.group('Agent configuration', (group) => {
     }
   })
 
-  test('uses the Agent configuration permissions for IM settings', async ({ client }) => {
-    const readerToken = await createActor(['agent-config:read'])
+  test('uses the IM Bot permissions for its management routes', async ({ client }) => {
+    const readerToken = await createActor(['im-config:read'])
     const reader = await client.get('/api/v1/system/im-config').bearerToken(readerToken)
     reader.assertStatus(200)
 
     const deniedUpdate = await client
-      .put('/api/v1/system/im-config')
+      .post('/api/v1/system/im-config')
       .bearerToken(readerToken)
-      .json({})
+      .json({
+        name: 'Reader bot',
+        channel: 'feishu',
+        identifier: 'reader-app',
+        secret: 'reader-secret',
+      })
     deniedUpdate.assertStatus(403)
 
-    const updaterToken = await createActor(['agent-config:update'])
-    const update = await client.put('/api/v1/system/im-config').bearerToken(updaterToken).json({})
-    update.assertStatus(200)
+    const updaterToken = await createActor(['im-config:update'])
+    const create = await client.post('/api/v1/system/im-config').bearerToken(updaterToken).json({
+      name: 'Test Feishu bot',
+      channel: 'feishu',
+      identifier: 'test-feishu-app',
+      secret: 'test-feishu-secret',
+    })
+    create.assertStatus(201)
   })
 
-  test('saves IM channels independently without clearing other channel settings', async ({
+  test('stores multiple named IM bots independently without exposing secrets', async ({
     client,
     assert,
   }) => {
-    const token = await createActor(['agent-config:update'])
-    const initial = await client.put('/api/v1/system/im-config').bearerToken(token).json({
-      wecomBotId: 'wecom-bot',
-      wecomBotSecret: 'wecom-secret',
-      wecomBotTenantId: 'wecom-tenant',
-      feishuAppId: 'feishu-app',
-      feishuAppSecret: 'feishu-secret',
-      dingtalkClientId: 'dingtalk-client',
-      dingtalkClientSecret: 'dingtalk-secret',
+    const token = await createActor(['im-config:read', 'im-config:update'])
+    const wecom = await client.post('/api/v1/system/im-config').bearerToken(token).json({
+      name: 'WeCom support',
+      channel: 'wecom',
+      identifier: 'wecom-bot',
+      secret: 'wecom-secret',
+      tenantId: 'wecom-tenant',
     })
-    initial.assertStatus(200)
+    wecom.assertStatus(201)
+    const feishu = await client.post('/api/v1/system/im-config').bearerToken(token).json({
+      name: 'Feishu support',
+      channel: 'feishu',
+      identifier: 'feishu-app',
+      secret: 'feishu-secret',
+    })
+    feishu.assertStatus(201)
+    const dingtalk = await client.post('/api/v1/system/im-config').bearerToken(token).json({
+      name: 'DingTalk support',
+      channel: 'dingtalk',
+      identifier: 'dingtalk-client',
+      secret: 'dingtalk-secret',
+      cardTemplateId: 'action-template',
+      streamingCardTemplateId: 'stream-template',
+    })
+    dingtalk.assertStatus(201)
 
+    const feishuId = (feishu.body() as unknown as { data: { id: number } }).data.id
     const updated = await client
-      .put('/api/v1/system/im-config')
+      .put(`/api/v1/system/im-config/${feishuId}`)
       .bearerToken(token)
-      .json({ feishuAppId: 'updated-feishu-app' })
+      .json({ identifier: 'updated-feishu-app' })
     updated.assertStatus(200)
-    assert.equal(updated.body().data.wecomBot.botId, 'wecom-bot')
-    assert.equal(updated.body().data.feishuBot.appId, 'updated-feishu-app')
-    assert.equal(updated.body().data.dingtalkBot.clientId, 'dingtalk-client')
-    assert.isTrue(updated.body().data.wecomBot.secretConfigured)
-    assert.isTrue(updated.body().data.feishuBot.secretConfigured)
-    assert.isTrue(updated.body().data.dingtalkBot.clientSecretConfigured)
+    const result = await client.get('/api/v1/system/im-config').bearerToken(token)
+    result.assertStatus(200)
+    const bots = (
+      result.body() as {
+        data: {
+          items: Array<{
+            name: string
+            identifier: string | null
+            cardTemplateId: string | null
+            secretConfigured: boolean
+          }>
+        }
+      }
+    ).data.items
+    assert.equal(bots.length, 3)
+    assert.equal(bots.find((bot) => bot.name === 'WeCom support')?.identifier, 'wecom-bot')
+    assert.equal(
+      bots.find((bot) => bot.name === 'Feishu support')?.identifier,
+      'updated-feishu-app'
+    )
+    assert.equal(
+      bots.find((bot) => bot.name === 'DingTalk support')?.cardTemplateId,
+      'action-template'
+    )
+    assert.isTrue(bots.every((bot) => bot.secretConfigured))
+    assert.notProperty(bots[0], 'secret')
   })
 
   test('validates the requested LLM service before testing its connection', async ({ client }) => {

@@ -559,26 +559,38 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['discoverMcpTools']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
-  'im_configurations.show': {
+  'im_configurations.index': {
     methods: ["GET","HEAD"]
     pattern: '/api/v1/system/im-config'
     types: {
       body: {}
       paramsTuple: []
       params: {}
-      query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/im_configurations_controller').default['show']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/im_configurations_controller').default['show']>>>
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/im_configuration').listImBotsValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/im_configurations_controller').default['index']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/im_configurations_controller').default['index']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'im_configurations.store': {
+    methods: ["POST"]
+    pattern: '/api/v1/system/im-config'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/im_configuration').createImBotValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/im_configuration').createImBotValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/im_configurations_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/im_configurations_controller').default['store']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
   'im_configurations.update': {
     methods: ["PUT"]
-    pattern: '/api/v1/system/im-config'
+    pattern: '/api/v1/system/im-config/:id'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/im_configuration').updateImConfigurationValidator)>>
-      paramsTuple: []
-      params: {}
-      query: ExtractQuery<InferInput<(typeof import('#validators/im_configuration').updateImConfigurationValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/im_configuration').imBotIdValidator)>|InferInput<(typeof import('#validators/im_configuration').updateImBotValidator)>>
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/im_configuration').imBotIdValidator)>|InferInput<(typeof import('#validators/im_configuration').updateImBotValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/im_configurations_controller').default['update']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/im_configurations_controller').default['update']>>> | { status: 422; response: { errors: SimpleError[] } }
     }

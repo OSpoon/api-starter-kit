@@ -369,7 +369,9 @@ function resetFilters() {
                 ? hasFullFilterRow()
                   ? 'col-span-full flex justify-end gap-2'
                   : 'flex justify-end gap-2 sm:col-start-2 xl:col-start-4'
-                : 'flex w-full justify-end gap-2'
+                : filtersLayout === 'inline'
+                  ? 'flex w-full justify-end gap-2 sm:col-start-2 xl:col-start-4'
+                  : 'flex w-full justify-end gap-2'
             "
           >
             <Button type="button" variant="outline" @click="resetFilters">

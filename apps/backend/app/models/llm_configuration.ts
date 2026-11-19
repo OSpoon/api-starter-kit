@@ -46,39 +46,6 @@ export default class LlmConfiguration extends BaseModel {
   @column()
   declare embeddingDimensions: number
 
-  @column()
-  declare wecomBotId: string | null
-
-  @column({ serializeAs: null })
-  declare wecomBotSecret: string | null
-
-  @column()
-  declare wecomBotTenantId: string | null
-
-  @column()
-  declare wecomBotWsUrl: string | null
-
-  @column()
-  declare feishuAppId: string | null
-
-  @column({ serializeAs: null })
-  declare feishuAppSecret: string | null
-
-  @column()
-  declare feishuDomain: string | null
-
-  @column()
-  declare dingtalkClientId: string | null
-
-  @column({ serializeAs: null })
-  declare dingtalkClientSecret: string | null
-
-  @column()
-  declare dingtalkCardTemplateId: string | null
-
-  @column()
-  declare dingtalkStreamingCardTemplateId: string | null
-
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
 

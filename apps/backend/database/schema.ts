@@ -13,6 +13,7 @@ export class AiAgentConfigurationSchema extends BaseModel {
     'enabledTools',
     'id',
     'mcpServers',
+    'mineruToken',
     'toolModes',
     'updatedAt',
   ] as const
@@ -25,6 +26,8 @@ export class AiAgentConfigurationSchema extends BaseModel {
   declare id: number
   @column()
   declare mcpServers: any
+  @column()
+  declare mineruToken: string | null
   @column()
   declare toolModes: any
   @column.dateTime({ autoCreate: true, autoUpdate: true })
@@ -173,6 +176,7 @@ export class AiChatMessageSchema extends BaseModel {
     'id',
     'imageData',
     'imageMimeType',
+    'pdfName',
     'role',
     'runtimeDetails',
     'updatedAt',
@@ -195,11 +199,30 @@ export class AiChatMessageSchema extends BaseModel {
   @column()
   declare imageMimeType: string | null
   @column()
+  declare pdfName: string | null
+  @column()
   declare role: string
   @column()
   declare runtimeDetails: any
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime
+}
+
+export class AiChatPdfAttachmentSchema extends BaseModel {
+  static $columns = ['batchId', 'batchToken', 'failed', 'markdown', 'messageId', 'pdfData'] as const
+  $columns = AiChatPdfAttachmentSchema.$columns
+  @column()
+  declare batchId: string | null
+  @column()
+  declare batchToken: string | null
+  @column()
+  declare failed: boolean
+  @column()
+  declare markdown: string | null
+  @column({ isPrimary: true })
+  declare messageId: number
+  @column()
+  declare pdfData: Buffer | null
 }
 
 export class AiUsageEventSchema extends BaseModel {
@@ -580,6 +603,51 @@ export class ImBotWorkerStatusSchema extends BaseModel {
   declare workerStatus: string
 }
 
+export class ImBotSchema extends BaseModel {
+  static $columns = [
+    'cardTemplateId',
+    'channel',
+    'createdAt',
+    'enabled',
+    'endpoint',
+    'id',
+    'identifier',
+    'legacyIdentity',
+    'name',
+    'secret',
+    'streamingCardTemplateId',
+    'tenantId',
+    'updatedAt',
+  ] as const
+  $columns = ImBotSchema.$columns
+  @column()
+  declare cardTemplateId: string | null
+  @column()
+  declare channel: string
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare enabled: boolean
+  @column()
+  declare endpoint: string | null
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare identifier: string | null
+  @column()
+  declare legacyIdentity: boolean
+  @column()
+  declare name: string
+  @column()
+  declare secret: string | null
+  @column()
+  declare streamingCardTemplateId: string | null
+  @column()
+  declare tenantId: string | null
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
 export class KnowledgeChunkSchema extends BaseModel {
   static $columns = [
     'chunkIndex',
@@ -675,23 +743,12 @@ export class LlmConfigurationSchema extends BaseModel {
     'chatModel',
     'chatReasoningLevel',
     'createdAt',
-    'dingtalkCardTemplateId',
-    'dingtalkClientId',
-    'dingtalkClientSecret',
-    'dingtalkStreamingCardTemplateId',
     'embeddingApiKey',
     'embeddingBaseUrl',
     'embeddingDimensions',
     'embeddingModel',
-    'feishuAppId',
-    'feishuAppSecret',
-    'feishuDomain',
     'id',
     'updatedAt',
-    'wecomBotId',
-    'wecomBotSecret',
-    'wecomBotTenantId',
-    'wecomBotWsUrl',
   ] as const
   $columns = LlmConfigurationSchema.$columns
   @column()
@@ -715,14 +772,6 @@ export class LlmConfigurationSchema extends BaseModel {
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
   @column()
-  declare dingtalkCardTemplateId: string | null
-  @column()
-  declare dingtalkClientId: string | null
-  @column()
-  declare dingtalkClientSecret: string | null
-  @column()
-  declare dingtalkStreamingCardTemplateId: string | null
-  @column()
   declare embeddingApiKey: string | null
   @column()
   declare embeddingBaseUrl: string | null
@@ -730,24 +779,10 @@ export class LlmConfigurationSchema extends BaseModel {
   declare embeddingDimensions: number
   @column()
   declare embeddingModel: string | null
-  @column()
-  declare feishuAppId: string | null
-  @column()
-  declare feishuAppSecret: string | null
-  @column()
-  declare feishuDomain: string | null
   @column({ isPrimary: true })
   declare id: number
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime
-  @column()
-  declare wecomBotId: string | null
-  @column()
-  declare wecomBotSecret: string | null
-  @column()
-  declare wecomBotTenantId: string | null
-  @column()
-  declare wecomBotWsUrl: string | null
 }
 
 export class PermissionSchema extends BaseModel {

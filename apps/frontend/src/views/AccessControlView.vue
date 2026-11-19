@@ -13,14 +13,6 @@ import FormDialogFooter from '@/components/common/FormDialogFooter.vue'
 import ListPage from '@/components/common/ListPage.vue'
 import { Button } from '@/components/ui/button'
 import { Dialog } from '@/components/ui/dialog'
-import { Label } from '@/components/ui/label'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { useAccessControlColumns } from '@/composables/useAccessControlColumns'
 import {
   type AccessControlMode,
@@ -46,6 +38,9 @@ const canCreate = computed(() => {
 const actionLabel = computed(() =>
   props.mode === 'permissions' ? '' : t(`rbac.${props.mode}.create`)
 )
+const permissionGroupFilterOptions = computed(() =>
+  management.permissionGroups.map((groupName) => ({ value: groupName, label: groupName }))
+)
 
 function resetFilters() {
   if (mode.value === 'users') {
@@ -63,7 +58,7 @@ function resetFilters() {
     management.permissionCodeFilter = ''
     management.permissionNameFilter = ''
     management.permissionDescriptionFilter = ''
-    management.permissionGroupFilter = '__all__'
+    management.permissionGroupFilter = []
   }
   management.applyFilters()
 }
@@ -191,22 +186,11 @@ const { userColumns, roleColumns, permissionColumns } = useAccessControlColumns(
           :label="t('rbac.permissions.description')"
           :placeholder="t('rbac.permissions.filter_description')"
         />
-        <div class="grid min-w-0 gap-1.5 text-sm font-normal">
-          <Label for="permission-group-filter" class="font-normal whitespace-nowrap">
-            {{ t('rbac.permissions.group') }}
-          </Label>
-          <Select v-model="management.permissionGroupFilter">
-            <SelectTrigger id="permission-group-filter" class="w-full">
-              <SelectValue :placeholder="t('rbac.permissions.group')" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__all__">{{ t('rbac.permissions.all_groups') }}</SelectItem>
-              <SelectItem v-for="group in management.permissionGroups" :key="group" :value="group">
-                {{ group }}
-              </SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+        <DataTableFacetFilter
+          v-model="management.permissionGroupFilter"
+          :label="t('rbac.permissions.group')"
+          :options="permissionGroupFilterOptions"
+        />
       </template>
     </DataTable>
 

@@ -39,6 +39,12 @@ export const listPermissionsValidator = vine.compile(
     name: vine.string().trim().maxLength(120).optional(),
     description: vine.string().trim().maxLength(1000).optional(),
     groupName: vine.string().trim().maxLength(120).optional(),
+    groupNames: vine
+      .string()
+      .trim()
+      .maxLength(1200)
+      .regex(/^[^,]{1,120}(,[^,]{1,120})*$/)
+      .optional(),
   })
 )
 

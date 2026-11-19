@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto'
+
 import type { HttpContext } from '@adonisjs/core/http'
 import logger from '@adonisjs/core/services/logger'
 
@@ -147,13 +149,28 @@ function confirmationReply(confirmation: object): OutboundMessage | null {
 
 export class AiChannelBridge implements ReloadableBotRuntime {
   readonly configurationKey?: string
+  private readonly botId: string
+  private readonly legacyIdentity: boolean
 
-  constructor(adapter: ChannelAdapter, configurationKey?: string) {
+  constructor(
+    adapter: ChannelAdapter,
+    configurationKey?: string,
+    botId = 'legacy',
+    legacyIdentity = true
+  ) {
     this.adapter = adapter
     this.configurationKey = configurationKey
+    this.botId = botId
+    this.legacyIdentity = legacyIdentity
   }
 
   private readonly adapter: ChannelAdapter
+
+  private scopeConversationKey(key: string) {
+    if (this.legacyIdentity) return key
+    const digest = createHash('sha256').update(`${this.botId}\u0000${key}`).digest('hex')
+    return `bot:${digest}`
+  }
 
   async handleMessage(
     message: NormalizedInboundMessage,
@@ -163,7 +180,7 @@ export class AiChannelBridge implements ReloadableBotRuntime {
     let imageMimeType: string | undefined
     const isVisitor = message.conversationType === 'group'
     let user: User
-    let conversationKey = message.conversationKey
+    let conversationKey = this.scopeConversationKey(message.conversationKey)
     if (isVisitor) {
       try {
         user = await getChannelGuestUser()
@@ -179,7 +196,7 @@ export class AiChannelBridge implements ReloadableBotRuntime {
         return textReply('群聊访客模式尚未初始化，请联系管理员。')
       }
       conversationKey = createVisitorConversationKey({
-        externalConversationKey: message.conversationKey,
+        externalConversationKey: this.scopeConversationKey(message.conversationKey),
         externalUserId: message.externalUserId,
       })
     } else {
@@ -440,7 +457,7 @@ export class AiChannelBridge implements ReloadableBotRuntime {
       channel: input.channel,
       externalTenantId: input.externalTenantId,
       externalConversationKey: createVisitorConversationKey({
-        externalConversationKey: input.conversationKey,
+        externalConversationKey: this.scopeConversationKey(input.conversationKey),
         externalUserId: input.externalUserId,
       }),
       userId: guestUser.id,
@@ -460,7 +477,7 @@ export class AiChannelBridge implements ReloadableBotRuntime {
     let conversation = await findChannelConversation({
       channel: input.channel,
       externalTenantId: input.externalTenantId,
-      externalConversationKey: input.conversationKey,
+      externalConversationKey: this.scopeConversationKey(input.conversationKey),
       userId: user.id,
     })
     if (!conversation) return textReply('找不到对应的 AI 会话，请重新发起请求。')

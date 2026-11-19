@@ -282,16 +282,22 @@ const routes = {
     tokens: [{"old":"/api/v1/system/agent-config/mcp-servers/:id/discover","type":0,"val":"api","end":""},{"old":"/api/v1/system/agent-config/mcp-servers/:id/discover","type":0,"val":"v1","end":""},{"old":"/api/v1/system/agent-config/mcp-servers/:id/discover","type":0,"val":"system","end":""},{"old":"/api/v1/system/agent-config/mcp-servers/:id/discover","type":0,"val":"agent-config","end":""},{"old":"/api/v1/system/agent-config/mcp-servers/:id/discover","type":0,"val":"mcp-servers","end":""},{"old":"/api/v1/system/agent-config/mcp-servers/:id/discover","type":1,"val":"id","end":""},{"old":"/api/v1/system/agent-config/mcp-servers/:id/discover","type":0,"val":"discover","end":""}],
     types: placeholder as Registry['agent_configurations.discover_mcp_tools']['types'],
   },
-  'im_configurations.show': {
+  'im_configurations.index': {
     methods: ["GET","HEAD"],
     pattern: '/api/v1/system/im-config',
     tokens: [{"old":"/api/v1/system/im-config","type":0,"val":"api","end":""},{"old":"/api/v1/system/im-config","type":0,"val":"v1","end":""},{"old":"/api/v1/system/im-config","type":0,"val":"system","end":""},{"old":"/api/v1/system/im-config","type":0,"val":"im-config","end":""}],
-    types: placeholder as Registry['im_configurations.show']['types'],
+    types: placeholder as Registry['im_configurations.index']['types'],
+  },
+  'im_configurations.store': {
+    methods: ["POST"],
+    pattern: '/api/v1/system/im-config',
+    tokens: [{"old":"/api/v1/system/im-config","type":0,"val":"api","end":""},{"old":"/api/v1/system/im-config","type":0,"val":"v1","end":""},{"old":"/api/v1/system/im-config","type":0,"val":"system","end":""},{"old":"/api/v1/system/im-config","type":0,"val":"im-config","end":""}],
+    types: placeholder as Registry['im_configurations.store']['types'],
   },
   'im_configurations.update': {
     methods: ["PUT"],
-    pattern: '/api/v1/system/im-config',
-    tokens: [{"old":"/api/v1/system/im-config","type":0,"val":"api","end":""},{"old":"/api/v1/system/im-config","type":0,"val":"v1","end":""},{"old":"/api/v1/system/im-config","type":0,"val":"system","end":""},{"old":"/api/v1/system/im-config","type":0,"val":"im-config","end":""}],
+    pattern: '/api/v1/system/im-config/:id',
+    tokens: [{"old":"/api/v1/system/im-config/:id","type":0,"val":"api","end":""},{"old":"/api/v1/system/im-config/:id","type":0,"val":"v1","end":""},{"old":"/api/v1/system/im-config/:id","type":0,"val":"system","end":""},{"old":"/api/v1/system/im-config/:id","type":0,"val":"im-config","end":""},{"old":"/api/v1/system/im-config/:id","type":1,"val":"id","end":""}],
     types: placeholder as Registry['im_configurations.update']['types'],
   },
   'knowledge_documents.index': {
