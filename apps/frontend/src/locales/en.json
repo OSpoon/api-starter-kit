@@ -1092,6 +1092,7 @@
     "actions": {
       "auth": {
         "login_rejected": "Login rejected",
+        "two_factor_rejected": "2FA verification rejected",
         "login_challenged": "2FA verification pending",
         "login_succeeded": "Login succeeded",
         "logout_succeeded": "Logged out"
@@ -1158,6 +1159,7 @@
       },
       "agent": {
         "access_diagnosed": "AI access diagnosed",
+        "pdf_attachment_read": "PDF attachment read",
         "action_confirmed": "AI action confirmed",
         "action_executed_directly": "AI action executed directly",
         "api_key_created": "API key created by AI",
@@ -1171,6 +1173,7 @@
         "proposal_expired": "AI action confirmation expired",
         "proposal_cancelled": "AI action confirmation cancelled",
         "configuration_updated": "Assistant configuration updated",
+        "mineru_configuration_updated": "MinerU configuration updated",
         "skills_installed": "Assistant skills installed",
         "skill_enabled_state_updated": "Skill enabled state updated",
         "skill_removed": "Assistant skill removed",
@@ -1182,6 +1185,8 @@
         "mcp_server_created": "MCP server added",
         "mcp_server_updated": "MCP server updated",
         "mcp_server_deleted": "MCP server deleted",
+        "mcp_configuration_updated": "MCP configuration updated",
+        "mcp_server_enabled_state_updated": "MCP server enabled state updated",
         "mcp_connection_tested": "MCP connection tested",
         "mcp_tools_discovered": "MCP tools discovered",
         "mcp_tool_discovery_failed": "MCP tool discovery failed",

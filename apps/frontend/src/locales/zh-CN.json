@@ -1092,6 +1092,7 @@
     "actions": {
       "auth": {
         "login_rejected": "登录被拒绝",
+        "two_factor_rejected": "双因素验证被拒绝",
         "login_challenged": "等待 2FA 验证",
         "login_succeeded": "登录成功",
         "logout_succeeded": "退出登录"
@@ -1158,6 +1159,7 @@
       },
       "agent": {
         "access_diagnosed": "AI 权限诊断",
+        "pdf_attachment_read": "读取 PDF 附件",
         "action_confirmed": "AI 操作已确认",
         "action_executed_directly": "AI 操作直接执行",
         "api_key_created": "AI 创建 API 密钥",
@@ -1171,6 +1173,7 @@
         "proposal_expired": "AI 操作确认已过期",
         "proposal_cancelled": "AI 操作确认已取消",
         "configuration_updated": "更新助手配置",
+        "mineru_configuration_updated": "更新 MinerU 配置",
         "skills_installed": "安装助手技能",
         "skill_enabled_state_updated": "更新技能启用状态",
         "skill_removed": "移除助手技能",
@@ -1182,6 +1185,8 @@
         "mcp_server_created": "添加 MCP 服务",
         "mcp_server_updated": "更新 MCP 服务",
         "mcp_server_deleted": "删除 MCP 服务",
+        "mcp_configuration_updated": "更新 MCP 配置",
+        "mcp_server_enabled_state_updated": "更新 MCP 服务启用状态",
         "mcp_connection_tested": "测试 MCP 连接",
         "mcp_tools_discovered": "发现 MCP 工具",
         "mcp_tool_discovery_failed": "发现 MCP 工具失败",
