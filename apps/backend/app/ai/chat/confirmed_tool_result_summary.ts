@@ -75,6 +75,7 @@ export async function summarizeConfirmedToolResult(input: {
   confirmationBatchResolved?: boolean
 }) {
   let reply = ''
+  let candidateReply = ''
   let message = input.assistantMessage
   const resolutions = input.resolutions ?? []
   let needsFallback = input.confirmationBatchResolved !== true
@@ -106,6 +107,7 @@ export async function summarizeConfirmedToolResult(input: {
         ),
         regeneration: null,
         ...(input.continueWithConfiguredTools ? {} : { enabledToolNames: [] }),
+        hasPriorToolExecution: input.continueWithConfiguredTools === true,
         emitUserMessage: false,
         signal: abortController.signal,
         ctx: input.ctx,
@@ -125,6 +127,15 @@ export async function summarizeConfirmedToolResult(input: {
               await input.onEvent?.(event, data)
             }
             return
+          }
+          if (event === 'agent_candidate_delta' && data && typeof data === 'object') {
+            const content = (data as Record<string, unknown>).content
+            if (typeof content === 'string') candidateReply += content
+          } else if (event === 'agent_candidate_clear') {
+            candidateReply = ''
+          } else if (event === 'agent_candidate_commit') {
+            reply += candidateReply
+            candidateReply = ''
           }
           if (event === 'done' && data && typeof data === 'object') {
             const resultConfirmations = (data as { confirmations?: unknown }).confirmations

@@ -4,6 +4,7 @@ import {
   FileClock,
   Gauge,
   Key,
+  ListTree,
   ScrollText,
   Server,
   ShieldCheck,
@@ -143,7 +144,7 @@ const workbenchRootRoute = {
         title: 'sidebar.permissions',
         pageKind: 'list',
         permission: 'permissions:read',
-        nav: { group: 'sidebar.permission_management', groupOrder: 30, icon: Key, order: 30 },
+        nav: { group: 'sidebar.permission_management', groupOrder: 30, icon: ListTree, order: 30 },
       },
     },
     {

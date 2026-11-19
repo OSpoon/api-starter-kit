@@ -365,6 +365,7 @@ export async function* streamAiAgentTurnEvents(
     streamText?: boolean
     captureModelText?: boolean
     streamTextAfterToolExecution?: boolean
+    hasPriorToolExecution?: boolean
   } = {}
 ): AsyncGenerator<AiAgentTurnEvent> {
   const plan: AiAgentPlanStep[] = [
@@ -398,7 +399,7 @@ export async function* streamAiAgentTurnEvents(
   let assistantTextDeltas: string[] = []
   let toolCallStarted = false
   let emittedModelTextDeltas = 0
-  let toolExecuted = false
+  let toolExecuted = options.hasPriorToolExecution === true
   let candidateTextStreamed = false
   let userMessagesSeen = 0
   for await (const event of run.session.events) {

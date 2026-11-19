@@ -11,6 +11,7 @@ import {
   type AiChatTimelineItem,
   getAiChatConversation,
   queueAiChatMessage,
+  streamAiAgentActionCancellation,
   streamAiAgentActionConfirmation,
   streamAiChatMessage,
 } from '../api'
@@ -330,11 +331,18 @@ export function useAiChatStream(
     }
   }
 
-  async function confirmAction(conversationId: number, confirmationId: number) {
+  async function resolveConfirmationAction(
+    conversationId: number,
+    confirmationId: number,
+    action: 'confirm' | 'cancel'
+  ) {
     const conversation = state.conversation.value
     if (!conversation || conversation.id !== conversationId || state.loading.value) return false
     const confirmation = state.confirmations.value.find((item) => item.id === confirmationId)
     if (!confirmation) return false
+    const hasAnotherConfirmationForMessage = state.confirmations.value.some(
+      (item) => item.id !== confirmationId && item.messageId === confirmation.messageId
+    )
 
     state.abortController.value?.abort()
     const abortController = new AbortController()
@@ -352,9 +360,11 @@ export function useAiChatStream(
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       }),
-      status: 'streaming' as const,
+      status:
+        action === 'cancel' && hasAnotherConfirmationForMessage ? ('done' as const) : 'streaming',
     }
-    state.streamingMessageId.value = assistantMessage.id
+    state.streamingMessageId.value =
+      assistantMessage.status === 'streaming' ? assistantMessage.id : null
     state.streamingMessages.value = existingMessage
       ? conversation.messages.map((item) =>
           item.id === assistantMessage.id ? assistantMessage : item
@@ -368,7 +378,9 @@ export function useAiChatStream(
     let streamedConfirmation: AiChatPendingConfirmation | null = null
 
     try {
-      await streamAiAgentActionConfirmation(
+      const streamAction =
+        action === 'confirm' ? streamAiAgentActionConfirmation : streamAiAgentActionCancellation
+      await streamAction(
         token(),
         conversationId,
         confirmationId,
@@ -406,7 +418,10 @@ export function useAiChatStream(
               ...(state.conversation.value ?? conversation),
               ...event.conversation,
               messages: state.conversation.value?.messages ?? conversation.messages,
-              confirmations: [...state.confirmations.value, ...event.confirmations],
+              confirmations:
+                action === 'cancel'
+                  ? event.confirmations
+                  : [...state.confirmations.value, ...event.confirmations],
             }
             state.confirmations.value = state.conversation.value.confirmations ?? []
             const latestConfirmation = event.confirmations.at(-1) ?? streamedConfirmation
@@ -445,6 +460,13 @@ export function useAiChatStream(
       await refreshConversations()
       return true
     } catch (error) {
+      if (action === 'cancel') {
+        state.streamingMessages.value = []
+        if (!(error instanceof DOMException && error.name === 'AbortError')) {
+          toast.error(error instanceof Error ? error.message : translate('common.error'))
+        }
+        return false
+      }
       if (error instanceof DOMException && error.name === 'AbortError') {
         assistantMessage.status = assistantMessage.content ? 'interrupted' : 'done'
         updateAssistantMessage()
@@ -465,5 +487,13 @@ export function useAiChatStream(
     }
   }
 
-  return { send, confirmAction }
+  async function confirmAction(conversationId: number, confirmationId: number) {
+    return resolveConfirmationAction(conversationId, confirmationId, 'confirm')
+  }
+
+  async function cancelAction(conversationId: number, confirmationId: number) {
+    return resolveConfirmationAction(conversationId, confirmationId, 'cancel')
+  }
+
+  return { send, confirmAction, cancelAction }
 }

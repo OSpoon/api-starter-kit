@@ -30,6 +30,7 @@ import {
   AiAgentConfirmationError,
   cancelAiAgentAction as cancelAgentAction,
   findPendingConfirmationTool,
+  hasConfirmedToolAction,
   listCancelledToolConfirmations,
   listConversationConfirmations,
 } from '#ai/core/ai_agent_confirmation'
@@ -550,6 +551,19 @@ export default class AiChatController {
   })
   @ApiResponse({ status: 200, description: '受控操作已取消' })
   async cancelAiAgentAction(ctx: HttpContext) {
+    return this.handleAiAgentActionCancellation(ctx)
+  }
+
+  @ApiOperation({
+    summary: '流式取消 AI 代理受控操作',
+    description: '取消当前用户创建且尚未执行的受控操作，并通过 SSE 返回助手结果。',
+  })
+  @ApiResponse({ status: 200, description: 'SSE 流返回取消状态和助手回复' })
+  async cancelAiAgentActionStream(ctx: HttpContext) {
+    return this.handleAiAgentActionCancellation(ctx, true)
+  }
+
+  private async handleAiAgentActionCancellation(ctx: HttpContext, streaming = false) {
     const { params, request, response, serialize } = ctx
     const route = await request.validateUsing(aiChatConfirmationRouteValidator, { data: params })
     const user = currentUser(ctx)
@@ -558,51 +572,79 @@ export default class AiChatController {
       return response.conflict({ message: '当前会话已有 AI 请求正在运行，请稍后再试' })
     }
 
+    let stopKeepalive: (() => void) | undefined
+    if (streaming) {
+      response.header('Content-Type', 'text/event-stream; charset=utf-8')
+      response.header('Cache-Control', 'no-cache, no-transform')
+      response.header('Connection', 'keep-alive')
+      response.header('X-Accel-Buffering', 'no')
+      response.writeHead(200)
+      stopKeepalive = startAiChatSseKeepalive(response)
+    }
+
     try {
       const pending = await AiAgentConfirmation.query()
         .where('id', route.confirmationId)
         .where('conversation_id', conversation.id)
         .where('requested_by_user_id', user.id)
         .first()
+      const isToolAction =
+        pending?.action === 'call_builtin_tool' || pending?.action === 'call_mcp_tool'
+      const pendingMessage = pending?.assistantMessageId
+        ? await AiChatMessage.find(pending.assistantMessageId)
+        : null
+      const pendingTool =
+        isToolAction && pending && pendingMessage
+          ? findPendingConfirmationTool(
+              pendingMessage.runtimeDetails,
+              Number(route.confirmationId),
+              pending.action
+            )
+          : undefined
       const confirmation = await cancelAgentAction(ctx, {
         confirmationId: Number(route.confirmationId),
         conversationId: conversation.id,
         userId: user.id,
         source: 'api',
       })
-      if (pending?.assistantMessageId && pending.action === 'call_builtin_tool') {
-        const assistantMessage = await AiChatMessage.find(pending.assistantMessageId)
-        if (assistantMessage) {
-          const pendingTool = findPendingConfirmationTool(
-            assistantMessage.runtimeDetails,
-            Number(route.confirmationId),
-            pending.action
-          )
-          const toolCallId =
-            (pendingTool?.kind === 'tool' ? pendingTool.callId : undefined) ??
-            `confirmation-${route.confirmationId}`
-          assistantMessage.agentContext = upsertAgentToolResult(assistantMessage.agentContext, {
+      let assistantMessage = pendingMessage
+        ? await AiChatMessage.findOrFail(pendingMessage.id)
+        : null
+      let directReplyDelta: string | undefined
+      let summaryStreamed = false
+      if (pending && pendingMessage && isToolAction) {
+        assistantMessage ??= await AiChatMessage.findOrFail(pendingMessage.id)
+        const toolCallId =
+          (pendingTool?.kind === 'tool' ? pendingTool.callId : undefined) ??
+          `confirmation-${route.confirmationId}`
+        assistantMessage.agentContext = upsertAgentToolResult(assistantMessage.agentContext, {
+          assistantMessageId: assistantMessage.id,
+          toolCallId,
+          toolName:
+            (pendingTool?.kind === 'tool' ? pendingTool.name : undefined) ??
+            (typeof pending.targetSummary?.toolName === 'string'
+              ? pending.targetSummary.toolName
+              : pending.action),
+          text: 'The user cancelled this proposed operation; it was not executed.',
+          isError: true,
+        })
+        await assistantMessage.save()
+        const pendingConfirmations = await listConversationConfirmations(conversation.id, user.id)
+        if (!shouldDeferConfirmationReply(pendingConfirmations, assistantMessage.id)) {
+          const summaryInput = {
             assistantMessageId: assistantMessage.id,
-            toolCallId,
-            toolName:
-              (pendingTool?.kind === 'tool' ? pendingTool.name : undefined) ?? pending.action,
-            text: 'The user cancelled this proposed operation; it was not executed.',
-            isError: true,
-          })
-          await assistantMessage.save()
-          const pendingConfirmations = await listConversationConfirmations(conversation.id, user.id)
-          if (!shouldDeferConfirmationReply(pendingConfirmations, assistantMessage.id)) {
-            const cancelledConfirmations = await listCancelledToolConfirmations({
-              assistantMessageId: assistantMessage.id,
-              conversationId: conversation.id,
-              userId: user.id,
-            })
+            conversationId: conversation.id,
+            userId: user.id,
+          }
+          if (await hasConfirmedToolAction(summaryInput)) {
+            const cancelledConfirmations = await listCancelledToolConfirmations(summaryInput)
             try {
               await summarizeConfirmedToolResult({
                 ctx,
                 conversation,
                 assistantMessage,
                 userId: user.id,
+                response: streaming ? response : undefined,
                 continueWithConfiguredTools: false,
                 confirmationBatchResolved: true,
                 resolutions: cancelledConfirmations.map((item) => ({
@@ -610,6 +652,7 @@ export default class AiChatController {
                   targetSummary: item.targetSummary ?? undefined,
                 })),
               })
+              summaryStreamed = streaming
             } catch (error) {
               logger.warn(
                 {
@@ -617,14 +660,57 @@ export default class AiChatController {
                   confirmationId: route.confirmationId,
                   conversationId: conversation.id,
                 },
-                'Cancelled tool continuation could not be completed'
+                'Completed tool results could not be summarized after cancellation'
               )
+              const latestMessage = await AiChatMessage.findOrFail(assistantMessage.id)
+              const fallback = '待确认操作已取消；之前已完成的工具结果未能整理，请查看运行详情。'
+              const visibleContent = latestMessage.content
+                .replaceAll('此操作需要确认，请在确认卡片中确认后继续。', '')
+                .trim()
+              directReplyDelta = visibleContent ? `\n\n${fallback}` : fallback
+              latestMessage.content = visibleContent ? `${visibleContent}\n\n${fallback}` : fallback
+              await latestMessage.save()
+              assistantMessage = latestMessage
             }
+          } else {
+            const visibleContent = assistantMessage.content
+              .replaceAll('此操作需要确认，请在确认卡片中确认后继续。', '')
+              .trim()
+            directReplyDelta = visibleContent
+              ? `\n\n${confirmation.presentation.summary}`
+              : confirmation.presentation.summary
+            assistantMessage.content = visibleContent
+              ? `${visibleContent}\n\n${confirmation.presentation.summary}`
+              : confirmation.presentation.summary
+            await assistantMessage.save()
           }
         }
       }
-      return serialize(confirmation)
+      if (!streaming) return serialize(confirmation)
+      if (!assistantMessage) {
+        writeAiChatSse(response, 'error', { message: '找不到对应的助手消息' })
+        return
+      }
+      if (summaryStreamed) return
+      if (directReplyDelta) writeAiChatSse(response, 'delta', { content: directReplyDelta })
+      writeAiChatSse(response, 'done', {
+        conversation: serializeAiChatConversation(conversation),
+        message: serializeAiChatMessage(await AiChatMessage.findOrFail(assistantMessage.id)),
+        confirmations: await listConversationConfirmations(conversation.id, user.id),
+      })
     } catch (error) {
+      if (streaming) {
+        const message =
+          error instanceof AiAgentConfirmationError ? error.message : '取消操作未完成，请稍后重试。'
+        if (!(error instanceof AiAgentConfirmationError)) {
+          logger.error(
+            { err: error, confirmationId: route.confirmationId, conversationId: conversation.id },
+            'AI confirmation cancellation stream failed'
+          )
+        }
+        writeAiChatSse(response, 'error', { message })
+        return
+      }
       if (error instanceof AiAgentConfirmationError) {
         if (error.status === 404) return response.notFound({ message: error.message })
         if (error.status === 409) return response.conflict({ message: error.message })
@@ -633,6 +719,8 @@ export default class AiChatController {
       }
       throw error
     } finally {
+      stopKeepalive?.()
+      if (streaming && !response.response.writableEnded) response.response.end()
       releaseAiAgentConversation(conversation.id, user.id)
     }
   }

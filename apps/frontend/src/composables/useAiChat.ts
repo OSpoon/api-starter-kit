@@ -11,7 +11,6 @@ import {
   type AiChatConversationSummary,
   type AiChatMessage,
   type AiChatUsageSummary,
-  cancelAiAgentAction,
   getAiChatConversation,
   getAiChatUsage,
   transcribeAiChatAudio,
@@ -275,13 +274,19 @@ export function useAiChat() {
     if (!confirmation || !conversation || aiCancelling.value) return
 
     aiCancelling.value = true
+    aiApprovalDismissed.value = true
+    appendConfirmationTimeline(confirmation.messageId, confirmation, 'cancelled')
+
     try {
-      await cancelAiAgentAction(auth.token, conversation.id, confirmation.id)
-      aiConfirmations.value = aiConfirmations.value.filter((item) => item.id !== confirmation.id)
-      appendConfirmationTimeline(confirmation.messageId, confirmation, 'cancelled')
-      presentLatestAiConfirmation(aiConfirmations.value)
-      await refreshAiConfirmationState(conversation.id)
+      const succeeded = await streamAiCancellation(conversation.id, confirmation.id)
+      if (succeeded) {
+        aiConfirmations.value = aiConfirmations.value.filter((item) => item.id !== confirmation.id)
+      } else {
+        aiApprovalDismissed.value = false
+        await refreshAiConfirmationState(conversation.id)
+      }
     } catch (error) {
+      aiApprovalDismissed.value = false
       await refreshAiConfirmationState(conversation.id)
       toast.error(error instanceof Error ? error.message : t('common.error'))
     } finally {
@@ -322,7 +327,11 @@ export function useAiChat() {
     return handleAiSend(message, 'steer', undefined, file)
   }
 
-  const { send: handleAiSend, confirmAction: streamAiConfirmation } = useAiChatStream(
+  const {
+    send: handleAiSend,
+    confirmAction: streamAiConfirmation,
+    cancelAction: streamAiCancellation,
+  } = useAiChatStream(
     () => auth.token,
     (key) => t(key),
     aiPageContext,

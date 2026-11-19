@@ -3,6 +3,7 @@ import {
   BrainCircuit,
   LoaderCircle,
   MessageSquare,
+  PlugZap,
   Save,
   Sparkles,
   TestTube,
@@ -39,6 +40,7 @@ import { firstFormError } from '@/lib/form-validation'
 import { usePermission } from '@/lib/permission'
 import { useAuthStore } from '@/stores/auth'
 
+import AgentMcpCard from './AgentMcpCard.vue'
 import AgentSkillsCard from './AgentSkillsCard.vue'
 import AgentToolsCard from './AgentToolsCard.vue'
 import {
@@ -59,7 +61,9 @@ watch(
   () => route.query.module,
   (module) => {
     activeModule.value =
-      module === 'im' || module === 'skills' || module === 'tools' ? module : 'models'
+      module === 'im' || module === 'skills' || module === 'tools' || module === 'mcp'
+        ? module
+        : 'models'
   },
   { immediate: true }
 )
@@ -67,6 +71,7 @@ const sections = computed(() => [
   { value: 'models', label: t('agent_config.module_models'), icon: BrainCircuit },
   { value: 'tools', label: t('agent_config.module_tools'), icon: Wrench },
   { value: 'skills', label: t('agent_config.module_skills'), icon: Sparkles },
+  { value: 'mcp', label: t('agent_config.module_mcp'), icon: PlugZap },
   { value: 'im', label: t('agent_config.module_im'), icon: MessageSquare },
 ])
 const loading = ref(true)
@@ -568,6 +573,9 @@ onMounted(load)
     </div>
     <div v-if="!loading" v-show="activeModule === 'skills'" class="flex min-h-0 flex-1 flex-col">
       <AgentSkillsCard />
+    </div>
+    <div v-if="!loading" v-show="activeModule === 'mcp'" class="flex min-h-0 flex-1 flex-col">
+      <AgentMcpCard />
     </div>
     <div v-if="!loading" v-show="activeModule === 'im'">
       <ImConfigurationSection />

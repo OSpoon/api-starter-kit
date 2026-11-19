@@ -350,10 +350,14 @@ function getConfirmationPlanForTool(
 ): Extract<AiChatTimelineItem, { kind: 'plan' }> | undefined {
   if (
     tool.kind !== 'tool' ||
-    !tool.displayName ||
-    !['preparing_action', 'awaiting_confirmation', 'executing_confirmation', 'confirmed'].includes(
-      tool.phase ?? ''
-    )
+    (!tool.displayName && tool.phase !== 'cancelled') ||
+    ![
+      'preparing_action',
+      'awaiting_confirmation',
+      'executing_confirmation',
+      'confirmed',
+      'cancelled',
+    ].includes(tool.phase ?? '')
   ) {
     return undefined
   }
@@ -397,7 +401,7 @@ function getMergedToolIcon(tool: Extract<AiChatTimelineItem, { kind: 'tool' }>) 
   if (tool.phase === 'awaiting_confirmation' || tool.phase === 'executing_confirmation') {
     return LoaderCircle
   }
-  if (tool.phase === 'cancelled') return Circle
+  if (tool.phase === 'cancelled') return X
   return tool.state === 'running' ? LoaderCircle : Check
 }
 
@@ -634,7 +638,9 @@ function getTimelineSections(timeline: AiChatTimelineItem[]) {
               :status="message.status ?? 'done'"
               :streaming="message.status === 'streaming' || message.id === streamingMessageId"
               :waiting-label="
-                isAwaitingConfirmation(message) ? t('ai_chat.waiting_for_confirmation') : undefined
+                isAwaitingConfirmation(message) && message.status !== 'streaming'
+                  ? t('ai_chat.waiting_for_confirmation')
+                  : undefined
               "
             />
             <template v-else>
@@ -731,7 +737,7 @@ function getTimelineSections(timeline: AiChatTimelineItem[]) {
                       default-open
                     >
                       <TraceCollapsibleTrigger>
-                        <TraceLine :status="getPlanStatus(item)">
+                        <TraceLine :status="getPlanStatus(item)" class="text-xs">
                           <TraceIcon><ListChecks /></TraceIcon>
                           <TraceTitle>{{ t('ai_chat.timeline.plan') }}</TraceTitle>
                           <TraceDescription class="text-xs text-muted-foreground">
@@ -876,7 +882,7 @@ function getTimelineSections(timeline: AiChatTimelineItem[]) {
                           </TraceDescription>
                         </TraceLine>
                       </TraceCollapsibleTrigger>
-                      <TraceCollapsibleContent class="space-y-2">
+                      <TraceCollapsibleContent class="space-y-2 text-xs">
                         <p v-if="item.detail?.templateCode">
                           {{
                             t('ai_chat.timeline.query_template', { code: item.detail.templateCode })

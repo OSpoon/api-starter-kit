@@ -69,6 +69,11 @@ export interface ApiDefinition {
     installSkillZip: typeof routes['agent_configurations.install_skill_zip']
     updateSkill: typeof routes['agent_configurations.update_skill']
     removeSkill: typeof routes['agent_configurations.remove_skill']
+    mcpServers: typeof routes['agent_configurations.mcp_servers']
+    mcpConfiguration: typeof routes['agent_configurations.mcp_configuration']
+    updateMcpConfiguration: typeof routes['agent_configurations.update_mcp_configuration']
+    updateMcpServer: typeof routes['agent_configurations.update_mcp_server']
+    discoverMcpTools: typeof routes['agent_configurations.discover_mcp_tools']
   }
   agentConfig: {
     llm: {
@@ -131,6 +136,7 @@ export interface ApiDefinition {
     confirmAiAgentAction: typeof routes['ai_chat.confirm_ai_agent_action']
     cancelAiAgentAction: typeof routes['ai_chat.cancel_ai_agent_action']
     confirmAiAgentActionStream: typeof routes['ai_chat.confirm_ai_agent_action_stream']
+    cancelAiAgentActionStream: typeof routes['ai_chat.cancel_ai_agent_action_stream']
     destroy: typeof routes['ai_chat.destroy']
   }
   integrations: {

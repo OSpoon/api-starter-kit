@@ -21,6 +21,9 @@ import {
   type AiAgentConfirmationSummary,
   attachAgentRunConfirmations,
   findPendingConfirmationTool,
+  hasConfirmedToolAction,
+  listCancelledToolConfirmations,
+  listConversationConfirmations,
   proposeAiAgentAction,
 } from '#ai/core/ai_agent_confirmation'
 import { createAiAgentTools } from '#ai/registry/ai_agent_tool_registry'
@@ -168,6 +171,52 @@ test.group('AI agent confirmations', (group) => {
     assert.isUndefined(
       findPendingConfirmationTool([actionTool, otherActionTool], 42, 'call_builtin_tool')
     )
+  })
+
+  test('keeps a completed tool result when a sibling confirmation is cancelled', async ({
+    assert,
+  }) => {
+    const user = await User.create({
+      fullName: 'Mixed tool confirmation user',
+      email: `mixed-tool-confirmation-${Date.now()}@example.com`,
+      password: generateInitialPassword(),
+    })
+    const conversation = await AiChatConversation.create({ userId: user.id, title: 'Mixed tools' })
+    const message = await AiChatMessage.create({
+      conversationId: conversation.id,
+      role: 'assistant',
+      content: '正在等待确认。',
+    })
+    const confirmations = await Promise.all(
+      (['confirmed', 'cancelled'] as const).map((status) =>
+        AiAgentConfirmation.create({
+          conversationId: conversation.id,
+          assistantMessageId: message.id,
+          requestedByUserId: user.id,
+          agentRunId: crypto.randomUUID(),
+          action: 'call_mcp_tool',
+          targetType: 'mcp_tool',
+          targetId: status,
+          targetSummary: { name: 'system-info', toolName: `get_${status}_tool` },
+          payload: {},
+          status,
+          expiresAt: DateTime.now().plus({ minutes: 5 }),
+        })
+      )
+    )
+    const input = {
+      assistantMessageId: message.id,
+      conversationId: conversation.id,
+      userId: user.id,
+    }
+
+    assert.isTrue(await hasConfirmedToolAction(input))
+    const cancelledConfirmations = await listCancelledToolConfirmations(input)
+    assert.deepEqual(
+      cancelledConfirmations.map((item) => item.id),
+      [confirmations[1].id]
+    )
+    assert.isEmpty(await listConversationConfirmations(conversation.id, user.id))
   })
 
   test('appends the confirmed tool reply to the original assistant message', async ({ assert }) => {
@@ -1413,6 +1462,73 @@ test.group('AI agent confirmations', (group) => {
       .bearerToken(token.value!.release())
     confirmAfterCancel.assertStatus(409)
     assert.isNull(await ApiKey.query().where('name', name).first())
+  })
+
+  test('streams cancellation status and the updated assistant message', async ({
+    client,
+    assert,
+  }) => {
+    const user = await User.create({
+      fullName: 'Streaming cancellation user',
+      email: `streaming-cancellation-${Date.now()}@example.com`,
+      password: generateInitialPassword(),
+    })
+    const token = await User.accessTokens.create(user)
+    const conversation = await AiChatConversation.create({
+      userId: user.id,
+      title: 'Cancel MCP tool',
+    })
+    const message = await AiChatMessage.create({
+      conversationId: conversation.id,
+      role: 'assistant',
+      content: '',
+    })
+    const confirmation = await AiAgentConfirmation.create({
+      conversationId: conversation.id,
+      assistantMessageId: message.id,
+      requestedByUserId: user.id,
+      agentRunId: crypto.randomUUID(),
+      action: 'call_mcp_tool',
+      targetType: 'mcp_tool',
+      targetId: 'get_memory_info_tool',
+      targetSummary: { name: 'system-info', toolName: 'get_memory_info_tool' },
+      payload: {},
+      status: 'pending',
+      expiresAt: DateTime.now().plus({ minutes: 5 }),
+    })
+    message.runtimeDetails = [
+      {
+        kind: 'tool',
+        name: 'get_memory_info_tool',
+        state: 'done',
+        callId: 'memory-info-call',
+        phase: 'awaiting_confirmation',
+        detail: {
+          action: 'call_mcp_tool',
+          confirmationId: confirmation.id,
+          toolName: 'get_memory_info_tool',
+        },
+      },
+    ]
+    await message.save()
+
+    const response = await client
+      .post(
+        `/api/v1/ai-chat/conversations/${conversation.id}/confirmations/${confirmation.id}/cancel/stream`
+      )
+      .bearerToken(token.value!.release())
+
+    response.assertStatus(200)
+    assert.include(response.header('content-type') ?? '', 'text/event-stream')
+    const body = response.text()
+    assert.include(body, 'event: delta')
+    assert.include(body, '操作已取消，未执行。')
+    assert.include(body, 'event: done')
+    const doneEvent = body.split('event: done\n')[1]?.split('\n\n')[0]
+    const done = JSON.parse(doneEvent!.replace(/^data: /, ''))
+    assert.equal(done.message.id, message.id)
+    assert.equal(done.message.content, '操作已取消，未执行。')
+    assert.lengthOf(done.confirmations, 0)
   })
 
   test('does not create an API Key revocation proposal without RBAC grants', async ({ assert }) => {

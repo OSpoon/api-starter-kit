@@ -30,7 +30,10 @@ const { t } = useI18n()
       <ItemTitle class="line-clamp-none w-full whitespace-normal">
         {{ approval.presentation.title }}
       </ItemTitle>
-      <p class="wrap-break-word text-muted-foreground">
+      <p
+        v-if="approval.presentation.summary || approval.presentation.targetLabel"
+        class="wrap-break-word text-muted-foreground"
+      >
         {{ approval.presentation.summary }} {{ approval.presentation.targetLabel }}
       </p>
       <dl
@@ -42,10 +45,10 @@ const { t } = useI18n()
           <dd class="break-all">{{ change.value }}</dd>
         </div>
       </dl>
-      <p class="text-muted-foreground">
+      <p v-if="approval.presentation.impactLabel" class="text-muted-foreground">
         {{ approval.presentation.impactLabel }}
       </p>
-      <p v-if="approval.expiresAt" class="text-muted-foreground">
+      <p v-if="approval.expiresAt" class="text-xs text-muted-foreground">
         {{
           t('ai_chat.approval.expires_at', {
             time: formatDateTime(approval.expiresAt),

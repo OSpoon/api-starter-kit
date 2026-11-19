@@ -13,6 +13,15 @@ import {
   updateAiAgentToolSettings,
 } from '#services/ai_agent_configuration_service'
 import {
+  getAiAgentMcpConfiguration,
+  getAiAgentMcpServer,
+  listAiAgentMcpServers,
+  replaceAiAgentMcpConfiguration,
+  serializeAiAgentMcpServer,
+  updateAiAgentMcpServer,
+} from '#services/ai_agent_mcp_configuration_service'
+import { discoverAiAgentMcpServerTools } from '#services/ai_agent_mcp_service'
+import {
   installAiAgentSkills,
   installAiAgentSkillZip,
   listAiAgentSkills,
@@ -29,10 +38,13 @@ import {
 } from '#services/mineru_configuration_service'
 import { clampLimit } from '#support/pagination'
 import {
+  aiAgentMcpServerIdValidator,
   aiAgentSkillCodeValidator,
   installAiAgentSkillsValidator,
   installAiAgentSkillZipValidator,
   updateAiAgentConfigurationValidator,
+  updateAiAgentMcpConfigurationValidator,
+  updateAiAgentMcpServerValidator,
   updateAiAgentSkillValidator,
   updateMineruTokenValidator,
 } from '#validators/ai_agent_configuration'
@@ -221,5 +233,82 @@ export default class AgentConfigurationsController {
       metadata: { enabled: skill.enabled },
     })
     return ctx.serialize({ code, removed: true })
+  }
+
+  @ApiOperation({ summary: '分页获取已配置的 MCP 服务' })
+  @ApiResponse({ status: 200, description: '返回服务配置元数据，不包含环境变量值' })
+  async mcpServers({ request, serialize }: HttpContext) {
+    const pagination = await paginationSearchQueryValidator.validate(request.qs())
+    const result = await listAiAgentMcpServers(
+      pagination.page ?? 1,
+      clampLimit(pagination.limit, 20, 100)
+    )
+    return serialize({ items: result.items, meta: result.meta })
+  }
+
+  @ApiOperation({ summary: '获取共享 MCP 服务启动配置' })
+  @ApiResponse({ status: 200, description: '环境变量不会返回给客户端' })
+  async mcpConfiguration({ serialize }: HttpContext) {
+    return serialize(await getAiAgentMcpConfiguration())
+  }
+
+  @ApiOperation({ summary: '替换共享 MCP 服务启动配置' })
+  @ApiResponse({ status: 200, description: '返回已保存的 MCP 服务' })
+  @ApiResponse({ status: 422, description: '命令、参数或环境变量无效' })
+  async updateMcpConfiguration(ctx: HttpContext) {
+    const payload = await updateAiAgentMcpConfigurationValidator.validate(ctx.request.body())
+    const entries = Object.fromEntries(
+      Object.entries(payload.mcpServers).map(([name, server]) => [
+        name,
+        {
+          command: server.command,
+          args: server.args ?? [],
+          cwd: server.cwd,
+          environment: server.env,
+        },
+      ])
+    )
+    const items = await replaceAiAgentMcpConfiguration(entries)
+    await recordAuditEvent(ctx, {
+      actorUserId: ctx.auth.getUserOrFail().id,
+      action: 'agent.mcp_configuration_updated',
+      targetType: 'ai_agent_configuration',
+      targetId: 1,
+      metadata: { serverCount: items.length },
+    })
+    return ctx.serialize({ items })
+  }
+
+  @ApiOperation({ summary: '启用或停用 MCP 服务及其全部工具' })
+  @ApiResponse({ status: 200, description: '返回更新后的服务状态' })
+  @ApiResponse({ status: 404, description: 'MCP 服务不存在' })
+  async updateMcpServer(ctx: HttpContext) {
+    const payload = await updateAiAgentMcpServerValidator.validate(ctx.request.body())
+    const { id } = await aiAgentMcpServerIdValidator.validate({ id: ctx.request.param('id') })
+    const server = await updateAiAgentMcpServer(id, payload)
+    await recordAuditEvent(ctx, {
+      actorUserId: ctx.auth.getUserOrFail().id,
+      action: 'agent.mcp_server_enabled_state_updated',
+      targetType: 'mcp_server',
+      targetId: server.id,
+      metadata: { enabled: server.enabled },
+    })
+    return ctx.serialize(server)
+  }
+
+  @ApiOperation({ summary: '启动 MCP 服务并读取其工具目录' })
+  @ApiResponse({ status: 200, description: '返回工具名称、说明和只读声明' })
+  async discoverMcpTools(ctx: HttpContext) {
+    const { id } = await aiAgentMcpServerIdValidator.validate({ id: ctx.request.param('id') })
+    const server = await getAiAgentMcpServer(id)
+    const tools = await discoverAiAgentMcpServerTools(server)
+    await recordAuditEvent(ctx, {
+      actorUserId: ctx.auth.getUserOrFail().id,
+      action: 'agent.mcp_tools_discovered',
+      targetType: 'mcp_server',
+      targetId: server.id,
+      metadata: { toolCount: tools.length },
+    })
+    return ctx.serialize({ tools, server: serializeAiAgentMcpServer(server) })
   }
 }

@@ -82,6 +82,12 @@ function serializeConfirmation(confirmation: AiAgentConfirmation): AiAgentConfir
   const action = getAiAgentAction(confirmation.action)
   const changeSummary = getAiAgentActionChangeSummary(confirmation.action, confirmation.payload)
   const targetSummary = confirmation.targetSummary ?? {}
+  const isMcpToolCall = confirmation.action === 'call_mcp_tool'
+  const targetLabel = isMcpToolCall
+    ? [targetSummary.name, targetSummary.toolName]
+        .filter((value): value is string => typeof value === 'string' && value.trim() !== '')
+        .join(' · ') || getTargetLabel(confirmation.targetId, targetSummary)
+    : getTargetLabel(confirmation.targetId, targetSummary)
   return {
     id: confirmation.id,
     action: confirmation.action,
@@ -95,20 +101,29 @@ function serializeConfirmation(confirmation: AiAgentConfirmation): AiAgentConfir
     presentation: {
       title: getActionTitle(confirmation.action),
       summary:
-        confirmation.status === 'pending'
-          ? '请确认是否执行以下操作。'
-          : confirmation.status === 'confirmed'
-            ? '操作已执行。'
-            : confirmation.status === 'cancelled'
-              ? '操作已取消，未执行。'
-              : '操作未执行。',
-      targetLabel: getTargetLabel(confirmation.targetId, targetSummary),
-      changes: changeSummary.map(({ field, value }) => ({
-        label: getChangeLabel(field),
-        value: getChangeValue(value, confirmation.status),
-      })),
-      impactLabel:
-        action?.impact === 'destructive'
+        isMcpToolCall && confirmation.status === 'pending'
+          ? ''
+          : confirmation.status === 'pending'
+            ? '请确认是否执行以下操作。'
+            : confirmation.status === 'confirmed'
+              ? '操作已执行。'
+              : confirmation.status === 'cancelled'
+                ? '操作已取消，未执行。'
+                : '操作未执行。',
+      targetLabel,
+      changes: changeSummary
+        .filter(
+          ({ field, value }) =>
+            !isMcpToolCall ||
+            (field !== 'tool_name' && !(field === 'parameter_names' && value === '无参数'))
+        )
+        .map(({ field, value }) => ({
+          label: getChangeLabel(field),
+          value: getChangeValue(value, confirmation.status),
+        })),
+      impactLabel: isMcpToolCall
+        ? ''
+        : action?.impact === 'destructive'
           ? '此操作可能不可逆，请谨慎确认。'
           : '执行前会再次验证权限和操作状态。',
       approveLabel: '确认执行',
@@ -187,6 +202,7 @@ const actionTitles: Record<string, string> = {
   update_permission: '确认更新权限',
   delete_permission: '确认删除权限',
   call_builtin_tool: '确认调用工具',
+  call_mcp_tool: '确认调用 MCP 工具',
 }
 
 function getActionTitle(action: string) {
@@ -335,7 +351,6 @@ export async function listConversationConfirmations(conversationId: number, user
     .where('conversation_id', conversationId)
     .where('requested_by_user_id', userId)
     .where('status', 'pending')
-    .whereNot('action', 'call_mcp_tool')
     .whereNull('execution_token')
     .where('expires_at', '>', DateTime.now().toSQL()!)
     .whereNotNull('assistant_message_id')
@@ -356,7 +371,24 @@ export async function listCancelledToolConfirmations(input: {
     .where('requested_by_user_id', input.userId)
     .where('assistant_message_id', input.assistantMessageId)
     .where('status', 'cancelled')
-    .where('action', 'call_builtin_tool')
+    .whereIn('action', ['call_builtin_tool', 'call_mcp_tool'])
+}
+
+export async function hasConfirmedToolAction(input: {
+  conversationId: number
+  userId: number
+  assistantMessageId: number
+}) {
+  return Boolean(
+    await AiAgentConfirmation.query()
+      .select('id')
+      .where('conversation_id', input.conversationId)
+      .where('requested_by_user_id', input.userId)
+      .where('assistant_message_id', input.assistantMessageId)
+      .where('status', 'confirmed')
+      .whereIn('action', ['call_builtin_tool', 'call_mcp_tool'])
+      .first()
+  )
 }
 
 export async function listPendingConversationConfirmations(conversationId: number, userId: number) {
@@ -364,7 +396,6 @@ export async function listPendingConversationConfirmations(conversationId: numbe
     .where('conversation_id', conversationId)
     .where('requested_by_user_id', userId)
     .where('status', 'pending')
-    .whereNot('action', 'call_mcp_tool')
     .whereNull('execution_token')
     .where('expires_at', '>', DateTime.now().toSQL()!)
 
@@ -403,6 +434,10 @@ export async function getAiAgentActionResultMessage(input: {
     if (typeof toolName === 'string' && typeof toolResult === 'string') {
       return `工具 ${toolName} 已执行，返回结果：${toolResult}`
     }
+  }
+
+  if (confirmation.action === 'call_mcp_tool') {
+    return 'MCP 工具已执行成功。'
   }
 
   const summary = confirmation.targetSummary ?? {}

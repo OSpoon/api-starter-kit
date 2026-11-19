@@ -62,6 +62,7 @@ export async function runAiChatAssistantTurn(input: {
   regeneration: AiChatResolvedRegeneration<AiChatMessage> | null
   capabilityMode?: import('#ai/core/ai_agent_tool_context').AiAgentCapabilityMode
   enabledToolNames?: string[]
+  hasPriorToolExecution?: boolean
   emitUserMessage?: boolean
   context?: AiAgentPageContext
   signal: AbortSignal
@@ -387,6 +388,7 @@ export async function runAiChatAssistantTurn(input: {
         : {
             captureModelText: true,
             streamTextAfterToolExecution: true,
+            hasPriorToolExecution: input.hasPriorToolExecution,
           }
     )) {
       if (input.signal.aborted) {

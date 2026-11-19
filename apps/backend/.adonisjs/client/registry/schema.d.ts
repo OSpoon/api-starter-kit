@@ -499,6 +499,66 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['removeSkill']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
+  'agent_configurations.mcp_servers': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/system/agent-config/mcp-servers'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/pagination').paginationSearchQueryValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['mcpServers']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['mcpServers']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'agent_configurations.mcp_configuration': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/system/agent-config/mcp-servers/configuration'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['mcpConfiguration']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['mcpConfiguration']>>>
+    }
+  }
+  'agent_configurations.update_mcp_configuration': {
+    methods: ["PUT"]
+    pattern: '/api/v1/system/agent-config/mcp-servers/configuration'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/ai_agent_configuration').updateAiAgentMcpConfigurationValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/ai_agent_configuration').updateAiAgentMcpConfigurationValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['updateMcpConfiguration']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['updateMcpConfiguration']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'agent_configurations.update_mcp_server': {
+    methods: ["PUT"]
+    pattern: '/api/v1/system/agent-config/mcp-servers/:id'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/ai_agent_configuration').updateAiAgentMcpServerValidator)>|InferInput<(typeof import('#validators/ai_agent_configuration').aiAgentMcpServerIdValidator)>>
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/ai_agent_configuration').updateAiAgentMcpServerValidator)>|InferInput<(typeof import('#validators/ai_agent_configuration').aiAgentMcpServerIdValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['updateMcpServer']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['updateMcpServer']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'agent_configurations.discover_mcp_tools': {
+    methods: ["POST"]
+    pattern: '/api/v1/system/agent-config/mcp-servers/:id/discover'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/ai_agent_configuration').aiAgentMcpServerIdValidator)>>
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/ai_agent_configuration').aiAgentMcpServerIdValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['discoverMcpTools']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/agent_configurations_controller').default['discoverMcpTools']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
   'im_configurations.show': {
     methods: ["GET","HEAD"]
     pattern: '/api/v1/system/im-config'
@@ -923,12 +983,12 @@ export interface Registry {
     methods: ["POST"]
     pattern: '/api/v1/ai-chat/conversations/:id/confirmations/:confirmationId/cancel'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/ai_chat').aiChatConfirmationRouteValidator)>>
+      body: {}
       paramsTuple: [ParamValue, ParamValue]
       params: { id: ParamValue; confirmationId: ParamValue }
-      query: ExtractQuery<InferInput<(typeof import('#validators/ai_chat').aiChatConfirmationRouteValidator)>>
+      query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['cancelAiAgentAction']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['cancelAiAgentAction']>>> | { status: 422; response: { errors: SimpleError[] } }
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['cancelAiAgentAction']>>>
     }
   }
   'ai_chat.confirm_ai_agent_action_stream': {
@@ -941,6 +1001,18 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['confirmAiAgentActionStream']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['confirmAiAgentActionStream']>>>
+    }
+  }
+  'ai_chat.cancel_ai_agent_action_stream': {
+    methods: ["POST"]
+    pattern: '/api/v1/ai-chat/conversations/:id/confirmations/:confirmationId/cancel/stream'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue, ParamValue]
+      params: { id: ParamValue; confirmationId: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['cancelAiAgentActionStream']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['cancelAiAgentActionStream']>>>
     }
   }
   'ai_chat.destroy': {
@@ -1079,12 +1151,12 @@ export interface Registry {
     methods: ["POST"]
     pattern: '/api/v1/integrations/ai-chat/conversations/:id/confirmations/:confirmationId/cancel'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/ai_chat').aiChatConfirmationRouteValidator)>>
+      body: {}
       paramsTuple: [ParamValue, ParamValue]
       params: { id: ParamValue; confirmationId: ParamValue }
-      query: ExtractQuery<InferInput<(typeof import('#validators/ai_chat').aiChatConfirmationRouteValidator)>>
+      query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['cancelAiAgentAction']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['cancelAiAgentAction']>>> | { status: 422; response: { errors: SimpleError[] } }
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['cancelAiAgentAction']>>>
     }
   }
   'integrations.ai_chat.ai_chat.destroy': {
@@ -1223,12 +1295,12 @@ export interface Registry {
     methods: ["POST"]
     pattern: '/api/v1/embed/ai-chat/conversations/:id/confirmations/:confirmationId/cancel'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/ai_chat').aiChatConfirmationRouteValidator)>>
+      body: {}
       paramsTuple: [ParamValue, ParamValue]
       params: { id: ParamValue; confirmationId: ParamValue }
-      query: ExtractQuery<InferInput<(typeof import('#validators/ai_chat').aiChatConfirmationRouteValidator)>>
+      query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['cancelAiAgentAction']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['cancelAiAgentAction']>>> | { status: 422; response: { errors: SimpleError[] } }
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['cancelAiAgentAction']>>>
     }
   }
   'embed.ai_chat.ai_chat.destroy': {

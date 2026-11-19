@@ -333,6 +333,44 @@ test.group('AI chat SSE adapter', () => {
     )
   })
 
+  test('streams confirmation follow-up text as candidate deltas before the model response ends', async ({
+    assert,
+  }) => {
+    const events: AgentEvent[] = [
+      messageStart(),
+      textDelta('查询结果显示：'),
+      textDelta('可用空间 72 GiB。'),
+      assistantMessage('查询结果显示：可用空间 72 GiB。'),
+    ]
+    const output: AiAgentTurnEvent[] = []
+
+    for await (const event of streamAiAgentTurnEvents(
+      createFakeEventRun(events),
+      new AbortController().signal,
+      {
+        captureModelText: true,
+        streamTextAfterToolExecution: true,
+        hasPriorToolExecution: true,
+      }
+    )) {
+      output.push(event)
+    }
+
+    assert.deepEqual(
+      output
+        .filter(
+          (event): event is Extract<AiAgentTurnEvent, { source: 'message_candidate_delta' }> =>
+            event.source === 'message_candidate_delta'
+        )
+        .map((event) => event.value),
+      ['查询结果显示：', '可用空间 72 GiB。']
+    )
+    assert.isBelow(
+      output.findIndex((event) => event.source === 'message_candidate_delta'),
+      output.findIndex((event) => event.source === 'message_end')
+    )
+  })
+
   test('reclassifies streamed pre-tool text into runtime details if another tool call starts', async ({
     assert,
   }) => {

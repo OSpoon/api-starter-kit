@@ -10,6 +10,7 @@ import {
   confirmAiAgentAction,
   findPendingConfirmationTool,
   getAiAgentActionResultMessage,
+  hasConfirmedToolAction,
   listCancelledToolConfirmations,
   listConversationConfirmations,
 } from '#ai/core/ai_agent_confirmation'
@@ -479,7 +480,8 @@ export class AiChannelBridge implements ReloadableBotRuntime {
           .where('conversation_id', conversation.id)
           .where('requested_by_user_id', user.id)
           .first()
-        const isToolAction = proposal?.action === 'call_builtin_tool'
+        const isToolAction =
+          proposal?.action === 'call_builtin_tool' || proposal?.action === 'call_mcp_tool'
         const proposalMessage =
           isToolAction && proposal?.assistantMessageId
             ? await AiChatMessage.query()
@@ -512,7 +514,9 @@ export class AiChannelBridge implements ReloadableBotRuntime {
           const resultText =
             typeof result?.agentToolResult === 'string'
               ? result.agentToolResult
-              : 'Tool completed without a text result.'
+              : typeof result?.mcpToolResult === 'string'
+                ? result.mcpToolResult
+                : 'Tool completed without a text result.'
           message.agentContext = upsertAgentToolResult(message.agentContext, {
             assistantMessageId: message.id,
             toolCallId:
@@ -520,7 +524,11 @@ export class AiChannelBridge implements ReloadableBotRuntime {
               `confirmation-${confirmationId}`,
             toolName:
               (pendingTool?.kind === 'tool' ? pendingTool.name : undefined) ??
-              (typeof result?.agentToolName === 'string' ? result.agentToolName : proposal!.action),
+              (typeof result?.agentToolName === 'string'
+                ? result.agentToolName
+                : typeof result?.mcpToolName === 'string'
+                  ? result.mcpToolName
+                  : proposal!.action),
             text: resultText,
             isError: false,
           })
@@ -583,7 +591,8 @@ export class AiChannelBridge implements ReloadableBotRuntime {
           .where('conversation_id', conversation.id)
           .where('requested_by_user_id', user.id)
           .first()
-        const isToolAction = proposal?.action === 'call_builtin_tool'
+        const isToolAction =
+          proposal?.action === 'call_builtin_tool' || proposal?.action === 'call_mcp_tool'
         const proposalMessage =
           isToolAction && proposal?.assistantMessageId
             ? await AiChatMessage.query()
@@ -600,7 +609,7 @@ export class AiChannelBridge implements ReloadableBotRuntime {
                 proposal.action
               )
             : undefined
-        await cancelAiAgentAction(ctx, {
+        const cancellation = await cancelAiAgentAction(ctx, {
           confirmationId,
           conversationId: conversation.id,
           userId: user.id,
@@ -613,7 +622,10 @@ export class AiChannelBridge implements ReloadableBotRuntime {
               (pendingTool?.kind === 'tool' ? pendingTool.callId : undefined) ??
               `confirmation-${confirmationId}`,
             toolName:
-              (pendingTool?.kind === 'tool' ? pendingTool.name : undefined) ?? proposal!.action,
+              (pendingTool?.kind === 'tool' ? pendingTool.name : undefined) ??
+              (typeof proposal!.targetSummary?.toolName === 'string'
+                ? proposal!.targetSummary.toolName
+                : proposal!.action),
             text: 'The user cancelled this proposed operation; it was not executed.',
             isError: true,
           })
@@ -621,27 +633,60 @@ export class AiChannelBridge implements ReloadableBotRuntime {
 
           const pendingConfirmations = await listConversationConfirmations(conversation.id, user.id)
           if (pendingConfirmations.some((item) => item.messageId === message.id)) {
-            return textReply('操作已取消；这组确认仍有待处理项，处理完后我会统一总结。')
+            return textReply('操作已取消；这组确认仍有待处理项。')
           }
 
-          const cancelledConfirmations = await listCancelledToolConfirmations({
+          const summaryInput = {
             assistantMessageId: message.id,
             conversationId: conversation.id,
             userId: user.id,
-          })
-          const summary = await summarizeConfirmedToolResult({
-            ctx,
-            conversation,
-            assistantMessage: message,
-            userId: user.id,
-            continueWithConfiguredTools: false,
-            confirmationBatchResolved: true,
-            resolutions: cancelledConfirmations.map((item) => ({
-              action: item.action,
-              targetSummary: item.targetSummary ?? undefined,
-            })),
-          })
-          return textReply(summary.reply || '已取消该操作，并整理当前已获取的信息。')
+          }
+          if (!(await hasConfirmedToolAction(summaryInput))) {
+            const visibleContent = message.content
+              .replaceAll('此操作需要确认，请在确认卡片中确认后继续。', '')
+              .trim()
+            message.content = visibleContent
+              ? `${visibleContent}\n\n${cancellation.presentation.summary}`
+              : cancellation.presentation.summary
+            await message.save()
+            return textReply(cancellation.presentation.summary)
+          }
+
+          const cancelledConfirmations = await listCancelledToolConfirmations(summaryInput)
+          let reply = ''
+          try {
+            const summary = await summarizeConfirmedToolResult({
+              ctx,
+              conversation,
+              assistantMessage: message,
+              userId: user.id,
+              continueWithConfiguredTools: false,
+              confirmationBatchResolved: true,
+              resolutions: cancelledConfirmations.map((item) => ({
+                action: item.action,
+                targetSummary: item.targetSummary ?? undefined,
+              })),
+              onEvent: (event, data) => {
+                if (event !== 'delta' || !data || typeof data !== 'object') return
+                const content = (data as Record<string, unknown>).content
+                if (typeof content === 'string') reply += content
+              },
+            })
+            return textReply(reply.trim() || summary.reply)
+          } catch (error) {
+            logger.warn(
+              { err: error, confirmationId, conversationId: conversation.id },
+              'Completed tool results could not be summarized after cancellation'
+            )
+            const latestMessage = await AiChatMessage.findOrFail(message.id)
+            const fallback = '待确认操作已取消；之前已完成的工具结果未能整理，请查看运行详情。'
+            const visibleContent = latestMessage.content
+              .replaceAll('此操作需要确认，请在确认卡片中确认后继续。', '')
+              .trim()
+            latestMessage.content = visibleContent ? `${visibleContent}\n\n${fallback}` : fallback
+            await latestMessage.save()
+            return textReply(fallback)
+          }
         }
         return textReply('操作已取消。')
       }

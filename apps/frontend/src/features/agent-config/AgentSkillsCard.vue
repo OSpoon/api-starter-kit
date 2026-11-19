@@ -287,7 +287,7 @@ onMounted(() => void load())
         </Button>
       </form>
       <DataTable
-        class="min-h-0 flex-1"
+        class="skills-data-table min-h-0 flex-1"
         :columns="columns"
         :data="items"
         :show-view="false"
@@ -305,3 +305,37 @@ onMounted(() => void load())
     @confirm="confirmDelete"
   />
 </template>
+
+<style scoped>
+.skills-data-table :deep([data-slot='table']) {
+  table-layout: fixed;
+  width: max-content;
+  min-width: 100%;
+}
+
+.skills-data-table :deep([data-slot='table'] th:nth-child(1)),
+.skills-data-table :deep([data-slot='table'] td:nth-child(1)) {
+  width: 14rem;
+}
+
+.skills-data-table :deep([data-slot='table'] th:nth-child(2)),
+.skills-data-table :deep([data-slot='table'] td:nth-child(2)) {
+  width: 24rem;
+  max-width: 24rem;
+}
+
+.skills-data-table :deep([data-slot='table'] th:nth-child(3)),
+.skills-data-table :deep([data-slot='table'] td:nth-child(3)) {
+  width: 13rem;
+}
+
+.skills-data-table :deep([data-slot='table'] th:nth-child(4)),
+.skills-data-table :deep([data-slot='table'] td:nth-child(4)) {
+  width: 7rem;
+}
+
+.skills-data-table :deep([data-slot='table'] th:nth-child(5)),
+.skills-data-table :deep([data-slot='table'] td:nth-child(5)) {
+  width: 5rem;
+}
+</style>

@@ -483,6 +483,22 @@ export function streamAiAgentActionConfirmation(
   )
 }
 
+export function streamAiAgentActionCancellation(
+  token: string | null,
+  conversationId: number,
+  confirmationId: number,
+  onEvent: (event: AiChatStreamEvent) => void,
+  signal?: AbortSignal
+) {
+  return streamAiChatRequest(
+    token,
+    `/api/v1/ai-chat/conversations/${conversationId}/confirmations/${confirmationId}/cancel/stream`,
+    { method: 'POST' },
+    onEvent,
+    signal
+  )
+}
+
 export type AiChatQueueMode = 'steer' | 'followUp'
 
 export async function queueAiChatMessage(

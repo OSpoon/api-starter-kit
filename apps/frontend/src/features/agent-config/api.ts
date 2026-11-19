@@ -99,6 +99,35 @@ export interface AgentSkill {
   updatedAt: string
 }
 
+export interface AgentMcpTool {
+  name: string
+  description: string
+  inputSchema: Record<string, unknown>
+  readOnlyHint: boolean
+}
+
+export interface AgentMcpServer {
+  id: string
+  name: string
+  command: string
+  args: string[]
+  cwd: string | null
+  enabled: boolean
+  environmentConfigured: boolean
+  updatedAt: string
+}
+
+export interface AgentMcpProcessConfiguration {
+  command: string
+  args: string[]
+  cwd?: string | null
+  env?: Record<string, string>
+}
+
+export interface AgentMcpConfigurationDocument {
+  mcpServers: Record<string, AgentMcpProcessConfiguration>
+}
+
 async function getModulePage<T>(token: string | null, path: string, page: number) {
   const query = new URLSearchParams({ page: String(page), limit: '100' })
   return readItem(
@@ -145,6 +174,49 @@ export async function updateMineruToken(
 
 export function listAgentSkills(token: string | null, page: number) {
   return getModulePage<AgentSkill>(token, 'skills', page)
+}
+
+export function listAgentMcpServers(token: string | null, page: number) {
+  return getModulePage<AgentMcpServer>(token, 'mcp-servers', page)
+}
+
+export async function getAgentMcpConfiguration(token: string | null) {
+  return readItem(
+    await apiRequest<ApiEnvelope<AgentMcpConfigurationDocument>>(
+      '/api/v1/system/agent-config/mcp-servers/configuration',
+      { token }
+    )
+  )
+}
+
+export async function saveAgentMcpConfiguration(
+  token: string | null,
+  configuration: AgentMcpConfigurationDocument
+) {
+  return readItem(
+    await apiRequest<ApiEnvelope<{ items: AgentMcpServer[] }>>(
+      '/api/v1/system/agent-config/mcp-servers/configuration',
+      { method: 'PUT', token, body: JSON.stringify(configuration) }
+    )
+  )
+}
+
+export async function updateAgentMcpServer(token: string | null, id: string, enabled: boolean) {
+  return readItem(
+    await apiRequest<ApiEnvelope<AgentMcpServer>>(
+      `/api/v1/system/agent-config/mcp-servers/${encodeURIComponent(id)}`,
+      { method: 'PUT', token, body: JSON.stringify({ enabled }) }
+    )
+  )
+}
+
+export async function discoverAgentMcpTools(token: string | null, id: string) {
+  return readItem(
+    await apiRequest<ApiEnvelope<{ tools: AgentMcpTool[]; server: AgentMcpServer }>>(
+      `/api/v1/system/agent-config/mcp-servers/${encodeURIComponent(id)}/discover`,
+      { method: 'POST', token }
+    )
+  )
 }
 
 export async function installAgentSkills(token: string | null, source: string | File) {

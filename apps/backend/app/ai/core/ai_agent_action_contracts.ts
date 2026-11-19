@@ -17,6 +17,7 @@ export const aiAgentActionNames = [
   'update_role',
   'delete_role',
   'call_builtin_tool',
+  'call_mcp_tool',
 ] as const
 
 export type AiAgentActionName = (typeof aiAgentActionNames)[number]

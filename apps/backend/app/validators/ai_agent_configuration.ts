@@ -19,6 +19,75 @@ export const updateAiAgentConfigurationValidator = vine.compile(
   })
 )
 
+const mcpServerConfiguration = vine.object({
+  command: vine
+    .string()
+    .trim()
+    .minLength(1)
+    .maxLength(2000)
+    .regex(/^(?:\/.+|[A-Za-z0-9][A-Za-z0-9._+-]*)$/),
+  args: vine
+    .array(
+      vine
+        .string()
+        .maxLength(4000)
+        .regex(/^[^\0]*$/)
+    )
+    .maxLength(100)
+    .optional(),
+  cwd: vine
+    .string()
+    .trim()
+    .maxLength(2000)
+    .regex(/^\/.*$/)
+    .optional()
+    .nullable(),
+  env: vine
+    .record(
+      vine
+        .string()
+        .maxLength(4000)
+        .regex(/^[^\0]*$/)
+    )
+    .maxLength(100)
+    .validateKeys((keys, field) => {
+      if (!keys.every((key) => /^[A-Za-z_][A-Za-z0-9_]{0,127}$/.test(key))) {
+        field.report('MCP 环境变量名称无效', 'invalidEnvironmentKeys', field)
+      }
+    })
+    .optional(),
+})
+
+export const updateAiAgentMcpConfigurationValidator = vine.compile(
+  vine.object({
+    mcpServers: vine
+      .record(mcpServerConfiguration)
+      .maxLength(100)
+      .validateKeys((keys, field) => {
+        if (
+          !keys.every((key) => key.trim().length > 0 && key.length <= 128 && !/[\\/\0]/.test(key))
+        ) {
+          field.report('MCP 服务名称无效', 'invalidServerNames', field)
+        }
+      }),
+  })
+)
+
+export const updateAiAgentMcpServerValidator = vine.compile(
+  vine.object({ enabled: vine.boolean() })
+)
+
+export const aiAgentMcpServerIdValidator = vine.compile(
+  vine.object({
+    id: vine
+      .string()
+      .trim()
+      .minLength(1)
+      .maxLength(64)
+      .regex(/^[^/\\\0]+$/),
+  })
+)
+
 export const updateMineruTokenValidator = vine.compile(
   vine.object({
     token: vine

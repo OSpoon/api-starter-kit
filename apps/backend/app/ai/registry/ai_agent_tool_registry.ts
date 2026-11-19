@@ -18,6 +18,8 @@ import { createSearchKnowledgeCatalogTool } from '#ai/tools/search_knowledge_cat
 import { createSystemManagementChangeTool } from '#ai/tools/system_management_change'
 import { createAiAgentTaskPlanTool } from '#ai/tools/update_task_plan'
 import { getAiAgentToolSettings } from '#services/ai_agent_configuration_service'
+import { listEnabledAiAgentMcpServers } from '#services/ai_agent_mcp_configuration_service'
+import { createConfiguredMcpAgentTools } from '#services/ai_agent_mcp_service'
 
 export function createAiAgentTools(input: AiAgentToolContext): AgentTool[] {
   const support = createAiAgentToolSupport(input)
@@ -84,7 +86,11 @@ export async function createConfiguredAiAgentTools(
     createLoadAgentSkillTool(configuredInput),
     createAgentSkillBashTool(configuredInput),
   ]
-  return [...configuredTools, taskPlanTool, ...skillTools]
+  const mcpTools =
+    input.capabilityMode === undefined || input.capabilityMode === 'full'
+      ? await createConfiguredMcpAgentTools(await listEnabledAiAgentMcpServers(), configuredInput)
+      : []
+  return [...configuredTools, taskPlanTool, ...skillTools, ...mcpTools]
 }
 
 function configureToolConfirmation(

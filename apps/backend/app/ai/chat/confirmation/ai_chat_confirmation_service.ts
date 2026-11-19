@@ -71,7 +71,9 @@ export async function executeAiChatConfirmationAndCreateMessage(input: {
     confirmationRecord.action
   )
   const callId = pendingTool?.kind === 'tool' ? pendingTool.callId : undefined
-  const isToolAction = confirmationRecord.action === 'call_builtin_tool'
+  const isToolAction =
+    confirmationRecord.action === 'call_builtin_tool' ||
+    confirmationRecord.action === 'call_mcp_tool'
   const executionName =
     isToolAction || pendingTool?.kind !== 'tool' ? 'confirmation_execution' : pendingTool.name
   const executionDetail = {
@@ -128,7 +130,7 @@ export async function executeAiChatConfirmationAndCreateMessage(input: {
   assistantMessage = await AiChatMessage.findOrFail(assistantMessage.id)
   const actionResult =
     confirmation.result && typeof confirmation.result === 'object' ? confirmation.result : undefined
-  const toolName = actionResult?.agentToolName
+  const toolName = actionResult?.agentToolName ?? actionResult?.mcpToolName
   const completedDetail = {
     ...executionDetail,
     ...(typeof toolName === 'string' ? { toolName } : {}),
@@ -174,11 +176,18 @@ export async function executeAiChatConfirmationAndCreateMessage(input: {
     const resultText =
       typeof actionResult?.agentToolResult === 'string'
         ? actionResult.agentToolResult
-        : 'Tool completed without a text result.'
+        : typeof actionResult?.mcpToolResult === 'string'
+          ? actionResult.mcpToolResult
+          : 'Tool completed without a text result.'
     assistantMessage.agentContext = upsertAgentToolResult(assistantMessage.agentContext, {
       assistantMessageId: assistantMessage.id,
       toolCallId: activityCallId,
-      toolName: pendingTool?.kind === 'tool' ? pendingTool.name : executionName,
+      toolName:
+        pendingTool?.kind === 'tool'
+          ? pendingTool.name
+          : typeof actionResult?.mcpToolName === 'string'
+            ? actionResult.mcpToolName
+            : executionName,
       text: resultText,
       isError: false,
     })
