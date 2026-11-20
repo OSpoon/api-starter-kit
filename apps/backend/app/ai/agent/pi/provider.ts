@@ -17,6 +17,10 @@ export async function createPiModels(config: AgentModelConfig, privacy: AiPrivac
     : ''
   const isQwenCompatibleEndpoint =
     hostname === 'qianwenaiapi.com' || hostname.endsWith('.qianwenaiapi.com')
+  const isGeminiCompatibleEndpoint =
+    hostname === 'generativelanguage.googleapis.com' ||
+    hostname === 'aiplatform.googleapis.com' ||
+    hostname.endsWith('.aiplatform.googleapis.com')
   const model: Model<'openai-completions'> = {
     id: config.modelId,
     name: config.modelId,
@@ -28,7 +32,17 @@ export async function createPiModels(config: AgentModelConfig, privacy: AiPrivac
     cost: config.cost,
     contextWindow: config.contextWindow,
     maxTokens: config.maxTokens,
-    ...(isQwenCompatibleEndpoint ? { compat: { supportsDeveloperRole: false } } : {}),
+    ...(isQwenCompatibleEndpoint || isGeminiCompatibleEndpoint
+      ? {
+          compat: {
+            ...(isGeminiCompatibleEndpoint ? { supportsStore: false } : {}),
+            ...(isQwenCompatibleEndpoint ? { supportsDeveloperRole: false } : {}),
+          },
+          ...(isGeminiCompatibleEndpoint
+            ? { thinkingLevelMap: { minimal: 'low', xhigh: 'high', max: 'high' } }
+            : {}),
+        }
+      : {}),
   }
   const auth: ApiKeyAuth = {
     name: 'AI OpenAI-compatible API key',
