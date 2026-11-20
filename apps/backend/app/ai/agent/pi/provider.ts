@@ -12,6 +12,11 @@ import type { AgentModelConfig } from '../agent.js'
 import { type AiPrivacySession, withAiPrivacyBoundary } from './privacy_boundary.js'
 
 export async function createPiModels(config: AgentModelConfig, privacy: AiPrivacySession) {
+  const hostname = URL.canParse(config.baseUrl)
+    ? new URL(config.baseUrl).hostname.toLowerCase()
+    : ''
+  const isQwenCompatibleEndpoint =
+    hostname === 'qianwenaiapi.com' || hostname.endsWith('.qianwenaiapi.com')
   const model: Model<'openai-completions'> = {
     id: config.modelId,
     name: config.modelId,
@@ -23,6 +28,7 @@ export async function createPiModels(config: AgentModelConfig, privacy: AiPrivac
     cost: config.cost,
     contextWindow: config.contextWindow,
     maxTokens: config.maxTokens,
+    ...(isQwenCompatibleEndpoint ? { compat: { supportsDeveloperRole: false } } : {}),
   }
   const auth: ApiKeyAuth = {
     name: 'AI OpenAI-compatible API key',
