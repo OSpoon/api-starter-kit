@@ -1,5 +1,14 @@
 <script setup lang="ts">
-import { BrainCircuit, LoaderCircle, PlugZap, Save, Sparkles, TestTube, Wrench } from '@lucide/vue'
+import {
+  BrainCircuit,
+  Calculator,
+  LoaderCircle,
+  PlugZap,
+  Save,
+  Sparkles,
+  TestTube,
+  Wrench,
+} from '@lucide/vue'
 import { toTypedSchema } from '@vee-validate/zod'
 import { useForm } from 'vee-validate'
 import { nextTick } from 'vue'
@@ -17,6 +26,13 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import {
@@ -40,9 +56,13 @@ import {
   testLlmConfiguration,
   updateLlmConfiguration,
 } from './api'
-import { buildLlmConfigurationUpdate, hasUnsavedLlmConfiguration } from './form-state'
+import {
+  buildLlmConfigurationUpdate,
+  convertModelTokenAmount,
+  hasUnsavedLlmConfiguration,
+} from './form-state'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const route = useRoute()
 const auth = useAuthStore()
 const { can } = usePermission()
@@ -68,6 +88,13 @@ const testingService = ref<LlmServiceName | null>(null)
 const testing = computed(() => testingService.value !== null)
 const validationService = ref<'chat' | 'asr' | 'embedding'>('chat')
 const savedConfiguration = ref<LlmConfiguration | null>(null)
+const unitConverterOpen = ref(false)
+const unitConverterAmount = ref(1)
+const unitConverterUnit = ref<'k' | 'm' | 'b' | 't'>('k')
+const unitConverterTokens = computed(() => {
+  const tokens = convertModelTokenAmount(unitConverterAmount.value, unitConverterUnit.value)
+  return tokens === null ? null : tokens.toLocaleString(locale.value)
+})
 const initialValues = {
   chatApiKey: '',
   chatBaseUrl: '',
@@ -266,9 +293,77 @@ onMounted(load)
       <div class="space-y-4">
         <form class="space-y-4" @submit.prevent="saveService('chat')">
           <Card>
-            <CardHeader>
-              <CardTitle>{{ t('llm_config.chat_title') }}</CardTitle>
-              <CardDescription>{{ t('llm_config.chat_description') }}</CardDescription>
+            <CardHeader class="flex flex-row items-start justify-between gap-4">
+              <div class="space-y-1.5">
+                <CardTitle>{{ t('llm_config.chat_title') }}</CardTitle>
+                <CardDescription>{{ t('llm_config.chat_description') }}</CardDescription>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                :aria-label="t('llm_config.unit_converter')"
+                @click="unitConverterOpen = true"
+              >
+                <Calculator class="size-4" />
+                {{ t('llm_config.unit_converter') }}
+              </Button>
+              <Dialog v-model:open="unitConverterOpen">
+                <DialogContent class="overflow-visible sm:max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>{{ t('llm_config.unit_converter') }}</DialogTitle>
+                    <DialogDescription>{{ t('llm_config.unit_converter_hint') }}</DialogDescription>
+                  </DialogHeader>
+                  <div class="grid min-w-0 gap-4 sm:grid-cols-[minmax(0,1fr)_9rem]">
+                    <div class="min-w-0 space-y-2">
+                      <label for="unit-converter-amount" class="text-sm font-medium">
+                        {{ t('llm_config.unit_converter_amount') }}
+                      </label>
+                      <Input
+                        id="unit-converter-amount"
+                        type="number"
+                        :model-value="unitConverterAmount"
+                        min="0"
+                        step="0.1"
+                        @update:model-value="(value) => (unitConverterAmount = Number(value))"
+                      />
+                    </div>
+                    <div class="min-w-0 space-y-2">
+                      <label for="unit-converter-unit" class="text-sm font-medium">
+                        {{ t('llm_config.unit_converter_unit') }}
+                      </label>
+                      <Select v-model="unitConverterUnit">
+                        <SelectTrigger id="unit-converter-unit" class="w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="k">K</SelectItem>
+                          <SelectItem value="m">M</SelectItem>
+                          <SelectItem value="b">{{ t('llm_config.unit_billion') }}</SelectItem>
+                          <SelectItem value="t">{{ t('llm_config.unit_trillion') }}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div
+                    class="max-w-full min-w-0 overflow-hidden rounded-md bg-muted px-4 py-3"
+                    role="status"
+                    aria-live="polite"
+                  >
+                    <div class="text-sm text-muted-foreground">
+                      {{ t('llm_config.unit_converter_result') }}
+                    </div>
+                    <div class="mt-1 min-w-0 text-lg font-semibold break-all">
+                      <template v-if="unitConverterTokens !== null">
+                        {{ unitConverterTokens }} tokens
+                      </template>
+                      <span v-else class="text-sm font-normal text-destructive">
+                        {{ t('llm_config.unit_converter_too_large') }}
+                      </span>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
             </CardHeader>
             <CardContent class="grid items-start gap-4 md:grid-cols-2">
               <FormField v-slot="{ componentField }" name="chatBaseUrl" :validate-on-blur="false">
@@ -314,14 +409,20 @@ onMounted(load)
                 :validate-on-blur="false"
               >
                 <FormItem>
-                  <FormLabel>{{ t('llm_config.context_window') }}</FormLabel>
-                  <FormControl
-                    ><Input
+                  <FormLabel for="chat-context-window">{{
+                    t('llm_config.context_window')
+                  }}</FormLabel>
+                  <FormControl>
+                    <Input
+                      id="chat-context-window"
                       v-bind="componentField"
                       type="number"
+                      min="1024"
+                      max="2000000"
+                      step="1"
                       :disabled="saving || testing || !can('agent-config:update')"
-                      :placeholder="t('llm_config.context_window_placeholder')"
-                  /></FormControl>
+                    />
+                  </FormControl>
                   <p class="text-xs text-muted-foreground">
                     {{ t('llm_config.context_window_hint') }}
                   </p>
@@ -330,14 +431,20 @@ onMounted(load)
               </FormField>
               <FormField v-slot="{ componentField }" name="chatMaxTokens" :validate-on-blur="false">
                 <FormItem>
-                  <FormLabel>{{ t('llm_config.max_output_tokens') }}</FormLabel>
-                  <FormControl
-                    ><Input
+                  <FormLabel for="chat-max-output-tokens">
+                    {{ t('llm_config.max_output_tokens') }}
+                  </FormLabel>
+                  <FormControl>
+                    <Input
+                      id="chat-max-output-tokens"
                       v-bind="componentField"
                       type="number"
+                      min="1"
+                      max="1000000"
+                      step="1"
                       :disabled="saving || testing || !can('agent-config:update')"
-                      :placeholder="t('llm_config.max_output_tokens_placeholder')"
-                  /></FormControl>
+                    />
+                  </FormControl>
                   <p class="text-xs text-muted-foreground">
                     {{ t('llm_config.max_output_tokens_hint') }}
                   </p>

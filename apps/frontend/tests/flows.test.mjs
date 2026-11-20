@@ -32,9 +32,8 @@ const { didReachMessageScrollerStart } = await jiti.import(
 )
 const { buildListQuery } = await jiti.import(`${root}/src/lib/list-query.ts`)
 const { formatBackendLogLine } = await jiti.import(`${root}/src/features/backend-logs/format.ts`)
-const { buildLlmConfigurationUpdate, hasUnsavedLlmConfiguration } = await jiti.import(
-  `${root}/src/features/agent-config/form-state.ts`
-)
+const { buildLlmConfigurationUpdate, convertModelTokenAmount, hasUnsavedLlmConfiguration } =
+  await jiti.import(`${root}/src/features/agent-config/form-state.ts`)
 const { workbenchRoutes } = await jiti.import(`${root}/src/router/modules/workbench.ts`)
 const { developmentWorkbenchRoutes } = await jiti.import(
   `${root}/src/router/modules/workbench-examples.ts`
@@ -535,6 +534,14 @@ test('saving one LLM model keeps the other saved models unchanged', () => {
     embeddingModel: 'embedding-model',
     embeddingDimensions: 1024,
   })
+})
+
+test('model token unit conversion covers K/M/B/T and rejects unsafe results', () => {
+  assert.equal(convertModelTokenAmount(991, 'k'), 991000)
+  assert.equal(convertModelTokenAmount(1, 'm'), 1_000_000)
+  assert.equal(convertModelTokenAmount(1, 'b'), 1_000_000_000)
+  assert.equal(convertModelTokenAmount(1, 't'), 1_000_000_000_000)
+  assert.equal(convertModelTokenAmount(10_000_000, 't'), null)
 })
 
 test('workbench template pages are removed while SQL tools stay development-only', () => {

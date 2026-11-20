@@ -84,3 +84,10 @@ export function buildLlmConfigurationUpdate(
     embeddingDimensions: 1024,
   }
 }
+
+export function convertModelTokenAmount(amount: number, unit: 'k' | 'm' | 'b' | 't') {
+  const tokens = Math.round(
+    amount * { k: 1_000, m: 1_000_000, b: 1_000_000_000, t: 1_000_000_000_000 }[unit]
+  )
+  return Number.isSafeInteger(tokens) ? tokens : null
+}
