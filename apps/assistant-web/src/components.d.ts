@@ -17,6 +17,7 @@ declare module 'vue' {
     AccordionTrigger: typeof import('./../../frontend/src/components/ui/accordion/AccordionTrigger.vue')['default']
     AiChatApprovalCard: typeof import('./../../frontend/src/components/ai-chat/AiChatApprovalCard.vue')['default']
     AiChatAssistant: typeof import('./../../frontend/src/components/ai-chat/AiChatAssistant.vue')['default']
+    AiChatAssistantAvatar: typeof import('./../../frontend/src/components/ai-chat/AiChatAssistantAvatar.vue')['default']
     AiChatCredentialCard: typeof import('./../../frontend/src/components/ai-chat/AiChatCredentialCard.vue')['default']
     AiChatLogo: typeof import('./../../frontend/src/components/ai-chat/AiChatLogo.vue')['default']
     AiChatMessageItem: typeof import('./../../frontend/src/components/ai-chat/AiChatMessageItem.vue')['default']

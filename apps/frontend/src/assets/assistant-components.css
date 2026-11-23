@@ -879,3 +879,55 @@
   opacity: 1 !important;
   transition: none !important;
 }
+
+.assistant-chat-root .assistant-launcher-cat {
+  filter: drop-shadow(0 3px 4px rgb(20 20 19 / 18%));
+  transform-origin: center bottom;
+  transition:
+    filter 180ms ease,
+    transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.assistant-chat-root .assistant-launcher-cat-hover {
+  opacity: 0;
+}
+
+.assistant-chat-root .assistant-launcher-button:is(:hover, :focus-visible) .assistant-launcher-cat {
+  filter: drop-shadow(0 6px 7px rgb(20 20 19 / 22%));
+  transform: translateY(-3px) rotate(-1.5deg) scale(1.04);
+}
+
+.assistant-chat-root
+  .assistant-launcher-button:is(:hover, :focus-visible)
+  .assistant-launcher-cat-hover {
+  animation: assistant-launcher-cat-hover 360ms ease-in-out;
+}
+
+@keyframes assistant-launcher-cat-hover {
+  0%,
+  25%,
+  100% {
+    opacity: 0;
+  }
+
+  35%,
+  58% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .assistant-chat-root
+    .assistant-launcher-button:is(:hover, :focus-visible)
+    .assistant-launcher-cat {
+    filter: drop-shadow(0 3px 4px rgb(20 20 19 / 18%));
+    transform: none;
+    transition: none;
+  }
+
+  .assistant-chat-root
+    .assistant-launcher-button:is(:hover, :focus-visible)
+    .assistant-launcher-cat-hover {
+    animation: none;
+  }
+}

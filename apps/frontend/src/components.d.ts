@@ -14,6 +14,7 @@ declare module 'vue' {
     AddFieldButton: typeof import('./components/json-schema/components/AddFieldButton.vue')['default']
     AiChatApprovalCard: typeof import('./components/ai-chat/AiChatApprovalCard.vue')['default']
     AiChatAssistant: typeof import('./components/ai-chat/AiChatAssistant.vue')['default']
+    AiChatAssistantAvatar: typeof import('./components/ai-chat/AiChatAssistantAvatar.vue')['default']
     AiChatCredentialCard: typeof import('./components/ai-chat/AiChatCredentialCard.vue')['default']
     AiChatLogo: typeof import('./components/ai-chat/AiChatLogo.vue')['default']
     AiChatMessageItem: typeof import('./components/ai-chat/AiChatMessageItem.vue')['default']

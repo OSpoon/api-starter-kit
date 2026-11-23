@@ -428,9 +428,9 @@
   },
   "ai_chat": {
     "resize_both": "调整助手大小",
-    "title": "AI 助手",
-    "welcome": "你好，我是 AI 助手。可询问系统功能、API 或配置。",
-    "welcome_title": "你好，我是 AI 助手",
+    "title": "阿哲",
+    "welcome": "你好，我是阿哲。可询问系统功能、API 或配置。",
+    "welcome_title": "你好，我是阿哲",
     "welcome_subtitle": "可询问系统功能、API 或配置。",
     "input_placeholder": "输入问题…",
     "sources": {

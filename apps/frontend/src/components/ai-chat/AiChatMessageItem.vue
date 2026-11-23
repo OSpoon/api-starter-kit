@@ -45,7 +45,7 @@ import {
 import { hasAiChatMessageContent } from '@/features/ai/conversation-state'
 import { useAuthStore } from '@/stores/auth'
 
-import AiChatLogo from './AiChatLogo.vue'
+import AiChatAssistantAvatar from './AiChatAssistantAvatar.vue'
 import AiMessageContent from './AiMessageContent.vue'
 
 export type AiChatMessageItemStatus = 'pending' | 'streaming' | 'done' | 'error' | 'interrupted'
@@ -627,7 +627,7 @@ function getTimelineSections(timeline: AiChatTimelineItem[]) {
               class="flex flex-col items-center gap-1.5 px-4 pt-10 pb-4 text-center"
             >
               <span class="mb-1.5 size-12 shrink-0" aria-hidden="true">
-                <AiChatLogo />
+                <AiChatAssistantAvatar />
               </span>
               <p class="text-base font-semibold text-primary">{{ t('ai_chat.welcome_title') }}</p>
               <p class="text-xs/5 text-muted-foreground">{{ t('ai_chat.welcome_subtitle') }}</p>

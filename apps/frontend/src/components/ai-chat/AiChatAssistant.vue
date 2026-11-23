@@ -19,12 +19,14 @@ import {
   Trash2,
   X,
 } from '@lucide/vue'
-import { useIntervalFn, useRafFn, useTimeoutFn } from '@vueuse/core'
+import { useDraggable, useIntervalFn, useRafFn, useTimeoutFn } from '@vueuse/core'
 import { toast } from 'vue-sonner'
 
+import assistantLauncherCat from '@/assets/assistant-folded-cat.png'
+import assistantLauncherCatHover from '@/assets/assistant-folded-cat-hover.png'
 import AiChatApprovalCard from '@/components/ai-chat/AiChatApprovalCard.vue'
+import AiChatAssistantAvatar from '@/components/ai-chat/AiChatAssistantAvatar.vue'
 import AiChatCredentialCard from '@/components/ai-chat/AiChatCredentialCard.vue'
-import AiChatLogo from '@/components/ai-chat/AiChatLogo.vue'
 import AiChatMessageItem from '@/components/ai-chat/AiChatMessageItem.vue'
 import AiMessageContent from '@/components/ai-chat/AiMessageContent.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
@@ -183,6 +185,8 @@ const isRecording = ref(false)
 const isPreparingRecording = ref(false)
 const usagePopoverOpen = ref(false)
 const shareImageRef = ref<HTMLElement | null>(null)
+const assistantRootRef = ref<HTMLElement | null>(null)
+const assistantLauncherRef = ref<HTMLElement | null>(null)
 const shareImageMessages = ref<AiChatShareImageMessage[]>([])
 const auth = useAuthStore()
 const { isGenerating: isGeneratingImage, generate: generateShareImage } = useAiChatShareImage()
@@ -422,6 +426,35 @@ const inputPlaceholder = computed(
     t(props.loading ? 'ai_chat.input_placeholder_while_generating' : 'ai_chat.input_placeholder')
 )
 const isStandalone = computed(() => props.mode === 'page')
+let assistantLauncherPointerStart: { x: number; y: number } | undefined
+let assistantLauncherWasDragged = false
+
+const { style: assistantLauncherDragStyle } = useDraggable(assistantLauncherRef, {
+  initialValue: {
+    x: Math.max(0, window.innerWidth - 80),
+    y: Math.max(0, window.innerHeight - 80),
+  },
+  containerElement: assistantRootRef,
+  restrictInView: true,
+  onStart: (_, event) => {
+    assistantLauncherPointerStart = { x: event.clientX, y: event.clientY }
+    assistantLauncherWasDragged = false
+  },
+  onMove: (_, event) => {
+    if (
+      assistantLauncherPointerStart &&
+      Math.hypot(
+        event.clientX - assistantLauncherPointerStart.x,
+        event.clientY - assistantLauncherPointerStart.y
+      ) > 3
+    ) {
+      assistantLauncherWasDragged = true
+    }
+  },
+  onEnd: () => {
+    assistantLauncherPointerStart = undefined
+  },
+})
 
 const { chatHeight, chatWidth, startResize } = useAiChatResize()
 
@@ -508,6 +541,16 @@ async function generateSelectedMessagesImage() {
 
 function openAssistant() {
   isOpen.value = true
+}
+
+function openAssistantFromLauncher(event: MouseEvent) {
+  if (assistantLauncherWasDragged) {
+    assistantLauncherWasDragged = false
+    event.preventDefault()
+    return
+  }
+
+  openAssistant()
 }
 
 function closeAssistant() {
@@ -678,19 +721,20 @@ watch(
 
 <template>
   <div
+    ref="assistantRootRef"
     :class="
       isStandalone
         ? 'assistant-chat-root flex size-full flex-col'
-        : 'assistant-chat-root fixed right-4 bottom-4 z-50 flex flex-col items-end gap-2'
+        : 'assistant-chat-root pointer-events-none fixed inset-0 z-50'
     "
   >
     <div
       v-if="isOpen"
       :class="[
-        'relative flex flex-col overflow-hidden border bg-card text-card-foreground',
+        'flex flex-col overflow-hidden border bg-card text-card-foreground',
         isStandalone
-          ? 'size-full max-w-none rounded-none border-0 shadow-none'
-          : 'max-w-[calc(100vw-32px)] animate-in rounded-lg shadow-lg slide-in-from-bottom-5 fade-in',
+          ? 'relative size-full max-w-none rounded-none border-0 shadow-none'
+          : 'pointer-events-auto absolute right-4 bottom-4 max-w-[calc(100vw-32px)] animate-in rounded-lg shadow-lg slide-in-from-bottom-5 fade-in',
       ]"
       :style="panelStyle"
     >
@@ -721,7 +765,7 @@ watch(
                 @mouseleave="scheduleCloseUsagePopover"
               >
                 <span class="size-5 shrink-0" aria-hidden="true">
-                  <AiChatLogo />
+                  <AiChatAssistantAvatar />
                 </span>
               </Button>
             </PopoverTrigger>
@@ -1386,24 +1430,36 @@ watch(
       </div>
     </div>
 
-    <div v-else class="group relative">
-      <div
-        v-if="loading"
-        class="pointer-events-none absolute -inset-1 rounded-full border border-primary/30"
-      />
-      <div
-        v-if="loading"
-        class="pointer-events-none absolute -inset-1 animate-spin rounded-full border-2 border-primary border-t-transparent"
-      />
-
+    <div
+      v-else
+      ref="assistantLauncherRef"
+      class="group pointer-events-auto absolute z-50 touch-none select-none"
+      :style="assistantLauncherDragStyle"
+    >
       <Button
-        variant="outline"
+        variant="ghost"
         :title="assistantTitle"
-        @click="openAssistant"
-        class="relative z-10 size-14 rounded-full bg-card p-0 text-foreground shadow-md"
+        :aria-label="assistantTitle"
+        @click="openAssistantFromLauncher"
+        class="assistant-launcher-button relative z-10 size-16 cursor-grab rounded-xl bg-transparent p-0 text-foreground shadow-none hover:bg-transparent active:cursor-grabbing"
       >
-        <span class="size-8" :class="{ 'animate-pulse': loading }" aria-hidden="true">
-          <AiChatLogo />
+        <span
+          class="assistant-launcher-cat relative block size-full"
+          :class="{ 'animate-pulse': loading }"
+          aria-hidden="true"
+        >
+          <img
+            :src="assistantLauncherCat"
+            alt=""
+            draggable="false"
+            class="size-full object-contain"
+          />
+          <img
+            :src="assistantLauncherCatHover"
+            alt=""
+            draggable="false"
+            class="assistant-launcher-cat-hover pointer-events-none absolute inset-0 size-full object-contain"
+          />
         </span>
         <div
           v-if="loading"

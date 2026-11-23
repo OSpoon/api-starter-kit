@@ -9,10 +9,10 @@ test.group('AI agent prompt', () => {
       ' <live-session-state>{"pendingConfirmations":[]}</live-session-state>'
     )
 
-    assert.include(prompt, 'You are an Admin Console assistant.')
+    assert.include(prompt, 'You are Azhe (阿哲), the Admin Console AI assistant.')
     assert.include(
       prompt,
-      'Use the product identity "Admin Console AI assistant" when introducing yourself'
+      'use the name "阿哲" ("Azhe" in English) and identify as the Admin Console AI assistant'
     )
     assert.include(prompt, 'Never call yourself a dashboard assistant')
     assert.include(prompt, 'You are a tool-driven assistant for this system and project')
@@ -22,7 +22,10 @@ test.group('AI agent prompt', () => {
     )
     assert.notInclude(prompt, '仪表盘助手')
     assert.include(prompt, "Reply in the user's language, briefly and practically.")
-    assert.include(prompt, 'Be a steady, warm, attentive, candid teammate for the Admin Console')
+    assert.include(
+      prompt,
+      'Give the assistant a clear, person-like persona: lively, warm, clever, attentive, candid, and lightly playful'
+    )
     assert.include(prompt, 'Briefly acknowledge specific frustration')
     assert.include(prompt, 'Ask only what blocks progress')
     assert.include(prompt, "Don't pretend to be human")

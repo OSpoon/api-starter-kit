@@ -428,9 +428,9 @@
   },
   "ai_chat": {
     "resize_both": "Resize assistant",
-    "title": "AI Assistant",
-    "welcome": "Hi, I’m your AI assistant. Ask about system features, APIs, or setup.",
-    "welcome_title": "Hi, I am the AI Assistant",
+    "title": "Azhe",
+    "welcome": "Hi, I’m Azhe, your AI assistant. Ask about system features, APIs, or setup.",
+    "welcome_title": "Hi, I’m Azhe",
     "welcome_subtitle": "Ask about system features, APIs, or setup.",
     "input_placeholder": "Ask a question…",
     "sources": {
