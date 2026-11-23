@@ -1,6 +1,7 @@
 import {
   BookOpen,
   BrainCircuit,
+  ClipboardCheck,
   FileClock,
   Gauge,
   Key,
@@ -179,6 +180,22 @@ const workbenchRootRoute = {
         pageKind: 'list',
         permission: 'knowledge:read',
         nav: { group: 'sidebar.agent_management', groupOrder: 29, icon: BookOpen, order: 30 },
+      },
+    },
+    {
+      path: 'system/ai-evaluations',
+      name: 'ai-evaluations',
+      component: () => import('@/features/ai-evaluations/AiEvaluationsPage.vue'),
+      meta: {
+        title: 'sidebar.ai_evaluations',
+        pageKind: 'list',
+        permission: 'ai-evaluations:read',
+        nav: {
+          group: 'sidebar.agent_management',
+          groupOrder: 29,
+          icon: ClipboardCheck,
+          order: 40,
+        },
       },
     },
     {

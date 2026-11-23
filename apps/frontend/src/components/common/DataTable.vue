@@ -164,19 +164,7 @@ const dataTable = useTemplateRef<HTMLDivElement>('dataTable')
 const preferredMotion = usePreferredReducedMotion()
 const selectionToolbarVisible = ref(false)
 const displayedSelectionCount = ref(0)
-const selectionFooter = useTemplateRef<HTMLDivElement>('selectionFooter')
 const selectionActions = useTemplateRef<HTMLDivElement>('selectionActions')
-const paginationContainer = useTemplateRef<HTMLDivElement>('paginationContainer')
-const measurementOptions = { updateTiming: 'next-frame' as const }
-const { width: footerWidth } = useElementBounding(selectionFooter, measurementOptions)
-const { width: actionsWidth } = useElementBounding(selectionActions, measurementOptions)
-const { width: paginationWidth } = useElementBounding(paginationContainer, measurementOptions)
-const selectionSharesFooterRow = computed(
-  () =>
-    props.selectable &&
-    selectionToolbarVisible.value &&
-    footerWidth.value >= actionsWidth.value * 1.05 + paginationWidth.value * 2 + 24
-)
 const pageSelectableRows = computed(() =>
   table.getRowModel().rows.filter((row) => row.getCanSelect())
 )
@@ -388,11 +376,14 @@ function resetFilters() {
     </component>
     <div
       v-if="
-        showView || (viewPlacement === 'after-filters' && hasToolbarHeading) || showListPageActions
+        showView ||
+        Boolean(slots['toolbar-trailing']) ||
+        (viewPlacement === 'after-filters' && hasToolbarHeading) ||
+        showListPageActions
       "
       :class="
         useListPageQueryLayout
-          ? 'flex w-full min-w-0 items-center justify-between gap-3'
+          ? 'flex w-full min-w-0 flex-wrap items-center justify-between gap-3'
           : filtersLayout === 'stacked' && viewPlacement === 'after-filters'
             ? hasToolbarHeading
               ? 'flex min-w-0 shrink-0 flex-wrap items-center justify-between gap-3'
@@ -420,24 +411,27 @@ function resetFilters() {
           {{ listPageTitle }}
         </h1>
       </div>
-      <DropdownMenu v-if="showView">
-        <DropdownMenuTrigger as-child>
-          <Button variant="outline" class="shrink-0">
-            <SlidersHorizontal class="size-4" />
-            {{ t('common.view') }}
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuCheckboxItem
-            v-for="column in table.getAllColumns().filter((column) => column.getCanHide())"
-            :key="column.id"
-            :checked="column.getIsVisible()"
-            @select.prevent="column.toggleVisibility(!column.getIsVisible())"
-          >
-            {{ columnLabel(column) }}
-          </DropdownMenuCheckboxItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      <div class="flex shrink-0 items-center gap-2">
+        <slot v-if="slots['toolbar-trailing']" name="toolbar-trailing" />
+        <DropdownMenu v-if="showView">
+          <DropdownMenuTrigger as-child>
+            <Button variant="outline" class="shrink-0">
+              <SlidersHorizontal class="size-4" />
+              {{ t('common.view') }}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuCheckboxItem
+              v-for="column in table.getAllColumns().filter((column) => column.getCanHide())"
+              :key="column.id"
+              :checked="column.getIsVisible()"
+              @select.prevent="column.toggleVisibility(!column.getIsVisible())"
+            >
+              {{ columnLabel(column) }}
+            </DropdownMenuCheckboxItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     </div>
     <Table container-class="min-h-0 min-w-0 flex-1 overflow-auto rounded-md border">
       <TableHeader class="sticky top-0 z-10 bg-card">
@@ -513,18 +507,11 @@ function resetFilters() {
         </template>
       </TableBody>
     </Table>
-    <div
-      ref="selectionFooter"
-      class="grid shrink-0 items-center gap-3"
-      :class="
-        selectionSharesFooterRow ? 'grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]' : 'grid-cols-1'
-      "
-    >
+    <div class="relative flex shrink-0 justify-end">
       <div
         v-show="selectionToolbarVisible"
         ref="selectionActions"
-        class="max-w-full min-w-0 justify-self-center"
-        :class="selectionSharesFooterRow ? 'col-start-2' : undefined"
+        class="pointer-events-none absolute inset-x-0 bottom-full z-30 flex justify-center pb-3"
       >
         <Transition
           name="data-table-selection"
@@ -540,7 +527,7 @@ function resetFilters() {
             tabindex="-1"
             :aria-label="t('common.selection_actions')"
             :inert="!selectedRows.length"
-            class="data-table-selection-panel flex min-w-0 flex-wrap items-center gap-2 rounded-xl border bg-background/95 p-2 shadow-xl backdrop-blur-lg outline-none focus-visible:ring-2 focus-visible:ring-ring/50 supports-backdrop-filter:bg-background/60"
+            class="data-table-selection-panel pointer-events-auto flex min-w-0 flex-wrap items-center gap-2 rounded-xl border bg-background/95 p-2 shadow-xl backdrop-blur-lg outline-none focus-visible:ring-2 focus-visible:ring-ring/50 supports-backdrop-filter:bg-background/60"
             @keydown="handleSelectionKeydown"
           >
             <TooltipProvider :delay-duration="200">
@@ -590,11 +577,7 @@ function resetFilters() {
           </div>
         </Transition>
       </div>
-      <div
-        ref="paginationContainer"
-        class="w-max justify-self-end"
-        :class="selectionSharesFooterRow ? 'col-start-3' : undefined"
-      >
+      <div class="w-max">
         <Pagination
           class="mx-0 w-auto justify-end"
           :page="currentPage"

@@ -20,6 +20,7 @@ import { mergeAiChatMessages } from '@/features/ai/conversation-state'
 import { formatAiChatMessagesAsMarkdown } from '@/features/ai/markdown'
 import { getAiChatMessageImageDataUrl } from '@/features/ai/message-image'
 import type { DisplayAiChatMessage, LocalAiChatMessage } from '@/features/ai/types'
+import { importAiEvaluationMessages } from '@/features/ai-evaluations/api'
 import { hasRuntimeEmbedAuth } from '@/lib/api'
 import { useCopyText } from '@/lib/clipboard'
 import { useAuthStore } from '@/stores/auth'
@@ -173,6 +174,26 @@ export function useAiChat() {
       toast.success(t('ai_chat.share_success'))
     } catch {
       toast.error(t('ai_chat.copy_failed'))
+    }
+  }
+
+  async function handleAiImportMessages(messages: DisplayAiChatMessage[]) {
+    const conversation = aiConversation.value
+    const messageIds = messages.map((message) => Number(message.id))
+    if (
+      !conversation ||
+      messageIds.length < 2 ||
+      messageIds.some((id) => !Number.isSafeInteger(id) || id <= 0)
+    ) {
+      toast.error(t('ai_chat.evaluation_import_selection_invalid'))
+      return
+    }
+
+    try {
+      await importAiEvaluationMessages(auth.token, conversation.id, messageIds)
+      toast.success(t('ai_chat.evaluation_import_success'))
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : t('ai_chat.evaluation_import_failed'))
     }
   }
 
@@ -368,6 +389,7 @@ export function useAiChat() {
     handleAiStop,
     handleAiCopyMessage,
     handleAiCopyMessagesAsMarkdown,
+    handleAiImportMessages,
     handleAiCopyCredential,
     presentLatestAiConfirmation,
     dismissAiConfirmation,

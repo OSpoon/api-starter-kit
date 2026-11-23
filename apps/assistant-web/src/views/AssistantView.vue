@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { useAiChat } from '@/composables/useAiChat'
 import { setRuntimeEmbedAuth } from '@/lib/api'
+import { usePermission } from '@/lib/permission'
 import { useAuthStore } from '@/stores/auth'
 
 import { notifyAssistantEmbedResize } from '@assistant/lib/embed'
@@ -23,6 +24,7 @@ const isOpen = ref(!isEmbedded.value)
 const auth = useAuthStore()
 const router = useRouter()
 const { t } = useI18n()
+const { can } = usePermission()
 
 onMounted(() => {
   if (isEmbedded.value) document.body.style.backgroundColor = 'transparent'
@@ -79,6 +81,7 @@ const {
   handleAiNewChat,
   handleAiCopyMessage,
   handleAiCopyMessagesAsMarkdown,
+  handleAiImportMessages,
   handleAiDeleteConversation,
   handleAiRetryMessage,
   confirmAiConfirmation,
@@ -129,9 +132,11 @@ const {
         :approval-loading="aiConfirming"
         :credential-disclosure="aiCredentialDisclosure"
         :voice-transcribing="aiVoiceTranscribing"
+        :can-import-evaluation="can('ai-evaluations:manage')"
         @clear="handleAiNewChat"
         @copy-message="handleAiCopyMessage"
         @copy-messages-as-markdown="handleAiCopyMessagesAsMarkdown"
+        @import-messages="handleAiImportMessages"
         @delete-conversation="handleAiDeleteConversation"
         @load-more-conversations="loadMoreAiConversations"
         @load-older-messages="loadOlderAiMessages"

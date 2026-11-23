@@ -53,6 +53,17 @@ export interface ApiDefinition {
     update: typeof routes['api_keys.update']
     destroy: typeof routes['api_keys.destroy']
   }
+  aiEvaluations: {
+    index: typeof routes['ai_evaluations.index']
+    runsIndex: typeof routes['ai_evaluations.runs_index']
+    caseHistory: typeof routes['ai_evaluations.case_history']
+    showRun: typeof routes['ai_evaluations.show_run']
+    importConversation: typeof routes['ai_evaluations.import_conversation']
+    store: typeof routes['ai_evaluations.store']
+    update: typeof routes['ai_evaluations.update']
+    destroy: typeof routes['ai_evaluations.destroy']
+    run: typeof routes['ai_evaluations.run']
+  }
   llmConfig: {
     legacy: {
       show: typeof routes['llm-config.legacy.show']

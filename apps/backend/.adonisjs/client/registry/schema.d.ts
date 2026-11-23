@@ -331,6 +331,114 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/api_keys_controller').default['destroy']>>>
     }
   }
+  'ai_evaluations.index': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/system/ai-evaluations'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/ai_evaluation').aiEvaluationListValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/ai_evaluations_controller').default['index']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_evaluations_controller').default['index']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'ai_evaluations.runs_index': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/system/ai-evaluations/runs'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/ai_evaluation').aiEvaluationRunListValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/ai_evaluations_controller').default['runsIndex']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_evaluations_controller').default['runsIndex']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'ai_evaluations.case_history': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/system/ai-evaluations/:id/history'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/ai_evaluation').aiEvaluationRunListValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/ai_evaluations_controller').default['caseHistory']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_evaluations_controller').default['caseHistory']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'ai_evaluations.show_run': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/system/ai-evaluation-runs/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/ai_evaluations_controller').default['showRun']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_evaluations_controller').default['showRun']>>>
+    }
+  }
+  'ai_evaluations.import_conversation': {
+    methods: ["POST"]
+    pattern: '/api/v1/system/ai-evaluations/import-conversation'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/ai_evaluation').aiEvaluationConversationImportValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/ai_evaluation').aiEvaluationConversationImportValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/ai_evaluations_controller').default['importConversation']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_evaluations_controller').default['importConversation']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'ai_evaluations.store': {
+    methods: ["POST"]
+    pattern: '/api/v1/system/ai-evaluations'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/ai_evaluation').aiEvaluationCaseValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/ai_evaluation').aiEvaluationCaseValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/ai_evaluations_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_evaluations_controller').default['store']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'ai_evaluations.update': {
+    methods: ["PUT"]
+    pattern: '/api/v1/system/ai-evaluations/:id'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/ai_evaluation').aiEvaluationCaseValidator)>>
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/ai_evaluation').aiEvaluationCaseValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/ai_evaluations_controller').default['update']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_evaluations_controller').default['update']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'ai_evaluations.destroy': {
+    methods: ["DELETE"]
+    pattern: '/api/v1/system/ai-evaluations/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/ai_evaluations_controller').default['destroy']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_evaluations_controller').default['destroy']>>>
+    }
+  }
+  'ai_evaluations.run': {
+    methods: ["POST"]
+    pattern: '/api/v1/system/ai-evaluations/runs'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/ai_evaluation').aiEvaluationRunValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/ai_evaluation').aiEvaluationRunValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/ai_evaluations_controller').default['run']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_evaluations_controller').default['run']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
   'llm-config.legacy.show': {
     methods: ["GET","HEAD"]
     pattern: '/api/v1/system/llm-config'

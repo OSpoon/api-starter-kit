@@ -30,6 +30,9 @@ export const permissionCatalog = [
   { code: 'im-config:read', name: '查看 IM Bot', groupName: 'Agent管理' },
   { code: 'im-config:update', name: '管理 IM Bot', groupName: 'Agent管理' },
   { code: 'ai-usage:read', name: '查看 AI 用量', groupName: 'Agent管理' },
+  { code: 'ai-evaluations:read', name: '查看测评管理', groupName: 'Agent管理' },
+  { code: 'ai-evaluations:manage', name: '管理测评条目', groupName: 'Agent管理' },
+  { code: 'ai-evaluations:run', name: '运行 AI 测评', groupName: 'Agent管理' },
 ] as const
 
 export const permissionCatalogCodes = permissionCatalog.map(({ code }) => code)

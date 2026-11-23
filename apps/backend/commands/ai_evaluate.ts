@@ -1,57 +1,13 @@
 import { BaseCommand } from '@adonisjs/core/ace'
 
-import type { AgentTool } from '#ai/agent'
 import { createAiAgentSystemPrompt } from '#ai/chat/ai_agent_service'
-import { isAiAgentTerminalToolResult } from '#ai/core/ai_agent_tool_errors'
-import { aiAssistantEvaluationCases, evaluateAiAssistantTurn } from '#ai/evaluation/ai_evaluation'
-import { aiQueryTemplateInstructions } from '#ai/registry/ai_agent_query_registry'
+import {
+  aiAssistantEvaluationCases,
+  createAiEvaluationTools,
+  evaluateAiAssistantTurn,
+  getLatestEvaluationAssistantText,
+} from '#ai/evaluation/ai_evaluation'
 import { getAiAgentEngine, getAiAgentModelConfig } from '#ai/runtime/ai_agent_runtime'
-
-function evaluationTool(
-  name: string,
-  description: string,
-  output: () => unknown,
-  calledTools: string[]
-): AgentTool {
-  return {
-    name,
-    label: name,
-    description,
-    parameters: { type: 'object', properties: {} },
-    async execute() {
-      calledTools.push(name)
-      const details = output()
-      return {
-        content: [{ type: 'text', text: JSON.stringify(details) }],
-        details,
-        terminate: isAiAgentTerminalToolResult(name, details),
-      }
-    },
-  }
-}
-
-function getLatestAssistantText(messages: unknown[]) {
-  const message = [...messages].reverse().find((item) => {
-    return Boolean(item && typeof item === 'object' && 'role' in item && item.role === 'assistant')
-  }) as { content?: unknown } | undefined
-  if (!message) return ''
-  if (typeof message.content === 'string') return message.content
-  if (!Array.isArray(message.content)) return ''
-
-  return message.content
-    .filter((part): part is { type: string; text: string } => {
-      return Boolean(
-        part &&
-        typeof part === 'object' &&
-        'type' in part &&
-        'text' in part &&
-        part.type === 'text' &&
-        typeof part.text === 'string'
-      )
-    })
-    .map((part) => part.text)
-    .join('')
-}
 
 /** Uses mock tools only; each scenario has isolated history and never mutates business data. */
 export default class AiEvaluate extends BaseCommand {
@@ -64,77 +20,13 @@ export default class AiEvaluate extends BaseCommand {
     for (const evaluation of aiAssistantEvaluationCases) {
       const calledTools: string[] = []
       let toolOutputs: Record<string, unknown> = {}
-      const output = (name: string, fallback: unknown) => () => toolOutputs[name] ?? fallback
       const session = await getAiAgentEngine().createSession({
         model: await getAiAgentModelConfig(),
         systemPrompt: createAiAgentSystemPrompt(
           undefined,
           ' <live-session-state>{"pendingConfirmations":[]}</live-session-state>'
         ),
-        tools: [
-          evaluationTool(
-            'diagnose_my_access',
-            'Diagnose only the current authenticated user’s access to a permission.',
-            output('diagnose_my_access', { allowed: true }),
-            calledTools
-          ),
-          evaluationTool(
-            'search_knowledge_catalog',
-            'Search the Agent knowledge sources. Use returned document IDs in search_knowledge.',
-            output('search_knowledge_catalog', {
-              sources: [{ documentId: 1, title: 'Evaluation document' }],
-            }),
-            calledTools
-          ),
-          evaluationTool(
-            'search_knowledge',
-            'Search selected project documentation excerpts.',
-            output('search_knowledge', { sources: [] }),
-            calledTools
-          ),
-          evaluationTool(
-            'list_log_services',
-            'List exact log service names. This does not return log entries.',
-            output('list_log_services', { servicesAvailable: [] }),
-            calledTools
-          ),
-          evaluationTool(
-            'get_latest_log',
-            'Return the newest log entry. Omit optional filters to include all levels.',
-            output('get_latest_log', { latest: null }),
-            calledTools
-          ),
-          evaluationTool(
-            'search_logs',
-            'Search logs newest first. Omit level and time filters to inspect recent entries.',
-            output('search_logs', { items: [], totalMatches: 0 }),
-            calledTools
-          ),
-          evaluationTool(
-            'run_registered_query',
-            `Run one registered query for current system data. Templates: ${aiQueryTemplateInstructions}.`,
-            output('run_registered_query', { kind: 'query_result', rows: [] }),
-            calledTools
-          ),
-          evaluationTool(
-            'system_management_change',
-            'Perform the requested management operation using direct fields. Follow the configured execution policy.',
-            output('system_management_change', { kind: 'action_result', status: 'simulated' }),
-            calledTools
-          ),
-          evaluationTool(
-            'revoke_api_key',
-            'Revoke the specified API Key. Follow the configured execution policy.',
-            output('revoke_api_key', { kind: 'action_result', status: 'simulated' }),
-            calledTools
-          ),
-          evaluationTool(
-            'delete_api_key',
-            'Delete the specified API Key. Follow the configured execution policy.',
-            output('delete_api_key', { kind: 'action_result', status: 'simulated' }),
-            calledTools
-          ),
-        ],
+        tools: createAiEvaluationTools(() => toolOutputs, calledTools),
         messages: [],
         sessionId: `ai-evaluate:${evaluation.name}`,
         telemetry: { enabled: false },
@@ -151,7 +43,7 @@ export default class AiEvaluate extends BaseCommand {
           const result = evaluateAiAssistantTurn({
             evaluation: turn,
             calledTools: turnTools,
-            assistantText: getLatestAssistantText(session.getSessionState().messages),
+            assistantText: getLatestEvaluationAssistantText(session.getSessionState().messages),
           })
           const expectedCalls =
             turn.expectedToolSequence?.join(' -> ') ||

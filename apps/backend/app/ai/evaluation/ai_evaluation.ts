@@ -1,3 +1,7 @@
+import type { AgentTool } from '#ai/agent'
+import { isAiAgentTerminalToolResult } from '#ai/core/ai_agent_tool_errors'
+import { aiQueryTemplateInstructions } from '#ai/registry/ai_agent_query_registry'
+
 export type AiEvaluationTurn = {
   question: string
   expectedTools: string[]
@@ -243,4 +247,173 @@ export function evaluateAiAssistantTurn(input: {
     sequencePassed,
     answerPassed,
   }
+}
+
+const evaluationToolDefinitions = [
+  {
+    name: 'diagnose_my_access',
+    description: 'Diagnose only the current authenticated user’s access to a permission.',
+    fallback: { allowed: true },
+  },
+  {
+    name: 'search_knowledge_catalog',
+    description:
+      'Search the Agent knowledge sources. Use returned document IDs in search_knowledge.',
+    fallback: { sources: [{ documentId: 1, title: 'Evaluation document' }] },
+  },
+  {
+    name: 'search_knowledge',
+    description: 'Search selected project documentation excerpts.',
+    fallback: { sources: [] },
+  },
+  {
+    name: 'list_log_services',
+    description: 'List exact log service names. This does not return log entries.',
+    fallback: { servicesAvailable: [] },
+  },
+  {
+    name: 'get_latest_log',
+    description: 'Return the newest log entry. Omit optional filters to include all levels.',
+    fallback: { latest: null },
+  },
+  {
+    name: 'search_logs',
+    description: 'Search logs newest first. Omit level and time filters to inspect recent entries.',
+    fallback: { items: [], totalMatches: 0 },
+  },
+  {
+    name: 'run_registered_query',
+    description: `Run one registered query for current system data. Templates: ${aiQueryTemplateInstructions}.`,
+    fallback: { kind: 'query_result', rows: [] },
+  },
+  {
+    name: 'system_management_change',
+    description:
+      'Perform the requested management operation using direct fields. Follow the configured execution policy.',
+    fallback: { kind: 'action_result', status: 'simulated' },
+  },
+  {
+    name: 'revoke_api_key',
+    description: 'Revoke the specified API Key. Follow the configured execution policy.',
+    fallback: { kind: 'action_result', status: 'simulated' },
+  },
+  {
+    name: 'delete_api_key',
+    description: 'Delete the specified API Key. Follow the configured execution policy.',
+    fallback: { kind: 'action_result', status: 'simulated' },
+  },
+] as const
+
+export const aiEvaluationToolNames = evaluationToolDefinitions.map(({ name }) => name)
+
+/** Mock-only tools shared by CLI and persisted evaluations. They never access business services. */
+export function createAiEvaluationTools(
+  toolOutputs: Record<string, unknown> | (() => Record<string, unknown>),
+  calledTools: string[]
+): AgentTool[] {
+  return evaluationToolDefinitions.map(({ name, description, fallback }) => ({
+    name,
+    label: name,
+    description,
+    parameters: { type: 'object', properties: {} },
+    async execute() {
+      calledTools.push(name)
+      const outputMap = typeof toolOutputs === 'function' ? toolOutputs() : toolOutputs
+      const details = outputMap[name] ?? fallback
+      return {
+        content: [{ type: 'text', text: JSON.stringify(details) }],
+        details,
+        terminate: isAiAgentTerminalToolResult(name, details),
+      }
+    },
+  }))
+}
+
+export function getLatestEvaluationAssistantText(messages: unknown[]) {
+  const latest = [...messages].reverse().find((item) => {
+    return Boolean(item && typeof item === 'object' && 'role' in item && item.role === 'assistant')
+  }) as { content?: unknown } | undefined
+  if (!latest) return ''
+  if (typeof latest.content === 'string') return latest.content
+  if (!Array.isArray(latest.content)) return ''
+  return latest.content
+    .filter((part): part is { type: string; text: string } => {
+      return Boolean(
+        part &&
+        typeof part === 'object' &&
+        'type' in part &&
+        'text' in part &&
+        part.type === 'text' &&
+        typeof part.text === 'string'
+      )
+    })
+    .map((part) => part.text)
+    .join('')
+}
+
+export function scoreAiEvaluationAnswer(input: {
+  expectedTools: string[]
+  expectedToolSequence?: string[]
+  requiredTerms: string[]
+  forbiddenTerms: string[]
+  actualTools: string[]
+  answer: string
+  referenceAnswer: string
+}) {
+  const actualSorted = [...input.actualTools].sort()
+  const expectedSorted = [...input.expectedTools].sort()
+  const toolSetPassed =
+    actualSorted.length === expectedSorted.length &&
+    expectedSorted.every((name, index) => name === actualSorted[index])
+  const sequencePassed =
+    !input.expectedToolSequence?.length ||
+    (input.expectedToolSequence.length === input.actualTools.length &&
+      input.expectedToolSequence.every((name, index) => name === input.actualTools[index]))
+  const toolsPassed = toolSetPassed && sequencePassed
+  const normalizedAnswer = input.answer.toLocaleLowerCase()
+  const requiredTerms = input.requiredTerms.map((term) => ({
+    term,
+    passed: normalizedAnswer.includes(term.toLocaleLowerCase()),
+  }))
+  const forbiddenTerms = input.forbiddenTerms.map((term) => ({
+    term,
+    passed: !normalizedAnswer.includes(term.toLocaleLowerCase()),
+  }))
+  const checks = [...requiredTerms, ...forbiddenTerms]
+  const referenceTokens = getAnswerSimilarityTokens(input.referenceAnswer)
+  const actualTokens = getAnswerSimilarityTokens(input.answer)
+  const commonTokenCount = [...actualTokens].filter((token) => referenceTokens.has(token)).length
+  const referenceSimilarity =
+    actualTokens.size + referenceTokens.size === 0
+      ? 0
+      : Math.round((2 * commonTokenCount * 100) / (actualTokens.size + referenceTokens.size))
+  const rubricScore = checks.length
+    ? Math.round((checks.filter((item) => item.passed).length / checks.length) * 30)
+    : input.answer.trim().length > 0
+      ? 30
+      : 0
+  const score = Math.round((toolsPassed ? 40 : 0) + (referenceSimilarity * 30) / 100 + rubricScore)
+  return {
+    score,
+    referenceSimilarity,
+    passed:
+      toolsPassed &&
+      checks.every((item) => item.passed) &&
+      input.answer.trim().length > 0 &&
+      referenceSimilarity >= 50,
+    toolsPassed,
+    requiredTerms,
+    forbiddenTerms,
+  }
+}
+
+function getAnswerSimilarityTokens(value: string) {
+  const normalized = value.toLocaleLowerCase()
+  const tokens = new Set(normalized.match(/[a-z0-9]+/g) ?? [])
+  const hanCharacters = [...normalized.replace(/[^\p{Script=Han}]/gu, '')]
+  if (hanCharacters.length === 1) tokens.add(hanCharacters[0]!)
+  for (let index = 0; index < hanCharacters.length - 1; index += 1) {
+    tokens.add(`${hanCharacters[index]}${hanCharacters[index + 1]}`)
+  }
+  return tokens
 }

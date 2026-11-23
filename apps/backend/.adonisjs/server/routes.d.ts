@@ -31,6 +31,15 @@ export type ScannedRoutes = {
     'api_keys.store': { paramsTuple?: []; params?: {} }
     'api_keys.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'api_keys.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'ai_evaluations.index': { paramsTuple?: []; params?: {} }
+    'ai_evaluations.runs_index': { paramsTuple?: []; params?: {} }
+    'ai_evaluations.case_history': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'ai_evaluations.show_run': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'ai_evaluations.import_conversation': { paramsTuple?: []; params?: {} }
+    'ai_evaluations.store': { paramsTuple?: []; params?: {} }
+    'ai_evaluations.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'ai_evaluations.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'ai_evaluations.run': { paramsTuple?: []; params?: {} }
     'llm-config.legacy.show': { paramsTuple?: []; params?: {} }
     'llm-config.legacy.update': { paramsTuple?: []; params?: {} }
     'llm-config.legacy.test': { paramsTuple?: []; params?: {} }
@@ -124,6 +133,10 @@ export type ScannedRoutes = {
     'profile.profile.show': { paramsTuple?: []; params?: {} }
     'dashboard.overview': { paramsTuple?: []; params?: {} }
     'api_keys.index': { paramsTuple?: []; params?: {} }
+    'ai_evaluations.index': { paramsTuple?: []; params?: {} }
+    'ai_evaluations.runs_index': { paramsTuple?: []; params?: {} }
+    'ai_evaluations.case_history': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'ai_evaluations.show_run': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'llm-config.legacy.show': { paramsTuple?: []; params?: {} }
     'agent_configurations.show': { paramsTuple?: []; params?: {} }
     'agent-config.llm.show': { paramsTuple?: []; params?: {} }
@@ -163,6 +176,10 @@ export type ScannedRoutes = {
     'profile.profile.show': { paramsTuple?: []; params?: {} }
     'dashboard.overview': { paramsTuple?: []; params?: {} }
     'api_keys.index': { paramsTuple?: []; params?: {} }
+    'ai_evaluations.index': { paramsTuple?: []; params?: {} }
+    'ai_evaluations.runs_index': { paramsTuple?: []; params?: {} }
+    'ai_evaluations.case_history': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'ai_evaluations.show_run': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'llm-config.legacy.show': { paramsTuple?: []; params?: {} }
     'agent_configurations.show': { paramsTuple?: []; params?: {} }
     'agent-config.llm.show': { paramsTuple?: []; params?: {} }
@@ -210,6 +227,9 @@ export type ScannedRoutes = {
     'profile.access_tokens.destroy': { paramsTuple?: []; params?: {} }
     'profile.github.link': { paramsTuple?: []; params?: {} }
     'api_keys.store': { paramsTuple?: []; params?: {} }
+    'ai_evaluations.import_conversation': { paramsTuple?: []; params?: {} }
+    'ai_evaluations.store': { paramsTuple?: []; params?: {} }
+    'ai_evaluations.run': { paramsTuple?: []; params?: {} }
     'llm-config.legacy.test': { paramsTuple?: []; params?: {} }
     'agent-config.llm.test': { paramsTuple?: []; params?: {} }
     'agent_configurations.install_skills': { paramsTuple?: []; params?: {} }
@@ -250,6 +270,7 @@ export type ScannedRoutes = {
   PUT: {
     'profile.profile.change_password': { paramsTuple?: []; params?: {} }
     'api_keys.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'ai_evaluations.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'llm-config.legacy.update': { paramsTuple?: []; params?: {} }
     'agent_configurations.update_configuration': { paramsTuple?: []; params?: {} }
     'agent_configurations.update_mineru_configuration': { paramsTuple?: []; params?: {} }
@@ -264,6 +285,7 @@ export type ScannedRoutes = {
   }
   DELETE: {
     'api_keys.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'ai_evaluations.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'agent_configurations.remove_skill': { paramsTuple: [ParamValue]; params: {'code': ParamValue} }
     'knowledge_documents.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'users.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }

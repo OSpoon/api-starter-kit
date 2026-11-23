@@ -4,9 +4,11 @@ import AppSidebar from '@/components/AppSidebar.vue'
 import SiteHeader from '@/components/SiteHeader.vue'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { useAiChat } from '@/composables/useAiChat'
+import { usePermission } from '@/lib/permission'
 
 const route = useRoute()
 const { t } = useI18n()
+const { can } = usePermission()
 
 const {
   aiConversations,
@@ -30,6 +32,7 @@ const {
   handleAiNewChat,
   handleAiCopyMessage,
   handleAiCopyMessagesAsMarkdown,
+  handleAiImportMessages,
   handleAiDeleteConversation,
   handleAiRetryMessage,
   confirmAiConfirmation,
@@ -88,9 +91,11 @@ const breadcrumbs = computed(() => {
         :approval-cancelling="aiCancelling"
         :credential-disclosure="aiCredentialDisclosure"
         :voice-transcribing="aiVoiceTranscribing"
+        :can-import-evaluation="can('ai-evaluations:manage')"
         @clear="handleAiNewChat"
         @copy-message="handleAiCopyMessage"
         @copy-messages-as-markdown="handleAiCopyMessagesAsMarkdown"
+        @import-messages="handleAiImportMessages"
         @delete-conversation="handleAiDeleteConversation"
         @load-more-conversations="loadMoreAiConversations"
         @load-older-messages="loadOlderAiMessages"

@@ -22,6 +22,7 @@ const SystemStatusController = () => import('#controllers/system_status_controll
 const LlmConfigurationsController = () => import('#controllers/llm_configurations_controller')
 const AgentConfigurationsController = () => import('#controllers/agent_configurations_controller')
 const ImConfigurationsController = () => import('#controllers/im_configurations_controller')
+const AiEvaluationsController = () => import('#controllers/ai_evaluations_controller')
 
 function registerAiChatRoutes(mode: 'user' | 'api-key' | 'embed') {
   const isApiKey = mode !== 'user'
@@ -249,6 +250,37 @@ router
       .delete('api-keys/:id', [ApiKeysController, 'destroy'])
       .use(middleware.auth())
       .use(middleware.permission(['api-keys:delete']))
+
+    router
+      .group(() => {
+        router.get('ai-evaluations', [AiEvaluationsController, 'index'])
+        router.get('ai-evaluations/runs', [AiEvaluationsController, 'runsIndex'])
+        router.get('ai-evaluations/:id/history', [AiEvaluationsController, 'caseHistory'])
+        router.get('ai-evaluation-runs/:id', [AiEvaluationsController, 'showRun'])
+      })
+      .prefix('system')
+      .use(middleware.auth())
+      .use(middleware.permission(['ai-evaluations:read']))
+
+    router
+      .group(() => {
+        router.post('ai-evaluations/import-conversation', [
+          AiEvaluationsController,
+          'importConversation',
+        ])
+        router.post('ai-evaluations', [AiEvaluationsController, 'store'])
+        router.put('ai-evaluations/:id', [AiEvaluationsController, 'update'])
+        router.delete('ai-evaluations/:id', [AiEvaluationsController, 'destroy'])
+      })
+      .prefix('system')
+      .use(middleware.auth())
+      .use(middleware.permission(['ai-evaluations:manage']))
+
+    router
+      .post('system/ai-evaluations/runs', [AiEvaluationsController, 'run'])
+      .use(middleware.auth())
+      .use(middleware.permission(['ai-evaluations:run']))
+      .use(middleware.throttle({ max: 3, windowSeconds: 60, key: 'user' }))
 
     router
       .group(() => {

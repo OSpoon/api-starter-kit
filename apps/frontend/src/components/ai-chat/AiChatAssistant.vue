@@ -105,6 +105,7 @@ const props = withDefaults(
     usage?: AiChatUsageSummary | null
     usageLoading?: boolean
     usageError?: string | null
+    canImportEvaluation?: boolean
   }>(),
   {
     modelValue: undefined,
@@ -131,6 +132,7 @@ const props = withDefaults(
     usage: null,
     usageLoading: false,
     usageError: null,
+    canImportEvaluation: false,
   }
 )
 
@@ -146,6 +148,7 @@ const emit = defineEmits<{
   loadOlderMessages: []
   copyMessage: [message: DisplayAiChatMessage]
   copyMessagesAsMarkdown: [messages: DisplayAiChatMessage[]]
+  importMessages: [messages: DisplayAiChatMessage[]]
   retryMessage: [message: DisplayAiChatMessage]
   stop: []
   approveConfirmation: []
@@ -441,6 +444,25 @@ const {
   prune: pruneSelectedMessages,
 } = useAiChatMessageSelection(displayMessages)
 
+const canImportSelectedMessages = computed(() => {
+  const messages = selectedMessages.value
+  return (
+    props.canImportEvaluation &&
+    !props.loading &&
+    messages.length >= 2 &&
+    messages.length <= 100 &&
+    messages.every(
+      (message, index) =>
+        message.content.trim() &&
+        Number.isSafeInteger(Number(message.id)) &&
+        Number(message.id) > 0 &&
+        message.role === (index % 2 === 0 ? 'user' : 'assistant')
+    ) &&
+    messages[0]?.role === 'user' &&
+    messages.at(-1)?.role === 'assistant'
+  )
+})
+
 function getConfirmation(timeline?: AiChatTimelineItem[]) {
   return [...(timeline ?? [])].reverse().find((item) => item.kind === 'confirmation')
 }
@@ -457,6 +479,12 @@ function getConversationBoundaryLabel(message: DisplayAiChatMessage) {
 
 function copySelectedMessagesAsMarkdown() {
   emit('copyMessagesAsMarkdown', selectedMessages.value)
+  cancelMessageSelection()
+}
+
+function importSelectedMessages() {
+  if (!canImportSelectedMessages.value) return
+  emit('importMessages', selectedMessages.value)
   cancelMessageSelection()
 }
 
@@ -1061,6 +1089,18 @@ watch(
                   aria-hidden="true"
                 />
                 <ImageDown v-else class="size-4" aria-hidden="true" />
+              </Button>
+              <Button
+                v-if="canImportEvaluation"
+                type="button"
+                variant="outline"
+                size="icon-sm"
+                :disabled="!canImportSelectedMessages || isGeneratingImage"
+                :title="t('ai_chat.add_to_evaluations')"
+                :aria-label="t('ai_chat.add_to_evaluations')"
+                @click="importSelectedMessages"
+              >
+                <CircleCheck class="size-4" aria-hidden="true" />
               </Button>
             </ButtonGroup>
           </div>

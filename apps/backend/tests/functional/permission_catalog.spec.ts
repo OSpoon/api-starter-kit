@@ -105,6 +105,9 @@ test.group('permission catalog', (group) => {
         Agent管理: [
           'agent-config:read',
           'agent-config:update',
+          'ai-evaluations:manage',
+          'ai-evaluations:read',
+          'ai-evaluations:run',
           'ai-usage:read',
           'im-config:read',
           'im-config:update',
@@ -124,6 +127,22 @@ test.group('permission catalog', (group) => {
     assert.notInclude(
       permissionCatalog.map(({ code }) => code),
       'llm-config:test'
+    )
+  })
+
+  test('grants evaluation access to the protected super-admin role', async ({ assert }) => {
+    const permissions = await Permission.query()
+      .whereIn('code', ['ai-evaluations:read', 'ai-evaluations:manage', 'ai-evaluations:run'])
+      .select('id', 'code')
+    const superAdmin = await Role.query()
+      .where('code', 'super-admin')
+      .preload('permissions')
+      .firstOrFail()
+
+    assert.lengthOf(permissions, 3)
+    assert.includeMembers(
+      superAdmin.permissions.map((permission) => permission.id),
+      permissions.map((permission) => permission.id)
     )
   })
 })
