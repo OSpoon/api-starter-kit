@@ -7,6 +7,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-24.15.0-brightgreen.svg)](package.json)
 [![pnpm](https://img.shields.io/badge/pnpm-11.9.0-orange.svg)](package.json)
+[![CI](https://github.com/OSpoon/api-starter-kit/actions/workflows/ci.yml/badge.svg)](https://github.com/OSpoon/api-starter-kit/actions/workflows/ci.yml)
 
 API Starter Kit 是 pnpm/Turborepo monorepo，提供通用系统能力，不预设业务领域。
 
