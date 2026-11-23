@@ -71,9 +71,9 @@ export function buildAiAgentSystemPrompt(input: {
     : ''
   const capabilityPolicy =
     input.capabilityMode === 'knowledge-only' ? visitorPolicy : domainPolicies
-  return `${input.identity}${formatPageContext(input.context)}${input.liveSessionContext ?? ''}
-${systemPolicy}${skillsContext}
-${capabilityPolicy}${channelPolicy}${finalResponsePolicy}
+  return `${input.identity}
+${systemPolicy}${capabilityPolicy}${channelPolicy}${finalResponsePolicy}${skillsContext}
+${formatPageContext(input.context)}${input.liveSessionContext ?? ''}
 `
 }
 
