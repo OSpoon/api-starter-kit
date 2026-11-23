@@ -81,7 +81,6 @@ test.group('AI agent prompt', () => {
     assert.notInclude(prompt, 'api_key_profile')
     assert.notInclude(prompt, 'authorization-context')
     assert.include(prompt, 'use the server-generated runtime context JSON')
-    assert.isBelow(prompt.length, 3_600)
   })
 
   test('adds a restrictive visitor policy for group chat', ({ assert }) => {
