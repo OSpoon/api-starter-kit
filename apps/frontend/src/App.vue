@@ -12,5 +12,5 @@ useWebUpdateNotification()
   <ErrorBoundary>
     <RouterView />
   </ErrorBoundary>
-  <Toaster />
+  <Toaster closeButton closeButtonPosition="top-right" />
 </template>
