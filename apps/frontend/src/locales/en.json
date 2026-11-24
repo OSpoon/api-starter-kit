@@ -433,6 +433,10 @@
     "welcome_title": "Hi, I’m Azhe",
     "welcome_subtitle": "Ask about system features, APIs, or setup.",
     "input_placeholder": "Ask a question…",
+    "skill_picker_label": "Select a skill",
+    "skill_picker_loading": "Loading enabled skills…",
+    "skill_picker_empty": "No matching enabled skills",
+    "skill_picker_failed": "Could not load skills. Close the menu and try again.",
     "sources": {
       "count": "Used {count} sources"
     },

@@ -58,6 +58,17 @@ export interface AiChatPageContext {
   title: string
 }
 
+export interface AiChatSkill {
+  code: string
+  name: string
+  description: string
+}
+
+export interface AiChatSkillPage {
+  items: AiChatSkill[]
+  meta: AiChatPaginationMeta
+}
+
 export interface AiChatStreamOptions {
   signal?: AbortSignal
   context?: AiChatPageContext
@@ -121,6 +132,15 @@ export async function listAiChatConversations(token: string | null, page = 1) {
 
 export async function getAiChatUsage(token: string | null) {
   const response = await apiRequest<AiChatUsageSummary>('/api/v1/ai-chat/usage', authOptions(token))
+  return readItem(response)
+}
+
+export async function listAiChatSkills(token: string | null, search: string, signal?: AbortSignal) {
+  const query = new URLSearchParams({ page: '1', limit: '100', search })
+  const response = await apiRequest<AiChatSkillPage>(`/api/v1/ai-chat/skills?${query}`, {
+    ...authOptions(token),
+    signal,
+  })
   return readItem(response)
 }
 

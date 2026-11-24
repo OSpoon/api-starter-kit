@@ -35,6 +35,7 @@ import {
 } from '#ai/runtime/ai_agent_run_registry'
 import AiChatConversation from '#models/ai_chat_conversation'
 import AiChatMessage from '#models/ai_chat_message'
+import { listEnabledAiAgentSkills } from '#services/ai_agent_skill_service'
 import { getAiChatImageMimeType } from '#services/ai_chat_image_service'
 import { createAiChatPdfMessage } from '#services/ai_chat_pdf_service'
 import { getAudioMimeType, transcribeAudio } from '#services/ai_speech_service'
@@ -72,6 +73,53 @@ function conversationsFor(ctx: HttpContext, userId: number) {
 @ApiSecurity('bearerAuth')
 @ApiSecurity('integrationApiKey')
 export default class AiChatController {
+  @ApiOperation({
+    summary: '获取可在 AI 聊天中选择的技能',
+    description: '返回当前已启用技能的代码和说明，供聊天输入框的 @ 技能选择使用。',
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    description: '页码，从 1 开始',
+    schema: { type: 'integer', minimum: 1 },
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: '每页数量，默认 20，最大 100',
+    schema: { type: 'integer', minimum: 1, maximum: 100 },
+  })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    description: '按技能代码或名称筛选',
+    schema: { type: 'string', maxLength: 200 },
+  })
+  @ApiResponse({ status: 200, description: '已启用技能分页列表' })
+  async skills(ctx: HttpContext) {
+    const { request, serialize } = ctx
+    const pagination = await paginationSearchQueryValidator.validate(request.qs())
+    const search = pagination.search?.toLowerCase()
+    const enabledSkills = await listEnabledAiAgentSkills()
+    const skills = enabledSkills.filter(
+      (skill) =>
+        !search ||
+        skill.code.toLowerCase().includes(search) ||
+        skill.name.toLowerCase().includes(search)
+    )
+    const limit = clampLimit(pagination.limit, 20, 100)
+    const lastPage = Math.max(1, Math.ceil(skills.length / limit))
+    const currentPage = Math.min(pagination.page ?? 1, lastPage)
+    const offset = (currentPage - 1) * limit
+
+    return serialize({
+      items: skills
+        .slice(offset, offset + limit)
+        .map(({ code, name, description }) => ({ code, name, description })),
+      meta: { currentPage, perPage: limit, lastPage, total: skills.length },
+    })
+  }
+
   @ApiOperation({ summary: '转写 AI 助手语音消息' })
   @ApiResponse({ status: 200, description: '语音转写结果' })
   async transcribe(ctx: HttpContext) {

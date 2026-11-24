@@ -19,7 +19,7 @@ import {
   Trash2,
   X,
 } from '@lucide/vue'
-import { useDraggable, useIntervalFn, useRafFn, useTimeoutFn } from '@vueuse/core'
+import { useDebounceFn, useDraggable, useIntervalFn, useRafFn, useTimeoutFn } from '@vueuse/core'
 import { toast } from 'vue-sonner'
 
 import assistantLauncherCat from '@/assets/assistant-folded-cat.png'
@@ -67,6 +67,8 @@ import type {
   AiChatTimelineItem,
   AiChatUsageSummary,
 } from '@/features/ai/api'
+import type { AiChatSkill } from '@/features/ai/api'
+import { listAiChatSkills } from '@/features/ai/api'
 import { useAiChatMessageSelection } from '@/features/ai/composables/useAiChatMessageSelection'
 import { useAiChatResize } from '@/features/ai/composables/useAiChatResize'
 import { useAiChatShareImage } from '@/features/ai/composables/useAiChatShareImage'
@@ -179,6 +181,13 @@ watch(attachedFile, (file, _previous, onCleanup) => {
 
 const internalOpen = ref(false)
 const input = ref('')
+const skillMention = ref<{ start: number; end: number; query: string } | null>(null)
+const aiChatSkills = ref<AiChatSkill[]>([])
+const aiChatSkillsLoading = ref(false)
+const aiChatSkillsLoadFailed = ref(false)
+const activeAiChatSkillIndex = ref(0)
+let aiChatSkillRequestId = 0
+let aiChatSkillSearchController: AbortController | undefined
 const isComposingInput = ref(false)
 const compositionEndedAt = ref(0)
 const isRecording = ref(false)
@@ -190,6 +199,100 @@ const assistantLauncherRef = ref<HTMLElement | null>(null)
 const shareImageMessages = ref<AiChatShareImageMessage[]>([])
 const auth = useAuthStore()
 const { isGenerating: isGeneratingImage, generate: generateShareImage } = useAiChatShareImage()
+
+const matchingAiChatSkills = computed(() => {
+  const query = skillMention.value?.query.toLocaleLowerCase() ?? ''
+  return aiChatSkills.value
+    .filter(
+      (skill) =>
+        !query ||
+        skill.code.toLocaleLowerCase().includes(query) ||
+        skill.name.toLocaleLowerCase().includes(query)
+    )
+    .slice(0, 12)
+})
+
+const searchAiChatSkills = useDebounceFn(async (search: string, requestId: number) => {
+  if (requestId !== aiChatSkillRequestId) return
+  const controller = new AbortController()
+  aiChatSkillSearchController = controller
+  try {
+    const result = await listAiChatSkills(auth.token, search, controller.signal)
+    if (requestId === aiChatSkillRequestId) aiChatSkills.value = result.items
+  } catch {
+    if (!controller.signal.aborted && requestId === aiChatSkillRequestId) {
+      aiChatSkillsLoadFailed.value = true
+    }
+  } finally {
+    if (aiChatSkillSearchController === controller) {
+      aiChatSkillSearchController = undefined
+      if (requestId === aiChatSkillRequestId) aiChatSkillsLoading.value = false
+    }
+  }
+}, 250)
+
+watch(
+  () => skillMention.value?.query,
+  (search) => {
+    activeAiChatSkillIndex.value = 0
+    const requestId = ++aiChatSkillRequestId
+    aiChatSkillSearchController?.abort()
+    aiChatSkillSearchController = undefined
+    if (search === undefined) {
+      aiChatSkillsLoading.value = false
+      aiChatSkillsLoadFailed.value = false
+      return
+    }
+    aiChatSkillsLoading.value = true
+    aiChatSkillsLoadFailed.value = false
+    aiChatSkills.value = []
+    void searchAiChatSkills(search, requestId)
+  }
+)
+
+onBeforeUnmount(() => {
+  aiChatSkillRequestId += 1
+  aiChatSkillSearchController?.abort()
+})
+
+function updateSkillMention(event: Event | HTMLTextAreaElement) {
+  const textarea =
+    event instanceof HTMLTextAreaElement ? event : (event.target as HTMLTextAreaElement)
+  const value = textarea.value
+  const cursor = textarea.selectionStart ?? value.length
+  const start = value.lastIndexOf('@', cursor - 1)
+  if (start < 0 || (start > 0 && !/\s/.test(value[start - 1]!))) {
+    skillMention.value = null
+    return
+  }
+
+  const query = value.slice(start + 1, cursor)
+  if (/\s|@/.test(query)) {
+    skillMention.value = null
+    return
+  }
+
+  let end = start + 1
+  while (end < value.length && !/\s/.test(value[end]!)) end += 1
+  skillMention.value = { start, end, query }
+}
+
+function selectAiChatSkill(skill: AiChatSkill) {
+  const mention = skillMention.value
+  if (!mention) return
+
+  const prefix = input.value.slice(0, mention.start)
+  const suffix = input.value.slice(mention.end)
+  const separator = suffix && /^\s/.test(suffix) ? '' : ' '
+  input.value = `${prefix}@${skill.code}${separator}${suffix}`
+  const cursor = prefix.length + skill.code.length + 1 + separator.length
+  skillMention.value = null
+  nextTick(() => {
+    const textarea = document.getElementById('ai-chat-composer-input') as HTMLTextAreaElement | null
+    textarea?.focus()
+    textarea?.setSelectionRange(cursor, cursor)
+  })
+}
 let mediaRecorder: MediaRecorder | null = null
 let recordingChunks: Blob[] = []
 let discardRecording = false
@@ -555,6 +658,7 @@ function openAssistantFromLauncher(event: MouseEvent) {
 
 function closeAssistant() {
   attachedFile.value = null
+  skillMention.value = null
   isOpen.value = false
 }
 
@@ -565,6 +669,7 @@ function clearChat() {
 
 function selectConversation(id: string | number) {
   if (String(id) !== String(props.currentConversationId)) attachedFile.value = null
+  skillMention.value = null
   emit('selectConversation', id)
 }
 
@@ -584,6 +689,7 @@ function sendMessage(message = input.value) {
     emit('send', content)
   }
   input.value = ''
+  skillMention.value = null
 }
 
 function openAttachmentPicker() {
@@ -651,6 +757,27 @@ function handleSubmit() {
 }
 
 function handleKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape' && skillMention.value) {
+    skillMention.value = null
+    return
+  }
+
+  if (skillMention.value && (event.key === 'ArrowDown' || event.key === 'ArrowUp')) {
+    if (matchingAiChatSkills.value.length) {
+      event.preventDefault()
+      const direction = event.key === 'ArrowDown' ? 1 : -1
+      activeAiChatSkillIndex.value =
+        (activeAiChatSkillIndex.value + direction + matchingAiChatSkills.value.length) %
+        matchingAiChatSkills.value.length
+      nextTick(() =>
+        document
+          .getElementById(`ai-chat-skill-option-${activeAiChatSkillIndex.value}`)
+          ?.scrollIntoView({ block: 'nearest' })
+      )
+    }
+    return
+  }
+
   if (event.key !== 'Enter' || event.shiftKey) {
     return
   }
@@ -659,8 +786,23 @@ function handleKeydown(event: KeyboardEvent) {
     return
   }
 
+  const selectedSkill = matchingAiChatSkills.value[activeAiChatSkillIndex.value]
+  if (skillMention.value && selectedSkill) {
+    event.preventDefault()
+    selectAiChatSkill(selectedSkill)
+    return
+  }
+
   event.preventDefault()
   sendMessage()
+}
+
+function handleComposerBlur() {
+  skillMention.value = null
+}
+
+function handleComposerKeyup(event: KeyboardEvent) {
+  if (event.key !== 'Enter' && event.key !== 'Escape') updateSkillMention(event)
 }
 
 function handleCompositionStart() {
@@ -707,6 +849,7 @@ function handlePaste(event: ClipboardEvent) {
 
   nextTick(() => {
     textarea.setSelectionRange(cursorPosition, cursorPosition)
+    updateSkillMention(textarea)
   })
 }
 
@@ -1345,7 +1488,7 @@ watch(
                 <ArrowUpIcon v-else class="size-3.5" />
               </Button>
             </div>
-            <form v-else @submit.prevent="handleSubmit">
+            <form v-else class="relative" @submit.prevent="handleSubmit">
               <input
                 ref="attachmentInputRef"
                 type="file"
@@ -1354,6 +1497,45 @@ watch(
                 :aria-label="t('ai_chat.pdf.attach')"
                 @change="selectAttachment"
               />
+              <div
+                v-if="skillMention && !disabled"
+                id="ai-chat-skill-menu"
+                class="assistant-skill-mention-menu"
+                role="listbox"
+                :aria-label="t('ai_chat.skill_picker_label')"
+                @mousedown.prevent
+              >
+                <p v-if="aiChatSkillsLoading" class="assistant-skill-mention-status">
+                  {{ t('ai_chat.skill_picker_loading') }}
+                </p>
+                <p v-else-if="aiChatSkillsLoadFailed" class="assistant-skill-mention-status">
+                  {{ t('ai_chat.skill_picker_failed') }}
+                </p>
+                <p
+                  v-else-if="matchingAiChatSkills.length === 0"
+                  class="assistant-skill-mention-status"
+                >
+                  {{ t('ai_chat.skill_picker_empty') }}
+                </p>
+                <button
+                  v-for="(skill, index) in matchingAiChatSkills"
+                  :id="`ai-chat-skill-option-${index}`"
+                  :key="skill.code"
+                  type="button"
+                  role="option"
+                  :aria-selected="index === activeAiChatSkillIndex"
+                  class="assistant-skill-mention-option"
+                  :class="{ 'is-active': index === activeAiChatSkillIndex }"
+                  @mouseenter="activeAiChatSkillIndex = index"
+                  @click="selectAiChatSkill(skill)"
+                >
+                  <span class="assistant-skill-mention-name">@{{ skill.code }}</span>
+                  <span class="assistant-skill-mention-description">{{ skill.name }}</span>
+                  <span class="assistant-skill-mention-description is-detail">
+                    {{ skill.description }}
+                  </span>
+                </button>
+              </div>
               <InputGroup class="min-h-12 rounded-xl">
                 <InputGroupTextarea
                   id="ai-chat-composer-input"
@@ -1361,11 +1543,25 @@ watch(
                   rows="1"
                   :placeholder="inputPlaceholder"
                   :aria-label="t('ai_chat.input_placeholder')"
+                  :role="skillMention && !disabled ? 'combobox' : undefined"
+                  aria-autocomplete="list"
+                  :aria-multiline="skillMention && !disabled ? true : undefined"
+                  :aria-expanded="Boolean(skillMention && !disabled)"
+                  :aria-controls="skillMention && !disabled ? 'ai-chat-skill-menu' : undefined"
+                  :aria-activedescendant="
+                    skillMention && matchingAiChatSkills.length
+                      ? `ai-chat-skill-option-${activeAiChatSkillIndex}`
+                      : undefined
+                  "
                   class="ai-chat-composer-input min-h-12 p-3"
                   :disabled="disabled"
                   @compositionstart="handleCompositionStart"
                   @compositionend="handleCompositionEnd"
                   @keydown="handleKeydown"
+                  @input="updateSkillMention"
+                  @click="updateSkillMention"
+                  @keyup="handleComposerKeyup"
+                  @blur="handleComposerBlur"
                   @paste="handlePaste"
                 />
                 <InputGroupAddon align="block-end" class="gap-1.5">

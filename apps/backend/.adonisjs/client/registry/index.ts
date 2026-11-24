@@ -492,6 +492,12 @@ const routes = {
     tokens: [{"old":"/api/v1/system/audit-logs","type":0,"val":"api","end":""},{"old":"/api/v1/system/audit-logs","type":0,"val":"v1","end":""},{"old":"/api/v1/system/audit-logs","type":0,"val":"system","end":""},{"old":"/api/v1/system/audit-logs","type":0,"val":"audit-logs","end":""}],
     types: placeholder as Registry['audit_logs.index']['types'],
   },
+  'ai_chat.skills': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/v1/ai-chat/skills',
+    tokens: [{"old":"/api/v1/ai-chat/skills","type":0,"val":"api","end":""},{"old":"/api/v1/ai-chat/skills","type":0,"val":"v1","end":""},{"old":"/api/v1/ai-chat/skills","type":0,"val":"ai-chat","end":""},{"old":"/api/v1/ai-chat/skills","type":0,"val":"skills","end":""}],
+    types: placeholder as Registry['ai_chat.skills']['types'],
+  },
   'ai_chat.index': {
     methods: ["GET","HEAD"],
     pattern: '/api/v1/ai-chat/conversations',
@@ -576,6 +582,12 @@ const routes = {
     tokens: [{"old":"/api/v1/ai-chat/conversations/:id","type":0,"val":"api","end":""},{"old":"/api/v1/ai-chat/conversations/:id","type":0,"val":"v1","end":""},{"old":"/api/v1/ai-chat/conversations/:id","type":0,"val":"ai-chat","end":""},{"old":"/api/v1/ai-chat/conversations/:id","type":0,"val":"conversations","end":""},{"old":"/api/v1/ai-chat/conversations/:id","type":1,"val":"id","end":""}],
     types: placeholder as Registry['ai_chat.destroy']['types'],
   },
+  'integrations.ai_chat.ai_chat.skills': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/v1/integrations/ai-chat/skills',
+    tokens: [{"old":"/api/v1/integrations/ai-chat/skills","type":0,"val":"api","end":""},{"old":"/api/v1/integrations/ai-chat/skills","type":0,"val":"v1","end":""},{"old":"/api/v1/integrations/ai-chat/skills","type":0,"val":"integrations","end":""},{"old":"/api/v1/integrations/ai-chat/skills","type":0,"val":"ai-chat","end":""},{"old":"/api/v1/integrations/ai-chat/skills","type":0,"val":"skills","end":""}],
+    types: placeholder as Registry['integrations.ai_chat.ai_chat.skills']['types'],
+  },
   'integrations.ai_chat.ai_chat.index': {
     methods: ["GET","HEAD"],
     pattern: '/api/v1/integrations/ai-chat/conversations',
@@ -647,6 +659,12 @@ const routes = {
     pattern: '/api/v1/integrations/ai-chat/conversations/:id',
     tokens: [{"old":"/api/v1/integrations/ai-chat/conversations/:id","type":0,"val":"api","end":""},{"old":"/api/v1/integrations/ai-chat/conversations/:id","type":0,"val":"v1","end":""},{"old":"/api/v1/integrations/ai-chat/conversations/:id","type":0,"val":"integrations","end":""},{"old":"/api/v1/integrations/ai-chat/conversations/:id","type":0,"val":"ai-chat","end":""},{"old":"/api/v1/integrations/ai-chat/conversations/:id","type":0,"val":"conversations","end":""},{"old":"/api/v1/integrations/ai-chat/conversations/:id","type":1,"val":"id","end":""}],
     types: placeholder as Registry['integrations.ai_chat.ai_chat.destroy']['types'],
+  },
+  'embed.ai_chat.ai_chat.skills': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/v1/embed/ai-chat/skills',
+    tokens: [{"old":"/api/v1/embed/ai-chat/skills","type":0,"val":"api","end":""},{"old":"/api/v1/embed/ai-chat/skills","type":0,"val":"v1","end":""},{"old":"/api/v1/embed/ai-chat/skills","type":0,"val":"embed","end":""},{"old":"/api/v1/embed/ai-chat/skills","type":0,"val":"ai-chat","end":""},{"old":"/api/v1/embed/ai-chat/skills","type":0,"val":"skills","end":""}],
+    types: placeholder as Registry['embed.ai_chat.ai_chat.skills']['types'],
   },
   'embed.ai_chat.ai_chat.index': {
     methods: ["GET","HEAD"],

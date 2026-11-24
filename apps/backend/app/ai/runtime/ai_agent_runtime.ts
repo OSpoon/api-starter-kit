@@ -16,6 +16,7 @@ import {
 } from '#ai/core/ai_agent_tool_errors'
 import type { AiAgentMessage } from '#ai/core/ai_agent_types'
 import type { AiAgentPageContext } from '#ai/policy/ai_agent_prompt_policy'
+import type { AiAgentAvailableSkill } from '#ai/policy/ai_agent_prompt_policy'
 import {
   aiAgentImageOnlyPrompt,
   aiAgentSummaryPrompt,
@@ -48,6 +49,16 @@ export function shouldStopAgentAfterTurn(
       isAiAgentTerminalToolResult(result.toolName, result.details)
     )
   )
+}
+
+export function getAiAgentMentionedSkills(
+  content: string,
+  availableSkills: AiAgentAvailableSkill[]
+) {
+  const mentionedCodes = new Set(
+    [...content.matchAll(/(?:^|\s)@([^\s@]+)/g)].map(([, code]) => code)
+  )
+  return availableSkills.filter((skill) => mentionedCodes.has(skill.code))
 }
 
 export async function getAiAgentModelConfig(): Promise<AgentModelConfig> {
@@ -93,6 +104,10 @@ export async function createAiAgentRuntime(
       : listEnabledAiAgentSkills(),
     getAiAgentModelConfig(),
   ])
+  const selectedSkills =
+    input.capabilityMode === 'knowledge-only' || lastMessage?.role !== 'user'
+      ? []
+      : getAiAgentMentionedSkills(lastMessage.content, availableSkills)
 
   return getAiAgentEngine().createSession({
     model,
@@ -101,7 +116,8 @@ export async function createAiAgentRuntime(
       '',
       input.capabilityMode,
       availableSkills,
-      input.finalResponseOnly
+      input.finalResponseOnly,
+      selectedSkills
     ),
     tools: async (emit: (event: AgentEvent) => void) =>
       createConfiguredAiAgentTools({

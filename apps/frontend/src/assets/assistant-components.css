@@ -21,6 +21,64 @@
   display: none;
 }
 
+.assistant-chat-root .assistant-skill-mention-menu {
+  position: absolute;
+  z-index: 50;
+  right: 0.75rem;
+  bottom: calc(100% + 0.5rem);
+  left: 0.75rem;
+  max-height: min(16rem, 45vh);
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  background: var(--popover);
+  color: var(--popover-foreground);
+  box-shadow: 0 8px 28px color-mix(in oklab, var(--foreground) 12%, transparent);
+}
+
+.assistant-chat-root .assistant-skill-mention-option {
+  display: grid;
+  width: 100%;
+  gap: 0.15rem 0.5rem;
+  padding: 0.55rem 0.75rem;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  grid-template-columns: auto minmax(0, 1fr);
+  text-align: left;
+}
+
+.assistant-chat-root .assistant-skill-mention-option:hover,
+.assistant-chat-root .assistant-skill-mention-option.is-active {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+
+.assistant-chat-root .assistant-skill-mention-name {
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.assistant-chat-root .assistant-skill-mention-description {
+  overflow: hidden;
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.assistant-chat-root .assistant-skill-mention-description.is-detail {
+  grid-column: 1 / -1;
+}
+
+.assistant-chat-root .assistant-skill-mention-status {
+  margin: 0;
+  padding: 0.75rem;
+  color: var(--muted-foreground);
+  font-size: 0.8125rem;
+}
+
 .assistant-chat-root [data-slot='scroll-area-viewport'] {
   scrollbar-width: thin;
   scrollbar-color: hsl(var(--muted-foreground) / 0.2) transparent;

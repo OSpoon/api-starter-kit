@@ -979,6 +979,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/audit_logs_controller').default['index']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
+  'ai_chat.skills': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/ai-chat/skills'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/pagination').paginationSearchQueryValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['skills']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['skills']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
   'ai_chat.index': {
     methods: ["GET","HEAD"]
     pattern: '/api/v1/ai-chat/conversations'
@@ -1147,6 +1159,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['destroy']>>>
     }
   }
+  'integrations.ai_chat.ai_chat.skills': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/integrations/ai-chat/skills'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/pagination').paginationSearchQueryValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['skills']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['skills']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
   'integrations.ai_chat.ai_chat.index': {
     methods: ["GET","HEAD"]
     pattern: '/api/v1/integrations/ai-chat/conversations'
@@ -1289,6 +1313,18 @@ export interface Registry {
       query: {}
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['destroy']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['destroy']>>>
+    }
+  }
+  'embed.ai_chat.ai_chat.skills': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/embed/ai-chat/skills'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/pagination').paginationSearchQueryValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['skills']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_chat_controller').default['skills']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
   'embed.ai_chat.ai_chat.index': {

@@ -30,6 +30,7 @@ function registerAiChatRoutes(mode: 'user' | 'api-key' | 'embed') {
     mode === 'api-key' ? 'integrations/ai-chat' : `${mode === 'embed' ? 'embed' : ''}/ai-chat`
   const group = router
     .group(() => {
+      router.get('skills', [AiChatController, 'skills'])
       router.get('conversations', [AiChatController, 'index'])
       router.get('usage', [AiChatController, 'usage']).use(middleware.permission(['ai-usage:read']))
       router.post('conversations', [AiChatController, 'store'])

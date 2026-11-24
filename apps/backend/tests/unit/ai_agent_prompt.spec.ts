@@ -122,4 +122,19 @@ test.group('AI agent prompt', () => {
     assert.notInclude(prompt, 'scripts/index.mjs')
     assert.notInclude(prompt, 'not in a security sandbox')
   })
+
+  test('requires skills explicitly selected with @mentions to be loaded first', ({ assert }) => {
+    const prompt = createAiAgentSystemPrompt(
+      undefined,
+      '',
+      'full',
+      [{ code: 'archify', name: 'Archify', description: 'Build diagrams.' }],
+      false,
+      [{ code: 'archify', name: 'Archify', description: 'Build diagrams.' }]
+    )
+
+    assert.include(prompt, '<selected-skills>["archify"]</selected-skills>')
+    assert.include(prompt, 'The user explicitly selected these enabled skills with @mentions')
+    assert.include(prompt, 'load each selected skill with load_agent_skill')
+  })
 })

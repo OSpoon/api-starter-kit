@@ -85,6 +85,7 @@ export type ScannedRoutes = {
     'permissions.catalog': { paramsTuple?: []; params?: {} }
     'permissions.index': { paramsTuple?: []; params?: {} }
     'audit_logs.index': { paramsTuple?: []; params?: {} }
+    'ai_chat.skills': { paramsTuple?: []; params?: {} }
     'ai_chat.index': { paramsTuple?: []; params?: {} }
     'ai_chat.usage': { paramsTuple?: []; params?: {} }
     'ai_chat.store': { paramsTuple?: []; params?: {} }
@@ -99,6 +100,7 @@ export type ScannedRoutes = {
     'ai_chat.confirm_ai_agent_action_stream': { paramsTuple: [ParamValue,ParamValue]; params: {'id': ParamValue,'confirmationId': ParamValue} }
     'ai_chat.cancel_ai_agent_action_stream': { paramsTuple: [ParamValue,ParamValue]; params: {'id': ParamValue,'confirmationId': ParamValue} }
     'ai_chat.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'integrations.ai_chat.ai_chat.skills': { paramsTuple?: []; params?: {} }
     'integrations.ai_chat.ai_chat.index': { paramsTuple?: []; params?: {} }
     'integrations.ai_chat.ai_chat.usage': { paramsTuple?: []; params?: {} }
     'integrations.ai_chat.ai_chat.store': { paramsTuple?: []; params?: {} }
@@ -111,6 +113,7 @@ export type ScannedRoutes = {
     'integrations.ai_chat.ai_chat.confirm_ai_agent_action': { paramsTuple: [ParamValue,ParamValue]; params: {'id': ParamValue,'confirmationId': ParamValue} }
     'integrations.ai_chat.ai_chat.cancel_ai_agent_action': { paramsTuple: [ParamValue,ParamValue]; params: {'id': ParamValue,'confirmationId': ParamValue} }
     'integrations.ai_chat.ai_chat.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'embed.ai_chat.ai_chat.skills': { paramsTuple?: []; params?: {} }
     'embed.ai_chat.ai_chat.index': { paramsTuple?: []; params?: {} }
     'embed.ai_chat.ai_chat.usage': { paramsTuple?: []; params?: {} }
     'embed.ai_chat.ai_chat.store': { paramsTuple?: []; params?: {} }
@@ -154,14 +157,17 @@ export type ScannedRoutes = {
     'permissions.catalog': { paramsTuple?: []; params?: {} }
     'permissions.index': { paramsTuple?: []; params?: {} }
     'audit_logs.index': { paramsTuple?: []; params?: {} }
+    'ai_chat.skills': { paramsTuple?: []; params?: {} }
     'ai_chat.index': { paramsTuple?: []; params?: {} }
     'ai_chat.usage': { paramsTuple?: []; params?: {} }
     'ai_chat.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'ai_chat.show_message_image': { paramsTuple: [ParamValue,ParamValue]; params: {'id': ParamValue,'messageId': ParamValue} }
+    'integrations.ai_chat.ai_chat.skills': { paramsTuple?: []; params?: {} }
     'integrations.ai_chat.ai_chat.index': { paramsTuple?: []; params?: {} }
     'integrations.ai_chat.ai_chat.usage': { paramsTuple?: []; params?: {} }
     'integrations.ai_chat.ai_chat.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'integrations.ai_chat.ai_chat.show_message_image': { paramsTuple: [ParamValue,ParamValue]; params: {'id': ParamValue,'messageId': ParamValue} }
+    'embed.ai_chat.ai_chat.skills': { paramsTuple?: []; params?: {} }
     'embed.ai_chat.ai_chat.index': { paramsTuple?: []; params?: {} }
     'embed.ai_chat.ai_chat.usage': { paramsTuple?: []; params?: {} }
     'embed.ai_chat.ai_chat.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
@@ -197,14 +203,17 @@ export type ScannedRoutes = {
     'permissions.catalog': { paramsTuple?: []; params?: {} }
     'permissions.index': { paramsTuple?: []; params?: {} }
     'audit_logs.index': { paramsTuple?: []; params?: {} }
+    'ai_chat.skills': { paramsTuple?: []; params?: {} }
     'ai_chat.index': { paramsTuple?: []; params?: {} }
     'ai_chat.usage': { paramsTuple?: []; params?: {} }
     'ai_chat.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'ai_chat.show_message_image': { paramsTuple: [ParamValue,ParamValue]; params: {'id': ParamValue,'messageId': ParamValue} }
+    'integrations.ai_chat.ai_chat.skills': { paramsTuple?: []; params?: {} }
     'integrations.ai_chat.ai_chat.index': { paramsTuple?: []; params?: {} }
     'integrations.ai_chat.ai_chat.usage': { paramsTuple?: []; params?: {} }
     'integrations.ai_chat.ai_chat.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'integrations.ai_chat.ai_chat.show_message_image': { paramsTuple: [ParamValue,ParamValue]; params: {'id': ParamValue,'messageId': ParamValue} }
+    'embed.ai_chat.ai_chat.skills': { paramsTuple?: []; params?: {} }
     'embed.ai_chat.ai_chat.index': { paramsTuple?: []; params?: {} }
     'embed.ai_chat.ai_chat.usage': { paramsTuple?: []; params?: {} }
     'embed.ai_chat.ai_chat.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }

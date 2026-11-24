@@ -433,6 +433,10 @@
     "welcome_title": "你好，我是阿哲",
     "welcome_subtitle": "可询问系统功能、API 或配置。",
     "input_placeholder": "输入问题…",
+    "skill_picker_label": "选择技能",
+    "skill_picker_loading": "正在加载已启用的技能…",
+    "skill_picker_empty": "没有匹配的已启用技能",
+    "skill_picker_failed": "技能列表加载失败，请关闭后重试",
     "sources": {
       "count": "已引用 {count} 个来源"
     },

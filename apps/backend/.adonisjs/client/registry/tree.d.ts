@@ -136,6 +136,7 @@ export interface ApiDefinition {
     index: typeof routes['audit_logs.index']
   }
   aiChat: {
+    skills: typeof routes['ai_chat.skills']
     index: typeof routes['ai_chat.index']
     usage: typeof routes['ai_chat.usage']
     store: typeof routes['ai_chat.store']
@@ -154,6 +155,7 @@ export interface ApiDefinition {
   integrations: {
     aiChat: {
       aiChat: {
+        skills: typeof routes['integrations.ai_chat.ai_chat.skills']
         index: typeof routes['integrations.ai_chat.ai_chat.index']
         usage: typeof routes['integrations.ai_chat.ai_chat.usage']
         store: typeof routes['integrations.ai_chat.ai_chat.store']
@@ -172,6 +174,7 @@ export interface ApiDefinition {
   embed: {
     aiChat: {
       aiChat: {
+        skills: typeof routes['embed.ai_chat.ai_chat.skills']
         index: typeof routes['embed.ai_chat.ai_chat.index']
         usage: typeof routes['embed.ai_chat.ai_chat.usage']
         store: typeof routes['embed.ai_chat.ai_chat.store']

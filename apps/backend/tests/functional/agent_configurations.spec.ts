@@ -432,6 +432,8 @@ test.group('Agent configuration', (group) => {
     const reader = await createActor(['agent-config:read'])
     const editor = await createActor(['agent-config:read', 'agent-config:update'])
     const code = 'zip-upload-regression'
+    const unauthenticated = await client.get('/api/v1/ai-chat/skills')
+    unauthenticated.assertStatus(401)
 
     const denied = await client.post(`${skills}/zip`).bearerToken(reader).file('file', zip('skill'))
     denied.assertStatus(403)
@@ -462,6 +464,21 @@ test.group('Agent configuration', (group) => {
         .json({ enabled: true })
       enabled.assertStatus(200)
       assert.equal(await loadAiAgentSkill(code, 'references/guide.md'), 'Bundled guidance.')
+      const chatUser = await createActor([])
+      const selectable = await client
+        .get(`/api/v1/ai-chat/skills?limit=100&search=${code}`)
+        .bearerToken(chatUser)
+      selectable.assertStatus(200)
+      const selectableSkill = (
+        selectable.body().data as {
+          items: Array<{ code: string; name: string; description: string }>
+        }
+      ).items.find((skill) => skill.code === code)
+      assert.deepEqual(selectableSkill, {
+        code,
+        name: code,
+        description: 'A ZIP installation test skill.',
+      })
       const deleted = await client.delete(`${skills}/${code}`).bearerToken(editor)
       deleted.assertStatus(200)
       removed = true
