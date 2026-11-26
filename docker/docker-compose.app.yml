@@ -17,6 +17,7 @@ services:
       AI_AGENT_SKILLS_DIR: /data/assistant-skills
     volumes:
       - assistant-skills:/data/assistant-skills
+      - media-images:/app/storage/media
     ports:
       - '${BACKEND_PORT:-13333}:13333'
     healthcheck:
@@ -68,3 +69,4 @@ services:
 
 volumes:
   assistant-skills:
+  media-images:

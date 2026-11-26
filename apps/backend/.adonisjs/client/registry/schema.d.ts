@@ -1075,6 +1075,30 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/audit_logs_controller').default['index']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
+  'media_images.upload': {
+    methods: ["POST"]
+    pattern: '/api/v1/media/images'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/media_image').uploadMediaImageValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/media_image').uploadMediaImageValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/media_images_controller').default['upload']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/media_images_controller').default['upload']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'media_images.show': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/media/images/:fileName'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { fileName: ParamValue }
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/media_image').mediaImageFileNameValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/media_images_controller').default['show']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/media_images_controller').default['show']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
   'ai_chat.skills': {
     methods: ["GET","HEAD"]
     pattern: '/api/v1/ai-chat/skills'

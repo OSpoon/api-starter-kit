@@ -93,6 +93,8 @@ export type ScannedRoutes = {
     'permissions.catalog': { paramsTuple?: []; params?: {} }
     'permissions.index': { paramsTuple?: []; params?: {} }
     'audit_logs.index': { paramsTuple?: []; params?: {} }
+    'media_images.upload': { paramsTuple?: []; params?: {} }
+    'media_images.show': { paramsTuple: [ParamValue]; params: {'fileName': ParamValue} }
     'ai_chat.skills': { paramsTuple?: []; params?: {} }
     'ai_chat.index': { paramsTuple?: []; params?: {} }
     'ai_chat.usage': { paramsTuple?: []; params?: {} }
@@ -167,6 +169,7 @@ export type ScannedRoutes = {
     'permissions.catalog': { paramsTuple?: []; params?: {} }
     'permissions.index': { paramsTuple?: []; params?: {} }
     'audit_logs.index': { paramsTuple?: []; params?: {} }
+    'media_images.show': { paramsTuple: [ParamValue]; params: {'fileName': ParamValue} }
     'ai_chat.skills': { paramsTuple?: []; params?: {} }
     'ai_chat.index': { paramsTuple?: []; params?: {} }
     'ai_chat.usage': { paramsTuple?: []; params?: {} }
@@ -215,6 +218,7 @@ export type ScannedRoutes = {
     'permissions.catalog': { paramsTuple?: []; params?: {} }
     'permissions.index': { paramsTuple?: []; params?: {} }
     'audit_logs.index': { paramsTuple?: []; params?: {} }
+    'media_images.show': { paramsTuple: [ParamValue]; params: {'fileName': ParamValue} }
     'ai_chat.skills': { paramsTuple?: []; params?: {} }
     'ai_chat.index': { paramsTuple?: []; params?: {} }
     'ai_chat.usage': { paramsTuple?: []; params?: {} }
@@ -267,6 +271,7 @@ export type ScannedRoutes = {
     'users.store': { paramsTuple?: []; params?: {} }
     'users.reset_password': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'roles.store': { paramsTuple?: []; params?: {} }
+    'media_images.upload': { paramsTuple?: []; params?: {} }
     'ai_chat.store': { paramsTuple?: []; params?: {} }
     'ai_chat.transcribe': { paramsTuple?: []; params?: {} }
     'ai_chat.send_message': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }

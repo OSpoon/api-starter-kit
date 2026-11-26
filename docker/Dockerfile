@@ -36,7 +36,7 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/*
 COPY --from=backend-build /app/apps/backend/build /app
 COPY --from=backend-deps /tmp/backend-runtime/node_modules /app/node_modules
-RUN install -d -m 700 -o node -g node /app/log/backend /data/assistant-skills
+RUN install -d -m 700 -o node -g node /app/log/backend /app/storage/media /data/assistant-skills
 WORKDIR /app
 USER node
 EXPOSE 13333

@@ -1,3 +1,4 @@
+import { createRequire } from 'node:module'
 import { fileURLToPath, URL } from 'node:url'
 
 import { webUpdateNotice } from '@plugin-web-update-notification/vite'
@@ -10,6 +11,20 @@ import vue from '@vitejs/plugin-vue'
 import vueDevTools from 'vite-plugin-vue-devtools'
 
 const apiProxyTarget = process.env.VITE_DEV_API_PROXY_TARGET ?? 'http://localhost:13333'
+// Their development exports import Node assert, so prebundle their default browser-safe entries.
+const markdownPackage = /^(?:micromark(?:-|\/|$)|mdast-util-from-markdown(?:\/|$))/
+const markdownBrowserExports = {
+  name: 'markdown-browser-exports',
+  resolveId(source: string, importer?: string) {
+    if (!importer || !markdownPackage.test(source)) return null
+
+    try {
+      return createRequire(importer.split('?')[0]!).resolve(source)
+    } catch {
+      return null
+    }
+  },
+}
 
 // https://vite.dev/config/
 export default defineConfig(({ command, mode }) => {
@@ -19,6 +34,11 @@ export default defineConfig(({ command, mode }) => {
       : './src/router/modules/workbench-examples.ts'
 
   return {
+    optimizeDeps: {
+      rolldownOptions: {
+        plugins: [markdownBrowserExports],
+      },
+    },
     plugins: [
       vue(),
       webUpdateNotice({

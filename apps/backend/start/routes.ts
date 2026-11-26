@@ -24,6 +24,7 @@ const AgentConfigurationsController = () => import('#controllers/agent_configura
 const ImConfigurationsController = () => import('#controllers/im_configurations_controller')
 const AiEvaluationsController = () => import('#controllers/ai_evaluations_controller')
 const AiAutomationsController = () => import('#controllers/ai_automations_controller')
+const MediaImagesController = () => import('#controllers/media_images_controller')
 
 function registerAiChatRoutes(mode: 'user' | 'api-key' | 'embed') {
   const isApiKey = mode !== 'user'
@@ -475,6 +476,15 @@ router
       })
       .prefix('system')
       .use(middleware.auth())
+
+    router
+      .post('media/images', [MediaImagesController, 'upload'])
+      .use(middleware.auth())
+      .use(middleware.permission(['media:upload']))
+      .use(middleware.throttle({ max: 20, windowSeconds: 60, key: 'user' }))
+    router
+      .get('media/images/:fileName', [MediaImagesController, 'show'])
+      .use(middleware.throttle({ max: 120, windowSeconds: 60, key: 'ip' }))
 
     registerAiChatRoutes('user')
     registerAiChatRoutes('api-key')

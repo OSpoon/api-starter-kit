@@ -153,6 +153,7 @@
     "profile": "Profile",
     "schema_builder": "Schema Builder",
     "sql_editor": "SQL Editor",
+    "markdown_editor": "Markdown Editor",
     "sql_workspace": "SQL Workspace"
   },
   "llm_config": {
@@ -418,6 +419,7 @@
     "language_switched": "Language switched",
     "schema_builder": "Schema Builder",
     "sql_editor": "SQL Editor",
+    "markdown_editor": "Markdown Editor",
     "sql_workspace": "SQL Workspace",
     "theme": "Theme",
     "theme_light": "Light",
@@ -1784,6 +1786,16 @@
       "unclosed-parenthesis": "An opening parenthesis is missing its closing parenthesis.",
       "unexpected-closing-parenthesis": "A closing parenthesis has no matching opening parenthesis."
     }
+  },
+  "markdown_editor": {
+    "title": "Markdown editor",
+    "description": "A ByteMD editor example using its defaults without additional plugins.",
+    "upload_help": "Insert images from the toolbar: JPEG, PNG, or WebP, up to 2 MB each. Images are stored locally by the backend and their links are public. Do not upload sensitive images.",
+    "upload_permission_required": "The media:upload permission is required to upload images.",
+    "upload_too_large": "Images must not exceed 2 MB.",
+    "unsupported_type": "Only JPEG, PNG, and WebP images are supported.",
+    "upload_failed": "Some images could not be uploaded. Try again.",
+    "image_alt": "Image"
   },
   "sql_workspace": {
     "title": "SQL Workspace",

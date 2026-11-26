@@ -540,6 +540,18 @@ const routes = {
     tokens: [{"old":"/api/v1/system/audit-logs","type":0,"val":"api","end":""},{"old":"/api/v1/system/audit-logs","type":0,"val":"v1","end":""},{"old":"/api/v1/system/audit-logs","type":0,"val":"system","end":""},{"old":"/api/v1/system/audit-logs","type":0,"val":"audit-logs","end":""}],
     types: placeholder as Registry['audit_logs.index']['types'],
   },
+  'media_images.upload': {
+    methods: ["POST"],
+    pattern: '/api/v1/media/images',
+    tokens: [{"old":"/api/v1/media/images","type":0,"val":"api","end":""},{"old":"/api/v1/media/images","type":0,"val":"v1","end":""},{"old":"/api/v1/media/images","type":0,"val":"media","end":""},{"old":"/api/v1/media/images","type":0,"val":"images","end":""}],
+    types: placeholder as Registry['media_images.upload']['types'],
+  },
+  'media_images.show': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/v1/media/images/:fileName',
+    tokens: [{"old":"/api/v1/media/images/:fileName","type":0,"val":"api","end":""},{"old":"/api/v1/media/images/:fileName","type":0,"val":"v1","end":""},{"old":"/api/v1/media/images/:fileName","type":0,"val":"media","end":""},{"old":"/api/v1/media/images/:fileName","type":0,"val":"images","end":""},{"old":"/api/v1/media/images/:fileName","type":1,"val":"fileName","end":""}],
+    types: placeholder as Registry['media_images.show']['types'],
+  },
   'ai_chat.skills': {
     methods: ["GET","HEAD"],
     pattern: '/api/v1/ai-chat/skills',

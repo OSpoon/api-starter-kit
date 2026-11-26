@@ -7,6 +7,7 @@ import {
   CircleHelp,
   FileCode2,
   FileJson,
+  FileText,
   Languages,
   LayoutList,
   LogOut,
@@ -41,6 +42,7 @@ import {
 import { loadLocaleMessages } from '@/i18n'
 import { setStoredLocale } from '@/lib/browser-preferences'
 import { modalLayerVersion } from '@/lib/focus'
+import { usePermission } from '@/lib/permission'
 import { workbenchRoutes } from '@/router/modules/workbench'
 
 defineProps<{
@@ -59,6 +61,7 @@ const { isMobile } = useSidebar()
 const todoBoardRoute = workbenchRoutes.at(0)?.children?.find((route) => route.name === 'todo-board')
 const router = useRouter()
 const route = useRoute()
+const { can } = usePermission()
 const { t, locale } = useI18n()
 
 const repositoryUrl = 'https://github.com/OSpoon/api-starter-kit'
@@ -195,6 +198,13 @@ function setTheme(mode: 'light' | 'dark' | 'auto') {
                 <DropdownMenuItem v-if="showDevelopmentTools" @click="navigateTo('/sql-editor')">
                   <SquareCode />
                   {{ t('nav.sql_editor') }}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  v-if="showDevelopmentTools && can('markdown-editor:read')"
+                  @click="navigateTo('/markdown-editor')"
+                >
+                  <FileText />
+                  {{ t('nav.markdown_editor') }}
                 </DropdownMenuItem>
                 <DropdownMenuItem v-if="showDevelopmentTools" @click="navigateTo('/sql-workspace')">
                   <FileCode2 />

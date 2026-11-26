@@ -26,11 +26,14 @@ Backend API 的基础路径为 `/api/v1`。具体 URL、参数、响应 schema �
 | 认证与账户  | `/auth/*`、`/account/*`   |
 | API Key     | `/api-keys/*`             |
 | 系统管理    | `/system/*`               |
+| 媒体图片    | `/media/images/*`         |
 | AI 会话     | `/ai-chat/*`              |
 | AI Key 集成 | `/integrations/ai-chat/*` |
 | 管理台概览  | `/dashboard/*`            |
 
 知识库接口和限制见[知识库实现说明](knowledge-base.md)。AI 图片、语音、渠道和确认接口的详细契约以 OpenAPI 和对应 feature/service 为准。
+
+媒体图片接口通过 `media:upload` 上传 JPEG、PNG 或 WebP 图片，单张上限为 2 MB。文件保存在 backend 的 `storage/media/images` 目录；读取 URL 使用随机 UUID，匿名可读且不可列举，请勿上传敏感图片。管理端开发模式中的 Markdown 编辑器示例使用该接口。
 
 ## 管理列表筛选
 

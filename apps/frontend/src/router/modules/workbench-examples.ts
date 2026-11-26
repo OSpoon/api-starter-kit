@@ -14,6 +14,16 @@ export const developmentWorkbenchRoutes: RouteRecordRaw[] = [
     meta: { title: 'sidebar.sql_editor', pageKind: 'utility' },
   },
   {
+    path: 'markdown-editor',
+    name: 'markdown-editor',
+    component: () => import('@/views/MarkdownEditorDemo.vue'),
+    meta: {
+      title: 'markdown_editor.title',
+      pageKind: 'utility',
+      permission: 'markdown-editor:read',
+    },
+  },
+  {
     path: 'sql-workspace',
     name: 'sql-workspace',
     component: () => import('@/views/SqlWorkspaceView.vue'),

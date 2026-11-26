@@ -18,6 +18,7 @@ export const controllers = {
   ImConfigurations: () => import('#controllers/im_configurations_controller'),
   KnowledgeDocuments: () => import('#controllers/knowledge_documents_controller'),
   LlmConfigurations: () => import('#controllers/llm_configurations_controller'),
+  MediaImages: () => import('#controllers/media_images_controller'),
   NewAccount: () => import('#controllers/new_account_controller'),
   Permissions: () => import('#controllers/permissions_controller'),
   Profile: () => import('#controllers/profile_controller'),

@@ -145,6 +145,10 @@ export interface ApiDefinition {
   auditLogs: {
     index: typeof routes['audit_logs.index']
   }
+  mediaImages: {
+    upload: typeof routes['media_images.upload']
+    show: typeof routes['media_images.show']
+  }
   aiChat: {
     skills: typeof routes['ai_chat.skills']
     index: typeof routes['ai_chat.index']

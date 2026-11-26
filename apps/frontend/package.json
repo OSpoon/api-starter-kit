@@ -36,6 +36,7 @@
     "@vueuse/core": "^14.3.0",
     "ajv": "^8.20.0",
     "ajv-formats": "^3.0.1",
+    "bytemd": "^1.22.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "codemirror": "^6.0.2",

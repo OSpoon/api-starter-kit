@@ -153,6 +153,7 @@
     "profile": "个人资料",
     "schema_builder": "Schema 构建器",
     "sql_editor": "SQL 编辑器",
+    "markdown_editor": "Markdown 编辑器",
     "sql_workspace": "SQL 工作区"
   },
   "llm_config": {
@@ -418,6 +419,7 @@
     "language_switched": "语言已切换",
     "schema_builder": "Schema 构建器",
     "sql_editor": "SQL 编辑器",
+    "markdown_editor": "Markdown 编辑器",
     "sql_workspace": "SQL 工作区",
     "theme": "主题",
     "theme_light": "浅色",
@@ -1784,6 +1786,16 @@
       "unclosed-parenthesis": "存在未闭合的圆括号。",
       "unexpected-closing-parenthesis": "存在没有对应左括号的右圆括号。"
     }
+  },
+  "markdown_editor": {
+    "title": "Markdown 编辑器",
+    "description": "基于 ByteMD 的编辑器示例，使用默认功能，不加载扩展插件。",
+    "upload_help": "通过工具栏插入图片：JPEG、PNG 或 WebP，单张不超过 2 MB。图片保存在后端本地存储，链接可匿名访问，请勿上传敏感图片。",
+    "upload_permission_required": "上传图片需要 media:upload 权限。",
+    "upload_too_large": "图片不能超过 2 MB。",
+    "unsupported_type": "仅支持 JPEG、PNG 和 WebP 图片。",
+    "upload_failed": "部分图片上传失败，请重试。",
+    "image_alt": "图片"
   },
   "sql_workspace": {
     "title": "SQL 工作区",

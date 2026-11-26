@@ -88,7 +88,7 @@ docker compose --env-file apps/backend/.env \
 | `docker-compose.assistant-web.yml` | 助手 Web                       | `17070`                                  |
 | `docker-compose.im.yml`            | 企业微信、飞书、钉钉 Bot       | 不映射宿主机端口                         |
 
-PostgreSQL volume `postgres-data` 保存应用数据。`docker compose down` 保留 volume；`down -v` 会删除所选配置声明的 volume 和数据。
+PostgreSQL volume `postgres-data` 保存应用数据；backend volume `media-images` 保存本地上传的图片。`docker compose down` 保留 volume；`down -v` 会删除所选配置声明的 volume 和数据。
 
 Agent 技能脚本使用 bubblewrap 隔离，宿主机需支持 user namespace 和所需 capability。Ubuntu 26 默认 AppArmor 配置可能阻止运行；不要用 `privileged` 或 `seccomp=unconfined` 绕过。目标环境不支持时，禁用技能脚本或使用独立 Docker daemon/VM。
 

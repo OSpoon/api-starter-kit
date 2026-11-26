@@ -36,6 +36,8 @@ export const permissionCatalog = [
   { code: 'ai-automations:read', name: '查看自动化任务', groupName: 'Agent管理' },
   { code: 'ai-automations:manage', name: '管理自动化任务', groupName: 'Agent管理' },
   { code: 'ai-automations:run', name: '运行自动化任务', groupName: 'Agent管理' },
+  { code: 'media:upload', name: '上传媒体图片', groupName: '媒体管理' },
+  { code: 'markdown-editor:read', name: '查看 Markdown 编辑器示例', groupName: '开发工具' },
 ] as const
 
 export const permissionCatalogCodes = permissionCatalog.map(({ code }) => code)
