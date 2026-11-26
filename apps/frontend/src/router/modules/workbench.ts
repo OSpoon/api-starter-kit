@@ -1,6 +1,7 @@
 import {
   BookOpen,
   BrainCircuit,
+  CalendarClock,
   ClipboardCheck,
   FileClock,
   Gauge,
@@ -195,6 +196,22 @@ const workbenchRootRoute = {
           groupOrder: 29,
           icon: ClipboardCheck,
           order: 40,
+        },
+      },
+    },
+    {
+      path: 'system/ai-automations',
+      name: 'ai-automations',
+      component: () => import('@/features/ai-automations/AiAutomationsPage.vue'),
+      meta: {
+        title: 'sidebar.ai_automations',
+        pageKind: 'list',
+        permission: 'ai-automations:read',
+        nav: {
+          group: 'sidebar.agent_management',
+          groupOrder: 29,
+          icon: CalendarClock,
+          order: 35,
         },
       },
     },

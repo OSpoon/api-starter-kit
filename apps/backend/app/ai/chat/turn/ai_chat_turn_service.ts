@@ -69,7 +69,7 @@ export async function runAiChatAssistantTurn(input: {
   context?: AiAgentPageContext
   signal: AbortSignal
   response?: HttpContext['response']
-  ctx: HttpContext
+  ctx?: HttpContext
   onEvent?: (event: AiChatTurnEvent) => void | Promise<void>
 }) {
   const { conversation, userId, userMessage, regeneration, response } = input
@@ -887,7 +887,7 @@ export async function runAiChatAssistantTurn(input: {
       }
       return failedAssistantMessage
     }
-    if (agentRunId) {
+    if (agentRunId && input.ctx) {
       // Confirmation cleanup must not prevent the streamed assistant text
       // from being retained in the conversation history. Retry transient
       // failures inline so unattached proposals do not linger indefinitely.

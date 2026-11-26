@@ -61,7 +61,7 @@ function currentUser(ctx: HttpContext) {
 }
 
 function conversationsFor(ctx: HttpContext, userId: number) {
-  const query = AiChatConversation.query().where('user_id', userId)
+  const query = AiChatConversation.query().where('user_id', userId).whereNull('automation_run_id')
   if (!ctx.integrationApiKey) return query.whereNull('api_key_id')
 
   query.where('api_key_id', ctx.integrationApiKey.id)

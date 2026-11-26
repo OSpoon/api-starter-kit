@@ -439,6 +439,102 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_evaluations_controller').default['run']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
+  'ai_automations.index': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/system/ai-automations'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/ai_automation').aiAutomationListValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/ai_automations_controller').default['index']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_automations_controller').default['index']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'ai_automations.preview': {
+    methods: ["POST"]
+    pattern: '/api/v1/system/ai-automations/preview'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/ai_automation').aiAutomationSchedulePreviewValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/ai_automation').aiAutomationSchedulePreviewValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/ai_automations_controller').default['preview']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_automations_controller').default['preview']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'ai_automations.show': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/system/ai-automations/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/ai_automation').aiAutomationRunListValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/ai_automations_controller').default['show']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_automations_controller').default['show']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'ai_automations.store': {
+    methods: ["POST"]
+    pattern: '/api/v1/system/ai-automations'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/ai_automation').aiAutomationValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/ai_automation').aiAutomationValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/ai_automations_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_automations_controller').default['store']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'ai_automations.update': {
+    methods: ["PUT"]
+    pattern: '/api/v1/system/ai-automations/:id'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/ai_automation').aiAutomationUpdateValidator)>>
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/ai_automation').aiAutomationUpdateValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/ai_automations_controller').default['update']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_automations_controller').default['update']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'ai_automations.set_enabled': {
+    methods: ["PATCH"]
+    pattern: '/api/v1/system/ai-automations/:id/enabled'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/ai_automation').aiAutomationEnabledValidator)>>
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/ai_automation').aiAutomationEnabledValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/ai_automations_controller').default['setEnabled']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_automations_controller').default['setEnabled']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'ai_automations.destroy': {
+    methods: ["DELETE"]
+    pattern: '/api/v1/system/ai-automations/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/ai_automations_controller').default['destroy']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_automations_controller').default['destroy']>>>
+    }
+  }
+  'ai_automations.run_now': {
+    methods: ["POST"]
+    pattern: '/api/v1/system/ai-automations/:id/run'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/ai_automations_controller').default['runNow']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ai_automations_controller').default['runNow']>>>
+    }
+  }
   'llm-config.legacy.show': {
     methods: ["GET","HEAD"]
     pattern: '/api/v1/system/llm-config'

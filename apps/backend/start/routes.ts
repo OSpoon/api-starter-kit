@@ -23,6 +23,7 @@ const LlmConfigurationsController = () => import('#controllers/llm_configuration
 const AgentConfigurationsController = () => import('#controllers/agent_configurations_controller')
 const ImConfigurationsController = () => import('#controllers/im_configurations_controller')
 const AiEvaluationsController = () => import('#controllers/ai_evaluations_controller')
+const AiAutomationsController = () => import('#controllers/ai_automations_controller')
 
 function registerAiChatRoutes(mode: 'user' | 'api-key' | 'embed') {
   const isApiKey = mode !== 'user'
@@ -282,6 +283,37 @@ router
       .use(middleware.auth())
       .use(middleware.permission(['ai-evaluations:run']))
       .use(middleware.throttle({ max: 3, windowSeconds: 60, key: 'user' }))
+
+    router
+      .group(() => {
+        router
+          .get('ai-automations', [AiAutomationsController, 'index'])
+          .use(middleware.permission(['ai-automations:read']))
+        router
+          .post('ai-automations/preview', [AiAutomationsController, 'preview'])
+          .use(middleware.permission(['ai-automations:manage']))
+        router
+          .get('ai-automations/:id', [AiAutomationsController, 'show'])
+          .use(middleware.permission(['ai-automations:read']))
+        router
+          .post('ai-automations', [AiAutomationsController, 'store'])
+          .use(middleware.permission(['ai-automations:manage']))
+        router
+          .put('ai-automations/:id', [AiAutomationsController, 'update'])
+          .use(middleware.permission(['ai-automations:manage']))
+        router
+          .patch('ai-automations/:id/enabled', [AiAutomationsController, 'setEnabled'])
+          .use(middleware.permission(['ai-automations:manage']))
+        router
+          .delete('ai-automations/:id', [AiAutomationsController, 'destroy'])
+          .use(middleware.permission(['ai-automations:manage']))
+        router
+          .post('ai-automations/:id/run', [AiAutomationsController, 'runNow'])
+          .use(middleware.permission(['ai-automations:run']))
+          .use(middleware.throttle({ max: 5, windowSeconds: 60, key: 'user' }))
+      })
+      .prefix('system')
+      .use(middleware.auth())
 
     router
       .group(() => {

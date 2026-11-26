@@ -39,6 +39,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "codemirror": "^6.0.2",
+    "cronstrue": "^3.48.0",
     "dt-sql-parser": "^4.5.0",
     "embla-carousel-vue": "^8.6.0",
     "html-to-image": "^1.11.13",

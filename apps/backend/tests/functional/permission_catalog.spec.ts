@@ -105,6 +105,9 @@ test.group('permission catalog', (group) => {
         Agent管理: [
           'agent-config:read',
           'agent-config:update',
+          'ai-automations:manage',
+          'ai-automations:read',
+          'ai-automations:run',
           'ai-evaluations:manage',
           'ai-evaluations:read',
           'ai-evaluations:run',

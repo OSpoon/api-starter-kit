@@ -33,6 +33,9 @@ export const permissionCatalog = [
   { code: 'ai-evaluations:read', name: '查看测评管理', groupName: 'Agent管理' },
   { code: 'ai-evaluations:manage', name: '管理测评条目', groupName: 'Agent管理' },
   { code: 'ai-evaluations:run', name: '运行 AI 测评', groupName: 'Agent管理' },
+  { code: 'ai-automations:read', name: '查看自动化任务', groupName: 'Agent管理' },
+  { code: 'ai-automations:manage', name: '管理自动化任务', groupName: 'Agent管理' },
+  { code: 'ai-automations:run', name: '运行自动化任务', groupName: 'Agent管理' },
 ] as const
 
 export const permissionCatalogCodes = permissionCatalog.map(({ code }) => code)

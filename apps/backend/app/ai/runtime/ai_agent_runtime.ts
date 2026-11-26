@@ -99,13 +99,17 @@ export async function createAiAgentRuntime(
   const summaryOptions = getAiAgentSummarizationOptions()
   let consecutiveReadToolFailures = 0
   const [availableSkills, model] = await Promise.all([
-    input.capabilityMode === 'knowledge-only' || input.enabledToolNames?.length === 0
+    input.capabilityMode === 'knowledge-only' ||
+    input.capabilityMode === 'automation-readonly' ||
+    input.enabledToolNames?.length === 0
       ? Promise.resolve([])
       : listEnabledAiAgentSkills(),
     getAiAgentModelConfig(),
   ])
   const selectedSkills =
-    input.capabilityMode === 'knowledge-only' || lastMessage?.role !== 'user'
+    input.capabilityMode === 'knowledge-only' ||
+    input.capabilityMode === 'automation-readonly' ||
+    lastMessage?.role !== 'user'
       ? []
       : getAiAgentMentionedSkills(lastMessage.content, availableSkills)
 

@@ -20,6 +20,9 @@ export default class AiChatConversation extends BaseModel {
   declare embedSessionId: string | null
 
   @column()
+  declare automationRunId: number | null
+
+  @column()
   declare title: string
 
   @column()

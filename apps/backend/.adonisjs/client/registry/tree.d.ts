@@ -64,6 +64,16 @@ export interface ApiDefinition {
     destroy: typeof routes['ai_evaluations.destroy']
     run: typeof routes['ai_evaluations.run']
   }
+  aiAutomations: {
+    index: typeof routes['ai_automations.index']
+    preview: typeof routes['ai_automations.preview']
+    show: typeof routes['ai_automations.show']
+    store: typeof routes['ai_automations.store']
+    update: typeof routes['ai_automations.update']
+    setEnabled: typeof routes['ai_automations.set_enabled']
+    destroy: typeof routes['ai_automations.destroy']
+    runNow: typeof routes['ai_automations.run_now']
+  }
   llmConfig: {
     legacy: {
       show: typeof routes['llm-config.legacy.show']

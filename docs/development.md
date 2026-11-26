@@ -23,7 +23,12 @@ pnpm --dir apps/assistant-extension dev
 pnpm bot:wecom
 pnpm bot:feishu
 pnpm bot:dingtalk
+pnpm --dir apps/backend automation:worker
 ```
+
+计划任务需在独立终端运行 `automation:worker`；`pnpm dev` 不会启动它。
+`automation:worker` 通过 Nodemon 监听 backend 的 `app` 和 `commands`，代码变化后会重启 worker。
+通过 `pnpm docker` 启动应用、助手 Web 或 IM Bot 服务组时，会同时启动定时助手 worker。
 
 assistant-web 默认端口为 `17070`，管理端为 `18080`。桌面端开发连接 assistant-web；生产构建会将其打包。
 

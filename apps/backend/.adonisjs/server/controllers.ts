@@ -6,6 +6,7 @@
 export const controllers = {
   AccessTokens: () => import('#controllers/access_tokens_controller'),
   AgentConfigurations: () => import('#controllers/agent_configurations_controller'),
+  AiAutomations: () => import('#controllers/ai_automations_controller'),
   AiChat: () => import('#controllers/ai_chat_controller'),
   AiEvaluations: () => import('#controllers/ai_evaluations_controller'),
   ApiKeys: () => import('#controllers/api_keys_controller'),

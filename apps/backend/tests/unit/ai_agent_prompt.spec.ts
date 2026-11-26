@@ -97,6 +97,15 @@ test.group('AI agent prompt', () => {
     assert.notInclude(prompt, 'call bash')
   })
 
+  test('adds an unattended read-only policy for scheduled automation', ({ assert }) => {
+    const prompt = createAiAgentSystemPrompt(undefined, '', 'automation-readonly')
+
+    assert.include(prompt, 'This run is unattended and read-only')
+    assert.include(prompt, 'Never create, propose, or execute changes')
+    assert.include(prompt, 'Produce a concise result that can be delivered outside the system')
+    assert.notInclude(prompt, 'Installed skills')
+  })
+
   test('restricts the post-tool final response to available results', ({ assert }) => {
     const prompt = createAiAgentSystemPrompt(undefined, '', 'full', [], true)
 

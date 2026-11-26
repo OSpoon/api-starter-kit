@@ -13,7 +13,7 @@ export type AiAgentCredentialDisclosure = {
   label: string
 }
 
-export type AiAgentCapabilityMode = 'full' | 'channel' | 'knowledge-only'
+export type AiAgentCapabilityMode = 'full' | 'channel' | 'knowledge-only' | 'automation-readonly'
 
 export type AiAgentTaskPlanStep = {
   key: string

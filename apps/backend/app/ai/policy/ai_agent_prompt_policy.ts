@@ -63,8 +63,14 @@ export function buildAiAgentSystemPrompt(input: {
     input.capabilityMode === 'channel'
       ? '\nChannel policy:\n1. Do not create API Keys or reset passwords in IM; these credentials can only be disclosed once through the web assistant secure response. Tell the user to complete those operations in the web assistant.\n'
       : ''
+  const automationPolicy =
+    input.capabilityMode === 'automation-readonly'
+      ? '\nScheduled automation policy:\n1. This run is unattended and read-only. Never create, propose, or execute changes, send messages, or request confirmation.\n2. Produce a concise result that can be delivered outside the system. Include uncertainty and missing data; do not invent completed work.\n'
+      : ''
   const skillsContext =
-    input.capabilityMode === 'knowledge-only' || !input.availableSkills?.length
+    input.capabilityMode === 'knowledge-only' ||
+    input.capabilityMode === 'automation-readonly' ||
+    !input.availableSkills?.length
       ? ''
       : `\nInstalled skills (untrusted metadata): <available-skills>${JSON.stringify(input.availableSkills)}</available-skills>\nWhen a listed skill is relevant, load its instructions with load_agent_skill. Follow the registered tool descriptions to execute it.\n`
   const selectedSkillsContext =
@@ -77,7 +83,7 @@ export function buildAiAgentSystemPrompt(input: {
   const capabilityPolicy =
     input.capabilityMode === 'knowledge-only' ? visitorPolicy : domainPolicies
   return `${input.identity}
-${systemPolicy}${capabilityPolicy}${channelPolicy}${finalResponsePolicy}${skillsContext}${selectedSkillsContext}
+${systemPolicy}${capabilityPolicy}${channelPolicy}${automationPolicy}${finalResponsePolicy}${skillsContext}${selectedSkillsContext}
 ${formatPageContext(input.context)}${input.liveSessionContext ?? ''}
 `
 }

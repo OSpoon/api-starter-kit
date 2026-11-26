@@ -40,6 +40,14 @@ export type ScannedRoutes = {
     'ai_evaluations.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'ai_evaluations.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'ai_evaluations.run': { paramsTuple?: []; params?: {} }
+    'ai_automations.index': { paramsTuple?: []; params?: {} }
+    'ai_automations.preview': { paramsTuple?: []; params?: {} }
+    'ai_automations.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'ai_automations.store': { paramsTuple?: []; params?: {} }
+    'ai_automations.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'ai_automations.set_enabled': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'ai_automations.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'ai_automations.run_now': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'llm-config.legacy.show': { paramsTuple?: []; params?: {} }
     'llm-config.legacy.update': { paramsTuple?: []; params?: {} }
     'llm-config.legacy.test': { paramsTuple?: []; params?: {} }
@@ -140,6 +148,8 @@ export type ScannedRoutes = {
     'ai_evaluations.runs_index': { paramsTuple?: []; params?: {} }
     'ai_evaluations.case_history': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'ai_evaluations.show_run': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'ai_automations.index': { paramsTuple?: []; params?: {} }
+    'ai_automations.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'llm-config.legacy.show': { paramsTuple?: []; params?: {} }
     'agent_configurations.show': { paramsTuple?: []; params?: {} }
     'agent-config.llm.show': { paramsTuple?: []; params?: {} }
@@ -186,6 +196,8 @@ export type ScannedRoutes = {
     'ai_evaluations.runs_index': { paramsTuple?: []; params?: {} }
     'ai_evaluations.case_history': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'ai_evaluations.show_run': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'ai_automations.index': { paramsTuple?: []; params?: {} }
+    'ai_automations.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'llm-config.legacy.show': { paramsTuple?: []; params?: {} }
     'agent_configurations.show': { paramsTuple?: []; params?: {} }
     'agent-config.llm.show': { paramsTuple?: []; params?: {} }
@@ -239,6 +251,9 @@ export type ScannedRoutes = {
     'ai_evaluations.import_conversation': { paramsTuple?: []; params?: {} }
     'ai_evaluations.store': { paramsTuple?: []; params?: {} }
     'ai_evaluations.run': { paramsTuple?: []; params?: {} }
+    'ai_automations.preview': { paramsTuple?: []; params?: {} }
+    'ai_automations.store': { paramsTuple?: []; params?: {} }
+    'ai_automations.run_now': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'llm-config.legacy.test': { paramsTuple?: []; params?: {} }
     'agent-config.llm.test': { paramsTuple?: []; params?: {} }
     'agent_configurations.install_skills': { paramsTuple?: []; params?: {} }
@@ -280,6 +295,7 @@ export type ScannedRoutes = {
     'profile.profile.change_password': { paramsTuple?: []; params?: {} }
     'api_keys.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'ai_evaluations.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'ai_automations.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'llm-config.legacy.update': { paramsTuple?: []; params?: {} }
     'agent_configurations.update_configuration': { paramsTuple?: []; params?: {} }
     'agent_configurations.update_mineru_configuration': { paramsTuple?: []; params?: {} }
@@ -295,6 +311,7 @@ export type ScannedRoutes = {
   DELETE: {
     'api_keys.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'ai_evaluations.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'ai_automations.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'agent_configurations.remove_skill': { paramsTuple: [ParamValue]; params: {'code': ParamValue} }
     'knowledge_documents.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'users.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
@@ -302,6 +319,9 @@ export type ScannedRoutes = {
     'ai_chat.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'integrations.ai_chat.ai_chat.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'embed.ai_chat.ai_chat.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+  }
+  PATCH: {
+    'ai_automations.set_enabled': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
   }
 }
 declare module '@adonisjs/core/types/http' {

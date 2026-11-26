@@ -74,6 +74,17 @@ export async function createConfiguredAiAgentTools(
       .map((setting) => setting.code),
   }
   const tools = createAiAgentTools(configuredInput)
+  if (input.capabilityMode === 'automation-readonly') {
+    const readOnlyTools = new Set([
+      'diagnose_my_access',
+      'run_registered_query',
+      'search_knowledge_catalog',
+      'search_knowledge',
+    ])
+    return tools
+      .filter((tool) => readOnlyTools.has(tool.name))
+      .filter((tool) => settingByName.get(tool.name)?.mode !== 'confirm')
+  }
   if (input.capabilityMode === 'knowledge-only') {
     return tools.map((tool) => configureToolConfirmation(tool, settingByName.get(tool.name), input))
   }

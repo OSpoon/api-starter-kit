@@ -133,9 +133,121 @@ export class AiAgentPendingQuerySchema extends BaseModel {
   declare updatedAt: DateTime
 }
 
+export class AiAutomationRunSchema extends BaseModel {
+  static $columns = [
+    'attemptCount',
+    'automationId',
+    'automationName',
+    'completedAt',
+    'createdAt',
+    'deliveryResults',
+    'error',
+    'heartbeatAt',
+    'id',
+    'scheduledFor',
+    'startedAt',
+    'status',
+    'summary',
+    'triggerKind',
+    'updatedAt',
+    'userId',
+  ] as const
+  $columns = AiAutomationRunSchema.$columns
+  @column()
+  declare attemptCount: number
+  @column()
+  declare automationId: number | null
+  @column()
+  declare automationName: string
+  @column.dateTime()
+  declare completedAt: DateTime | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare deliveryResults: any
+  @column()
+  declare error: string | null
+  @column.dateTime()
+  declare heartbeatAt: DateTime | null
+  @column({ isPrimary: true })
+  declare id: number
+  @column.dateTime()
+  declare scheduledFor: DateTime
+  @column.dateTime()
+  declare startedAt: DateTime | null
+  @column()
+  declare status: string
+  @column()
+  declare summary: string | null
+  @column()
+  declare triggerKind: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+  @column()
+  declare userId: number
+}
+
+export class AiAutomationSchema extends BaseModel {
+  static $columns = [
+    'createdAt',
+    'deletedAt',
+    'enabled',
+    'encryptedWebhookUrl',
+    'id',
+    'name',
+    'nextRunAt',
+    'prompt',
+    'scheduleAt',
+    'scheduleCron',
+    'scheduleKind',
+    'scheduleTime',
+    'scheduleWeekday',
+    'timezone',
+    'updatedAt',
+    'userId',
+    'webhookType',
+  ] as const
+  $columns = AiAutomationSchema.$columns
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column.dateTime()
+  declare deletedAt: DateTime | null
+  @column()
+  declare enabled: boolean
+  @column()
+  declare encryptedWebhookUrl: string | null
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare name: string
+  @column.dateTime()
+  declare nextRunAt: DateTime | null
+  @column()
+  declare prompt: string
+  @column.dateTime()
+  declare scheduleAt: DateTime | null
+  @column()
+  declare scheduleCron: string | null
+  @column()
+  declare scheduleKind: string
+  @column()
+  declare scheduleTime: string | null
+  @column()
+  declare scheduleWeekday: number | null
+  @column()
+  declare timezone: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+  @column()
+  declare userId: number
+  @column()
+  declare webhookType: string
+}
+
 export class AiChatConversationSchema extends BaseModel {
   static $columns = [
     'apiKeyId',
+    'automationRunId',
     'contextSummary',
     'contextSummaryMessageId',
     'createdAt',
@@ -148,6 +260,8 @@ export class AiChatConversationSchema extends BaseModel {
   $columns = AiChatConversationSchema.$columns
   @column()
   declare apiKeyId: number | null
+  @column()
+  declare automationRunId: number | null
   @column()
   declare contextSummary: string | null
   @column()
@@ -223,6 +337,102 @@ export class AiChatPdfAttachmentSchema extends BaseModel {
   declare messageId: number
   @column()
   declare pdfData: Buffer | null
+}
+
+export class AiEvaluationCaseSchema extends BaseModel {
+  static $columns = [
+    'conversationMessages',
+    'createdAt',
+    'expectedToolSequence',
+    'expectedTools',
+    'forbiddenTerms',
+    'id',
+    'mockToolOutputs',
+    'name',
+    'question',
+    'referenceAnswer',
+    'requiredTerms',
+    'sourceConversationId',
+    'sourceMessageIds',
+    'updatedAt',
+  ] as const
+  $columns = AiEvaluationCaseSchema.$columns
+  @column()
+  declare conversationMessages: any
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare expectedToolSequence: any
+  @column()
+  declare expectedTools: any
+  @column()
+  declare forbiddenTerms: any
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare mockToolOutputs: any
+  @column()
+  declare name: string
+  @column()
+  declare question: string
+  @column()
+  declare referenceAnswer: string
+  @column()
+  declare requiredTerms: any
+  @column()
+  declare sourceConversationId: number | null
+  @column()
+  declare sourceMessageIds: any
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+}
+
+export class AiEvaluationRunSchema extends BaseModel {
+  static $columns = [
+    'caseIds',
+    'completedAt',
+    'completedCases',
+    'createdAt',
+    'error',
+    'id',
+    'modelId',
+    'results',
+    'score',
+    'startedAt',
+    'status',
+    'totalCases',
+    'updatedAt',
+    'userId',
+  ] as const
+  $columns = AiEvaluationRunSchema.$columns
+  @column()
+  declare caseIds: any
+  @column.dateTime()
+  declare completedAt: DateTime | null
+  @column()
+  declare completedCases: number
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare error: string | null
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare modelId: string
+  @column()
+  declare results: any
+  @column()
+  declare score: number | null
+  @column.dateTime()
+  declare startedAt: DateTime | null
+  @column()
+  declare status: string
+  @column()
+  declare totalCases: number
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+  @column()
+  declare userId: number
 }
 
 export class AiUsageEventSchema extends BaseModel {

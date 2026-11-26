@@ -14,10 +14,10 @@ const serviceGroups = {
   },
   app: {
     label: '应用（backend、frontend）',
-    hint: '会自动启动 PostgreSQL',
+    hint: '会自动启动 PostgreSQL 和定时助手 worker',
     files: ['docker/docker-compose.yml', 'docker/docker-compose.app.yml'],
     envFiles: ['apps/backend/.env', 'apps/frontend/.env'],
-    services: ['backend', 'frontend'],
+    services: ['backend', 'frontend', 'ai-automation-worker'],
   },
   assistantWeb: {
     label: '独立助手 Web（assistant-web）',
@@ -28,7 +28,7 @@ const serviceGroups = {
       'docker/docker-compose.assistant-web.yml',
     ],
     envFiles: ['apps/backend/.env', 'apps/frontend/.env'],
-    services: ['assistant-web'],
+    services: ['assistant-web', 'ai-automation-worker'],
   },
   im: {
     label: 'IM 渠道 Bot（企业微信、飞书、钉钉）',
@@ -39,7 +39,7 @@ const serviceGroups = {
       'docker/docker-compose.im.yml',
     ],
     envFiles: ['apps/backend/.env'],
-    services: ['wecom-bot', 'feishu-bot', 'dingtalk-bot'],
+    services: ['wecom-bot', 'feishu-bot', 'dingtalk-bot', 'ai-automation-worker'],
   },
 }
 

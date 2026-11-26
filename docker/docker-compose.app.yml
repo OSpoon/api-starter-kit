@@ -30,6 +30,22 @@ services:
       postgres:
         condition: service_healthy
 
+  ai-automation-worker:
+    image: ${BACKEND_IMAGE:-api-starter-kit-backend:latest}
+    command: ['node', 'ace', 'ai:automation:worker']
+    env_file:
+      - ../apps/backend/.env
+    environment:
+      NODE_ENV: production
+      DB_HOST: postgres
+      AI_AGENT_SKILLS_DIR: /data/assistant-skills
+    volumes:
+      - assistant-skills:/data/assistant-skills
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+
   frontend:
     image: ${FRONTEND_IMAGE:-api-starter-kit-frontend:latest}
     build:
