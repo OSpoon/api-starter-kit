@@ -11,12 +11,33 @@ import AiAgentConfiguration, {
 
 export type AiAgentMcpServer = AiAgentMcpServerConfiguration & { name: string }
 
-export type AiAgentMcpProcessConfiguration = {
-  command: string
-  args: string[]
-  cwd?: string | null
-  environment?: Record<string, string>
+export type AiAgentMcpReconnectConfiguration = {
+  initialDelayMs?: number
+  maxDelayMs?: number
+  maxRetries?: number
 }
+
+export type AiAgentMcpProcessConfiguration =
+  | {
+      type?: 'stdio'
+      command: string
+      args: string[]
+      cwd?: string | null
+      environment?: Record<string, string>
+      inheritEnv?: boolean
+      stderr?: 'pipe' | 'inherit'
+      maxMessageBytes?: number
+      maxStderrBytes?: number
+      closeTimeoutMs?: number
+    }
+  | {
+      type: 'http'
+      url: string
+      headers?: Record<string, string>
+      openGetStream?: boolean
+      maxMessageBytes?: number
+      reconnect?: AiAgentMcpReconnectConfiguration
+    }
 
 export class AiAgentMcpServerNotFoundError extends Error {
   code = 'E_ROW_NOT_FOUND'
@@ -28,7 +49,68 @@ export class AiAgentMcpServerNotFoundError extends Error {
   }
 }
 
+function assertIntegerOption(value: number | undefined, name: string, min: number, max: number) {
+  if (value !== undefined && (!Number.isInteger(value) || value < min || value > max)) {
+    throw new Error(`MCP ${name} 无效`)
+  }
+}
+
 export function assertAiAgentMcpConfiguration(input: AiAgentMcpProcessConfiguration) {
+  assertIntegerOption(input.maxMessageBytes, '消息大小限制', 1, 64 * 1024 * 1024)
+  if (input.type === 'http') {
+    assertIntegerOption(input.reconnect?.initialDelayMs, '重连初始延迟', 0, 30_000)
+    assertIntegerOption(input.reconnect?.maxDelayMs, '重连最大延迟', 0, 120_000)
+    assertIntegerOption(input.reconnect?.maxRetries, '重连次数', 0, 20)
+    let url: URL
+    try {
+      url = new URL(input.url)
+    } catch {
+      throw new Error('MCP URL 无效')
+    }
+    const headers = input.headers ?? {}
+    const seenHeaders = new Set<string>()
+    if (
+      !['http:', 'https:'].includes(url.protocol) ||
+      !url.hostname ||
+      url.username ||
+      url.password ||
+      url.hash ||
+      input.url.includes('#') ||
+      input.url.length > 2048 ||
+      url.href
+        .slice(url.protocol.length + 2)
+        .split(/[/?#]/, 1)[0]
+        .includes('@') ||
+      Object.keys(headers).length > 50 ||
+      JSON.stringify(headers).length > 200_000 ||
+      Object.entries(headers).some(([name, value]) => {
+        const normalizedName = name.toLowerCase()
+        if (
+          !/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/.test(name) ||
+          seenHeaders.has(normalizedName) ||
+          value.length > 10_000 ||
+          /[\r\n\0]/.test(value)
+        ) {
+          return true
+        }
+        seenHeaders.add(normalizedName)
+        return false
+      })
+    ) {
+      throw new Error('MCP HTTP URL 或请求头无效')
+    }
+    return {
+      type: 'http' as const,
+      url: url.toString(),
+      headers,
+      openGetStream: input.openGetStream,
+      maxMessageBytes: input.maxMessageBytes,
+      reconnect: input.reconnect,
+    }
+  }
+
+  assertIntegerOption(input.maxStderrBytes, '错误输出大小限制', 1, 1024 * 1024)
+  assertIntegerOption(input.closeTimeoutMs, '关闭超时', 0, 60_000)
   const command = input.command.trim()
   const cwd = input.cwd?.trim() || undefined
   if (
@@ -58,44 +140,57 @@ export function assertAiAgentMcpConfiguration(input: AiAgentMcpProcessConfigurat
   ) {
     throw new Error('MCP 环境变量无效')
   }
-  return { command, args: input.args, cwd, environment }
+  return {
+    type: 'stdio' as const,
+    command,
+    args: input.args,
+    cwd,
+    environment,
+    inheritEnv: input.inheritEnv,
+    stderr: input.stderr,
+    maxMessageBytes: input.maxMessageBytes,
+    maxStderrBytes: input.maxStderrBytes,
+    closeTimeoutMs: input.closeTimeoutMs,
+  }
 }
 
-export function encryptAiAgentMcpEnvironment(environment?: Record<string, string>) {
-  return environment && Object.keys(environment).length
-    ? encryption.encrypt(JSON.stringify(environment))
-    : null
+export function encryptAiAgentMcpSecrets(secrets?: Record<string, string>) {
+  return secrets && Object.keys(secrets).length ? encryption.encrypt(JSON.stringify(secrets)) : null
 }
 
-export function decryptAiAgentMcpEnvironment(encryptedEnvironment: string | null) {
-  if (!encryptedEnvironment) return undefined
+export function decryptAiAgentMcpSecrets(encryptedSecrets: string | null | undefined) {
+  if (!encryptedSecrets) return undefined
   try {
-    const decrypted = encryption.decrypt<string>(encryptedEnvironment)
+    const decrypted = encryption.decrypt<string>(encryptedSecrets)
     if (!decrypted) throw new Error()
-    const environment = JSON.parse(decrypted) as unknown
+    const secrets = JSON.parse(decrypted) as unknown
     if (
-      !environment ||
-      typeof environment !== 'object' ||
-      Array.isArray(environment) ||
-      Object.entries(environment).some(([key, value]) => typeof value !== 'string' || !key)
+      !secrets ||
+      typeof secrets !== 'object' ||
+      Array.isArray(secrets) ||
+      Object.entries(secrets).some(([key, value]) => typeof value !== 'string' || !key)
     ) {
       throw new Error()
     }
-    return environment as Record<string, string>
+    return secrets as Record<string, string>
   } catch {
-    throw new Error('MCP 环境变量配置无法解密，请重新配置')
+    throw new Error('MCP 密钥配置无法解密，请重新配置')
   }
 }
 
 export function serializeAiAgentMcpServer(server: AiAgentMcpServer) {
+  const transport = server.transport ?? 'stdio'
   return {
     id: server.id,
     name: server.name,
-    command: server.command,
-    args: server.args,
-    cwd: server.cwd,
+    type: transport,
+    command: transport === 'stdio' ? (server.command ?? '') : null,
+    args: transport === 'stdio' ? (server.args ?? []) : [],
+    cwd: transport === 'stdio' ? (server.cwd ?? null) : null,
+    url: transport === 'http' ? (server.url ?? null) : null,
     enabled: server.enabled,
     environmentConfigured: Boolean(server.environment),
+    headersConfigured: Boolean(server.headers),
     updatedAt: server.updatedAt,
   }
 }
@@ -169,10 +264,34 @@ export async function getAiAgentMcpConfiguration() {
   const servers = await readMcpServers()
   return {
     mcpServers: Object.fromEntries(
-      Object.entries(servers).map(([name, server]) => [
-        name,
-        { command: server.command, args: server.args, cwd: server.cwd },
-      ])
+      Object.entries(servers).map(([name, server]) => {
+        if ((server.transport ?? 'stdio') === 'http') {
+          return [
+            name,
+            {
+              type: 'http',
+              url: server.url ?? '',
+              openGetStream: server.openGetStream,
+              maxMessageBytes: server.maxMessageBytes,
+              reconnect: server.reconnect,
+            },
+          ]
+        }
+        return [
+          name,
+          {
+            type: 'stdio',
+            command: server.command ?? '',
+            args: server.args ?? [],
+            cwd: server.cwd ?? null,
+            inheritEnv: server.inheritEnv ?? false,
+            stderr: server.stderr ?? 'pipe',
+            maxMessageBytes: server.maxMessageBytes,
+            maxStderrBytes: server.maxStderrBytes,
+            closeTimeoutMs: server.closeTimeoutMs,
+          },
+        ]
+      })
     ),
   }
 }
@@ -187,23 +306,64 @@ export async function replaceAiAgentMcpConfiguration(
       if (!name.trim() || name.length > 128) throw new Error('MCP 服务名称无效')
       const processConfiguration = assertAiAgentMcpConfiguration(input)
       const existing = servers[name]
-      const launchChanged =
-        !existing ||
-        input.environment !== undefined ||
-        existing.command !== processConfiguration.command ||
-        existing.cwd !== (processConfiguration.cwd ?? null) ||
-        JSON.stringify(existing.args) !== JSON.stringify(processConfiguration.args)
-      next[name] = {
-        id: launchChanged ? randomUUID() : existing.id,
-        command: processConfiguration.command,
-        args: processConfiguration.args,
-        cwd: processConfiguration.cwd ?? null,
-        environment:
-          input.environment === undefined
-            ? (existing?.environment ?? null)
-            : encryptAiAgentMcpEnvironment(input.environment),
-        enabled: existing?.enabled ?? false,
-        updatedAt: now,
+      const existingTransport = existing?.transport ?? 'stdio'
+      if (processConfiguration.type === 'http') {
+        const headersSupplied = 'headers' in input && input.headers !== undefined
+        const launchChanged =
+          !existing ||
+          existingTransport !== 'http' ||
+          headersSupplied ||
+          existing.url !== processConfiguration.url ||
+          existing.openGetStream !== processConfiguration.openGetStream ||
+          existing.maxMessageBytes !== processConfiguration.maxMessageBytes ||
+          JSON.stringify(existing.reconnect ?? {}) !==
+            JSON.stringify(processConfiguration.reconnect ?? {})
+        next[name] = {
+          id: launchChanged ? randomUUID() : (existing?.id ?? randomUUID()),
+          transport: 'http',
+          url: processConfiguration.url,
+          openGetStream: processConfiguration.openGetStream,
+          maxMessageBytes: processConfiguration.maxMessageBytes,
+          reconnect: processConfiguration.reconnect,
+          headers:
+            !headersSupplied && existingTransport === 'http'
+              ? (existing?.headers ?? null)
+              : encryptAiAgentMcpSecrets(processConfiguration.headers),
+          enabled: existing?.enabled ?? false,
+          updatedAt: now,
+        }
+      } else {
+        const environmentSupplied = 'environment' in input && input.environment !== undefined
+        const launchChanged =
+          !existing ||
+          existingTransport !== 'stdio' ||
+          environmentSupplied ||
+          existing.command !== processConfiguration.command ||
+          existing.cwd !== (processConfiguration.cwd ?? null) ||
+          JSON.stringify(existing.args ?? []) !== JSON.stringify(processConfiguration.args) ||
+          existing.maxMessageBytes !== processConfiguration.maxMessageBytes ||
+          (existing.inheritEnv ?? false) !== (processConfiguration.inheritEnv ?? false) ||
+          (existing.stderr ?? 'pipe') !== (processConfiguration.stderr ?? 'pipe') ||
+          existing.maxStderrBytes !== processConfiguration.maxStderrBytes ||
+          existing.closeTimeoutMs !== processConfiguration.closeTimeoutMs
+        next[name] = {
+          id: launchChanged ? randomUUID() : (existing?.id ?? randomUUID()),
+          transport: 'stdio',
+          command: processConfiguration.command,
+          args: processConfiguration.args,
+          cwd: processConfiguration.cwd ?? null,
+          inheritEnv: processConfiguration.inheritEnv ?? false,
+          stderr: processConfiguration.stderr ?? 'pipe',
+          maxMessageBytes: processConfiguration.maxMessageBytes,
+          maxStderrBytes: processConfiguration.maxStderrBytes,
+          closeTimeoutMs: processConfiguration.closeTimeoutMs,
+          environment:
+            !environmentSupplied && existingTransport === 'stdio'
+              ? (existing?.environment ?? null)
+              : encryptAiAgentMcpSecrets(processConfiguration.environment),
+          enabled: existing?.enabled ?? false,
+          updatedAt: now,
+        }
       }
     }
     for (const name of Object.keys(servers)) delete servers[name]

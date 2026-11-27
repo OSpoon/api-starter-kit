@@ -22,7 +22,7 @@
 - 知识文档按角色过滤；群聊访客只访问公开文档。
 - AI 知识问答先检索可访问的目录，再限定到本轮返回的文档检索正文；目录摘要不是回答证据。
 - AI 查询只能使用注册模板；backend 每次校验权限、参数、范围和结果上限，并在共享 provider 边界做有限脱敏。该机制不等同完整 DLP，细节见[AI 助手架构](ai-assistant-architecture.md)。
-- MCP 进程以 backend 用户身份运行且不经过技能 sandbox；只配置可信 stdio 服务。
+- MCP stdio 进程以 backend 用户身份运行且不经过技能 sandbox；Streamable HTTP 请求由 backend 发起。只配置可信程序和 HTTP(S) 地址。stdio 环境变量与 HTTP 请求头凭据加密保存，读取配置时不回显。stdio 默认不继承 backend 环境变量；启用 `inheritEnv` 会把进程环境中的服务端密钥也交给 MCP 子进程。
 - 有副作用的 AI 操作先创建提议，确认时重新检查会话归属、权限、有效期和目标状态。
 - 模型文本、浏览器状态和聊天记录都不是授权依据；不得执行自由 SQL 或任意 shell。
 - 查询审计不保存原始查询、正文摘录或敏感参数。

@@ -22,7 +22,7 @@ flowchart TB
 - HTTP controller 处理会话归属、输入校验、消息持久化和 SSE 生命周期。渠道 adapter 将平台消息转换为共享 Agent 输入，不另建 AI runtime。
 - `ai_agent_runtime` 组合模型配置与 backend 工具；替换 Agent adapter 不应复制授权、审计或领域 service。
 - 内置工具、查询、操作和技能通过现有 registry 接入；技能内容是非可信输入，不能定义权限或替代工具契约。
-- MCP 仅支持管理员配置的 stdio 服务，进程以 backend 用户身份运行，不经过技能 sandbox；只配置可信命令。工具声明 `readOnlyHint: true` 时直接执行，其他调用需用户确认。当前使用项目自有 registry，不加载通用 Pi 插件。
+- MCP 支持管理员配置的 stdio 子进程和 Streamable HTTP。stdio 进程以 backend 用户身份运行且不经过技能 sandbox；HTTP 请求由 backend 发起。只配置可信程序和服务地址。工具声明 `readOnlyHint: true` 时直接执行，其他调用需用户确认。当前使用项目自有 registry，不加载通用 Pi 插件。
 
 ## 提示词与工具描述的维护入口
 

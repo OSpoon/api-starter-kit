@@ -8,6 +8,7 @@ import {
   type LlmContent,
   McpClient,
   StdioTransport,
+  StreamableHttpTransport,
   toLlmContent,
 } from '@earendil-works/pi-mcp'
 
@@ -18,7 +19,7 @@ import {
   type AiAgentMcpProcessConfiguration,
   type AiAgentMcpServer,
   assertAiAgentMcpConfiguration,
-  decryptAiAgentMcpEnvironment,
+  decryptAiAgentMcpSecrets,
   getAiAgentMcpServer,
 } from '#services/ai_agent_mcp_configuration_service'
 import { recordAuditEvent } from '#services/audit_log'
@@ -107,14 +108,53 @@ function createClient(input: AiAgentMcpProcessConfiguration) {
     version: '1.0.0',
     requestTimeoutMs: 15_000,
   })
-  const transport = new StdioTransport({
-    command: configuration.command,
-    args: configuration.args,
-    cwd: configuration.cwd,
-    env: { PATH: process.env.PATH ?? '', ...configuration.environment },
-    inheritEnv: false,
-  })
+  const transport =
+    configuration.type === 'http'
+      ? new StreamableHttpTransport({
+          url: configuration.url,
+          headers: configuration.headers,
+          openGetStream: configuration.openGetStream,
+          maxMessageBytes: configuration.maxMessageBytes,
+          reconnect: configuration.reconnect,
+          fetch: (url, init) => fetch(url, { ...init, redirect: 'manual' }),
+        })
+      : new StdioTransport({
+          command: configuration.command,
+          args: configuration.args,
+          cwd: configuration.cwd,
+          env: { PATH: process.env.PATH ?? '', ...configuration.environment },
+          inheritEnv: configuration.inheritEnv ?? false,
+          stderr: configuration.stderr,
+          maxMessageBytes: configuration.maxMessageBytes,
+          maxStderrBytes: configuration.maxStderrBytes,
+          closeTimeoutMs: configuration.closeTimeoutMs,
+        })
   return { client, transport }
+}
+
+function configurationForServer(server: AiAgentMcpServer): AiAgentMcpProcessConfiguration {
+  if ((server.transport ?? 'stdio') === 'http') {
+    return {
+      type: 'http',
+      url: server.url ?? '',
+      headers: decryptAiAgentMcpSecrets(server.headers),
+      openGetStream: server.openGetStream,
+      maxMessageBytes: server.maxMessageBytes,
+      reconnect: server.reconnect,
+    }
+  }
+  return {
+    type: 'stdio',
+    command: server.command ?? '',
+    args: server.args ?? [],
+    cwd: server.cwd,
+    environment: decryptAiAgentMcpSecrets(server.environment),
+    inheritEnv: server.inheritEnv,
+    stderr: server.stderr,
+    maxMessageBytes: server.maxMessageBytes,
+    maxStderrBytes: server.maxStderrBytes,
+    closeTimeoutMs: server.closeTimeoutMs,
+  }
 }
 
 export async function discoverAiAgentMcpTools(input: AiAgentMcpProcessConfiguration) {
@@ -151,12 +191,7 @@ export async function discoverAiAgentMcpTools(input: AiAgentMcpProcessConfigurat
 }
 
 export async function discoverAiAgentMcpServerTools(server: AiAgentMcpServer) {
-  return discoverAiAgentMcpTools({
-    command: server.command,
-    args: server.args,
-    cwd: server.cwd,
-    environment: decryptAiAgentMcpEnvironment(server.environment),
-  })
+  return discoverAiAgentMcpTools(configurationForServer(server))
 }
 function parametersFor(tool: AiAgentMcpToolInfo) {
   if (tool.inputSchema.type !== 'object') throw new Error('MCP 工具必须声明对象类型参数')
@@ -197,12 +232,7 @@ async function invokeMcpTool(input: {
   args: Record<string, unknown>
   signal?: AbortSignal
 }) {
-  const { client, transport } = createClient({
-    command: input.server.command,
-    args: input.server.args,
-    cwd: input.server.cwd,
-    environment: decryptAiAgentMcpEnvironment(input.server.environment),
-  })
+  const { client, transport } = createClient(configurationForServer(input.server))
   try {
     await client.connect(transport)
     return await client.callTool(input.toolName, input.args, { signal: input.signal })

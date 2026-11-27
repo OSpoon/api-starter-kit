@@ -54,6 +54,10 @@ const selectedRuntime = computed(() =>
 const removeOpen = ref(false)
 const pendingRemovalNames = ref<string[]>([])
 
+watch(removeOpen, (open) => {
+  if (!open && !saving.value) pendingConfiguration.value = null
+})
+
 async function checkServer(server: AgentMcpServer) {
   runtime.value[server.id] = { status: 'checking', toolCount: 0, tools: [] }
   try {
@@ -113,7 +117,38 @@ async function persistConfiguration(configuration: AgentMcpConfigurationDocument
   saving.value = true
   try {
     await saveAgentMcpConfiguration(auth.token, configuration)
-    currentConfiguration.value = configuration
+    currentConfiguration.value = {
+      mcpServers: Object.fromEntries(
+        Object.entries(configuration.mcpServers).map(([name, server]) => {
+          if (server.type === 'http') {
+            return [
+              name,
+              {
+                type: 'http',
+                url: server.url,
+                openGetStream: server.openGetStream,
+                maxMessageBytes: server.maxMessageBytes,
+                reconnect: server.reconnect,
+              },
+            ]
+          }
+          return [
+            name,
+            {
+              type: 'stdio',
+              command: server.command,
+              args: server.args,
+              cwd: server.cwd,
+              inheritEnv: server.inheritEnv,
+              stderr: server.stderr,
+              maxMessageBytes: server.maxMessageBytes,
+              maxStderrBytes: server.maxStderrBytes,
+              closeTimeoutMs: server.closeTimeoutMs,
+            },
+          ]
+        })
+      ),
+    }
     pendingConfiguration.value = null
     removeOpen.value = false
     configurationOpen.value = false
@@ -174,15 +209,18 @@ const columns = computed<ColumnDef<AgentMcpServer>[]>(() => [
       ),
   },
   {
-    accessorKey: 'command',
-    meta: { label: t('agent_config.mcp_command') },
-    header: () => t('agent_config.mcp_command'),
+    id: 'target',
+    meta: { label: t('agent_config.mcp_target') },
+    header: () => t('agent_config.mcp_target'),
     cell: ({ row }) => {
-      const command = [row.original.command, ...row.original.args].join(' ')
+      const target =
+        row.original.type === 'http'
+          ? (row.original.url ?? '')
+          : [row.original.command ?? '', ...row.original.args].join(' ')
       return h(
         'div',
-        { class: 'max-w-72 truncate font-mono text-xs text-muted-foreground', title: command },
-        command
+        { class: 'max-w-72 truncate font-mono text-xs text-muted-foreground', title: target },
+        target
       )
     },
   },

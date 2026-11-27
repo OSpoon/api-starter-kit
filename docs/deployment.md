@@ -36,7 +36,7 @@ Vite 和 Docker 构建都使用 `apps/frontend/.env`；CI 从示例文件生成�
 
 助手 Web 默认端口为 `17070`，使用同源 `/api/` 代理；跨域部署需设置 `VITE_API_URL`、将 Web origin 加入 backend 的 `CORS_ORIGIN`，并使用 HTTPS。嵌入网站时，其 CSP 需允许助手 Web 的 `script-src` 和 `frame-src`，backend CORS 也需允许该 origin。桌面端连接远程 API 需 HTTPS，并将目标平台的 Tauri origin 加入 `CORS_ORIGIN`。客户端详情见[助手 Web](../apps/assistant-web/README.md)、[桌面端](../apps/assistant-desktop/README.md)和[扩展](../apps/assistant-extension/README.md)。
 
-MCP 仅支持 stdio 服务。服务命令必须存在于 backend 主机或容器中，并以 backend OS 用户身份运行，不经过技能 sandbox；只配置可信命令。MCP 环境变量加密保存在数据库中。
+MCP 支持 stdio 子进程和 Streamable HTTP，配置项对应 `pi-mcp` transport 选项。stdio 命令以 backend OS 用户身份运行，不经过技能 sandbox；可配置 `inheritEnv`、`stderr`、`maxMessageBytes`、`maxStderrBytes` 和 `closeTimeoutMs`。`inheritEnv` 默认关闭，开启后会把 backend 的完整环境变量传给 MCP 进程。HTTP 可配置 `openGetStream`、`maxMessageBytes` 和 `reconnect`。HTTP 请求由 backend 发起，因此只配置可信的 HTTP(S) 地址；容器间使用 Docker 网络服务名，例如 `http://elasticsearch:9200/mcp`，不要用 backend 容器内的 `localhost`。密钥应放在 HTTP 请求头中，不要放在 URL；客户端不会跟随 HTTP 重定向。stdio 环境变量和 HTTP 请求头凭据均加密保存在数据库中，读取配置时不回显。库的 OAuth helper 需要交互授权和令牌生命周期管理，本项目暂未接入；旧式 HTTP+SSE transport 不在该库支持范围内。
 
 ## 首次启动与更新
 

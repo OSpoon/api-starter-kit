@@ -109,20 +109,38 @@ export interface AgentMcpTool {
 export interface AgentMcpServer {
   id: string
   name: string
-  command: string
+  type: 'stdio' | 'http'
+  command: string | null
   args: string[]
   cwd: string | null
+  url: string | null
   enabled: boolean
   environmentConfigured: boolean
+  headersConfigured: boolean
   updatedAt: string
 }
 
-export interface AgentMcpProcessConfiguration {
-  command: string
-  args: string[]
-  cwd?: string | null
-  env?: Record<string, string>
-}
+export type AgentMcpProcessConfiguration =
+  | {
+      type?: 'stdio'
+      command: string
+      args: string[]
+      cwd?: string | null
+      env?: Record<string, string>
+      inheritEnv?: boolean
+      stderr?: 'pipe' | 'inherit'
+      maxMessageBytes?: number
+      maxStderrBytes?: number
+      closeTimeoutMs?: number
+    }
+  | {
+      type: 'http'
+      url: string
+      headers?: Record<string, string>
+      openGetStream?: boolean
+      maxMessageBytes?: number
+      reconnect?: { initialDelayMs?: number; maxDelayMs?: number; maxRetries?: number }
+    }
 
 export interface AgentMcpConfigurationDocument {
   mcpServers: Record<string, AgentMcpProcessConfiguration>

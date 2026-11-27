@@ -3,10 +3,24 @@ import { DateTime } from 'luxon'
 
 export type AiAgentMcpServerConfiguration = {
   id: string
-  command: string
-  args: string[]
-  cwd: string | null
-  environment: string | null
+  transport?: 'stdio' | 'http'
+  command?: string
+  args?: string[]
+  cwd?: string | null
+  url?: string
+  environment?: string | null
+  headers?: string | null
+  inheritEnv?: boolean
+  stderr?: 'pipe' | 'inherit'
+  maxMessageBytes?: number
+  maxStderrBytes?: number
+  closeTimeoutMs?: number
+  openGetStream?: boolean
+  reconnect?: {
+    initialDelayMs?: number
+    maxDelayMs?: number
+    maxRetries?: number
+  }
   enabled: boolean
   updatedAt: string
 }

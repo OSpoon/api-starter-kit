@@ -101,21 +101,27 @@ const mcpServerSchema: ApiSchema = {
   required: [
     'id',
     'name',
+    'type',
     'command',
     'args',
     'cwd',
+    'url',
     'enabled',
     'environmentConfigured',
+    'headersConfigured',
     'updatedAt',
   ],
   properties: {
     id: { type: 'string' },
     name: { type: 'string' },
-    command: { type: 'string' },
+    type: { type: 'string', enum: ['stdio', 'http'] },
+    command: { type: 'string', nullable: true },
     args: { type: 'array', items: { type: 'string' } },
     cwd: { type: 'string', nullable: true },
+    url: { type: 'string', nullable: true },
     enabled: { type: 'boolean' },
     environmentConfigured: { type: 'boolean' },
+    headersConfigured: { type: 'boolean' },
     updatedAt: { type: 'string', format: 'date-time' },
   },
 }
@@ -383,10 +389,10 @@ export default class AgentConfigurationsController {
     return serialize({ items: result.items, meta: result.meta })
   }
 
-  @ApiOperation({ summary: '获取共享 MCP 服务启动配置' })
+  @ApiOperation({ summary: '获取共享 MCP 服务配置' })
   @ApiResponse({
     status: 200,
-    description: 'MCP 启动配置，不包含环境变量值',
+    description: '返回 stdio 或 Streamable HTTP 配置；不包含环境变量或请求头值',
     schema: dataEnvelope({
       type: 'object',
       required: ['mcpServers'],
@@ -394,13 +400,49 @@ export default class AgentConfigurationsController {
         mcpServers: {
           type: 'object',
           additionalProperties: {
-            type: 'object',
-            required: ['command', 'args'],
-            properties: {
-              command: { type: 'string' },
-              args: { type: 'array', items: { type: 'string' } },
-              cwd: { type: 'string', nullable: true },
-            },
+            oneOf: [
+              {
+                type: 'object',
+                required: ['type', 'command', 'args', 'cwd'],
+                properties: {
+                  type: { type: 'string', enum: ['stdio'] },
+                  command: { type: 'string' },
+                  args: { type: 'array', items: { type: 'string' } },
+                  cwd: { type: 'string', nullable: true },
+                  inheritEnv: { type: 'boolean' },
+                  stderr: { type: 'string', enum: ['pipe', 'inherit'] },
+                  maxMessageBytes: {
+                    type: 'integer',
+                    minimum: 1,
+                    maximum: 67_108_864,
+                  },
+                  maxStderrBytes: { type: 'integer', minimum: 1, maximum: 1_048_576 },
+                  closeTimeoutMs: { type: 'integer', minimum: 0, maximum: 60_000 },
+                },
+              },
+              {
+                type: 'object',
+                required: ['type', 'url'],
+                properties: {
+                  type: { type: 'string', enum: ['http'] },
+                  url: { type: 'string', format: 'uri', maxLength: 2048 },
+                  openGetStream: { type: 'boolean' },
+                  maxMessageBytes: {
+                    type: 'integer',
+                    minimum: 1,
+                    maximum: 67_108_864,
+                  },
+                  reconnect: {
+                    type: 'object',
+                    properties: {
+                      initialDelayMs: { type: 'integer', minimum: 0, maximum: 30_000 },
+                      maxDelayMs: { type: 'integer', minimum: 0, maximum: 120_000 },
+                      maxRetries: { type: 'integer', minimum: 0, maximum: 20 },
+                    },
+                  },
+                },
+              },
+            ],
           },
         },
       },
@@ -410,7 +452,11 @@ export default class AgentConfigurationsController {
     return serialize(await getAiAgentMcpConfiguration())
   }
 
-  @ApiOperation({ summary: '替换共享 MCP 服务启动配置' })
+  @ApiOperation({
+    summary: '替换共享 MCP 服务配置',
+    description:
+      '支持 pi-mcp 的 stdio 与 Streamable HTTP 传输选项。env 与 headers 会加密保存且不会回显；省略时保留已保存的对应密钥，传空对象时清除。',
+  })
   @ApiBody({ type: () => updateAiAgentMcpConfigurationValidator, required: true })
   @ApiResponse({
     status: 200,
@@ -423,7 +469,7 @@ export default class AgentConfigurationsController {
   })
   @ApiResponse({
     status: 422,
-    description: '命令、参数或环境变量无效',
+    description: '传输类型、命令、参数、URL、环境变量或请求头无效',
     schema: errorResponseSchema,
   })
   async updateMcpConfiguration(ctx: HttpContext) {
@@ -431,12 +477,27 @@ export default class AgentConfigurationsController {
     const entries = Object.fromEntries(
       Object.entries(payload.mcpServers).map(([name, server]) => [
         name,
-        {
-          command: server.command,
-          args: server.args ?? [],
-          cwd: server.cwd,
-          environment: server.env,
-        },
+        server.type === 'http'
+          ? {
+              type: 'http' as const,
+              url: server.url,
+              headers: server.headers,
+              openGetStream: server.openGetStream,
+              maxMessageBytes: server.maxMessageBytes,
+              reconnect: server.reconnect,
+            }
+          : {
+              type: 'stdio' as const,
+              command: server.command,
+              args: server.args ?? [],
+              cwd: server.cwd,
+              environment: server.env,
+              inheritEnv: server.inheritEnv,
+              stderr: server.stderr,
+              maxMessageBytes: server.maxMessageBytes,
+              maxStderrBytes: server.maxStderrBytes,
+              closeTimeoutMs: server.closeTimeoutMs,
+            },
       ])
     )
     const items = await replaceAiAgentMcpConfiguration(entries)
