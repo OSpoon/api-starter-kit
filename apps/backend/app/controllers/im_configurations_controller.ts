@@ -19,6 +19,43 @@ import {
   updateImBotValidator,
 } from '#validators/im_configuration'
 
+import {
+  type ApiSchema,
+  dataEnvelope,
+  errorResponseSchema,
+  paginatedDataEnvelope,
+} from '../openapi/response_schemas.js'
+
+const imBotSchema: ApiSchema = {
+  type: 'object',
+  required: [
+    'id',
+    'name',
+    'channel',
+    'identifier',
+    'tenantId',
+    'endpoint',
+    'cardTemplateId',
+    'streamingCardTemplateId',
+    'enabled',
+    'secretConfigured',
+    'updatedAt',
+  ],
+  properties: {
+    id: { type: 'integer' },
+    name: { type: 'string' },
+    channel: { type: 'string', enum: ['wecom', 'feishu', 'dingtalk'] },
+    identifier: { type: 'string', nullable: true },
+    tenantId: { type: 'string', nullable: true },
+    endpoint: { type: 'string', nullable: true },
+    cardTemplateId: { type: 'string', nullable: true },
+    streamingCardTemplateId: { type: 'string', nullable: true },
+    enabled: { type: 'boolean' },
+    secretConfigured: { type: 'boolean' },
+    updatedAt: { type: 'string', format: 'date-time' },
+  },
+}
+
 @ApiSecurity('bearerAuth')
 export default class ImConfigurationsController {
   @ApiOperation({ summary: '分页获取 IM 机器人配置' })
@@ -38,7 +75,11 @@ export default class ImConfigurationsController {
       description: '以逗号分隔的平台标识',
     },
   })
-  @ApiResponse({ status: 200, description: '机器人分页列表，密钥仅返回配置状态' })
+  @ApiResponse({
+    status: 200,
+    description: '机器人分页列表，密钥仅返回配置状态',
+    schema: paginatedDataEnvelope(imBotSchema),
+  })
   async index({ request, serialize }: HttpContext) {
     const filters = await request.validateUsing(listImBotsValidator, { data: request.qs() })
     return serialize(
@@ -70,8 +111,13 @@ export default class ImConfigurationsController {
       },
     },
   })
-  @ApiResponse({ status: 201, description: '机器人已创建，密钥仅返回配置状态' })
-  @ApiResponse({ status: 409, description: '同平台应用标识已存在' })
+  @ApiResponse({
+    status: 201,
+    description: '机器人已创建，密钥仅返回配置状态',
+    schema: dataEnvelope(imBotSchema),
+  })
+  @ApiResponse({ status: 409, description: '同平台应用标识已存在', schema: errorResponseSchema })
+  @ApiResponse({ status: 422, description: '机器人配置无效', schema: errorResponseSchema })
   async store(ctx: HttpContext) {
     const payload = await ctx.request.validateUsing(createImBotValidator)
     if (payload.channel === 'wecom' && !payload.tenantId) {
@@ -112,8 +158,14 @@ export default class ImConfigurationsController {
       },
     },
   })
-  @ApiResponse({ status: 200, description: '机器人已更新，密钥仅返回配置状态' })
-  @ApiResponse({ status: 409, description: '同平台应用标识已存在' })
+  @ApiResponse({
+    status: 200,
+    description: '机器人已更新，密钥仅返回配置状态',
+    schema: dataEnvelope(imBotSchema),
+  })
+  @ApiResponse({ status: 409, description: '同平台应用标识已存在', schema: errorResponseSchema })
+  @ApiResponse({ status: 404, description: '机器人不存在', schema: errorResponseSchema })
+  @ApiResponse({ status: 422, description: '机器人配置无效', schema: errorResponseSchema })
   async update(ctx: HttpContext) {
     const { params, request, response, auth } = ctx
     const { id } = await request.validateUsing(imBotIdValidator, { data: params })

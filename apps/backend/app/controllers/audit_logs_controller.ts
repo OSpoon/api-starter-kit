@@ -5,6 +5,8 @@ import AuditLog from '#models/audit_log'
 import { clampLimit } from '#support/pagination'
 import { auditLogsQueryValidator } from '#validators/audit_logs'
 
+import { paginatedDataEnvelope } from '../openapi/response_schemas.js'
+
 function serializeAuditLog(log: AuditLog) {
   return {
     id: log.id,
@@ -75,6 +77,50 @@ export default class AuditLogsController {
   @ApiResponse({
     status: 200,
     description: '审计日志分页列表，事件包含来源、结果、原因、请求路由和 request/trace ID。',
+    schema: paginatedDataEnvelope({
+      type: 'object',
+      required: [
+        'id',
+        'action',
+        'targetType',
+        'eventVersion',
+        'actorType',
+        'source',
+        'outcome',
+        'metadata',
+        'createdAt',
+        'actor',
+      ],
+      properties: {
+        id: { type: 'integer' },
+        action: { type: 'string' },
+        targetType: { type: 'string' },
+        targetId: { type: 'string', nullable: true },
+        eventVersion: { type: 'integer' },
+        actorType: { type: 'string' },
+        source: { type: 'string' },
+        outcome: { type: 'string' },
+        reasonCode: { type: 'string', nullable: true },
+        metadata: { type: 'object', additionalProperties: true },
+        ipAddress: { type: 'string', nullable: true },
+        userAgent: { type: 'string', nullable: true },
+        requestId: { type: 'string', nullable: true },
+        traceId: { type: 'string', nullable: true },
+        requestMethod: { type: 'string', nullable: true },
+        requestRoute: { type: 'string', nullable: true },
+        createdAt: { type: 'string', format: 'date-time' },
+        actor: {
+          type: 'object',
+          nullable: true,
+          required: ['id', 'fullName', 'email'],
+          properties: {
+            id: { type: 'integer' },
+            fullName: { type: 'string' },
+            email: { type: 'string', format: 'email' },
+          },
+        },
+      },
+    }),
   })
   async index({ request, serialize }: HttpContext) {
     const payload = await auditLogsQueryValidator.validate(request.qs())

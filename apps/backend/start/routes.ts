@@ -1,5 +1,4 @@
 import router from '@adonisjs/core/services/router'
-import db from '@adonisjs/lucid/services/db'
 import openapi from '@foadonis/openapi/services/main'
 import YAML from 'yaml'
 
@@ -9,6 +8,7 @@ import { middleware } from '#start/kernel'
 const ApiKeysController = () => import('#controllers/api_keys_controller')
 const BackendLogsController = () => import('#controllers/backend_logs_controller')
 const DashboardController = () => import('#controllers/dashboard_controller')
+const HealthController = () => import('#controllers/health_controller')
 const AiChatController = () => import('#controllers/ai_chat_controller')
 const ChannelIdentitiesController = () => import('#controllers/channel_identities_controller')
 const AuditLogsController = () => import('#controllers/audit_logs_controller')
@@ -85,29 +85,8 @@ function registerAiChatRoutes(mode: 'user' | 'api-key' | 'embed') {
   group.use(middleware.throttle({ max: 20, windowSeconds: 60, key: 'user' }))
 }
 
-router.get('/api/v1/health', () => {
-  return { status: 'ok' }
-})
-
-router.get('/api/v1/health/ready', async ({ response }) => {
-  const checks: Record<string, string> = {}
-  let healthy = true
-
-  try {
-    await db.rawQuery('SELECT 1')
-    checks.database = 'ok'
-  } catch {
-    checks.database = 'error'
-    healthy = false
-  }
-
-  checks.ai = 'runtime_configured'
-
-  if (!healthy) {
-    return response.status(503).send({ status: 'error', checks })
-  }
-  return { status: 'ok', checks }
-})
+router.get('/api/v1/health', [HealthController, 'show'])
+router.get('/api/v1/health/ready', [HealthController, 'ready'])
 
 // OpenAPI docs (Scalar UI) are served directly by the backend on its own port.
 // Enable via OPENAPI_DOCS_ENABLED=true; the route is not registered when disabled.
@@ -115,16 +94,61 @@ if (process.env.OPENAPI_DOCS_ENABLED === 'true') {
   async function buildApiKeyDocument() {
     const document = await openapi.buildDocument()
     const paths = structuredClone(document.paths) as typeof document.paths
+    // The loader retains one path per controller method; these routes share the embed handlers.
+    for (const [path, pathItem] of Object.entries(paths)) {
+      if (!path.startsWith('/api/v1/embed/ai-chat/') || !pathItem) continue
+      const integrationPath = path.replace(
+        '/api/v1/embed/ai-chat/',
+        '/api/v1/integrations/ai-chat/'
+      )
+      paths[integrationPath] = structuredClone(pathItem)
+    }
+    for (const prefix of ['/api/v1/integrations/ai-chat', '/api/v1/embed/ai-chat']) {
+      const operation = paths[`${prefix}/conversations/{id}/messages`]?.post
+      const requestBody = operation?.requestBody
+      if (requestBody && !('$ref' in requestBody)) {
+        // ApiBody supports one media type; expose the validator's JSON variant beside multipart.
+        requestBody.content['application/json'] = {
+          schema: {
+            type: 'object',
+            properties: {
+              content: { type: 'string', minLength: 1, maxLength: 8_000 },
+              pdfMineruConsent: { type: 'boolean' },
+              regenerateAssistantMessageId: { type: 'number', minimum: 0, exclusiveMinimum: true },
+              contextRoute: { type: 'string', maxLength: 200 },
+              contextTitle: { type: 'string', maxLength: 160 },
+              context: {
+                type: 'object',
+                required: ['route', 'title'],
+                properties: {
+                  route: { type: 'string', maxLength: 200 },
+                  title: { type: 'string', maxLength: 160 },
+                },
+              },
+            },
+          },
+        }
+      }
+    }
     for (const path of Object.keys(paths)) {
       if (
         !path.startsWith('/api/v1/integrations/ai-chat/') &&
-        !path.startsWith('/api/v1/embed/ai-chat/') &&
-        path !== '/api/v1/wecom-messages/{id}/send'
+        !path.startsWith('/api/v1/embed/ai-chat/')
       ) {
         delete paths[path]
       }
     }
 
+    const operationTags = {
+      integration: {
+        name: '外部系统集成',
+        description: '供服务端系统通过 X-API-Key 调用 AI 助手能力。',
+      },
+      embed: {
+        name: '嵌入式助手',
+        description: '供网页或客户端嵌入 AI 助手；使用 X-Embed-Session 隔离会话。',
+      },
+    }
     const tags = new Set<string>()
     for (const [path, pathItem] of Object.entries(paths)) {
       if (!pathItem) continue
@@ -140,10 +164,31 @@ if (process.env.OPENAPI_DOCS_ENABLED === 'true') {
       ] as const) {
         const operation = pathItem[method]
         if (!operation) continue
+        const tag = path.startsWith('/api/v1/embed/ai-chat/')
+          ? operationTags.embed.name
+          : operationTags.integration.name
+        operation.tags = [tag]
+        tags.add(tag)
         operation.security = path.startsWith('/api/v1/embed/ai-chat/')
           ? [{ integrationApiKey: [], embedSession: [] }]
           : [{ integrationApiKey: [] }]
-        for (const tag of operation.tags ?? []) tags.add(tag)
+        const seenParameters = new Set<string>()
+        operation.parameters = (operation.parameters ?? []).filter((parameter) => {
+          if ('$ref' in parameter) return true
+          const key = `${parameter.in}:${parameter.name}`
+          if (seenParameters.has(key)) return false
+          seenParameters.add(key)
+          return true
+        })
+        for (const parameter of operation.parameters ?? []) {
+          if (
+            !('$ref' in parameter) &&
+            parameter.in === 'path' &&
+            ['id', 'messageId', 'confirmationId'].includes(parameter.name)
+          ) {
+            parameter.schema = { type: 'integer', minimum: 1 }
+          }
+        }
       }
     }
 
@@ -155,7 +200,7 @@ if (process.env.OPENAPI_DOCS_ENABLED === 'true') {
         description: '第三方通过 X-API-Key 调用 AI 助手集成能力或嵌入式助手接口。',
       },
       paths,
-      tags: document.tags?.filter((tag) => tags.has(tag.name)),
+      tags: [operationTags.integration, operationTags.embed].filter(({ name }) => tags.has(name)),
     }
   }
 

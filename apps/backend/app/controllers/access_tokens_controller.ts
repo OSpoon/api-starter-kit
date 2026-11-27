@@ -1,6 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import db from '@adonisjs/lucid/services/db'
-import { ApiOperation, ApiResponse, ApiSecurity } from '@foadonis/openapi/decorators'
+import { ApiBody, ApiOperation, ApiResponse, ApiSecurity } from '@foadonis/openapi/decorators'
 import { DateTime } from 'luxon'
 
 import { isTurnstileEnabled, verifyTurnstileToken } from '#integrations/turnstile'
@@ -12,6 +12,12 @@ import { loadUserAccess } from '#services/user_access'
 import UserTransformer from '#transformers/user_transformer'
 import { loginValidator } from '#validators/user'
 
+import {
+  authenticatedUserSchema,
+  dataEnvelope,
+  errorResponseSchema,
+} from '../openapi/response_schemas.js'
+
 const INVALID_CREDENTIALS = { code: 'E_INVALID_CREDENTIALS', status: 401 }
 
 export default class AccessTokensController {
@@ -20,8 +26,36 @@ export default class AccessTokensController {
     description:
       '使用管理员邮箱和密码登录。若已启用 2FA，会返回临时 token 并要求继续完成 2FA 验证。',
   })
-  @ApiResponse({ status: 200, description: '登录结果、访问 token 或 2FA 临时 token' })
-  @ApiResponse({ status: 401, description: '账号或密码错误' })
+  @ApiBody({ type: () => loginValidator, required: true })
+  @ApiResponse({
+    status: 200,
+    description: '访问 token 或 2FA 临时凭据；只会返回其中一种',
+    schema: dataEnvelope({
+      oneOf: [
+        {
+          type: 'object',
+          required: ['requiresTwoFactor', 'tempToken', 'requiresPasswordChange'],
+          properties: {
+            requiresTwoFactor: { type: 'boolean', enum: [true] },
+            tempToken: { type: 'string' },
+            requiresPasswordChange: { type: 'boolean' },
+          },
+        },
+        {
+          type: 'object',
+          required: ['user', 'token', 'requiresPasswordChange'],
+          properties: {
+            user: authenticatedUserSchema,
+            token: { type: 'string' },
+            requiresPasswordChange: { type: 'boolean' },
+          },
+        },
+      ],
+    }),
+  })
+  @ApiResponse({ status: 401, description: '账号或密码错误', schema: errorResponseSchema })
+  @ApiResponse({ status: 403, description: 'Turnstile 验证失败', schema: errorResponseSchema })
+  @ApiResponse({ status: 422, description: '登录字段无效', schema: errorResponseSchema })
   async store(ctx: HttpContext) {
     const { request, serialize } = ctx
     const { email, password, turnstileToken } = await request.validateUsing(loginValidator)
@@ -123,7 +157,15 @@ export default class AccessTokensController {
     summary: '退出登录',
     description: '删除当前访问 token。',
   })
-  @ApiResponse({ status: 200, description: '退出成功' })
+  @ApiResponse({
+    status: 200,
+    description: '退出成功',
+    schema: {
+      type: 'object',
+      required: ['message'],
+      properties: { message: { type: 'string' } },
+    },
+  })
   async destroy(ctx: HttpContext) {
     const { auth } = ctx
     const user = auth.getUserOrFail()

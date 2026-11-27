@@ -3,7 +3,7 @@ import { defineConfig } from '@foadonis/openapi'
 export default defineConfig({
   ui: 'scalar',
   document: {
-    openapi: '3.1.0',
+    openapi: '3.0.0',
     info: {
       title: 'API Starter Kit',
       version: '0.1.0',
@@ -19,6 +19,7 @@ export default defineConfig({
       { name: 'Auth', description: '管理员登录、会话和双重身份验证' },
       { name: 'Account', description: '管理员资料、密码和安全设置' },
       { name: 'API Keys', description: '外部系统接入密钥管理' },
+      { name: 'AiChat', description: 'AI 助手会话、消息、用量和受控操作' },
     ],
     components: {
       securitySchemes: {

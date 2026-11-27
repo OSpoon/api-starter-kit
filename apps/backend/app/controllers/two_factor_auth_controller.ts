@@ -2,7 +2,7 @@ import crypto from 'node:crypto'
 
 import type { HttpContext } from '@adonisjs/core/http'
 import db from '@adonisjs/lucid/services/db'
-import { ApiOperation, ApiResponse, ApiSecurity } from '@foadonis/openapi/decorators'
+import { ApiBody, ApiOperation, ApiResponse, ApiSecurity } from '@foadonis/openapi/decorators'
 import { generateSecret, generateURI, verify } from 'otplib'
 import QRCode from 'qrcode'
 
@@ -19,13 +19,30 @@ import { loadUserAccess } from '#services/user_access'
 import UserTransformer from '#transformers/user_transformer'
 import { enableTwoFactorValidator, verifyTwoFactorValidator } from '#validators/user'
 
+import {
+  authenticatedUserSchema,
+  dataEnvelope,
+  errorResponseSchema,
+} from '../openapi/response_schemas.js'
+
 export default class TwoFactorAuthController {
   @ApiSecurity('bearerAuth')
   @ApiOperation({
     summary: '生成 2FA 配置',
     description: '为当前管理员生成 2FA secret 和二维码。secret 仅用于启用前确认。',
   })
-  @ApiResponse({ status: 200, description: '2FA secret 和二维码' })
+  @ApiResponse({
+    status: 200,
+    description: '2FA secret 和二维码；secret 仅用于启用前确认',
+    schema: dataEnvelope({
+      type: 'object',
+      required: ['secret', 'qrCode'],
+      properties: {
+        secret: { type: 'string', description: '启用 2FA 后不可再次读取' },
+        qrCode: { type: 'string', format: 'uri' },
+      },
+    }),
+  })
   async generate({ auth, serialize }: HttpContext) {
     const user = auth.getUserOrFail()
     const secret = generateSecret()
@@ -44,8 +61,21 @@ export default class TwoFactorAuthController {
     summary: '启用 2FA',
     description: '校验一次性验证码后启用 2FA，并返回恢复码。secret 和恢复码会加密保存。',
   })
-  @ApiResponse({ status: 200, description: '已更新的管理员资料和恢复码' })
-  @ApiResponse({ status: 400, description: '验证码无效' })
+  @ApiBody({ type: () => enableTwoFactorValidator, required: true })
+  @ApiResponse({
+    status: 200,
+    description: '已启用 2FA 的管理员资料和仅披露一次的恢复码',
+    schema: dataEnvelope({
+      type: 'object',
+      required: ['user', 'recoveryCodes'],
+      properties: {
+        user: authenticatedUserSchema,
+        recoveryCodes: { type: 'array', items: { type: 'string' } },
+      },
+    }),
+  })
+  @ApiResponse({ status: 400, description: '验证码无效', schema: errorResponseSchema })
+  @ApiResponse({ status: 422, description: '2FA 字段无效', schema: errorResponseSchema })
   async enable(ctx: HttpContext) {
     const { auth, request, response, serialize } = ctx
     const user = auth.getUserOrFail()
@@ -89,8 +119,25 @@ export default class TwoFactorAuthController {
     summary: '登录阶段校验 2FA',
     description: '使用登录接口返回的临时 token、一次性验证码或恢复码完成 2FA 验证。',
   })
-  @ApiResponse({ status: 200, description: '管理员资料和访问 token' })
-  @ApiResponse({ status: 401, description: '临时会话过期或验证码无效' })
+  @ApiBody({ type: () => verifyTwoFactorValidator, required: true })
+  @ApiResponse({
+    status: 200,
+    description: '完成 2FA 后的管理员资料和访问 token',
+    schema: dataEnvelope({
+      type: 'object',
+      required: ['user', 'token'],
+      properties: {
+        user: authenticatedUserSchema,
+        token: { type: 'string' },
+      },
+    }),
+  })
+  @ApiResponse({
+    status: 401,
+    description: '临时会话过期或验证码无效',
+    schema: errorResponseSchema,
+  })
+  @ApiResponse({ status: 422, description: '2FA 验证字段无效', schema: errorResponseSchema })
   async verify(ctx: HttpContext) {
     const { request, response, serialize } = ctx
     const payload = await request.validateUsing(verifyTwoFactorValidator)

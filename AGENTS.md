@@ -40,12 +40,40 @@ requirements.
   `items` and `meta` within `data`.
 - Public API changes update OpenAPI decorators, frontend client types, and
   tests. Response-shape changes update all affected clients and tests.
+- Every new or changed `/api/v1` operation must appear in the generated OpenAPI
+  document for its audience. Document it on the mapped controller method using
+  the existing `@foadonis/openapi` integration; do not leave undocumented
+  routes or create a parallel hand-maintained API specification.
 - Use `401` for unauthenticated, `403` for unauthorized, `409` for referenced
   records or conflicts, and `422` for validation failures.
 - Potentially unbounded lists require server-side pagination and limits.
 - Define ownership, authorization, conflict behavior, and audit-sensitive
   side effects before mutations. Credential generation, encryption, and
   external-provider calls belong in services.
+
+### OpenAPI Documentation Standard
+
+- Give each operation a useful tag, concise Chinese summary, and a description
+  of behavior or side effects that are not clear from the summary.
+- Document every path, query, and header parameter and every request body,
+  including media type, requiredness, type, and constraints. Schemas must match
+  the Vine validator, including bounds, defaults, nullability, and enum values.
+  Describe multipart uploads, streams, binary bodies, and redirects accurately.
+- Document each successful response and each expected client-visible error
+  with its actual HTTP status, media type, and response schema. Schemas must
+  match the serialized DTO and response envelope; paginated responses use the
+  established `data.items` and `data.meta` shape. Do not use a description-only
+  placeholder when the response has a structured body.
+- Document authentication with the existing OpenAPI security schemes, matching
+  the route middleware and actual credential type. Never put credentials,
+  secrets, or sensitive personal data in examples.
+- Before completing an API change, inspect the generated OpenAPI JSON or YAML
+  and confirm that the method and path, parameters, request/response schemas,
+  status codes, and security match the route, Vine validator, controller, and
+  serializer. Update affected frontend client types and regression tests.
+- Keep the published document limited to its intended audience. The current
+  `/api-docs` document is filtered to integration APIs; documenting an
+  operation does not authorize broadening that published scope.
 
 ### Authentication, Authorization, And Sensitive Data
 

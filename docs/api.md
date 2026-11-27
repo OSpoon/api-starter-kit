@@ -46,7 +46,10 @@ Backend API 的基础路径为 `/api/v1`。具体 URL、参数、响应 schema �
 1. 在 `apps/backend/start/routes.ts` 声明路由、middleware 和 controller。
 2. 使用 Vine validator 校验输入；领域逻辑放 service。
 3. 通过 `serialize()`、transformer 或明确 DTO 只返回所需字段。
-4. 更新 OpenAPI 定义、相关前端 API client 和类型。
-5. 覆盖认证、允许/拒绝、校验、资源归属、冲突和分页边界。
+4. 在对应 controller 方法添加 OpenAPI 装饰器。为每个操作提供 tag、简洁摘要、必要说明；参数和请求体 schema 与 Vine 规则一致，响应 schema 与实际状态码、序列化结构和 `{ data: ... }` envelope 一致。文件上传、SSE、二进制和重定向要注明实际 media type 与格式。
+5. 检查生成的 OpenAPI JSON/YAML，确认方法、路径、参数、请求/响应、错误状态和认证定义与实现一致；同步相关前端 API client 和类型。
+6. 覆盖认证、允许/拒绝、校验、资源归属、冲突和分页边界。
+
+OpenAPI 装饰器不能替代 Vine 运行时校验。当前 `/api-docs` 面向 AI 集成接口，保持其文档发布范围；新增其他接口时不要顺带公开未面向集成方的路由。
 
 前端统一通过 `@/lib/api` 请求 backend。不要新增平行 HTTP client；普通读取接口不得返回密钥、密码哈希、加密值或不必要的模型字段。AI 扩展需遵循[系统架构中的 AI 扩展边界](architecture.md#ai-扩展边界)。

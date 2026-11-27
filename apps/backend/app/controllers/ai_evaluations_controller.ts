@@ -1,5 +1,11 @@
 import type { HttpContext } from '@adonisjs/core/http'
-import { ApiOperation, ApiResponse, ApiSecurity } from '@foadonis/openapi/decorators'
+import {
+  ApiBody,
+  ApiOperation,
+  ApiQuery,
+  ApiResponse,
+  ApiSecurity,
+} from '@foadonis/openapi/decorators'
 import vine from '@vinejs/vine'
 
 import { aiEvaluationToolNames } from '#ai/evaluation/ai_evaluation'
@@ -22,7 +28,76 @@ import {
   aiEvaluationRunValidator,
 } from '#validators/ai_evaluation'
 
+import {
+  type ApiSchema,
+  dataEnvelope,
+  errorResponseSchema,
+  paginatedDataEnvelope,
+} from '../openapi/response_schemas.js'
+
 const idValidator = vine.compile(vine.object({ id: vine.number().withoutDecimals().positive() }))
+
+const evaluationCaseSchema: ApiSchema = {
+  type: 'object',
+  required: [
+    'id',
+    'name',
+    'question',
+    'referenceAnswer',
+    'expectedTools',
+    'expectedToolSequence',
+    'requiredTerms',
+    'forbiddenTerms',
+    'mockToolOutputs',
+    'createdAt',
+    'updatedAt',
+  ],
+  properties: {
+    id: { type: 'integer' },
+    sourceConversationId: { type: 'integer', nullable: true },
+    name: { type: 'string' },
+    question: { type: 'string' },
+    referenceAnswer: { type: 'string' },
+    expectedTools: { type: 'array', items: { type: 'string' } },
+    expectedToolSequence: { type: 'array', items: { type: 'string' } },
+    requiredTerms: { type: 'array', items: { type: 'string' } },
+    forbiddenTerms: { type: 'array', items: { type: 'string' } },
+    mockToolOutputs: { type: 'object', additionalProperties: true },
+    createdAt: { type: 'string', format: 'date-time' },
+    updatedAt: { type: 'string', format: 'date-time' },
+  },
+}
+
+const evaluationRunSchema: ApiSchema = {
+  type: 'object',
+  required: [
+    'id',
+    'status',
+    'modelId',
+    'caseIds',
+    'totalCases',
+    'completedCases',
+    'results',
+    'error',
+    'startedAt',
+    'completedAt',
+    'createdAt',
+  ],
+  properties: {
+    id: { type: 'integer' },
+    status: { type: 'string', enum: ['queued', 'running', 'completed', 'failed', 'cancelled'] },
+    modelId: { type: 'string' },
+    caseIds: { type: 'array', items: { type: 'integer' } },
+    totalCases: { type: 'integer' },
+    completedCases: { type: 'integer' },
+    score: { type: 'number', nullable: true },
+    results: { type: 'array', items: { type: 'object', additionalProperties: true } },
+    error: { type: 'string', nullable: true },
+    startedAt: { type: 'string', nullable: true, format: 'date-time' },
+    completedAt: { type: 'string', nullable: true, format: 'date-time' },
+    createdAt: { type: 'string', format: 'date-time' },
+  },
+}
 
 function serializeCase(evaluationCase: AiEvaluationCase) {
   return {
@@ -77,7 +152,24 @@ function validateToolNames(payload: {
 @ApiSecurity('bearerAuth')
 export default class AiEvaluationsController {
   @ApiOperation({ summary: '获取测评条目列表' })
-  @ApiResponse({ status: 200, description: '分页测评条目' })
+  @ApiQuery({ name: 'page', required: false, schema: { type: 'integer', minimum: 1 } })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    schema: { type: 'integer', minimum: 1, maximum: 100 },
+  })
+  @ApiQuery({ name: 'name', required: false, schema: { type: 'string', maxLength: 200 } })
+  @ApiQuery({ name: 'question', required: false, schema: { type: 'string', maxLength: 200 } })
+  @ApiQuery({
+    name: 'source',
+    required: false,
+    schema: { type: 'string', enum: ['chat', 'manual'] },
+  })
+  @ApiResponse({
+    status: 200,
+    description: '测评条目分页列表',
+    schema: paginatedDataEnvelope(evaluationCaseSchema),
+  })
   async index({ request, serialize }: HttpContext) {
     const payload = await aiEvaluationListValidator.validate(request.qs())
     const query = AiEvaluationCase.query().orderBy('updated_at', 'desc')
@@ -90,7 +182,17 @@ export default class AiEvaluationsController {
   }
 
   @ApiOperation({ summary: '创建测评条目' })
-  @ApiResponse({ status: 200, description: '已创建的测评条目' })
+  @ApiBody({ type: () => aiEvaluationCaseValidator, required: true })
+  @ApiResponse({
+    status: 200,
+    description: '已创建的测评条目',
+    schema: dataEnvelope(evaluationCaseSchema),
+  })
+  @ApiResponse({
+    status: 422,
+    description: '字段无效、关联会话不可用或工具名称无效',
+    schema: errorResponseSchema,
+  })
   async store({ request, auth, response, serialize }: HttpContext) {
     const payload = await aiEvaluationCaseValidator.validate(request.all())
     if (!validateToolNames(payload)) {
@@ -119,6 +221,18 @@ export default class AiEvaluationsController {
   }
 
   @ApiOperation({ summary: '更新测评条目' })
+  @ApiBody({ type: () => aiEvaluationCaseValidator, required: true })
+  @ApiResponse({
+    status: 200,
+    description: '已更新的测评条目',
+    schema: dataEnvelope(evaluationCaseSchema),
+  })
+  @ApiResponse({ status: 404, description: '测评条目不存在', schema: errorResponseSchema })
+  @ApiResponse({
+    status: 422,
+    description: '字段无效、关联会话不可用或工具名称无效',
+    schema: errorResponseSchema,
+  })
   async update({ request, auth, response, serialize }: HttpContext) {
     const payload = await aiEvaluationCaseValidator.validate(request.all())
     const { id } = await idValidator.validate({ id: request.param('id') })
@@ -155,6 +269,21 @@ export default class AiEvaluationsController {
   }
 
   @ApiOperation({ summary: '删除测评条目' })
+  @ApiResponse({
+    status: 200,
+    description: '测评条目已删除',
+    schema: dataEnvelope({
+      type: 'object',
+      required: ['id', 'deleted'],
+      properties: { id: { type: 'integer' }, deleted: { type: 'boolean', enum: [true] } },
+    }),
+  })
+  @ApiResponse({ status: 404, description: '测评条目不存在', schema: errorResponseSchema })
+  @ApiResponse({
+    status: 409,
+    description: '该测评条目正在运行，暂时不能删除',
+    schema: errorResponseSchema,
+  })
   async destroy({ request, response, serialize }: HttpContext) {
     const { id } = await idValidator.validate({ id: request.param('id') })
     const activeRuns = await AiEvaluationRun.query()
@@ -169,7 +298,14 @@ export default class AiEvaluationsController {
   }
 
   @ApiOperation({ summary: '将所选聊天消息加入测评管理' })
-  @ApiResponse({ status: 200, description: '已创建的测评条目' })
+  @ApiBody({ type: () => aiEvaluationConversationImportValidator, required: true })
+  @ApiResponse({
+    status: 200,
+    description: '已创建的测评条目',
+    schema: dataEnvelope(evaluationCaseSchema),
+  })
+  @ApiResponse({ status: 404, description: '聊天会话不可用', schema: errorResponseSchema })
+  @ApiResponse({ status: 422, description: '所选聊天消息无效', schema: errorResponseSchema })
   async importConversation({ request, auth, response, serialize }: HttpContext) {
     const payload = await aiEvaluationConversationImportValidator.validate(request.all())
     const messageIds = [...new Set(payload.messageIds)]
@@ -244,6 +380,17 @@ export default class AiEvaluationsController {
   }
 
   @ApiOperation({ summary: '获取测评运行历史' })
+  @ApiQuery({ name: 'page', required: false, schema: { type: 'integer', minimum: 1 } })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    schema: { type: 'integer', minimum: 1, maximum: 100 },
+  })
+  @ApiResponse({
+    status: 200,
+    description: '测评运行分页历史',
+    schema: paginatedDataEnvelope(evaluationRunSchema),
+  })
   async runsIndex({ request, serialize }: HttpContext) {
     const payload = await aiEvaluationRunListValidator.validate(request.qs())
     const paginator = await AiEvaluationRun.query()
@@ -253,7 +400,28 @@ export default class AiEvaluationsController {
   }
 
   @ApiOperation({ summary: '获取单条测评的历史得分和回复' })
-  @ApiResponse({ status: 200, description: '单条测评的分页历史结果' })
+  @ApiQuery({ name: 'page', required: false, schema: { type: 'integer', minimum: 1 } })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    schema: { type: 'integer', minimum: 1, maximum: 100 },
+  })
+  @ApiResponse({
+    status: 200,
+    description: '单条测评的分页历史结果',
+    schema: paginatedDataEnvelope({
+      type: 'object',
+      required: ['runId', 'modelId', 'status', 'createdAt', 'completedAt', 'result'],
+      properties: {
+        runId: { type: 'integer' },
+        modelId: { type: 'string' },
+        status: { type: 'string' },
+        createdAt: { type: 'string', format: 'date-time' },
+        completedAt: { type: 'string', nullable: true, format: 'date-time' },
+        result: { type: 'object', additionalProperties: true },
+      },
+    }),
+  })
   async caseHistory({ request, serialize }: HttpContext) {
     const { id: caseId } = await idValidator.validate({ id: request.param('id') })
     const payload = await aiEvaluationRunListValidator.validate(request.qs())
@@ -281,6 +449,14 @@ export default class AiEvaluationsController {
   }
 
   @ApiOperation({ summary: '启动测评' })
+  @ApiBody({ type: () => aiEvaluationRunValidator, required: true })
+  @ApiResponse({
+    status: 200,
+    description: '测评任务已排队',
+    schema: dataEnvelope(evaluationRunSchema),
+  })
+  @ApiResponse({ status: 409, description: '已有测评任务正在运行', schema: errorResponseSchema })
+  @ApiResponse({ status: 422, description: '测评条目集合无效', schema: errorResponseSchema })
   async run({ request, auth, response, serialize }: HttpContext) {
     const payload = await aiEvaluationRunValidator.validate(request.all())
     const activeRun = await AiEvaluationRun.query().whereIn('status', ['queued', 'running']).first()
@@ -325,7 +501,12 @@ export default class AiEvaluationsController {
   }
 
   @ApiOperation({ summary: '获取测评运行详情' })
-  @ApiResponse({ status: 200, description: '测评运行进度和对照评分' })
+  @ApiResponse({
+    status: 200,
+    description: '测评运行进度和对照评分',
+    schema: dataEnvelope(evaluationRunSchema),
+  })
+  @ApiResponse({ status: 404, description: '测评运行不存在', schema: errorResponseSchema })
   async showRun({ request, serialize }: HttpContext) {
     const { id } = await idValidator.validate({ id: request.param('id') })
     const run = await AiEvaluationRun.findOrFail(id)

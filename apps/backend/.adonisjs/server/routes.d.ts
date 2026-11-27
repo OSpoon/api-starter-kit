@@ -4,6 +4,8 @@ type ParamValue = string | number | bigint | boolean
 
 export type ScannedRoutes = {
   ALL: {
+    'health.show': { paramsTuple?: []; params?: {} }
+    'health.ready': { paramsTuple?: []; params?: {} }
     'openapi.html': { paramsTuple?: []; params?: {} }
     'openapi.json': { paramsTuple?: []; params?: {} }
     'openapi.yaml': { paramsTuple?: []; params?: {} }
@@ -138,6 +140,8 @@ export type ScannedRoutes = {
     'embed.ai_chat.ai_chat.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
   }
   GET: {
+    'health.show': { paramsTuple?: []; params?: {} }
+    'health.ready': { paramsTuple?: []; params?: {} }
     'openapi.html': { paramsTuple?: []; params?: {} }
     'openapi.json': { paramsTuple?: []; params?: {} }
     'openapi.yaml': { paramsTuple?: []; params?: {} }
@@ -187,6 +191,8 @@ export type ScannedRoutes = {
     'embed.ai_chat.ai_chat.show_message_image': { paramsTuple: [ParamValue,ParamValue]; params: {'id': ParamValue,'messageId': ParamValue} }
   }
   HEAD: {
+    'health.show': { paramsTuple?: []; params?: {} }
+    'health.ready': { paramsTuple?: []; params?: {} }
     'openapi.html': { paramsTuple?: []; params?: {} }
     'openapi.json': { paramsTuple?: []; params?: {} }
     'openapi.yaml': { paramsTuple?: []; params?: {} }

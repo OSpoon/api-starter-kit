@@ -56,6 +56,75 @@ import {
 } from '#validators/ai_chat'
 import { paginationSearchQueryValidator } from '#validators/pagination'
 
+import {
+  type ApiSchema,
+  dataEnvelope,
+  errorResponseSchema,
+  paginatedDataEnvelope,
+  paginationMetaSchema,
+} from '../openapi/response_schemas.js'
+
+const conversationSchema: ApiSchema = {
+  type: 'object',
+  required: ['id', 'title', 'createdAt', 'updatedAt'],
+  properties: {
+    id: { type: 'integer' },
+    title: { type: 'string' },
+    createdAt: { type: 'string', nullable: true, format: 'date-time' },
+    updatedAt: { type: 'string', nullable: true, format: 'date-time' },
+  },
+}
+
+const messageSchema: ApiSchema = {
+  type: 'object',
+  required: ['id', 'conversationId', 'role', 'content', 'citations', 'createdAt', 'updatedAt'],
+  properties: {
+    id: { type: 'integer' },
+    conversationId: { type: 'integer' },
+    role: { type: 'string', enum: ['user', 'assistant'] },
+    content: { type: 'string' },
+    image: { type: 'object', properties: { mimeType: { type: 'string' } } },
+    pdf: { type: 'object', properties: { name: { type: 'string' } } },
+    citations: { type: 'array', items: { type: 'object', additionalProperties: true } },
+    timeline: { type: 'array', items: { type: 'object', additionalProperties: true } },
+    createdAt: { type: 'string', nullable: true, format: 'date-time' },
+    updatedAt: { type: 'string', nullable: true, format: 'date-time' },
+  },
+}
+
+const confirmationSchema: ApiSchema = {
+  type: 'object',
+  required: [
+    'id',
+    'action',
+    'status',
+    'impact',
+    'targetType',
+    'targetSummary',
+    'changeSummary',
+    'presentation',
+  ],
+  properties: {
+    id: { type: 'integer' },
+    action: { type: 'string' },
+    status: { type: 'string', enum: ['pending', 'confirmed', 'cancelled', 'failed', 'expired'] },
+    impact: { type: 'string', enum: ['read', 'write', 'destructive'] },
+    targetType: { type: 'string' },
+    targetId: { type: 'string', nullable: true },
+    targetSummary: { type: 'object', additionalProperties: true },
+    changeSummary: {
+      type: 'array',
+      items: {
+        type: 'object',
+        required: ['field', 'value'],
+        properties: { field: { type: 'string' }, value: { type: 'string' } },
+      },
+    },
+    expiresAt: { type: 'string', nullable: true, format: 'date-time' },
+    presentation: { type: 'object', additionalProperties: true },
+  },
+}
+
 function currentUser(ctx: HttpContext) {
   return ctx.integrationUser ?? ctx.auth.getUserOrFail()
 }
@@ -72,6 +141,12 @@ function conversationsFor(ctx: HttpContext, userId: number) {
 
 @ApiSecurity('bearerAuth')
 @ApiSecurity('integrationApiKey')
+@ApiResponse({
+  status: 401,
+  description: 'Bearer Token 或 API Key 无效',
+  schema: errorResponseSchema,
+})
+@ApiResponse({ status: 403, description: '请求凭据无权访问该资源', schema: errorResponseSchema })
 export default class AiChatController {
   @ApiOperation({
     summary: '获取可在 AI 聊天中选择的技能',
@@ -95,7 +170,19 @@ export default class AiChatController {
     description: '按技能代码或名称筛选',
     schema: { type: 'string', maxLength: 200 },
   })
-  @ApiResponse({ status: 200, description: '已启用技能分页列表' })
+  @ApiResponse({
+    status: 200,
+    description: '已启用技能分页列表',
+    schema: paginatedDataEnvelope({
+      type: 'object',
+      required: ['code', 'name', 'description'],
+      properties: {
+        code: { type: 'string' },
+        name: { type: 'string' },
+        description: { type: 'string' },
+      },
+    }),
+  })
   async skills(ctx: HttpContext) {
     const { request, serialize } = ctx
     const pagination = await paginationSearchQueryValidator.validate(request.qs())
@@ -121,7 +208,31 @@ export default class AiChatController {
   }
 
   @ApiOperation({ summary: '转写 AI 助手语音消息' })
-  @ApiResponse({ status: 200, description: '语音转写结果' })
+  @ApiBody({
+    mediaType: 'multipart/form-data',
+    required: true,
+    schema: {
+      type: 'object',
+      required: ['audio'],
+      properties: {
+        audio: {
+          type: 'string',
+          format: 'binary',
+          description: '最大 10 MB；支持 webm、ogg、wav、mp3、m4a、mp4、mpeg、mpga。',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 200,
+    description: '语音转写文本',
+    schema: dataEnvelope({
+      type: 'object',
+      required: ['text'],
+      properties: { text: { type: 'string' } },
+    }),
+  })
+  @ApiResponse({ status: 422, description: '音频无效或转写失败', schema: errorResponseSchema })
   async transcribe(ctx: HttpContext) {
     const { request, response, serialize } = ctx
     const file = request.file('audio', {
@@ -164,7 +275,11 @@ export default class AiChatController {
     description: '每页数量，默认 20，最大 100',
     schema: { type: 'integer', minimum: 1, maximum: 100 },
   })
-  @ApiResponse({ status: 200, description: 'AI 会话列表' })
+  @ApiResponse({
+    status: 200,
+    description: 'AI 会话分页列表',
+    schema: paginatedDataEnvelope(conversationSchema),
+  })
   async index(ctx: HttpContext) {
     const { request, serialize } = ctx
     const user = currentUser(ctx)
@@ -184,7 +299,70 @@ export default class AiChatController {
     summary: '获取当前用户的 AI 用量',
     description: '仅返回当前登录用户本月 Pi 对话模型的 token 用量和估算消费。',
   })
-  @ApiResponse({ status: 200, description: '当前用户的 AI 用量汇总' })
+  @ApiResponse({
+    status: 200,
+    description: '当前用户本月的 AI 用量汇总',
+    schema: dataEnvelope({
+      type: 'object',
+      required: [
+        'period',
+        'inputTokens',
+        'outputTokens',
+        'cacheReadTokens',
+        'cacheWriteTokens',
+        'totalTokens',
+        'modelCalls',
+        'estimatedCostUsd',
+        'pricingSource',
+        'unpricedModelCount',
+        'models',
+      ],
+      properties: {
+        period: { type: 'string', enum: ['current_month'] },
+        periodStart: { type: 'string', format: 'date-time' },
+        periodEnd: { type: 'string', format: 'date-time' },
+        inputTokens: { type: 'integer' },
+        outputTokens: { type: 'integer' },
+        cacheReadTokens: { type: 'integer' },
+        cacheWriteTokens: { type: 'integer' },
+        totalTokens: { type: 'integer' },
+        modelCalls: { type: 'integer' },
+        estimatedCostUsd: { type: 'number', nullable: true },
+        pricingSource: { type: 'string', enum: ['models.dev', 'mixed', 'unavailable'] },
+        unpricedModelCount: { type: 'integer' },
+        models: {
+          type: 'array',
+          items: {
+            type: 'object',
+            required: [
+              'modelId',
+              'providerId',
+              'inputTokens',
+              'outputTokens',
+              'cacheReadTokens',
+              'cacheWriteTokens',
+              'totalTokens',
+              'modelCalls',
+              'estimatedCostUsd',
+              'priced',
+            ],
+            properties: {
+              modelId: { type: 'string' },
+              providerId: { type: 'string' },
+              inputTokens: { type: 'integer' },
+              outputTokens: { type: 'integer' },
+              cacheReadTokens: { type: 'integer' },
+              cacheWriteTokens: { type: 'integer' },
+              totalTokens: { type: 'integer' },
+              modelCalls: { type: 'integer' },
+              estimatedCostUsd: { type: 'number', nullable: true },
+              priced: { type: 'boolean' },
+            },
+          },
+        },
+      },
+    }),
+  })
   async usage(ctx: HttpContext) {
     const user = currentUser(ctx)
     return ctx.serialize(await getAiUsageSummary(user.id, ctx.integrationApiKey?.id))
@@ -194,7 +372,20 @@ export default class AiChatController {
     summary: '创建 AI 会话',
     description: '创建一个新的纯聊天会话。',
   })
-  @ApiResponse({ status: 200, description: '已创建的 AI 会话' })
+  @ApiBody({ type: () => createConversationValidator, required: true })
+  @ApiResponse({
+    status: 200,
+    description: '已创建的 AI 会话及其消息列表',
+    schema: dataEnvelope({
+      type: 'object',
+      required: ['id', 'title', 'createdAt', 'updatedAt', 'messages'],
+      properties: {
+        ...conversationSchema.properties,
+        messages: { type: 'array', items: messageSchema },
+      },
+    }),
+  })
+  @ApiResponse({ status: 422, description: '会话字段无效', schema: errorResponseSchema })
   async store(ctx: HttpContext) {
     const { request, serialize } = ctx
     const user = currentUser(ctx)
@@ -226,7 +417,28 @@ export default class AiChatController {
     description: '每页消息数，默认 50，最大 100',
     schema: { type: 'integer', minimum: 1, maximum: 100 },
   })
-  @ApiResponse({ status: 200, description: 'AI 会话详情和消息分页' })
+  @ApiResponse({
+    status: 200,
+    description: 'AI 会话详情、消息分页和待确认操作',
+    schema: dataEnvelope({
+      type: 'object',
+      required: [
+        'id',
+        'title',
+        'createdAt',
+        'updatedAt',
+        'messages',
+        'messagesMeta',
+        'confirmations',
+      ],
+      properties: {
+        ...conversationSchema.properties,
+        messages: { type: 'array', items: messageSchema },
+        messagesMeta: paginationMetaSchema,
+        confirmations: { type: 'array', items: confirmationSchema },
+      },
+    }),
+  })
   async show(ctx: HttpContext) {
     const { params, request, serialize } = ctx
     const user = currentUser(ctx)
@@ -264,18 +476,22 @@ export default class AiChatController {
     required: true,
     schema: {
       type: 'object',
-      anyOf: [
-        { required: ['content'] },
-        { required: ['image'] },
-        { required: ['pdf', 'pdfMineruConsent'] },
-      ],
       properties: {
         content: { type: 'string', maxLength: 8000 },
         image: { type: 'string', format: 'binary' },
         pdf: { type: 'string', format: 'binary', description: '最大 5 MB' },
         pdfMineruConsent: { type: 'boolean', enum: [true] },
+        regenerateAssistantMessageId: { type: 'number', minimum: 0, exclusiveMinimum: true },
         contextRoute: { type: 'string', maxLength: 200 },
         contextTitle: { type: 'string', maxLength: 160 },
+        context: {
+          type: 'object',
+          required: ['route', 'title'],
+          properties: {
+            route: { type: 'string', maxLength: 200 },
+            title: { type: 'string', maxLength: 160 },
+          },
+        },
       },
     },
   })
@@ -287,10 +503,20 @@ export default class AiChatController {
   @ApiResponse({
     status: 200,
     description: 'SSE 流包含 Agent 准备阶段、工具状态和不含参数值的调用摘要。',
+    mediaType: 'text/event-stream',
+    schema: { type: 'string' },
   })
-  @ApiResponse({ status: 409, description: '当前会话已有 AI 请求正在运行' })
-  @ApiResponse({ status: 422, description: '消息、附件或 MinerU 授权校验失败' })
-  @ApiResponse({ status: 503, description: '服务端尚未配置 PDF 解析' })
+  @ApiResponse({
+    status: 409,
+    description: '当前会话已有 AI 请求正在运行',
+    schema: errorResponseSchema,
+  })
+  @ApiResponse({
+    status: 422,
+    description: '消息、附件或 MinerU 授权校验失败',
+    schema: errorResponseSchema,
+  })
+  @ApiResponse({ status: 503, description: '服务端尚未配置 PDF 解析', schema: errorResponseSchema })
   async sendMessage(ctx: HttpContext) {
     const { params, request, response } = ctx
     const user = currentUser(ctx)
@@ -474,8 +700,17 @@ export default class AiChatController {
   }
 
   @ApiOperation({ summary: '获取 AI 聊天图片附件' })
-  @ApiResponse({ status: 200, description: '图片二进制数据' })
-  @ApiResponse({ status: 404, description: '图片不存在或不属于当前会话' })
+  @ApiResponse({
+    status: 200,
+    description: '图片二进制数据',
+    mediaType: 'image/*',
+    schema: { type: 'string', format: 'binary' },
+  })
+  @ApiResponse({
+    status: 404,
+    description: '图片不存在或不属于当前会话',
+    schema: errorResponseSchema,
+  })
   async showMessageImage(ctx: HttpContext) {
     const { params, request, response } = ctx
     const user = currentUser(ctx)
@@ -501,7 +736,26 @@ export default class AiChatController {
     summary: '向运行中的 AI Agent 注入指令',
     description: '使用 Pi 原生 steer 队列，将人工指令注入当前运行。',
   })
-  @ApiResponse({ status: 200, description: '指令已排队' })
+  @ApiBody({ type: () => queueAiChatMessageValidator, required: true })
+  @ApiResponse({
+    status: 200,
+    description: 'Agent 已接受排队指令',
+    schema: dataEnvelope({
+      type: 'object',
+      required: ['queued', 'mode', 'agentRunId', 'message'],
+      properties: {
+        queued: { type: 'boolean', enum: [true] },
+        mode: { type: 'string', enum: ['steer', 'followUp'] },
+        agentRunId: { type: 'string' },
+        message: messageSchema,
+      },
+    }),
+  })
+  @ApiResponse({
+    status: 409,
+    description: '当前会话没有可接收指令的运行',
+    schema: errorResponseSchema,
+  })
   async steer(ctx: HttpContext) {
     return this.queueAgentMessage(ctx, 'steer')
   }
@@ -510,7 +764,26 @@ export default class AiChatController {
     summary: '向 AI Agent 排队后续指令',
     description: '使用 Pi 原生 follow-up 队列，在当前运行结束后处理人工指令。',
   })
-  @ApiResponse({ status: 200, description: '后续指令已排队' })
+  @ApiBody({ type: () => queueAiChatMessageValidator, required: true })
+  @ApiResponse({
+    status: 200,
+    description: 'Agent 已接受排队指令',
+    schema: dataEnvelope({
+      type: 'object',
+      required: ['queued', 'mode', 'agentRunId', 'message'],
+      properties: {
+        queued: { type: 'boolean', enum: [true] },
+        mode: { type: 'string', enum: ['steer', 'followUp'] },
+        agentRunId: { type: 'string' },
+        message: messageSchema,
+      },
+    }),
+  })
+  @ApiResponse({
+    status: 409,
+    description: '当前会话没有可接收指令的运行',
+    schema: errorResponseSchema,
+  })
   async followUp(ctx: HttpContext) {
     return this.queueAgentMessage(ctx, 'followUp')
   }
@@ -544,7 +817,33 @@ export default class AiChatController {
     summary: '确认 AI 代理受控操作',
     description: '执行当前用户在 AI 对话中创建且尚未过期的受控操作确认。',
   })
-  @ApiResponse({ status: 200, description: '已执行受控操作' })
+  @ApiResponse({
+    status: 200,
+    description: '已执行受控操作并返回操作状态及助手消息',
+    schema: dataEnvelope({
+      type: 'object',
+      required: [
+        'id',
+        'action',
+        'status',
+        'impact',
+        'targetType',
+        'targetSummary',
+        'changeSummary',
+        'presentation',
+        'message',
+      ],
+      properties: { ...confirmationSchema.properties, message: messageSchema },
+    }),
+  })
+  @ApiResponse({ status: 403, description: '当前用户无权执行该操作', schema: errorResponseSchema })
+  @ApiResponse({ status: 404, description: '待确认操作不存在', schema: errorResponseSchema })
+  @ApiResponse({
+    status: 409,
+    description: '会话已有运行或操作状态已改变',
+    schema: errorResponseSchema,
+  })
+  @ApiResponse({ status: 422, description: '待确认操作无效', schema: errorResponseSchema })
   async confirmAiAgentAction(ctx: HttpContext) {
     const { params, response, serialize } = ctx
     const user = currentUser(ctx)
@@ -590,7 +889,19 @@ export default class AiChatController {
     summary: '取消 AI 代理受控操作',
     description: '取消当前用户在 AI 对话中创建且尚未执行的受控操作。',
   })
-  @ApiResponse({ status: 200, description: '受控操作已取消' })
+  @ApiResponse({
+    status: 200,
+    description: '受控操作已取消',
+    schema: dataEnvelope(confirmationSchema),
+  })
+  @ApiResponse({ status: 403, description: '当前用户无权取消该操作', schema: errorResponseSchema })
+  @ApiResponse({ status: 404, description: '待确认操作不存在', schema: errorResponseSchema })
+  @ApiResponse({
+    status: 409,
+    description: '会话已有运行或操作状态已改变',
+    schema: errorResponseSchema,
+  })
+  @ApiResponse({ status: 422, description: '待确认操作无效', schema: errorResponseSchema })
   async cancelAiAgentAction(ctx: HttpContext) {
     return this.handleAiAgentActionCancellation(ctx)
   }
@@ -599,7 +910,12 @@ export default class AiChatController {
     summary: '流式取消 AI 代理受控操作',
     description: '取消当前用户创建且尚未执行的受控操作，并通过 SSE 返回助手结果。',
   })
-  @ApiResponse({ status: 200, description: 'SSE 流返回取消状态和助手回复' })
+  @ApiResponse({
+    status: 200,
+    description: 'SSE 流返回取消状态和助手回复',
+    mediaType: 'text/event-stream',
+    schema: { type: 'string' },
+  })
   async cancelAiAgentActionStream(ctx: HttpContext) {
     return this.handleAiAgentActionCancellation(ctx, true)
   }
@@ -678,6 +994,8 @@ export default class AiChatController {
   @ApiResponse({
     status: 200,
     description: 'SSE 流返回助手文本、工具执行状态和安全摘要。',
+    mediaType: 'text/event-stream',
+    schema: { type: 'string' },
   })
   async confirmAiAgentActionStream(ctx: HttpContext) {
     const { params, response } = ctx
@@ -722,7 +1040,15 @@ export default class AiChatController {
     summary: '删除 AI 会话',
     description: '删除指定 AI 会话及其历史消息。',
   })
-  @ApiResponse({ status: 200, description: '删除结果' })
+  @ApiResponse({
+    status: 200,
+    description: '会话已删除',
+    schema: dataEnvelope({
+      type: 'object',
+      required: ['id', 'deleted'],
+      properties: { id: { type: 'integer' }, deleted: { type: 'boolean', enum: [true] } },
+    }),
+  })
   async destroy(ctx: HttpContext) {
     const { params, serialize } = ctx
     const user = currentUser(ctx)

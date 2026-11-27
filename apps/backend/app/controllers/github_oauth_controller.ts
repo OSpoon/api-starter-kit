@@ -1,7 +1,13 @@
 import { randomBytes, timingSafeEqual } from 'node:crypto'
 
 import type { HttpContext } from '@adonisjs/core/http'
-import { ApiOperation, ApiResponse } from '@foadonis/openapi/decorators'
+import {
+  ApiBody,
+  ApiOperation,
+  ApiQuery,
+  ApiResponse,
+  ApiSecurity,
+} from '@foadonis/openapi/decorators'
 
 import { isTurnstileEnabled, verifyTurnstileToken } from '#integrations/turnstile'
 import User from '#models/user'
@@ -28,6 +34,12 @@ import { loadUserAccess } from '#services/user_access'
 import UserTransformer from '#transformers/user_transformer'
 import { githubLoginCompletionValidator } from '#validators/user'
 
+import {
+  authenticatedUserSchema,
+  dataEnvelope,
+  errorResponseSchema,
+} from '../openapi/response_schemas.js'
+
 const SESSION_STATE_KEY = 'github_oauth_state'
 const SESSION_LOGIN_CHALLENGE_KEY = 'github_login_challenge'
 const SESSION_LOGIN_EXCHANGE_KEY = 'github_login_exchange'
@@ -41,7 +53,12 @@ function validState(expected: string | undefined, received: string | undefined) 
 
 export default class GithubOauthController {
   @ApiOperation({ summary: '发起 GitHub 授权登录' })
-  @ApiResponse({ status: 302, description: '重定向至 GitHub 授权页' })
+  @ApiResponse({
+    status: 302,
+    description: '重定向至 GitHub 授权页',
+    mediaType: 'text/html',
+    schema: { type: 'string' },
+  })
   async redirect({ response, session }: HttpContext) {
     if (!githubOAuthIsConfigured()) {
       throw githubOAuthErrors.notConfigured
@@ -52,6 +69,18 @@ export default class GithubOauthController {
     return response.redirect(githubAuthorizationUrl(state))
   }
 
+  @ApiOperation({
+    summary: '处理 GitHub OAuth 回调',
+    description: '验证 OAuth state 并完成登录或账号绑定，然后重定向到前端回调页。',
+  })
+  @ApiQuery({ name: 'code', required: true, schema: { type: 'string', minLength: 1 } })
+  @ApiQuery({ name: 'state', required: true, schema: { type: 'string', minLength: 1 } })
+  @ApiResponse({
+    status: 302,
+    description: '重定向至前端登录或账号绑定结果页',
+    mediaType: 'text/html',
+    schema: { type: 'string' },
+  })
   async callback({ request, response, session }: HttpContext) {
     if (!githubOAuthIsConfigured()) {
       throw githubOAuthErrors.notConfigured
@@ -118,7 +147,25 @@ export default class GithubOauthController {
   }
 
   @ApiOperation({ summary: '验证本地账号并完成 GitHub 登录绑定' })
-  @ApiResponse({ status: 200, description: '绑定后的登录结果或 2FA 临时凭据' })
+  @ApiBody({ type: () => githubLoginCompletionValidator, required: true })
+  @ApiResponse({
+    status: 200,
+    description: '返回访问 Token，或要求完成 2FA 的临时凭据。',
+    schema: dataEnvelope({
+      type: 'object',
+      required: ['requiresPasswordChange'],
+      properties: {
+        user: authenticatedUserSchema,
+        token: { type: 'string' },
+        requiresTwoFactor: { type: 'boolean' },
+        tempToken: { type: 'string' },
+        requiresPasswordChange: { type: 'boolean' },
+      },
+    }),
+  })
+  @ApiResponse({ status: 401, description: '本地账号密码无效', schema: errorResponseSchema })
+  @ApiResponse({ status: 403, description: 'Turnstile 验证失败', schema: errorResponseSchema })
+  @ApiResponse({ status: 422, description: '请求字段无效', schema: errorResponseSchema })
   async complete(ctx: HttpContext) {
     const { request, session, serialize } = ctx
     const payload = await request.validateUsing(githubLoginCompletionValidator)
@@ -215,7 +262,16 @@ export default class GithubOauthController {
   }
 
   @ApiOperation({ summary: '发起 GitHub 账号绑定' })
-  @ApiResponse({ status: 200, description: 'GitHub 授权地址' })
+  @ApiSecurity('bearerAuth')
+  @ApiResponse({
+    status: 200,
+    description: 'GitHub 授权地址',
+    schema: dataEnvelope({
+      type: 'object',
+      required: ['url'],
+      properties: { url: { type: 'string', format: 'uri' } },
+    }),
+  })
   async beginLink({ auth, response }: HttpContext) {
     if (!githubOAuthIsConfigured()) throw githubOAuthErrors.notConfigured
     const state = await createGithubLinkState(auth.getUserOrFail().id)
@@ -223,7 +279,33 @@ export default class GithubOauthController {
   }
 
   @ApiOperation({ summary: '兑换 GitHub 授权登录凭据' })
-  @ApiResponse({ status: 200, description: '登录结果和访问 token' })
+  @ApiBody({
+    required: false,
+    schema: {
+      type: 'object',
+      properties: { code: { type: 'string', minLength: 1 } },
+    },
+  })
+  @ApiResponse({
+    status: 200,
+    description: '返回访问 Token，或要求完成 2FA 的临时凭据。',
+    schema: dataEnvelope({
+      type: 'object',
+      required: ['requiresPasswordChange'],
+      properties: {
+        user: authenticatedUserSchema,
+        token: { type: 'string' },
+        requiresTwoFactor: { type: 'boolean' },
+        tempToken: { type: 'string' },
+        requiresPasswordChange: { type: 'boolean' },
+      },
+    }),
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'GitHub 授权凭据无效或已过期',
+    schema: errorResponseSchema,
+  })
   async exchange({ request, session, serialize }: HttpContext) {
     const requestCode = request.input('code')
     const code =

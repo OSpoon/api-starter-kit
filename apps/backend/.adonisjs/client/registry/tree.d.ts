@@ -2,6 +2,10 @@
 import type { routes } from './index.ts'
 
 export interface ApiDefinition {
+  health: {
+    show: typeof routes['health.show']
+    ready: typeof routes['health.ready']
+  }
   openapi: {
     html: typeof routes['openapi.html']
     json: typeof routes['openapi.json']

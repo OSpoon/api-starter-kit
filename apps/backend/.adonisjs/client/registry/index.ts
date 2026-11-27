@@ -6,6 +6,18 @@ import type { ApiDefinition } from './tree.d.ts'
 const placeholder: any = {}
 
 const routes = {
+  'health.show': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/v1/health',
+    tokens: [{"old":"/api/v1/health","type":0,"val":"api","end":""},{"old":"/api/v1/health","type":0,"val":"v1","end":""},{"old":"/api/v1/health","type":0,"val":"health","end":""}],
+    types: placeholder as Registry['health.show']['types'],
+  },
+  'health.ready': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/v1/health/ready',
+    tokens: [{"old":"/api/v1/health/ready","type":0,"val":"api","end":""},{"old":"/api/v1/health/ready","type":0,"val":"v1","end":""},{"old":"/api/v1/health/ready","type":0,"val":"health","end":""},{"old":"/api/v1/health/ready","type":0,"val":"ready","end":""}],
+    types: placeholder as Registry['health.ready']['types'],
+  },
   'openapi.html': {
     methods: ["GET","HEAD"],
     pattern: '/api-docs',

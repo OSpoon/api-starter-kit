@@ -27,6 +27,21 @@ Follow the repository-level `AGENTS.md` first. This file adds AdonisJS-specific 
 - Test a successful authorization path and a denied authorization path for every new permission-protected capability.
 - Test response DTOs for management endpoints when the frontend depends on nested roles, permissions, counts, or status fields.
 
+## OpenAPI Documentation
+
+- Follow the repository OpenAPI standard for every new or changed route. Keep
+  route registration in `start/routes.ts` and add the OpenAPI metadata to its
+  mapped controller method using the installed `@foadonis/openapi` decorators.
+- Keep request schemas aligned with the Vine validator and response schemas
+  aligned with `serialize()`, transformers, or explicit DTOs. Include the
+  `{ data: ... }` envelope, pagination shape, content type, and every expected
+  success or client-visible error status.
+- Match OpenAPI security metadata to the route's actual authentication
+  middleware. Do not broaden the filtered `/api-docs` publication scope as a
+  side effect of documenting an endpoint.
+- Verify the generated document for each API change; a controller summary or
+  route comment alone does not count as API documentation.
+
 ## Module Boundaries And Naming
 
 - Name files after reusable responsibilities, not temporary organizational or page-specific context. Avoid barrel files unless the local package already establishes that convention.

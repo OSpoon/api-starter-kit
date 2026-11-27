@@ -12,6 +12,8 @@ import {
 } from '#services/ai_chat_image_service'
 import { mediaImageFileNameValidator, uploadMediaImageValidator } from '#validators/media_image'
 
+import { dataEnvelope, errorResponseSchema } from '../openapi/response_schemas.js'
+
 const extensionByMimeType = {
   'image/jpeg': 'jpg',
   'image/png': 'png',
@@ -40,10 +42,18 @@ export default class MediaImagesController {
       properties: { image: { type: 'string', format: 'binary' } },
     },
   })
-  @ApiResponse({ status: 200, description: '返回已上传图片的读取地址' })
-  @ApiResponse({ status: 401, description: '未登录' })
-  @ApiResponse({ status: 403, description: '缺少图片上传权限' })
-  @ApiResponse({ status: 422, description: '图片无效或超过 2 MB' })
+  @ApiResponse({
+    status: 200,
+    description: '返回已上传图片的读取地址',
+    schema: dataEnvelope({
+      type: 'object',
+      required: ['url'],
+      properties: { url: { type: 'string', format: 'uri-reference' } },
+    }),
+  })
+  @ApiResponse({ status: 401, description: '未登录', schema: errorResponseSchema })
+  @ApiResponse({ status: 403, description: '缺少图片上传权限', schema: errorResponseSchema })
+  @ApiResponse({ status: 422, description: '图片无效或超过 2 MB', schema: errorResponseSchema })
   async upload({ request, response, serialize }: HttpContext) {
     const { image } = await request.validateUsing(uploadMediaImageValidator)
     if (!image.tmpPath) {
@@ -69,8 +79,13 @@ export default class MediaImagesController {
   }
 
   @ApiOperation({ summary: '读取已上传的媒体图片' })
-  @ApiResponse({ status: 200, description: '返回图片二进制数据' })
-  @ApiResponse({ status: 404, description: '图片不存在' })
+  @ApiResponse({
+    status: 200,
+    description: '返回图片二进制数据',
+    mediaType: 'image/*',
+    schema: { type: 'string', format: 'binary' },
+  })
+  @ApiResponse({ status: 404, description: '图片不存在', schema: errorResponseSchema })
   async show({ request, response }: HttpContext) {
     const { fileName } = await mediaImageFileNameValidator.validate({
       fileName: request.param('fileName'),

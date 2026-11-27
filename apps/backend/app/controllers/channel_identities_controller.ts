@@ -1,5 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http'
-import { ApiOperation, ApiResponse, ApiSecurity } from '@foadonis/openapi/decorators'
+import { ApiBody, ApiOperation, ApiResponse, ApiSecurity } from '@foadonis/openapi/decorators'
 
 import ChannelIdentity from '#models/channel_identity'
 import { verifyUserCredentials } from '#security/user_credentials'
@@ -12,12 +12,32 @@ import { revokeChannelIdentity } from '#services/channel_identity_service'
 import { bindChannelIdentityValidator } from '#validators/channel_identity'
 import { twoFactorValidator } from '#validators/user'
 
+import { dataEnvelope, errorResponseSchema } from '../openapi/response_schemas.js'
+
 export default class ChannelIdentitiesController {
   @ApiSecurity('bearerAuth')
   @ApiOperation({ summary: '绑定外部 AI 渠道身份' })
-  @ApiResponse({ status: 200, description: '渠道身份绑定成功' })
-  @ApiResponse({ status: 404, description: '绑定码无效或已过期' })
-  @ApiResponse({ status: 409, description: '渠道身份已被其他用户绑定' })
+  @ApiBody({ type: () => bindChannelIdentityValidator, required: true })
+  @ApiResponse({
+    status: 200,
+    description: '渠道身份绑定成功',
+    schema: dataEnvelope({
+      type: 'object',
+      required: ['bound', 'channel', 'externalTenantId', 'externalUserId'],
+      properties: {
+        bound: { type: 'boolean', enum: [true] },
+        channel: { type: 'string', enum: ['wecom', 'feishu', 'dingtalk'] },
+        externalTenantId: { type: 'string', nullable: true },
+        externalUserId: { type: 'string' },
+      },
+    }),
+  })
+  @ApiResponse({ status: 404, description: '绑定码无效或已过期', schema: errorResponseSchema })
+  @ApiResponse({
+    status: 409,
+    description: '渠道身份已被其他用户绑定',
+    schema: errorResponseSchema,
+  })
   async bind(ctx: HttpContext) {
     const { auth, request, response, serialize } = ctx
     const user = auth.getUserOrFail()
@@ -57,24 +77,72 @@ export default class ChannelIdentitiesController {
 
   @ApiSecurity('bearerAuth')
   @ApiOperation({ summary: '解绑企业微信智能机器人身份' })
-  @ApiResponse({ status: 200, description: '企业微信身份解绑成功' })
-  @ApiResponse({ status: 400, description: '密码错误或当前未绑定企业微信' })
+  @ApiBody({ type: () => twoFactorValidator, required: true })
+  @ApiResponse({
+    status: 200,
+    description: '企业微信身份解绑成功',
+    schema: dataEnvelope({
+      type: 'object',
+      required: ['unbound', 'channel'],
+      properties: {
+        unbound: { type: 'boolean', enum: [true] },
+        channel: { type: 'string', enum: ['wecom'] },
+      },
+    }),
+  })
+  @ApiResponse({
+    status: 400,
+    description: '密码错误或当前未绑定企业微信',
+    schema: errorResponseSchema,
+  })
   async unbindWecom(ctx: HttpContext) {
     return this.unbindChannel(ctx, 'wecom', '企业微信智能机器人')
   }
 
   @ApiSecurity('bearerAuth')
   @ApiOperation({ summary: '解绑飞书机器人身份' })
-  @ApiResponse({ status: 200, description: '飞书身份解绑成功' })
-  @ApiResponse({ status: 400, description: '密码错误或当前未绑定飞书机器人' })
+  @ApiBody({ type: () => twoFactorValidator, required: true })
+  @ApiResponse({
+    status: 200,
+    description: '飞书身份解绑成功',
+    schema: dataEnvelope({
+      type: 'object',
+      required: ['unbound', 'channel'],
+      properties: {
+        unbound: { type: 'boolean', enum: [true] },
+        channel: { type: 'string', enum: ['feishu'] },
+      },
+    }),
+  })
+  @ApiResponse({
+    status: 400,
+    description: '密码错误或当前未绑定飞书机器人',
+    schema: errorResponseSchema,
+  })
   async unbindFeishu(ctx: HttpContext) {
     return this.unbindChannel(ctx, 'feishu', '飞书机器人')
   }
 
   @ApiSecurity('bearerAuth')
   @ApiOperation({ summary: '解绑钉钉机器人身份' })
-  @ApiResponse({ status: 200, description: '钉钉身份解绑成功' })
-  @ApiResponse({ status: 400, description: '密码错误或当前未绑定钉钉机器人' })
+  @ApiBody({ type: () => twoFactorValidator, required: true })
+  @ApiResponse({
+    status: 200,
+    description: '钉钉身份解绑成功',
+    schema: dataEnvelope({
+      type: 'object',
+      required: ['unbound', 'channel'],
+      properties: {
+        unbound: { type: 'boolean', enum: [true] },
+        channel: { type: 'string', enum: ['dingtalk'] },
+      },
+    }),
+  })
+  @ApiResponse({
+    status: 400,
+    description: '密码错误或当前未绑定钉钉机器人',
+    schema: errorResponseSchema,
+  })
   async unbindDingtalk(ctx: HttpContext) {
     return this.unbindChannel(ctx, 'dingtalk', '钉钉机器人')
   }

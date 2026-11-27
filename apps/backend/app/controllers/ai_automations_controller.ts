@@ -32,7 +32,112 @@ import {
   aiAutomationValidator,
 } from '#validators/ai_automation'
 
+import {
+  type ApiSchema,
+  dataEnvelope,
+  errorResponseSchema,
+  paginatedDataEnvelope,
+} from '../openapi/response_schemas.js'
+
 const idValidator = vine.compile(vine.object({ id: vine.number().withoutDecimals().positive() }))
+
+const automationSchema: ApiSchema = {
+  type: 'object',
+  required: [
+    'id',
+    'name',
+    'prompt',
+    'schedule',
+    'nextRunAt',
+    'enabled',
+    'webhookConfigured',
+    'webhookUrl',
+    'webhookType',
+    'createdAt',
+    'updatedAt',
+  ],
+  properties: {
+    id: { type: 'integer' },
+    name: { type: 'string' },
+    prompt: { type: 'string' },
+    schedule: {
+      type: 'object',
+      required: ['kind', 'cron', 'at', 'time', 'weekday', 'timezone'],
+      properties: {
+        kind: { type: 'string', enum: ['once', 'cron'] },
+        cron: { type: 'string', nullable: true },
+        at: { type: 'string', nullable: true },
+        time: { type: 'string', nullable: true },
+        weekday: { type: 'integer', nullable: true },
+        timezone: { type: 'string' },
+      },
+    },
+    nextRunAt: { type: 'string', nullable: true, format: 'date-time' },
+    enabled: { type: 'boolean' },
+    webhookConfigured: { type: 'boolean' },
+    webhookUrl: { type: 'string', nullable: true, format: 'uri' },
+    webhookType: { type: 'string', enum: ['generic', 'wecom'] },
+    createdAt: { type: 'string', format: 'date-time' },
+    updatedAt: { type: 'string', format: 'date-time' },
+  },
+}
+
+const automationRunSchema: ApiSchema = {
+  type: 'object',
+  required: [
+    'id',
+    'automationId',
+    'automationName',
+    'triggerKind',
+    'status',
+    'scheduledFor',
+    'startedAt',
+    'completedAt',
+    'attemptCount',
+    'summary',
+    'error',
+    'deliveryResults',
+    'createdAt',
+  ],
+  properties: {
+    id: { type: 'integer' },
+    automationId: { type: 'integer' },
+    automationName: { type: 'string' },
+    triggerKind: { type: 'string', enum: ['scheduled', 'manual'] },
+    status: { type: 'string' },
+    scheduledFor: { type: 'string', format: 'date-time' },
+    startedAt: { type: 'string', nullable: true, format: 'date-time' },
+    completedAt: { type: 'string', nullable: true, format: 'date-time' },
+    attemptCount: { type: 'integer' },
+    summary: { type: 'string', nullable: true },
+    error: { type: 'string', nullable: true },
+    deliveryResults: { type: 'object', additionalProperties: true },
+    createdAt: { type: 'string', format: 'date-time' },
+  },
+}
+
+const runPageSchema: ApiSchema = {
+  type: 'object',
+  required: ['items', 'meta'],
+  properties: {
+    items: { type: 'array', items: automationRunSchema },
+    meta: {
+      type: 'object',
+      required: ['total', 'perPage', 'currentPage', 'lastPage'],
+      properties: {
+        total: { type: 'integer' },
+        perPage: { type: 'integer' },
+        currentPage: { type: 'integer' },
+        lastPage: { type: 'integer' },
+        firstPage: { type: 'integer' },
+        firstPageUrl: { type: 'string', nullable: true },
+        lastPageUrl: { type: 'string', nullable: true },
+        nextPageUrl: { type: 'string', nullable: true },
+        previousPageUrl: { type: 'string', nullable: true },
+      },
+    },
+  },
+}
 
 @ApiSecurity('bearerAuth')
 export default class AiAutomationsController {
@@ -45,8 +150,16 @@ export default class AiAutomationsController {
     },
   })
   @ApiOperation({ summary: '预览 CRON 表达式的下三次执行时间' })
-  @ApiResponse({ status: 200, description: '下三次执行时间' })
-  @ApiResponse({ status: 422, description: 'CRON 表达式无效' })
+  @ApiResponse({
+    status: 200,
+    description: '按服务器当前时区计算的下三次执行时间',
+    schema: dataEnvelope({
+      type: 'object',
+      required: ['times'],
+      properties: { times: { type: 'array', items: { type: 'string' } } },
+    }),
+  })
+  @ApiResponse({ status: 422, description: 'CRON 表达式无效', schema: errorResponseSchema })
   async preview({ request, response, serialize }: HttpContext) {
     const { cron } = await request.validateUsing(aiAutomationSchedulePreviewValidator)
     const timezone = DateTime.local().zoneName || 'UTC'
@@ -64,7 +177,46 @@ export default class AiAutomationsController {
   }
 
   @ApiOperation({ summary: '获取当前用户的自动化任务' })
-  @ApiResponse({ status: 200, description: '分页自动化任务列表；管理权限可查看投递地址' })
+  @ApiQuery({ name: 'page', required: false, schema: { type: 'integer', minimum: 1 } })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    schema: { type: 'integer', minimum: 1, maximum: 100 },
+  })
+  @ApiResponse({
+    status: 200,
+    description: '分页自动化任务列表；管理权限可查看投递地址',
+    schema: paginatedDataEnvelope({
+      type: 'object',
+      required: [
+        'id',
+        'name',
+        'prompt',
+        'schedule',
+        'nextRunAt',
+        'enabled',
+        'webhookConfigured',
+        'webhookUrl',
+        'webhookType',
+        'createdAt',
+        'updatedAt',
+        'latestRun',
+      ],
+      properties: {
+        ...automationSchema.properties,
+        latestRun: {
+          type: 'object',
+          nullable: true,
+          required: ['id', 'status', 'createdAt'],
+          properties: {
+            id: { type: 'integer' },
+            status: { type: 'string' },
+            createdAt: { type: 'string', format: 'date-time' },
+          },
+        },
+      },
+    }),
+  })
   @ApiQuery({ name: 'name', required: false, schema: { type: 'string', maxLength: 120 } })
   @ApiQuery({ name: 'schedule', required: false, schema: { type: 'string', maxLength: 120 } })
   async index({ request, auth, serialize }: HttpContext) {
@@ -130,7 +282,12 @@ export default class AiAutomationsController {
       },
     },
   })
-  @ApiResponse({ status: 200, description: '已创建自动化任务' })
+  @ApiResponse({
+    status: 200,
+    description: '已创建自动化任务',
+    schema: dataEnvelope(automationSchema),
+  })
+  @ApiResponse({ status: 422, description: '计划或 Webhook 配置无效', schema: errorResponseSchema })
   async store({ request, auth, response, serialize }: HttpContext) {
     const payload = await request.validateUsing(aiAutomationValidator)
     try {
@@ -144,7 +301,25 @@ export default class AiAutomationsController {
   }
 
   @ApiOperation({ summary: '获取自动化任务和运行历史' })
-  @ApiResponse({ status: 200, description: '自动化任务和分页运行记录；管理权限可查看投递地址' })
+  @ApiQuery({ name: 'page', required: false, schema: { type: 'integer', minimum: 1 } })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    schema: { type: 'integer', minimum: 1, maximum: 50 },
+  })
+  @ApiResponse({
+    status: 200,
+    description: '自动化任务和分页运行记录；管理权限可查看投递地址',
+    schema: dataEnvelope({
+      type: 'object',
+      required: ['automation', 'runs'],
+      properties: {
+        automation: automationSchema,
+        runs: runPageSchema,
+      },
+    }),
+  })
+  @ApiResponse({ status: 404, description: '自动化任务不存在', schema: errorResponseSchema })
   async show({ request, auth, response, serialize }: HttpContext) {
     const { id } = await idValidator.validate({ id: request.param('id') })
     const query = await aiAutomationRunListValidator.validate(request.qs())
@@ -191,7 +366,13 @@ export default class AiAutomationsController {
       },
     },
   })
-  @ApiResponse({ status: 200, description: '已更新自动化任务' })
+  @ApiResponse({
+    status: 200,
+    description: '已更新自动化任务',
+    schema: dataEnvelope(automationSchema),
+  })
+  @ApiResponse({ status: 404, description: '自动化任务不存在', schema: errorResponseSchema })
+  @ApiResponse({ status: 422, description: '计划或 Webhook 配置无效', schema: errorResponseSchema })
   async update({ request, auth, response, serialize }: HttpContext) {
     const { id } = await idValidator.validate({ id: request.param('id') })
     const payload = await request.validateUsing(aiAutomationUpdateValidator)
@@ -247,7 +428,13 @@ export default class AiAutomationsController {
       properties: { enabled: { type: 'boolean' } },
     },
   })
-  @ApiResponse({ status: 200, description: '自动化任务状态已更新' })
+  @ApiResponse({
+    status: 200,
+    description: '自动化任务状态已更新',
+    schema: dataEnvelope(automationSchema),
+  })
+  @ApiResponse({ status: 404, description: '自动化任务不存在', schema: errorResponseSchema })
+  @ApiResponse({ status: 422, description: '计划无效', schema: errorResponseSchema })
   async setEnabled({ request, auth, response, serialize }: HttpContext) {
     const { id } = await idValidator.validate({ id: request.param('id') })
     const payload = await request.validateUsing(aiAutomationEnabledValidator)
@@ -297,7 +484,17 @@ export default class AiAutomationsController {
   }
 
   @ApiOperation({ summary: '删除自动化任务' })
-  @ApiResponse({ status: 200, description: '自动化任务已删除' })
+  @ApiResponse({
+    status: 200,
+    description: '自动化任务已删除',
+    schema: dataEnvelope({
+      type: 'object',
+      required: ['id', 'deleted'],
+      properties: { id: { type: 'integer' }, deleted: { type: 'boolean', enum: [true] } },
+    }),
+  })
+  @ApiResponse({ status: 404, description: '自动化任务不存在', schema: errorResponseSchema })
+  @ApiResponse({ status: 409, description: '自动化任务仍在运行', schema: errorResponseSchema })
   async destroy({ request, auth, response, serialize }: HttpContext) {
     const { id } = await idValidator.validate({ id: request.param('id') })
     const result = await db.transaction(async (trx) => {
@@ -342,7 +539,13 @@ export default class AiAutomationsController {
   }
 
   @ApiOperation({ summary: '立即运行自动化任务' })
-  @ApiResponse({ status: 200, description: '已排队运行' })
+  @ApiResponse({
+    status: 200,
+    description: '自动化运行已排队',
+    schema: dataEnvelope(automationRunSchema),
+  })
+  @ApiResponse({ status: 404, description: '自动化任务不存在', schema: errorResponseSchema })
+  @ApiResponse({ status: 409, description: '已有运行正在排队或执行', schema: errorResponseSchema })
   async runNow({ request, auth, response, serialize }: HttpContext) {
     const { id } = await idValidator.validate({ id: request.param('id') })
     const user = auth.getUserOrFail()

@@ -1,5 +1,11 @@
 import type { HttpContext } from '@adonisjs/core/http'
-import { ApiBody, ApiOperation, ApiQuery, ApiResponse } from '@foadonis/openapi/decorators'
+import {
+  ApiBody,
+  ApiOperation,
+  ApiQuery,
+  ApiResponse,
+  ApiSecurity,
+} from '@foadonis/openapi/decorators'
 
 import Role from '#models/role'
 import {
@@ -11,6 +17,13 @@ import {
 import { permissionCatalogCodes } from '#services/permission_catalog'
 import { clampLimit } from '#support/pagination'
 import { createRoleValidator, listRolesValidator, updateRoleValidator } from '#validators/rbac'
+
+import {
+  type ApiSchema,
+  dataEnvelope,
+  errorResponseSchema,
+  paginationMetaSchema,
+} from '../openapi/response_schemas.js'
 
 function serializeRole(role: Role) {
   return {
@@ -26,16 +39,68 @@ function serializeRole(role: Role) {
   }
 }
 
+const roleSchema: ApiSchema = {
+  type: 'object',
+  required: ['id', 'code', 'name', 'description', 'isSystem', 'permissionIds', 'userCount'],
+  properties: {
+    id: { type: 'integer' },
+    code: { type: 'string' },
+    name: { type: 'string' },
+    description: { type: 'string' },
+    isSystem: { type: 'boolean' },
+    permissionIds: { type: 'array', items: { type: 'integer' } },
+    userCount: { type: 'integer' },
+    createdAt: { type: 'string', format: 'date-time' },
+    updatedAt: { type: 'string', format: 'date-time' },
+  },
+}
+
+@ApiSecurity('bearerAuth')
 export default class RolesController {
+  @ApiOperation({
+    summary: '获取角色目录',
+    description: '返回角色 ID、编码和名称，供管理界面选择。',
+  })
+  @ApiResponse({
+    status: 200,
+    description: '角色目录',
+    schema: dataEnvelope({
+      type: 'array',
+      items: {
+        type: 'object',
+        required: ['id', 'code', 'name'],
+        properties: { id: { type: 'integer' }, code: { type: 'string' }, name: { type: 'string' } },
+      },
+    }),
+  })
   async catalog({ serialize }: HttpContext) {
     const roles = await Role.query().orderBy('is_system', 'desc').orderBy('name')
     return serialize(roles.map((role) => ({ id: role.id, code: role.code, name: role.name })))
   }
 
+  @ApiOperation({ summary: '分页获取角色', description: '按角色编码、名称或说明筛选角色。' })
+  @ApiQuery({ name: 'page', required: false, schema: { type: 'integer', minimum: 1 } })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    schema: { type: 'integer', minimum: 1, maximum: 100 },
+  })
   @ApiQuery({ name: 'code', required: false, schema: { type: 'string', maxLength: 100 } })
   @ApiQuery({ name: 'name', required: false, schema: { type: 'string', maxLength: 120 } })
   @ApiQuery({ name: 'description', required: false, schema: { type: 'string', maxLength: 1000 } })
-  @ApiResponse({ status: 422, description: '查询参数无效' })
+  @ApiResponse({
+    status: 200,
+    description: '角色分页列表及分页元数据',
+    schema: dataEnvelope({
+      type: 'object',
+      required: ['items', 'meta'],
+      properties: {
+        items: { type: 'array', items: roleSchema },
+        meta: paginationMetaSchema,
+      },
+    }),
+  })
+  @ApiResponse({ status: 422, description: '查询参数无效', schema: errorResponseSchema })
   async index({ request, serialize }: HttpContext) {
     const filters = await request.validateUsing(listRolesValidator, { data: request.qs() })
     const page = Number(filters.page ?? 1)
@@ -65,9 +130,15 @@ export default class RolesController {
       },
     },
   })
-  @ApiOperation({ summary: '创建角色', description: '创建角色时必须提供角色说明。' })
-  @ApiResponse({ status: 422, description: '角色参数无效' })
-  @ApiResponse({ status: 409, description: '角色代码已存在或引用了不存在的权限' })
+  @ApiOperation({ summary: '创建角色', description: '创建角色时必须提供非空角色说明。' })
+  @ApiResponse({ status: 200, description: '已创建的角色', schema: dataEnvelope(roleSchema) })
+  @ApiResponse({ status: 403, description: '操作者无权授予指定权限', schema: errorResponseSchema })
+  @ApiResponse({
+    status: 409,
+    description: '角色代码已存在或引用了不存在的权限',
+    schema: errorResponseSchema,
+  })
+  @ApiResponse({ status: 422, description: '角色参数无效', schema: errorResponseSchema })
   async store(ctx: HttpContext) {
     const { auth, request, response, serialize } = ctx
     const payload = await request.validateUsing(createRoleValidator)
@@ -114,9 +185,15 @@ export default class RolesController {
       },
     },
   })
-  @ApiOperation({ summary: '更新角色', description: '更新角色时必须提供角色说明。' })
-  @ApiResponse({ status: 422, description: '角色参数无效' })
-  @ApiResponse({ status: 409, description: '角色引用了不存在的权限' })
+  @ApiOperation({ summary: '更新角色', description: '更新角色时必须提供非空角色说明。' })
+  @ApiResponse({ status: 200, description: '已更新的角色', schema: dataEnvelope(roleSchema) })
+  @ApiResponse({
+    status: 403,
+    description: '系统角色不可编辑或操作者权限不足',
+    schema: errorResponseSchema,
+  })
+  @ApiResponse({ status: 409, description: '角色引用了不存在的权限', schema: errorResponseSchema })
+  @ApiResponse({ status: 422, description: '角色参数无效', schema: errorResponseSchema })
   async update(ctx: HttpContext) {
     const { auth, params, request, response, serialize } = ctx
     const role = await Role.findOrFail(params.id)
@@ -154,6 +231,23 @@ export default class RolesController {
     return serialize(serializeRole(updatedRole))
   }
 
+  @ApiOperation({ summary: '删除角色', description: '删除未被用户使用的角色。系统角色不可删除。' })
+  @ApiResponse({
+    status: 200,
+    description: '角色删除结果',
+    schema: dataEnvelope({
+      type: 'object',
+      required: ['id', 'deleted'],
+      properties: { id: { type: 'integer' }, deleted: { type: 'boolean', enum: [true] } },
+    }),
+  })
+  @ApiResponse({
+    status: 403,
+    description: '系统角色不可删除或操作者权限不足',
+    schema: errorResponseSchema,
+  })
+  @ApiResponse({ status: 404, description: '角色不存在', schema: errorResponseSchema })
+  @ApiResponse({ status: 409, description: '角色仍被用户引用', schema: errorResponseSchema })
   async destroy(ctx: HttpContext) {
     const { auth, params, response, serialize } = ctx
     try {

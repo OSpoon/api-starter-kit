@@ -3,7 +3,13 @@ import path from 'node:path'
 
 import { Bouncer } from '@adonisjs/bouncer'
 import type { HttpContext } from '@adonisjs/core/http'
-import { ApiOperation, ApiQuery, ApiResponse, ApiSecurity } from '@foadonis/openapi/decorators'
+import {
+  ApiBody,
+  ApiOperation,
+  ApiQuery,
+  ApiResponse,
+  ApiSecurity,
+} from '@foadonis/openapi/decorators'
 
 import { access } from '#abilities/main'
 import KnowledgeDocument from '#models/knowledge_document'
@@ -23,6 +29,56 @@ import {
   knowledgeDocumentValidator,
   knowledgeMetadataPreviewValidator,
 } from '#validators/knowledge_document'
+
+import {
+  type ApiSchema,
+  dataEnvelope,
+  errorResponseSchema,
+  paginatedDataEnvelope,
+} from '../openapi/response_schemas.js'
+
+const knowledgeDocumentSchema: ApiSchema = {
+  type: 'object',
+  required: [
+    'id',
+    'title',
+    'content',
+    'enabled',
+    'topics',
+    'contentHash',
+    'chunkCount',
+    'roles',
+    'createdAt',
+    'updatedAt',
+  ],
+  properties: {
+    id: { type: 'integer' },
+    title: { type: 'string' },
+    content: { type: 'string' },
+    enabled: { type: 'boolean' },
+    summary: { type: 'string', nullable: true },
+    topics: { type: 'array', items: { type: 'string' } },
+    contentHash: { type: 'string' },
+    chunkCount: { type: 'integer' },
+    roles: {
+      type: 'array',
+      items: {
+        type: 'object',
+        required: ['id', 'code', 'name'],
+        properties: { id: { type: 'integer' }, code: { type: 'string' }, name: { type: 'string' } },
+      },
+    },
+    createdAt: { type: 'string', nullable: true, format: 'date-time' },
+    updatedAt: { type: 'string', nullable: true, format: 'date-time' },
+  },
+}
+
+const knowledgeFormFields = {
+  summary: { type: 'string', maxLength: 2_000 },
+  topics: { type: 'string', description: 'JSON 编码的主题字符串数组，最多 20 项。' },
+  enabled: { type: 'boolean' },
+  roleIds: { type: 'string', description: 'JSON 编码的角色 ID 数组，最多 100 项。' },
+} as const
 
 function parseRoleIds(value: unknown) {
   let parsed = value
@@ -117,7 +173,11 @@ export default class KnowledgeDocumentsController {
   @ApiQuery({ name: 'title', required: false, schema: { type: 'string', maxLength: 200 } })
   @ApiQuery({ name: 'summary', required: false, schema: { type: 'string', maxLength: 2_000 } })
   @ApiQuery({ name: 'content', required: false, schema: { type: 'string', maxLength: 200 } })
-  @ApiResponse({ status: 200, description: '按角色可见并包含角色范围的知识文档分页列表' })
+  @ApiResponse({
+    status: 200,
+    description: '按角色可见并包含角色范围的知识文档分页列表',
+    schema: paginatedDataEnvelope(knowledgeDocumentSchema),
+  })
   async index({ auth, request, serialize }: HttpContext) {
     const payload = await knowledgeDocumentListValidator.validate(request.qs())
     const user = auth.getUserOrFail()
@@ -147,7 +207,38 @@ export default class KnowledgeDocumentsController {
   }
 
   @ApiOperation({ summary: '生成知识文档目录元数据建议' })
-  @ApiResponse({ status: 200, description: 'LLM 提取的待确认元数据建议' })
+  @ApiBody({
+    mediaType: 'multipart/form-data',
+    required: true,
+    schema: {
+      type: 'object',
+      required: ['file'],
+      properties: {
+        file: { type: 'string', format: 'binary', description: '最大 5 MB 的 UTF-8 纯文本文件。' },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'LLM 提取的待确认元数据建议',
+    schema: dataEnvelope({
+      type: 'object',
+      required: ['summary', 'topics'],
+      properties: {
+        summary: { type: 'string', nullable: true, maxLength: 2_000 },
+        topics: {
+          type: 'array',
+          maxItems: 20,
+          items: { type: 'string', minLength: 1, maxLength: 80 },
+        },
+      },
+    }),
+  })
+  @ApiResponse({
+    status: 422,
+    description: '文本文件无效或元数据提取失败',
+    schema: errorResponseSchema,
+  })
   async metadataPreview(ctx: HttpContext) {
     const { response, serialize } = ctx
     const textFile = await readTextFile(ctx, true)
@@ -165,7 +256,32 @@ export default class KnowledgeDocumentsController {
   }
 
   @ApiOperation({ summary: '创建并索引知识文档' })
-  @ApiResponse({ status: 200, description: '已创建的知识文档' })
+  @ApiBody({
+    mediaType: 'multipart/form-data',
+    required: true,
+    schema: {
+      type: 'object',
+      required: ['file'],
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+          description: '最大 5 MB 的 UTF-8 纯文本文件；文件名生成标题。',
+        },
+        ...knowledgeFormFields,
+      },
+    },
+  })
+  @ApiResponse({
+    status: 200,
+    description: '已创建的知识文档',
+    schema: dataEnvelope(knowledgeDocumentSchema),
+  })
+  @ApiResponse({
+    status: 422,
+    description: '文件、元数据或角色选择无效',
+    schema: errorResponseSchema,
+  })
   async store(ctx: HttpContext) {
     const { auth, request, response, serialize } = ctx
     const textFile = await readTextFile(ctx, true)
@@ -205,7 +321,51 @@ export default class KnowledgeDocumentsController {
   }
 
   @ApiOperation({ summary: '批量创建并索引知识文档' })
-  @ApiResponse({ status: 200, description: '批量创建结果，包含成功和失败文件' })
+  @ApiBody({
+    mediaType: 'multipart/form-data',
+    required: true,
+    schema: {
+      type: 'object',
+      required: ['files'],
+      properties: {
+        files: {
+          type: 'array',
+          maxItems: 20,
+          items: {
+            type: 'string',
+            format: 'binary',
+            description: '每份最大 5 MB；支持 txt、md、markdown、rst。',
+          },
+        },
+        enabled: knowledgeFormFields.enabled,
+        roleIds: knowledgeFormFields.roleIds,
+      },
+    },
+  })
+  @ApiResponse({
+    status: 200,
+    description: '批量创建结果，包含成功和失败文件',
+    schema: dataEnvelope({
+      type: 'object',
+      required: ['items', 'failed'],
+      properties: {
+        items: { type: 'array', items: knowledgeDocumentSchema },
+        failed: {
+          type: 'array',
+          items: {
+            type: 'object',
+            required: ['fileName', 'message'],
+            properties: { fileName: { type: 'string' }, message: { type: 'string' } },
+          },
+        },
+      },
+    }),
+  })
+  @ApiResponse({
+    status: 422,
+    description: '未成功创建任何文档或批量字段无效',
+    schema: errorResponseSchema,
+  })
   async storeBatch(ctx: HttpContext) {
     const { request, response, serialize } = ctx
     try {
@@ -283,7 +443,31 @@ export default class KnowledgeDocumentsController {
   }
 
   @ApiOperation({ summary: '更新并重新索引知识文档' })
-  @ApiResponse({ status: 200, description: '已更新的知识文档' })
+  @ApiBody({
+    mediaType: 'multipart/form-data',
+    schema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+          description: '可选，最大 5 MB 的 UTF-8 纯文本文件。',
+        },
+        ...knowledgeFormFields,
+      },
+    },
+  })
+  @ApiResponse({
+    status: 200,
+    description: '已更新的知识文档',
+    schema: dataEnvelope(knowledgeDocumentSchema),
+  })
+  @ApiResponse({ status: 404, description: '知识文档不存在', schema: errorResponseSchema })
+  @ApiResponse({
+    status: 422,
+    description: '文件、元数据或角色选择无效',
+    schema: errorResponseSchema,
+  })
   async update(ctx: HttpContext) {
     const { auth, params, request, response, serialize } = ctx
     const document = await KnowledgeDocument.findOrFail(params.id)
@@ -356,7 +540,12 @@ export default class KnowledgeDocumentsController {
   }
 
   @ApiOperation({ summary: '使用当前内容重建知识文档向量索引' })
-  @ApiResponse({ status: 200, description: '已重新索引的知识文档' })
+  @ApiResponse({
+    status: 200,
+    description: '已重新索引的知识文档',
+    schema: dataEnvelope(knowledgeDocumentSchema),
+  })
+  @ApiResponse({ status: 404, description: '知识文档不存在', schema: errorResponseSchema })
   async reindex(ctx: HttpContext) {
     const { auth, params, serialize } = ctx
     const document = await KnowledgeDocument.findOrFail(params.id)
@@ -377,7 +566,16 @@ export default class KnowledgeDocumentsController {
   }
 
   @ApiOperation({ summary: '删除知识文档' })
-  @ApiResponse({ status: 200, description: '已删除的知识文档 ID' })
+  @ApiResponse({
+    status: 200,
+    description: '知识文档已删除',
+    schema: dataEnvelope({
+      type: 'object',
+      required: ['id', 'deleted'],
+      properties: { id: { type: 'integer' }, deleted: { type: 'boolean', enum: [true] } },
+    }),
+  })
+  @ApiResponse({ status: 404, description: '知识文档不存在', schema: errorResponseSchema })
   async destroy(ctx: HttpContext) {
     const { auth, params, serialize } = ctx
     const document = await KnowledgeDocument.findOrFail(params.id)

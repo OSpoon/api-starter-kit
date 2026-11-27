@@ -6,7 +6,13 @@ import { join } from 'node:path'
 import { pipeline } from 'node:stream/promises'
 
 import type { HttpContext } from '@adonisjs/core/http'
-import { ApiBody, ApiOperation, ApiResponse, ApiSecurity } from '@foadonis/openapi/decorators'
+import {
+  ApiBody,
+  ApiOperation,
+  ApiQuery,
+  ApiResponse,
+  ApiSecurity,
+} from '@foadonis/openapi/decorators'
 
 import {
   getAiAgentToolSettings,
@@ -50,12 +56,86 @@ import {
 } from '#validators/ai_agent_configuration'
 import { paginationSearchQueryValidator } from '#validators/pagination'
 
+import {
+  type ApiSchema,
+  dataEnvelope,
+  errorResponseSchema,
+  paginatedDataEnvelope,
+} from '../openapi/response_schemas.js'
+
+const toolSettingSchema: ApiSchema = {
+  type: 'object',
+  required: ['code', 'enabled', 'mode', 'modeConfigurable', 'requiresConfirmation'],
+  properties: {
+    code: { type: 'string' },
+    enabled: { type: 'boolean' },
+    mode: { type: 'string', enum: ['direct', 'confirm'] },
+    modeConfigurable: { type: 'boolean' },
+    requiresConfirmation: { type: 'boolean' },
+  },
+}
+
+const mineruStatusSchema: ApiSchema = {
+  type: 'object',
+  required: ['source', 'maskedToken'],
+  properties: {
+    source: { type: 'string', nullable: true, enum: ['web'] },
+    maskedToken: { type: 'string', nullable: true },
+  },
+}
+
+const skillSchema: ApiSchema = {
+  type: 'object',
+  required: ['code', 'name', 'description', 'enabled', 'updatedAt'],
+  properties: {
+    code: { type: 'string' },
+    name: { type: 'string' },
+    description: { type: 'string' },
+    enabled: { type: 'boolean' },
+    updatedAt: { type: 'string', format: 'date-time' },
+  },
+}
+
+const mcpServerSchema: ApiSchema = {
+  type: 'object',
+  required: [
+    'id',
+    'name',
+    'command',
+    'args',
+    'cwd',
+    'enabled',
+    'environmentConfigured',
+    'updatedAt',
+  ],
+  properties: {
+    id: { type: 'string' },
+    name: { type: 'string' },
+    command: { type: 'string' },
+    args: { type: 'array', items: { type: 'string' } },
+    cwd: { type: 'string', nullable: true },
+    enabled: { type: 'boolean' },
+    environmentConfigured: { type: 'boolean' },
+    updatedAt: { type: 'string', format: 'date-time' },
+  },
+}
+
+const configurationResponseSchema: ApiSchema = {
+  type: 'object',
+  required: ['tools', 'mineru'],
+  properties: {
+    tools: { type: 'array', items: toolSettingSchema },
+    mineru: mineruStatusSchema,
+  },
+}
+
 @ApiSecurity('bearerAuth')
 export default class AgentConfigurationsController {
   @ApiOperation({ summary: '获取 Agent 工具配置目录' })
   @ApiResponse({
     status: 200,
     description: '内置 Agent 工具的启用状态、执行策略及脱敏后的 MinerU Token',
+    schema: dataEnvelope(configurationResponseSchema),
   })
   async show({ serialize }: HttpContext) {
     return serialize({
@@ -65,6 +145,13 @@ export default class AgentConfigurationsController {
   }
 
   @ApiOperation({ summary: '更新 Agent 内置工具配置' })
+  @ApiBody({ type: () => updateAiAgentConfigurationValidator, required: true })
+  @ApiResponse({
+    status: 200,
+    description: '已更新 Agent 工具配置',
+    schema: dataEnvelope(configurationResponseSchema),
+  })
+  @ApiResponse({ status: 422, description: '工具配置无效', schema: errorResponseSchema })
   async updateConfiguration(ctx: HttpContext) {
     const payload = await updateAiAgentConfigurationValidator.validate(ctx.request.body())
     const configuration = await updateAiAgentToolSettings(payload.tools)
@@ -96,8 +183,12 @@ export default class AgentConfigurationsController {
       },
     },
   })
-  @ApiResponse({ status: 200, description: '返回工具配置列表和脱敏后的 MinerU Token' })
-  @ApiResponse({ status: 422, description: 'Token 或启用参数无效' })
+  @ApiResponse({
+    status: 200,
+    description: '返回工具配置列表和脱敏后的 MinerU Token',
+    schema: dataEnvelope(configurationResponseSchema),
+  })
+  @ApiResponse({ status: 422, description: 'Token 或启用参数无效', schema: errorResponseSchema })
   async updateMineruConfiguration(ctx: HttpContext) {
     const { token, enable } = await ctx.request.validateUsing(updateMineruTokenValidator)
     if ((token === undefined && !enable) || (token === null && enable)) {
@@ -128,7 +219,17 @@ export default class AgentConfigurationsController {
   }
 
   @ApiOperation({ summary: '获取已安装的 Agent 技能' })
-  @ApiResponse({ status: 200, description: '分页返回已安装技能的名称、说明和启用状态' })
+  @ApiQuery({ name: 'page', required: false, schema: { type: 'integer', minimum: 1 } })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    schema: { type: 'integer', minimum: 1, maximum: 100 },
+  })
+  @ApiResponse({
+    status: 200,
+    description: '分页返回已安装技能的名称、说明和启用状态',
+    schema: paginatedDataEnvelope(skillSchema),
+  })
   async skills({ request, serialize }: HttpContext) {
     const pagination = await paginationSearchQueryValidator.validate(request.qs())
     const result = await listAiAgentSkills(
@@ -139,8 +240,17 @@ export default class AgentConfigurationsController {
   }
 
   @ApiOperation({ summary: '通过 skills CLI 安装 Agent 技能' })
-  @ApiResponse({ status: 200, description: '返回本次新增的技能名称' })
-  @ApiResponse({ status: 422, description: '来源地址无效' })
+  @ApiBody({ type: () => installAiAgentSkillsValidator, required: true })
+  @ApiResponse({
+    status: 200,
+    description: '本次新增的技能名称',
+    schema: dataEnvelope({
+      type: 'object',
+      required: ['installed'],
+      properties: { installed: { type: 'array', items: { type: 'string' } } },
+    }),
+  })
+  @ApiResponse({ status: 422, description: '来源地址无效', schema: errorResponseSchema })
   async installSkills(ctx: HttpContext) {
     const payload = await installAiAgentSkillsValidator.validate(ctx.request.body())
     try {
@@ -170,9 +280,17 @@ export default class AgentConfigurationsController {
       properties: { file: { type: 'string', format: 'binary' } },
     },
   })
-  @ApiResponse({ status: 200, description: '返回安装的技能，默认停用' })
-  @ApiResponse({ status: 409, description: '技能代码已存在' })
-  @ApiResponse({ status: 422, description: 'ZIP 或技能包无效' })
+  @ApiResponse({
+    status: 200,
+    description: '安装后默认停用的技能名称',
+    schema: dataEnvelope({
+      type: 'object',
+      required: ['installed'],
+      properties: { installed: { type: 'array', items: { type: 'string' } } },
+    }),
+  })
+  @ApiResponse({ status: 409, description: '技能代码已存在', schema: errorResponseSchema })
+  @ApiResponse({ status: 422, description: 'ZIP 或技能包无效', schema: errorResponseSchema })
   async installSkillZip(ctx: HttpContext) {
     if (!ctx.request.is(['multipart/form-data'])) {
       return ctx.response.unprocessableEntity({ message: '请上传 ZIP 文件' })
@@ -203,8 +321,9 @@ export default class AgentConfigurationsController {
   }
 
   @ApiOperation({ summary: '更新 Agent 技能的启用状态' })
-  @ApiResponse({ status: 200, description: '返回更新后的技能' })
-  @ApiResponse({ status: 404, description: '技能不存在' })
+  @ApiBody({ type: () => updateAiAgentSkillValidator, required: true })
+  @ApiResponse({ status: 200, description: '更新后的技能', schema: dataEnvelope(skillSchema) })
+  @ApiResponse({ status: 404, description: '技能不存在', schema: errorResponseSchema })
   async updateSkill(ctx: HttpContext) {
     const payload = await updateAiAgentSkillValidator.validate(ctx.request.body())
     const { code } = await aiAgentSkillCodeValidator.validate({ code: ctx.request.param('code') })
@@ -220,8 +339,16 @@ export default class AgentConfigurationsController {
   }
 
   @ApiOperation({ summary: '移除 Agent 技能' })
-  @ApiResponse({ status: 200, description: '返回移除结果' })
-  @ApiResponse({ status: 404, description: '技能不存在' })
+  @ApiResponse({
+    status: 200,
+    description: 'Agent 技能已移除',
+    schema: dataEnvelope({
+      type: 'object',
+      required: ['code', 'removed'],
+      properties: { code: { type: 'string' }, removed: { type: 'boolean', enum: [true] } },
+    }),
+  })
+  @ApiResponse({ status: 404, description: '技能不存在', schema: errorResponseSchema })
   async removeSkill(ctx: HttpContext) {
     const { code } = await aiAgentSkillCodeValidator.validate({ code: ctx.request.param('code') })
     const skill = await removeAiAgentSkill(code)
@@ -236,7 +363,17 @@ export default class AgentConfigurationsController {
   }
 
   @ApiOperation({ summary: '分页获取已配置的 MCP 服务' })
-  @ApiResponse({ status: 200, description: '返回服务配置元数据，不包含环境变量值' })
+  @ApiQuery({ name: 'page', required: false, schema: { type: 'integer', minimum: 1 } })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    schema: { type: 'integer', minimum: 1, maximum: 100 },
+  })
+  @ApiResponse({
+    status: 200,
+    description: '返回服务配置元数据，不包含环境变量值',
+    schema: paginatedDataEnvelope(mcpServerSchema),
+  })
   async mcpServers({ request, serialize }: HttpContext) {
     const pagination = await paginationSearchQueryValidator.validate(request.qs())
     const result = await listAiAgentMcpServers(
@@ -247,14 +384,48 @@ export default class AgentConfigurationsController {
   }
 
   @ApiOperation({ summary: '获取共享 MCP 服务启动配置' })
-  @ApiResponse({ status: 200, description: '环境变量不会返回给客户端' })
+  @ApiResponse({
+    status: 200,
+    description: 'MCP 启动配置，不包含环境变量值',
+    schema: dataEnvelope({
+      type: 'object',
+      required: ['mcpServers'],
+      properties: {
+        mcpServers: {
+          type: 'object',
+          additionalProperties: {
+            type: 'object',
+            required: ['command', 'args'],
+            properties: {
+              command: { type: 'string' },
+              args: { type: 'array', items: { type: 'string' } },
+              cwd: { type: 'string', nullable: true },
+            },
+          },
+        },
+      },
+    }),
+  })
   async mcpConfiguration({ serialize }: HttpContext) {
     return serialize(await getAiAgentMcpConfiguration())
   }
 
   @ApiOperation({ summary: '替换共享 MCP 服务启动配置' })
-  @ApiResponse({ status: 200, description: '返回已保存的 MCP 服务' })
-  @ApiResponse({ status: 422, description: '命令、参数或环境变量无效' })
+  @ApiBody({ type: () => updateAiAgentMcpConfigurationValidator, required: true })
+  @ApiResponse({
+    status: 200,
+    description: '已保存的 MCP 服务列表',
+    schema: dataEnvelope({
+      type: 'object',
+      required: ['items'],
+      properties: { items: { type: 'array', items: mcpServerSchema } },
+    }),
+  })
+  @ApiResponse({
+    status: 422,
+    description: '命令、参数或环境变量无效',
+    schema: errorResponseSchema,
+  })
   async updateMcpConfiguration(ctx: HttpContext) {
     const payload = await updateAiAgentMcpConfigurationValidator.validate(ctx.request.body())
     const entries = Object.fromEntries(
@@ -280,8 +451,13 @@ export default class AgentConfigurationsController {
   }
 
   @ApiOperation({ summary: '启用或停用 MCP 服务及其全部工具' })
-  @ApiResponse({ status: 200, description: '返回更新后的服务状态' })
-  @ApiResponse({ status: 404, description: 'MCP 服务不存在' })
+  @ApiBody({ type: () => updateAiAgentMcpServerValidator, required: true })
+  @ApiResponse({
+    status: 200,
+    description: '更新后的 MCP 服务状态',
+    schema: dataEnvelope(mcpServerSchema),
+  })
+  @ApiResponse({ status: 404, description: 'MCP 服务不存在', schema: errorResponseSchema })
   async updateMcpServer(ctx: HttpContext) {
     const payload = await updateAiAgentMcpServerValidator.validate(ctx.request.body())
     const { id } = await aiAgentMcpServerIdValidator.validate({ id: ctx.request.param('id') })
@@ -297,7 +473,30 @@ export default class AgentConfigurationsController {
   }
 
   @ApiOperation({ summary: '启动 MCP 服务并读取其工具目录' })
-  @ApiResponse({ status: 200, description: '返回工具名称、说明和只读声明' })
+  @ApiResponse({
+    status: 200,
+    description: 'MCP 工具名称、说明、参数 schema 和只读声明',
+    schema: dataEnvelope({
+      type: 'object',
+      required: ['tools', 'server'],
+      properties: {
+        tools: {
+          type: 'array',
+          items: {
+            type: 'object',
+            required: ['name', 'description', 'inputSchema', 'readOnlyHint'],
+            properties: {
+              name: { type: 'string' },
+              description: { type: 'string' },
+              inputSchema: { type: 'object', additionalProperties: true },
+              readOnlyHint: { type: 'boolean' },
+            },
+          },
+        },
+        server: mcpServerSchema,
+      },
+    }),
+  })
   async discoverMcpTools(ctx: HttpContext) {
     const { id } = await aiAgentMcpServerIdValidator.validate({ id: ctx.request.param('id') })
     const server = await getAiAgentMcpServer(id)

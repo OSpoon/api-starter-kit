@@ -1,5 +1,11 @@
 import type { HttpContext } from '@adonisjs/core/http'
-import { ApiQuery, ApiResponse } from '@foadonis/openapi/decorators'
+import {
+  ApiBody,
+  ApiOperation,
+  ApiQuery,
+  ApiResponse,
+  ApiSecurity,
+} from '@foadonis/openapi/decorators'
 
 import User from '#models/user'
 import { generateInitialPassword } from '#security/user_credentials'
@@ -25,6 +31,13 @@ import {
   updateManagedUserValidator,
 } from '#validators/rbac'
 
+import {
+  type ApiSchema,
+  dataEnvelope,
+  errorResponseSchema,
+  paginationMetaSchema,
+} from '../openapi/response_schemas.js'
+
 function serializeUserListItem(user: User) {
   const roles = user.roles ?? []
   const permissions = new Set(
@@ -43,12 +56,75 @@ function serializeUserListItem(user: User) {
   }
 }
 
+const userRoleSchema: ApiSchema = {
+  type: 'object',
+  required: ['id', 'code', 'name'],
+  properties: {
+    id: { type: 'integer' },
+    code: { type: 'string' },
+    name: { type: 'string' },
+  },
+}
+
+const userListItemSchema: ApiSchema = {
+  type: 'object',
+  required: ['id', 'fullName', 'email', 'twoFactorEnabled', 'roles', 'permissions'],
+  properties: {
+    id: { type: 'integer' },
+    fullName: { type: 'string' },
+    email: { type: 'string', format: 'email' },
+    twoFactorEnabled: { type: 'boolean' },
+    roles: { type: 'array', items: userRoleSchema },
+    permissions: { type: 'array', items: { type: 'string' } },
+  },
+}
+
+const managedUserSchema: ApiSchema = {
+  type: 'object',
+  required: ['id', 'fullName', 'email', 'roles', 'permissions'],
+  properties: {
+    id: { type: 'integer' },
+    fullName: { type: 'string' },
+    email: { type: 'string', format: 'email' },
+    createdAt: { type: 'string', format: 'date-time' },
+    updatedAt: { type: 'string', format: 'date-time' },
+    initials: { type: 'string' },
+    twoFactorEnabled: { type: 'boolean' },
+    passwordChangedAt: { type: 'string', format: 'date-time', nullable: true },
+    roles: { type: 'array', items: userRoleSchema },
+    permissions: { type: 'array', items: { type: 'string' } },
+  },
+} as const
+
+@ApiSecurity('bearerAuth')
 export default class UsersController {
+  @ApiOperation({
+    summary: '分页获取用户',
+    description: '按姓名、邮箱、角色 ID 或渠道绑定状态筛选用户；不返回系统内部账号。',
+  })
+  @ApiQuery({ name: 'page', required: false, schema: { type: 'integer', minimum: 1 } })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    schema: { type: 'integer', minimum: 1, maximum: 100 },
+  })
   @ApiQuery({ name: 'fullName', required: false, schema: { type: 'string', maxLength: 120 } })
   @ApiQuery({ name: 'email', required: false, schema: { type: 'string', maxLength: 254 } })
   @ApiQuery({ name: 'roleIds', required: false, schema: { type: 'string' } })
   @ApiQuery({ name: 'channels', required: false, schema: { type: 'string' } })
-  @ApiResponse({ status: 422, description: '查询参数无效' })
+  @ApiResponse({
+    status: 200,
+    description: '用户分页列表及分页元数据',
+    schema: dataEnvelope({
+      type: 'object',
+      required: ['items', 'meta'],
+      properties: {
+        items: { type: 'array', items: userListItemSchema },
+        meta: paginationMetaSchema,
+      },
+    }),
+  })
+  @ApiResponse({ status: 422, description: '查询参数无效', schema: errorResponseSchema })
   async index({ request, serialize }: HttpContext) {
     const filters = await request.validateUsing(listManagedUsersValidator, {
       data: request.qs(),
@@ -102,7 +178,27 @@ export default class UsersController {
     })
   }
 
-  @ApiResponse({ status: 409, description: '请求包含不存在的角色 ID' })
+  @ApiOperation({
+    summary: '创建用户',
+    description: '创建用户并返回一次性初始密码。初始密码仅在此响应中披露。',
+  })
+  @ApiBody({ type: () => createManagedUserValidator, required: true })
+  @ApiResponse({
+    status: 200,
+    description: '新用户资料和仅披露一次的初始密码',
+    schema: dataEnvelope({
+      type: 'object',
+      required: ['user', 'initialPassword'],
+      properties: {
+        user: managedUserSchema,
+        initialPassword: { type: 'string', description: '仅在用户创建时返回一次' },
+      },
+    }),
+  })
+  @ApiResponse({ status: 400, description: '邮箱已被使用', schema: errorResponseSchema })
+  @ApiResponse({ status: 403, description: '操作者无权授予该角色', schema: errorResponseSchema })
+  @ApiResponse({ status: 409, description: '请求包含不存在的角色 ID', schema: errorResponseSchema })
+  @ApiResponse({ status: 422, description: '用户字段校验失败', schema: errorResponseSchema })
   async store(ctx: HttpContext) {
     const { auth, request, response, serialize } = ctx
     const payload = await request.validateUsing(createManagedUserValidator)
@@ -142,7 +238,25 @@ export default class UsersController {
     })
   }
 
-  @ApiResponse({ status: 409, description: '请求包含不存在的角色 ID' })
+  @ApiOperation({ summary: '更新用户', description: '更新用户资料和角色分配。' })
+  @ApiBody({ type: () => updateManagedUserValidator, required: true })
+  @ApiResponse({
+    status: 200,
+    description: '更新后的用户资料',
+    schema: dataEnvelope(managedUserSchema),
+  })
+  @ApiResponse({
+    status: 400,
+    description: '邮箱已被使用或不能移除当前账号角色',
+    schema: errorResponseSchema,
+  })
+  @ApiResponse({
+    status: 403,
+    description: '目标用户或角色不可由当前操作者管理',
+    schema: errorResponseSchema,
+  })
+  @ApiResponse({ status: 409, description: '请求包含不存在的角色 ID', schema: errorResponseSchema })
+  @ApiResponse({ status: 422, description: '用户字段校验失败', schema: errorResponseSchema })
   async update(ctx: HttpContext) {
     const { auth, params, request, response, serialize } = ctx
     const user = await User.findOrFail(params.id)
@@ -198,6 +312,33 @@ export default class UsersController {
     return serialize(UserTransformer.transform(await loadUserAccess(updatedUser)))
   }
 
+  @ApiOperation({
+    summary: '重置用户密码',
+    description: '生成新初始密码，并仅在此响应中披露一次。',
+  })
+  @ApiResponse({
+    status: 200,
+    description: '用户 ID 和仅披露一次的初始密码',
+    schema: dataEnvelope({
+      type: 'object',
+      required: ['id', 'initialPassword'],
+      properties: {
+        id: { type: 'integer' },
+        initialPassword: { type: 'string', description: '仅在重置时返回一次' },
+      },
+    }),
+  })
+  @ApiResponse({
+    status: 400,
+    description: '不能重置当前登录用户的密码',
+    schema: errorResponseSchema,
+  })
+  @ApiResponse({
+    status: 403,
+    description: '目标用户不可由当前操作者管理',
+    schema: errorResponseSchema,
+  })
+  @ApiResponse({ status: 404, description: '用户不存在', schema: errorResponseSchema })
   async resetPassword(ctx: HttpContext) {
     const { auth, params, response, serialize } = ctx
     const user = await User.findOrFail(params.id)
@@ -223,6 +364,31 @@ export default class UsersController {
     return serialize({ id: user.id, initialPassword })
   }
 
+  @ApiOperation({
+    summary: '删除用户',
+    description: '删除指定用户及其关联授权。不能删除当前登录用户。',
+  })
+  @ApiResponse({
+    status: 200,
+    description: '用户删除结果',
+    schema: dataEnvelope({
+      type: 'object',
+      required: ['id', 'deleted'],
+      properties: { id: { type: 'integer' }, deleted: { type: 'boolean', enum: [true] } },
+    }),
+  })
+  @ApiResponse({ status: 400, description: '不能删除当前登录用户', schema: errorResponseSchema })
+  @ApiResponse({
+    status: 403,
+    description: '目标用户不可由当前操作者删除',
+    schema: errorResponseSchema,
+  })
+  @ApiResponse({ status: 404, description: '用户不存在', schema: errorResponseSchema })
+  @ApiResponse({
+    status: 409,
+    description: '不能删除最后一名启用的超级管理员',
+    schema: errorResponseSchema,
+  })
   async destroy(ctx: HttpContext) {
     const { auth, params, response, serialize } = ctx
     const user = await User.findOrFail(params.id)

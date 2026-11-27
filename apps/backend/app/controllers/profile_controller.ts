@@ -1,5 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http'
-import { ApiOperation, ApiResponse, ApiSecurity } from '@foadonis/openapi/decorators'
+import { ApiBody, ApiOperation, ApiResponse, ApiSecurity } from '@foadonis/openapi/decorators'
 import { DateTime } from 'luxon'
 
 import ChannelIdentity from '#models/channel_identity'
@@ -12,13 +12,23 @@ import { loadUserAccess } from '#services/user_access'
 import UserTransformer from '#transformers/user_transformer'
 import { changePasswordValidator, twoFactorValidator } from '#validators/user'
 
+import {
+  authenticatedUserSchema,
+  dataEnvelope,
+  errorResponseSchema,
+} from '../openapi/response_schemas.js'
+
 @ApiSecurity('bearerAuth')
 export default class ProfileController {
   @ApiOperation({
     summary: '获取管理员资料',
     description: '获取当前登录管理员的资料和安全状态。',
   })
-  @ApiResponse({ status: 200, description: '管理员资料' })
+  @ApiResponse({
+    status: 200,
+    description: '当前管理员资料和安全状态',
+    schema: dataEnvelope(authenticatedUserSchema),
+  })
   async show({ auth, serialize }: HttpContext) {
     return serialize(await this.profilePayload(auth.getUserOrFail()))
   }
@@ -27,9 +37,22 @@ export default class ProfileController {
     summary: '修改登录密码',
     description: '验证当前密码后修改管理员登录密码，并重新计算密码更新时间。',
   })
-  @ApiResponse({ status: 200, description: '已更新的管理员资料' })
-  @ApiResponse({ status: 400, description: '当前密码错误或新旧密码相同' })
-  @ApiResponse({ status: 422, description: '密码强度不足' })
+  @ApiBody({ type: () => changePasswordValidator, required: true })
+  @ApiResponse({
+    status: 200,
+    description: '已更新的管理员资料',
+    schema: dataEnvelope(authenticatedUserSchema),
+  })
+  @ApiResponse({
+    status: 400,
+    description: '当前密码错误或新旧密码相同',
+    schema: errorResponseSchema,
+  })
+  @ApiResponse({
+    status: 422,
+    description: '密码字段无效或密码强度不足',
+    schema: errorResponseSchema,
+  })
   async changePassword(ctx: HttpContext) {
     const { auth, request, response, serialize } = ctx
     const user = auth.getUserOrFail()
@@ -72,8 +95,14 @@ export default class ProfileController {
     summary: '停用双重身份验证',
     description: '验证登录密码后停用 2FA，并清空 2FA secret 和恢复码。',
   })
-  @ApiResponse({ status: 200, description: '已更新的管理员资料' })
-  @ApiResponse({ status: 400, description: '密码错误' })
+  @ApiBody({ type: () => twoFactorValidator, required: true })
+  @ApiResponse({
+    status: 200,
+    description: '已停用 2FA 的管理员资料',
+    schema: dataEnvelope(authenticatedUserSchema),
+  })
+  @ApiResponse({ status: 400, description: '密码错误', schema: errorResponseSchema })
+  @ApiResponse({ status: 422, description: '密码字段无效', schema: errorResponseSchema })
   async disableTwoFactor(ctx: HttpContext) {
     const { auth, request, response, serialize } = ctx
     const user = auth.getUserOrFail()
@@ -102,8 +131,18 @@ export default class ProfileController {
     summary: '解绑 GitHub 账号',
     description: '验证当前登录密码后解除当前管理员与 GitHub 账号的绑定。',
   })
-  @ApiResponse({ status: 200, description: '已解绑 GitHub 的管理员资料' })
-  @ApiResponse({ status: 400, description: '当前密码错误或未绑定 GitHub' })
+  @ApiBody({ type: () => twoFactorValidator, required: true })
+  @ApiResponse({
+    status: 200,
+    description: '已解绑 GitHub 的管理员资料',
+    schema: dataEnvelope(authenticatedUserSchema),
+  })
+  @ApiResponse({
+    status: 400,
+    description: '当前密码错误或未绑定 GitHub',
+    schema: errorResponseSchema,
+  })
+  @ApiResponse({ status: 422, description: '密码字段无效', schema: errorResponseSchema })
   async unlinkGithub(ctx: HttpContext) {
     const { auth, request, response, serialize } = ctx
     const user = auth.getUserOrFail()
