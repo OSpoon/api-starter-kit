@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises'
+import { readdir, readFile } from 'node:fs/promises'
 
 import testUtils from '@adonisjs/core/services/test_utils'
 import { test } from '@japa/runner'
@@ -17,10 +17,14 @@ test.group('permission catalog', (group) => {
       permissionCatalog.map((permission) => permission.code)
     )
 
+    const frontendRouteModules = new URL('../../../frontend/src/router/modules/', import.meta.url)
+    const routeModuleFiles = await readdir(frontendRouteModules, { recursive: true })
     const sources = await Promise.all(
       [
         new URL('../../start/routes.ts', import.meta.url),
-        new URL('../../../frontend/src/router/modules/workbench.ts', import.meta.url),
+        ...routeModuleFiles
+          .filter((file) => file.endsWith('.ts'))
+          .map((file) => new URL(file, frontendRouteModules)),
       ].map((url) => readFile(url, 'utf8'))
     )
     const routeCodes = new Set(
